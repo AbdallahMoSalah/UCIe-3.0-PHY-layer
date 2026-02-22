@@ -1,0 +1,89 @@
+m255
+K4
+z2
+Z0 !s99 nomlopt
+R0
+R0
+R0
+R0
+R0
+R0
+!s11f vlog 2021.2_1 2021.05, May 15 2021
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z1 d/home/dokhmis/questasim/bin
+T_opt
+!s110 1771679671
+VlPYf]A]3j:RIXUi_13_O22
+04 21 4 work AWAKE_handshake_block fast 0
+=2-000ae431a4f1-6999afb7-8e266-51f8
+Z2 !s124 OEM100
+Z3 o-quiet -auto_acc_if_foreign -work work +acc
+Z4 tCvgOpt 0
+n@_opt
+Z5 OL;O;2021.2_1;73
+R1
+T_opt1
+!s110 1771682096
+V2KE2YnWADZN@FA=E71i=z2
+04 9 4 work testbench fast 0
+=1-000ae431a4f1-6999b930-adfb5-7ff8
+R2
+R3
+R4
+n@_opt1
+R5
+R1
+vAWAKE_handshake_block
+Z6 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
+Z7 !s110 1771682603
+!i10b 1
+!s100 =GT76eH:8OZ`;^=35G[X30
+IJPNF>FIb_XeQ]H=??l3gh0
+S1
+Z8 d/home/dokhmis/Desktop/GP/UCIe-3.0-PHY-layer/MainSM/RDI SM/AWAKE handshake block
+w1771682092
+8AWAKE_handshake_block.sv
+FAWAKE_handshake_block.sv
+!i122 18
+L0 1 36
+Z9 VDg1SIo80bB@j0V0VzS_@n1
+Z10 OL;L;2021.2_1;73
+r1
+!s85 0
+31
+Z11 !s108 1771682603.000000
+!s107 testbench.sv|AWAKE_handshake_block.sv|
+Z12 !s90 -reportprogress|300|AWAKE_handshake_block.sv|testbench.sv|
+!i113 0
+Z13 o-L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+R4
+n@a@w@a@k@e_handshake_block
+vtestbench
+R6
+R7
+!i10b 1
+!s100 SCY7TXEC?QeZUQe0E42Cj3
+IWXZfPC5]D9HH>FkJgB4NW0
+S1
+R8
+w1771681409
+8testbench.sv
+Ftestbench.sv
+!i122 18
+L0 1 37
+R9
+R10
+r1
+!s85 0
+31
+R11
+Z14 !s107 testbench.sv|AWAKE_handshake_block.sv|
+R12
+!i113 0
+R13
+R4
