@@ -1,8 +1,1 @@
-D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv {1 {vlog -work work -vopt -sv -stats=none D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
-QuestaSim-64 vlog 2024.1 Compiler 2024.02 Feb  1 2024
--- Compiling module tb_Mapper
 
-Top level modules:
-	tb_Mapper
-
-} {} {}}
