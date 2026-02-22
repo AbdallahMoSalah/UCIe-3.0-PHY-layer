@@ -28,17 +28,17 @@ module Mapper #(
     //============================================================
     // Calculations
     //============================================================
-    localparam N_BYTE_PER_LANE = WIDTH / 8;          // 4 bytes
-    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE; // 16 words
+    localparam N_BYTE_PER_LANE = WIDTH / 8;
+    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE;
 
-    localparam CLOCK_CYCLES_16 = NUM_WORDS / 16; // 1
-    localparam CLOCK_CYCLES_8  = NUM_WORDS / 8;  // 2
-    localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;  // 4
+    localparam CLOCK_CYCLES_16 = NUM_WORDS / 16;
+    localparam CLOCK_CYCLES_8  = NUM_WORDS / 8;
+    localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;
 
     //============================================================
     // Internal Registers
     //============================================================
-    reg [$clog2(CLOCK_CYCLES_4)-1:0] cycle_count;
+    reg [$clog2(CLOCK_CYCLES_4+1)-1:0] cycle_count;
     reg [WIDTH-1:0] lane_data [0:NUM_LANES-1];
     reg [8*N_BYTES-1:0] data_shift_reg;
 
@@ -51,14 +51,11 @@ module Mapper #(
         if (!i_rst_n) begin
             cycle_count    <= 0;
             data_shift_reg <= 0;
-
             for (i = 0; i < NUM_LANES; i = i + 1)
                 lane_data[i] <= 0;
         end
-
         else if (mapper_en) begin
-
-            // Clear lanes every cycle
+            // Clear all lanes before assignment
             for (i = 0; i < NUM_LANES; i = i + 1)
                 lane_data[i] <= 0;
 
@@ -69,18 +66,21 @@ module Mapper #(
             //====================================================
             DEGRADE_LANES_0_TO_15: begin
                 if (cycle_count < CLOCK_CYCLES_16) begin
-
-                    if (cycle_count == 0)
-                        data_shift_reg <= i_in_data;
-
-                    for (i = 0; i < 16; i = i + 1)
-                        lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
-
-                    data_shift_reg <= data_shift_reg >> (16*WIDTH);
-                    cycle_count    <= cycle_count + 1;
+                    if (cycle_count == 0) begin
+                        for (i = 0; i < NUM_LANES; i = i + 1)begin
+                            lane_data[i] <= i_in_data[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= i_in_data >> (NUM_LANES*WIDTH);
+                    end
+                    else begin
+                        for (i = 0; i < NUM_LANES; i = i + 1)begin
+                            lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= data_shift_reg >> (NUM_LANES*WIDTH);
+                    end
+                    cycle_count <= cycle_count + 1;
                 end
-                else
-                    cycle_count <= 0;
+                
             end
 
             //====================================================
@@ -88,18 +88,22 @@ module Mapper #(
             //====================================================
             DEGRADE_LANES_0_TO_7: begin
                 if (cycle_count < CLOCK_CYCLES_8) begin
+                    if (cycle_count == 0) begin
+                        for (i = 0; i < 8; i = i + 1)begin
+                            lane_data[i] <= i_in_data[i*WIDTH +: WIDTH];
+                        end 
 
-                    if (cycle_count == 0)
-                        data_shift_reg <= i_in_data;
-
-                    for (i = 0; i < 8; i = i + 1)
-                        lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
-
-                    data_shift_reg <= data_shift_reg >> (8*WIDTH);
-                    cycle_count    <= cycle_count + 1;
+                        data_shift_reg <= i_in_data >> (8*WIDTH);
+                    end
+                    else begin
+                        for (i = 0; i < 8; i = i + 1)begin
+                            lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= data_shift_reg >> (8*WIDTH);
+                    end
+                    cycle_count <= cycle_count + 1;
                 end
-                else
-                    cycle_count <= 0;
+            
             end
 
             //====================================================
@@ -107,18 +111,21 @@ module Mapper #(
             //====================================================
             DEGRADE_LANES_8_TO_15: begin
                 if (cycle_count < CLOCK_CYCLES_8) begin
-
-                    if (cycle_count == 0)
-                        data_shift_reg <= i_in_data;
-
-                    for (i = 0; i < 8; i = i + 1)
-                        lane_data[8+i] <= data_shift_reg[i*WIDTH +: WIDTH];
-
-                    data_shift_reg <= data_shift_reg >> (8*WIDTH);
-                    cycle_count    <= cycle_count + 1;
+                    if (cycle_count == 0) begin
+                        for (i = 0; i < 8; i = i + 1)begin
+                            lane_data[i+8] <= i_in_data[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= i_in_data >> (8*WIDTH);
+                    end
+                    else begin
+                        for (i = 0; i < 8; i = i + 1)begin
+                            lane_data[i+8] <= data_shift_reg[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= data_shift_reg >> (8*WIDTH);
+                    end
+                    cycle_count <= cycle_count + 1;
                 end
-                else
-                    cycle_count <= 0;
+               
             end
 
             //====================================================
@@ -126,18 +133,20 @@ module Mapper #(
             //====================================================
             DEGRADE_LANES_0_TO_3: begin
                 if (cycle_count < CLOCK_CYCLES_4) begin
-
-                    if (cycle_count == 0)
-                        data_shift_reg <= i_in_data;
-
-                    for (i = 0; i < 4; i = i + 1)
-                        lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
-
-                    data_shift_reg <= data_shift_reg >> (4*WIDTH);
-                    cycle_count    <= cycle_count + 1;
+                    if (cycle_count == 0) begin   // <-- FIXED
+                        for (i = 0; i < 4; i = i + 1)begin
+                            lane_data[i] <= i_in_data[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= i_in_data >> (4*WIDTH);
+                    end
+                    else begin
+                        for (i = 0; i < 4; i = i + 1)begin
+                            lane_data[i] <= data_shift_reg[i*WIDTH +: WIDTH];
+                        end
+                        data_shift_reg <= data_shift_reg >> (4*WIDTH);
+                    end
+                    cycle_count <= cycle_count + 1;
                 end
-                else
-                    cycle_count <= 0;
             end
 
             //====================================================
@@ -145,33 +154,41 @@ module Mapper #(
             //====================================================
             DEGRADE_LANES_4_TO_7: begin
                 if (cycle_count < CLOCK_CYCLES_4) begin
-
-                    if (cycle_count == 0)
-                        data_shift_reg <= i_in_data;
-
-                    for (i = 0; i < 4; i = i + 1)
-                        lane_data[4+i] <= data_shift_reg[i*WIDTH +: WIDTH];
-
-                    data_shift_reg <= data_shift_reg >> (4*WIDTH);
-                    cycle_count    <= cycle_count + 1;
+                    if (cycle_count == 0) begin   // <-- FIXED
+                        for (i = 0; i < 4; i = i + 1)begin
+                            lane_data[i+4] <= i_in_data[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= i_in_data >> (4*WIDTH);
+                    end
+                    else begin
+                        for (i = 0; i < 4; i = i + 1)begin
+                            lane_data[i+4] <= data_shift_reg[i*WIDTH +: WIDTH];
+                        end 
+                        data_shift_reg <= data_shift_reg >> (4*WIDTH);
+                    end
+                    cycle_count <= cycle_count + 1;
                 end
-                else
-                    cycle_count <= 0;
+               
             end
 
             default: begin
-                cycle_count    <= 0;
-                data_shift_reg <= 0;
-            end
-
+                    for (i = 0; i < NUM_LANES; i = i + 1) begin
+                        lane_data[i] <= {WIDTH{1'b0}};
+                    end
+                    data_shift_reg <= 0;
+                end
             endcase
         end
         else begin
-            cycle_count    <= 0;
+            // IDLE state
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                lane_data[i] <= {WIDTH{1'b0}};
+            end
+            cycle_count <= 0;
             data_shift_reg <= 0;
         end
     end
-
+    
     //============================================================
     // Output Assignment
     //============================================================
@@ -194,4 +211,4 @@ module Mapper #(
         o_lane_15 = lane_data[15];
     end
 
-endmodule 
+endmodule
