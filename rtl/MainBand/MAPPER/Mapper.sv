@@ -29,16 +29,16 @@ module Mapper #(
     // Calculations
     //============================================================
     localparam N_BYTE_PER_LANE = WIDTH / 8;
-    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE;
+    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE;  // 16 word 
 
-    localparam CLOCK_CYCLES_16 = NUM_WORDS / 16;
-    localparam CLOCK_CYCLES_8  = NUM_WORDS / 8;
-    localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;
+    localparam CLOCK_CYCLES_16 = NUM_WORDS / 16; // 1 cycle 
+    localparam CLOCK_CYCLES_8  = NUM_WORDS / 8; // 2 cycles 
+    localparam CLOCK_CYCLES_4  = NUM_WORDS / 4; // 4 cycles 
 
     //============================================================
     // Internal Registers
     //============================================================
-    reg [$clog2(CLOCK_CYCLES_4+1)-1:0] cycle_count;
+    reg [$clog2(CLOCK_CYCLES_4)-1:0] cycle_count;
     reg [WIDTH-1:0] lane_data [0:NUM_LANES-1];
     reg [8*N_BYTES-1:0] data_shift_reg;
 
