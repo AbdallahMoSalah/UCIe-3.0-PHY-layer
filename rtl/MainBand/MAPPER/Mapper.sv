@@ -192,7 +192,7 @@ module Mapper #(
     //============================================================
     // Output Assignment
     //============================================================
-    always @(*) begin
+    always @(*) begin // alwas_com
         o_lane_0  = lane_data[0];
         o_lane_1  = lane_data[1];
         o_lane_2  = lane_data[2];
