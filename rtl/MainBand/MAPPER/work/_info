@@ -10,7 +10,7 @@ Z0 !s99 nomlopt
 !i10e 25
 !i10f 100
 cModel Technology
-dC:/questasim64_2024.1/examples
+Z1 dC:/questasim64_2024.1/examples
 T_opt
 !s110 1771730693
 V>0;AIOclS:BH`KGAD^PRK2
@@ -21,83 +21,84 @@ R0
 !s12b OEM100
 !s124 OEM100
 o-quiet -auto_acc_if_foreign -work work +acc
-Z1 tCvgOpt 0
+Z2 tCvgOpt 0
 n@_opt
 OL;O;2024.1;79
+R1
 vMapper
-2D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper.sv
-Z2 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
-Z3 !s110 1771730676
+2D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER/Mapper.sv
+Z3 DXx6 sv_std 3 std 0 22 9oUSJO;AeEaW`l:M@^WG92
+!s110 1771807140
 !i10b 1
-!s100 bO=7eID7Dc^X`KJUfzIGQ1
-IJ0f5AQ`09WWh3XUeIggMV0
+!s100 6C>G0BP4kmB:7d9T4`9T_3
+I@F<:5ZF;Dj07<@;`gSO=[2
 S1
-Z4 dD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER
-w1771730515
-8D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper.sv
-FD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper.sv
-!i122 3
-L0 1 214
-Z5 VDg1SIo80bB@j0V0VzS_@n1
-Z6 OL;L;2024.1;79
+dD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER
+w1771807133
+8D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER/Mapper.sv
+FD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER/Mapper.sv
+!i122 5
+L0 1 310
+Z4 VDg1SIo80bB@j0V0VzS_@n1
+Z5 OL;L;2024.1;79
 r1
 !s85 0
 31
-Z7 !s108 1771730676.000000
-!s107 D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper.sv|
-!s90 -reportprogress|300|-work|work|-vopt|-sv|-stats=none|D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper.sv|
+!s108 1771807140.000000
+!s107 D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER/Mapper.sv|
+!s90 -reportprogress|300|-work|work|-vopt|-sv|-stats=none|D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/rtl/MainBand/MAPPER/Mapper.sv|
 !i113 0
-Z8 o-work work -sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
-R1
-n@mapper
-vtb_Mapper
-Z9 2D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
+Z6 o-work work -sv -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
 R2
+n@mapper
+vtb_mapper
+Z7 2D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
+R3
+!s110 1771730676
+!i10b 1
+!s100 M1Bm<`nB@n;kf0z3V[@zg3
+I:80lFaOdLJTKCezk54>hT1
+S1
+Z8 dD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER
+w1771730670
+Z9 8D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
+Z10 FD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
+!i122 4
+L0 3 386
+R4
+R5
+r1
+!s85 0
+31
+!s108 1771730676.000000
+Z11 !s107 D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv|
+Z12 !s90 -reportprogress|300|-work|work|-vopt|-sv|-stats=none|D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv|
+!i113 0
+R6
+R2
+vtb_Mapper
+R7
+R3
 !s110 1771729555
 !i10b 1
 !s100 SX_^78P@>1aneVBm]]l?l3
 I7gOmcRK24:MAa7I@dN0bK1
 S1
-R4
+R8
 w1771456486
-Z10 8D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
-Z11 FD:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv
+R9
+R10
 !i122 1
 L0 3 400
+R4
 R5
-R6
 r1
 !s85 0
 31
 !s108 1771729555.000000
-Z12 !s107 D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv|
-Z13 !s90 -reportprogress|300|-work|work|-vopt|-sv|-stats=none|D:/Final_project/UCIE_CODES/UCIe-3.0-PHY-layer/Main_Band/MAPPER/Mapper_tb.sv|
-!i113 0
-R8
-R1
-ntb_@mapper
-vtb_mapper
-R9
-R2
-R3
-!i10b 1
-!s100 M1Bm<`nB@n;kf0z3V[@zg3
-I:80lFaOdLJTKCezk54>hT1
-S1
-R4
-w1771730670
-R10
 R11
-!i122 4
-L0 3 386
-R5
-R6
-r1
-!s85 0
-31
-R7
 R12
-R13
 !i113 0
-R8
-R1
+R6
+R2
+ntb_@mapper
