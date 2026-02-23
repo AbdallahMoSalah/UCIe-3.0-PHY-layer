@@ -1,0 +1,1 @@
+coverage exclude -du RDI_Packetizer -togglenode rst_n
