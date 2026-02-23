@@ -1,3 +1,4 @@
+
 `timescale 1ns/1ps
 
 module mapper_tb;
@@ -82,12 +83,10 @@ module mapper_tb;
     // Load incremental pattern
     // =========================================================
     task load_input;
-        integer i;
-    begin
-        for (i = 0; i < N_BYTES; i = i + 1)
-            i_in_data[i*8 +: 8] = i;
-    end
-    endtask
+begin
+    i_in_data = 512'h3F3E3D3C3B3A3938_3736353433323130_2F2E2D2C2B2A2928_2726252423222120_1F1E1D1C1B1A1918_1716151413121110_0F0E0D0C0B0A0908_0706050403020100;
+end
+endtask
 
     // =========================================================
     // Simple Mode Test

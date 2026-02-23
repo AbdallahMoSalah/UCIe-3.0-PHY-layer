@@ -163,7 +163,7 @@ module Demapper #(
                 end
                 if (cycle_count == CLOCK_CYCLES_8) begin
                     cycle_count <=0;
-                    pl_valid <= 0
+                    pl_valid <= 0;
                 end
             end
 
