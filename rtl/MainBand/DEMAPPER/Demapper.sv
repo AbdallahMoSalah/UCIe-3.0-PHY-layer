@@ -11,7 +11,7 @@ module Demapper #(
     input  wire   [WIDTH-1:0] o_lane_12, o_lane_13, o_lane_14, o_lane_15 
     input  wire                     mapper_en,
     input  wire [2:0]               i_width_deg_map,
-    input  wire                     pl_valid 
+    input  wire                     pl_valid, 
     output reg [8*N_BYTES-1:0] o_out_data   // Output data (512 bits)
 );
  //============================================================
