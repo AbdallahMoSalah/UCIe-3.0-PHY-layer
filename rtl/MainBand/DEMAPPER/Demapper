@@ -1,7 +1,38 @@
 module Demapper #(
-    parameters
+    N_BYTES   = 64 ,
+    NUM_LANES = 16 ,
+    WIDTH     = 32  
 ) (
-    ports
+    input  wire                     i_clk,
+    input  wire                     i_rst_n,
+    input  wire   [WIDTH-1:0] o_lane_0,  o_lane_1,  o_lane_2,  o_lane_3,
+    input  wire   [WIDTH-1:0] o_lane_4,  o_lane_5,  o_lane_6,  o_lane_7,
+    input  wire   [WIDTH-1:0] o_lane_8,  o_lane_9,  o_lane_10, o_lane_11,
+    input  wire   [WIDTH-1:0] o_lane_12, o_lane_13, o_lane_14, o_lane_15 
+    input  wire                     mapper_en,
+    input  wire [2:0]               i_width_deg_map,
+
+    output reg [8*N_BYTES-1:0] o_out_data   // Output data (512 bits)
 );
+ //============================================================
+    // Degrade Modes
+    //============================================================
+    localparam NONE_DEGRADE           = 3'b000;
+    localparam DEGRADE_LANES_0_TO_7   = 3'b001;
+    localparam DEGRADE_LANES_8_TO_15  = 3'b010;
+    localparam DEGRADE_LANES_0_TO_15  = 3'b011;
+    localparam DEGRADE_LANES_0_TO_3   = 3'b100;
+    localparam DEGRADE_LANES_4_TO_7   = 3'b101;
+
+    //============================================================
+    // Calculations
+    //============================================================
+    localparam N_BYTE_PER_LANE = WIDTH / 8;
+    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE;  // 16 word 
+
+    localparam CLOCK_CYCLES_16 = NUM_WORDS / 16; // 1 cycle 
+    localparam CLOCK_CYCLES_8  = NUM_WORDS / 8; // 2 cycles 
+    localparam CLOCK_CYCLES_4  = NUM_WORDS / 4; // 4 cycles 
+
     
 endmodule
