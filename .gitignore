@@ -1,0 +1,6 @@
+# Questa
+*.ini
+*.wlf
+*.vcd
+work/
+transcript
