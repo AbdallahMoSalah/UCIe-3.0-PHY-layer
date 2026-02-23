@@ -39,7 +39,7 @@ module Mapper #(
     // Internal Registers
     //============================================================
     reg [$clog2(CLOCK_CYCLES_4)-1:0] cycle_count;
-    reg [WIDTH-1:0] lane_data [0:NUM_LANES-1];
+    reg [WIDTH-1:0] lane_data [0:NUM_LANES-1] ; 
    
     //============================================================
     // Sequential Logic
