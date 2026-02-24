@@ -60,7 +60,7 @@ You can override the default simulation behavior using Tcl variables passed via 
 _Example of overriding multiple variables:_
 
 ```
-vsim -do "set MODE debug; set CONFIG my_config; set TOP my_tb; do run.do"
+vsim -do "set MODE debug; set CONFIG FileListName; set TOP TopTBName; do run.do"
 ```
 
 ## 5. Simulation Modes
