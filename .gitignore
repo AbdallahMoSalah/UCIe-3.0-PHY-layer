@@ -6,7 +6,7 @@
 *.mpf
 work/
 transcript
-
+logs/
 # Compiled simulation databases
 *_lib*.qdb
 *_lib*.qpg
