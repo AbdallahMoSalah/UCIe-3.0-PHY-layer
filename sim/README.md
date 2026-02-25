@@ -1,245 +1,346 @@
-# UCIe PHY – Simulation Flow Guide
+# UCIe PHY – Simulation Flow Documentation
 
-## 1. Overview
+This document describes the complete simulation workflow for the UCIe 3.0 PHY Digital Design project.
 
-This project uses a robust, script-based simulation flow (no GUI projects) built around a single generic `run.do` file. All simulations are reproducible and fully CLI-driven.
+The simulation environment is fully script-based and does not rely on GUI project files.
 
-**The flow supports:**
-
-- Multiple configurations (via filelists)
-    
-- Debug mode (GUI + waves + coverage view)
-    
-- Batch run mode (fast execution)
-    
-- Coverage report generation (TXT & HTML)
-    
-- Controlled seed handling (Default, Fixed, Random)
-    
-- Per-testbench waveform files
-    
-- Per-testbench coverage configuration
-    
-
-## 2. Directory Structure
-
-The simulation environment expects the following directory structure:
+All simulations are controlled through:
 
 ```
-sim/
- ├── listfiles/        # Filelists per configuration (*.f files)
- ├── scripts/          # run.do (main entry point)
- ├── waves/            # Saved wave.do per testbench
- ├── coverage_cfg/     # Coverage exclusion configs per TB
- ├── coverage/         # Generated coverage reports & databases
- ├── logs/             # Seed logs (if random used)
- └── work/             # Compiled library (auto-generated & cleaned)
+sim/scripts/run.do
 ```
 
-## 3. Quick Start & Main Entry Point
+The flow supports Linux and Windows environments.
 
-All simulations are launched using the `run.do` script. You must run it from the `sim/scripts` directory.
+---
+
+# 1. Execution Requirement
+
+All simulations MUST be launched from the project root directory.
+**Example**
+```bash
+# On Linux 
+/path/to/UCIe-3.0-PHY-layer/
+# On Windows
+D:\path\to\UCIe-3.0-PHY-layer\
+```
+	
+Correct example:
+
+Linux:
+
+```
+vsim -do sim/scripts/run.do
+```
+
+Incorrect example:
 
 ```
 cd sim/scripts
 vsim -do run.do
 ```
 
-## 4. Supported Variables
+The script assumes project-root execution.
 
-You can override the default simulation behavior using Tcl variables passed via the command line:
+---
 
-|Variable|Description|Default Value|
+# 2. Simulation Variables
+
+The following Tcl variables control simulation behavior:
+
+|Variable|Required|Description|
 |---|---|---|
-|**`CONFIG`**|Filelist name (without `.f` extension)|`unit_rdi_packetizer`|
-|**`TOP`**|Top-level Testbench module name|`RDI_Packetizer_tb`|
-|**`MODE`**|Execution mode (`run`, `debug`, `report`)|`run`|
-|**`SEED`**|Seed control (`default`, `random`, `<number>`)|`default`|
-|**`REPORT_EXT`**|Coverage report format (`txt`, `html`)|`txt`|
+|CONFIG|Yes|Filelist name (without .f)|
+|TOP|Yes|Top-level testbench module|
+|MODE|No|run / debug / report / ci|
+|SEED|No|default / random /|
+|REPORT_EXT|No|txt / html|
 
-_Example of overriding multiple variables:_
+CONFIG and TOP are mandatory.
 
-```
-vsim -do "set MODE debug; set CONFIG FileListName; set TOP TopTBName; do run.do"
-```
+---
 
-## 5. Simulation Modes
+# 3. Simulation Modes
 
-### `MODE = run` (Default)
+## MODE=run
 
-Fast execution mode suitable for regressions.
-
-- No GUI
+- Console mode
     
 - No coverage
     
-- Auto exits upon completion
-    
-
-```
-vsim -do run.do
-```
-
-### `MODE = debug`
-
-Interactive debugging mode.
-
-- Opens Questa GUI
-    
-- Coverage is visible inside the simulator
-    
-- Automatically loads the saved wave file (if it exists)
-    
-- Does NOT save coverage or generate reports
-    
-- Stays open after running
-    
-
-```
-vsim -do "set MODE debug; do run.do"
-```
-
-### `MODE = report`
-
-Batch mode for coverage collection.
-
-- Runs without GUI
-    
-- Coverage enabled and collected
-    
-- Saves coverage database (`.ucdb`)
-    
-- Generates a text or HTML report (based on `REPORT_EXT`)
+- Fast execution
     
 - Exits automatically
     
 
-```
-vsim -do "set MODE report; set REPORT_EXT html; do run.do"
-```
+## MODE=debug
 
-_Generated output will be placed in:_ `sim/coverage/<TOP>/`
-
-## 6. Seed Handling
-
-- **`SEED = default`** (Default): Uses the Questa default seed. No `+SEED` argument is passed.
+- GUI mode
     
-- **`SEED = random`**: Generates a random seed internally, passes it to vsim as `+SEED=<value>`, and logs the generated seed into `sim/logs/<TOP>.log`.
+- Coverage visible
     
-    ```
-    vsim -do "set SEED random; do run.do"
-    ```
+- Loads wave file if available
     
-- **`SEED = <number>`**: Uses a specific fixed seed for deterministic debugging.
-    
-    ```
-    vsim -do "set SEED 12345; do run.do"
-    ```
+- Does not exit automatically
     
 
-## 7. Waveform Flow
+## MODE=report
 
-Wave files are stored per testbench in: `sim/waves/<TOP>.do`
-
-**Behavior in Debug Mode:**
-
-1. If the wave file exists → it is automatically loaded.
+- Console mode
     
-2. If it does not exist → full hierarchy is added automatically (`add wave -r sim:/*`).
+- Coverage enabled
     
-
-**First-Time Setup:**
-
-1. Run in debug mode: `vsim -do "set MODE debug; do run.do"`
+- Generates coverage report
     
-2. Arrange signals manually in the GUI.
-    
-3. Save the waveform layout exactly as: `sim/waves/<TOP>.do`
-    
-4. Future debug runs will auto-load your layout.
+- Exits automatically
     
 
-## 8. Coverage Configuration
+## MODE=ci
 
-Coverage exclusion rules (e.g., reset toggles) are stored per testbench in: `sim/coverage_cfg/<TOP>.do`
+- Console mode
+    
+- Intended for automation pipelines
+    
+- Exits immediately on failure
+    
 
-**Example content:**
+---
+
+# 4. Linux Usage (Makefile)
+
+The project provides a Makefile wrapper.
+
+## Basic Run
 
 ```
-coverage exclude -du RDI_Packetizer -togglenode rst_n
+make run CONFIG=<filelist> TOP=<tb_module>
 ```
 
-- **Behavior:** Automatically loaded in `debug` and `report` modes. Ignored in `run` mode.
+Example:
+
+```
+make run CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb
+```
+
+## Debug (GUI)
+
+```
+make debug CONFIG=<filelist> TOP=<tb_module>
+```
+
+## Coverage Report
+
+```
+make report CONFIG=<filelist> TOP=<tb_module>
+```
+
+Optional parameters:
+
+```
+make report CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb SEED=1234
+```
+
+## Clean
+
+```
+make clean
+```
+
+This removes:
+
+- sim/work
     
-- _(Optional)_ Global exclusions can be placed in `sim/coverage_cfg/global.do` (if implemented).
+- transcript
+    
+- vsim.wlf
+    
+- modelsim.ini
     
 
-## 9. Recommended Development Workflow
+---
 
-1. **Step 1 – Unit Development (Fast iteration):**
-    
-    ```
-    vsim -do run.do
-    ```
-    
-2. **Step 2 – Debug (Visual inspection):**
-    
-    ```
-    vsim -do "set MODE debug; do run.do"
-    ```
-    
-    _Inspect signals, adjust waveforms, and verify functionality._
-    
-3. **Step 3 – Coverage Review:**
-    
-    ```
-    vsim -do "set MODE report; set REPORT_EXT html; do run.do"
-    ```
-    
-    _Generate report, review toggle/branch/state coverage, and add specific exclusions in `coverage_cfg` if justified._
-    
-4. **Step 4 – Fix & Iterate:** Repeat until clean coverage is achieved.
-    
+# 5. Linux Direct vsim Usage
 
-## 10. Adding a New Testbench
+Without Makefile:
 
-To integrate a new Testbench into the flow:
+```
+vsim -c -do "set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; set MODE run; do sim/scripts/run.do"
+```
 
-1. Create a new filelist: `sim/listfiles/<config_name>.f`
+Debug:
+
+```
+vsim -do "set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; set MODE debug; do sim/scripts/run.do"
+```
+
+Coverage report (TXT):
+
+```
+vsim -c -do "set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; set MODE report; set REPORT_EXT txt; do sim/scripts/run.do"
+```
+
+Coverage report (HTML):
+
+```
+vsim -c -do "set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; set MODE report; set REPORT_EXT html; do sim/scripts/run.do"
+```
+
+---
+
+# 6. Windows Usage (PowerShell)
+
+The repository includes:
+
+- run_sim.ps1
     
-2. Ensure the `TOP` variable matches your actual TB module name.
-    
-3. _(Optional)_ Add a wave layout: `sim/waves/<TOP>.do`
-    
-4. _(Optional)_ Add a coverage config: `sim/coverage_cfg/<TOP>.do`
-    
-5. **Run the new TB:**
-    
-    ```
-    vsim -do "set CONFIG <config_name>; set TOP <tb_module>; do run.do"
-    ```
+- clean_sim.ps1
     
 
-## 11. Design Rules & Guidelines
+## Basic Run
 
-- **Module Matching:** The `TOP` variable MUST exactly match the Testbench module name.
+```
+.\run_sim.ps1 -CONFIG unit_rdi_packetizer -TOP RDI_Packetizer_tb
+```
+
+## Debug
+
+```
+.\run_sim.ps1 -CONFIG unit_rdi_packetizer -TOP RDI_Packetizer_tb -MODE debug
+```
+
+## Coverage Report
+
+```
+.\run_sim.ps1 -CONFIG unit_rdi_packetizer -TOP RDI_Packetizer_tb -MODE report
+```
+
+## Clean
+
+```
+.\clean_sim.ps1
+```
+
+---
+
+# 7. Filelists
+
+Filelists are stored in:
+
+```
+sim/listfiles/
+```
+
+Rules:
+
+- Paths must be relative to project root
     
-- **Naming Convention:** Wave file names and coverage config file names must match `TOP`.
+- Packages must be compiled before modules
     
-- **No GUI Projects:** `.mpf` or tool-generated project files are NOT used and should not be committed to Git.
+- No duplicate entries
     
 
-## 12. Industrial Notes
+Example:
 
-This flow is built with industrial best practices, supporting:
+```
+rtl/SideBand/common/sb_pkg.sv
+rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+```
 
-- Reproducible runs & CI-ready execution.
+---
+
+# 8. Wave Files
+
+Wave configuration files:
+
+```
+sim/waves/<TOP>.do
+```
+
+Behavior:
+
+- If file exists → automatically loaded in debug mode
     
-- Deterministic debugging via fixed seeds.
-    
-- Controlled random testing with proper logging.
-    
-- Clean and modular coverage management.
+- If not → full hierarchy added
     
 
-**Future Extensions:** Regression manager, Coverage merge support, and Seed sweep automation.
+---
+
+# 9. Coverage Configuration
+
+Per-testbench exclusions:
+
+```
+sim/coverage_cfg/<TOP>.do
+```
+
+Optional global exclusions:
+
+```
+sim/coverage_cfg/global.do
+```
+
+Coverage output directory:
+
+```
+sim/coverage/<TOP>/
+```
+
+---
+
+# 10. Seed Handling
+
+|SEED value|Behavior|
+|---|---|
+|default|Questa default seed|
+|random|Auto-generated seed (logged)|
+|number|Fixed seed|
+
+Random seed logs stored in:
+
+```
+sim/logs/<TOP>.log
+```
+
+---
+
+# 11. Common Errors
+
+## Missing CONFIG or TOP
+
+Both variables are mandatory.
+
+## Running from wrong directory
+
+Simulation must be launched from project root.
+
+## Spaces in path
+
+Spaces are supported, but avoid them when possible.
+
+---
+
+# 12. Design Philosophy
+
+The simulation flow is designed to:
+
+- Be reproducible
+    
+- Be deterministic
+    
+- Separate debug and batch behavior
+    
+- Support coverage-driven verification
+    
+- Be CI-ready
+    
+- Remain tool-project independent
+    
+
+---
+
+For repository-level information, refer to:
+
+```
+README.md
+```
