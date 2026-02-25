@@ -1,50 +1,101 @@
-# ===================================================
-# Advanced Simulation Script
-# ===================================================
+# ============================================================
+# UCIe PHY - Advanced Simulation Script
+# ============================================================
+
+# ------------------------------------------------------------
+# Assume execution from project root
+# ------------------------------------------------------------
+
+set project_root [pwd]
+set sim_dir "$project_root/sim"
+
+# Sanity check
+if {![file exists "$sim_dir/listfiles"]} {
+    puts "--------------------------------------------------"
+    puts "ERROR: run.do must be launched from project root."
+    puts "Example:"
+    puts "  vsim -do sim/scripts/run.do"
+    puts "--------------------------------------------------"
+    quit -f
+}
+
+if {![info exists CONFIG]} {
+    puts "ERROR: CONFIG is not defined."
+    puts "Usage example:"
+    puts "  vsim -do \"set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; do sim/scripts/run.do\""
+    quit -f
+}
+
+if {![info exists TOP]} {
+    puts "ERROR: TOP is not defined."
+    puts "Usage example:"
+    puts "  vsim -do \"set CONFIG unit_rdi_packetizer; set TOP RDI_Packetizer_tb; do sim/scripts/run.do\""
+    quit -f
+}
 
 # -------------------------
 # Defaults
 # -------------------------
-
-if {![info exists CONFIG]}  { set CONFIG unit_rdi_packetizer }
-if {![info exists TOP]}     { set TOP RDI_Packetizer_tb }
 if {![info exists MODE]}    { set MODE run }
 if {![info exists SEED]}    { set SEED default }
 if {![info exists REPORT_EXT]}    { set REPORT_EXT txt }
 
-puts "--------------------------------------"
-puts "CONFIG = $CONFIG"
-puts "TOP    = $TOP"
-puts "MODE   = $MODE"
-puts "SEED   = $SEED"
-puts "--------------------------------------"
+puts "--------------------------------------------------"
+puts "PROJECT ROOT = $project_root"
+puts "CONFIG       = $CONFIG"
+puts "TOP          = $TOP"
+puts "MODE         = $MODE"
+puts "SEED         = $SEED"
+puts "--------------------------------------------------"
 
-# -------------------------
-# Work Directory
-# -------------------------
+# ------------------------------------------------------------
+# Directories
+# ------------------------------------------------------------
 
-if {[file exists ../work]} {
-    vdel -lib work -all
-    file delete -force ../work
+set work_dir         "$sim_dir/work"
+set waves_dir        "$sim_dir/waves"
+set coverage_dir     "$sim_dir/coverage"
+set coverage_cfg_dir "$sim_dir/coverage_cfg"
+set logs_dir         "$sim_dir/logs"
+
+file mkdir $waves_dir
+file mkdir $coverage_dir
+file mkdir $coverage_cfg_dir
+file mkdir $logs_dir
+
+# ------------------------------------------------------------
+# Clean Work Library
+# ------------------------------------------------------------
+
+if {[file exists $work_dir]} {
+    catch {vdel -lib work -all}
+    file delete -force $work_dir
 }
 
-vlib ../work
-vmap work ../work
+vlib $work_dir
+vmap work $work_dir
 
 # -------------------------
 # Compile Flags
 # -------------------------
 
-set vlog_flags "-sv"
-
 if {$MODE eq "debug" || $MODE eq "report"} {
-    set vlog_flags "$vlog_flags +cover -covercells"
+    set vlog_flags {-sv +cover -covercells}
+} else {
+    set vlog_flags {-sv}
 }
 
-if {[catch {eval vlog $vlog_flags -f ../listfiles/$CONFIG.f} result]} {
+set filelist_path "$sim_dir/listfiles/$CONFIG.f"
+
+if {[catch {vlog {*}$vlog_flags -f $filelist_path} result]} {
     puts "Compilation Failed!"
     puts $result
-    quit -f
+
+    if {$MODE eq "ci" || $MODE eq "report"} {
+        quit -f
+    } else {
+        return
+    }
 }
 
 # -------------------------
@@ -54,20 +105,22 @@ if {[catch {eval vlog $vlog_flags -f ../listfiles/$CONFIG.f} result]} {
 set seed_arg ""
 
 if {$SEED eq "default"} {
-    # Do nothing → let Questa choose default
+
+    # Let Questa choose default seed
+
 } elseif {$SEED eq "random"} {
+
     set real_seed [expr {int(rand()*1000000)}]
     set seed_arg "+SEED=$real_seed"
 
-    file mkdir ../logs
-    set log_file "../logs/${TOP}.log"
-
-    set fp [open $log_file a]
+    set fp [open "$logs_dir/${TOP}.log" a]
     puts $fp "Generated SEED = $real_seed"
     close $fp
 
     puts "Generated SEED = $real_seed"
+
 } else {
+
     set seed_arg "+SEED=$SEED"
 }
 
@@ -75,14 +128,18 @@ if {$SEED eq "default"} {
 # Simulation Mode Handling
 # -------------------------
 
-set vsim_flags "-voptargs=+acc"
+set vsim_args [list]
 
-if {$MODE eq "report"} {
-    set vsim_flags "$vsim_flags -c -coverage"
+if {$MODE eq "debug" || $MODE eq "report"} {
+    lappend vsim_args -coverage
 }
 
-if {$MODE eq "debug"} {
-    set vsim_flags "$vsim_flags -coverage -gui"
+lappend vsim_args -voptargs=+acc
+lappend vsim_args -wlf "$work_dir/$TOP.wlf"
+lappend vsim_args work.$TOP
+
+if {$seed_arg ne ""} {
+    lappend vsim_args $seed_arg
 }
 
 # -------------------------
@@ -90,43 +147,52 @@ if {$MODE eq "debug"} {
 # -------------------------
 
 if {[catch {
-    eval vsim $vsim_flags work.$TOP $seed_arg
+   vsim {*}$vsim_args
 } result]} {
     puts "Simulation Launch Failed!"
     puts $result
-    quit -f
+
+    if {$MODE eq "ci" || $MODE eq "report"} {
+        quit -f
+    } else {
+        return
+    }
 }
 
-# -------------------------
-# Wave Handling (Debug Mode Only)
-# -------------------------
+# ------------------------------------------------------------
+# Debug Mode: Load Waveform
+# ------------------------------------------------------------
 
 if {$MODE eq "debug"} {
 
-    file mkdir ../waves
-    set wave_file "../waves/$TOP.do"
+    set wave_file "$waves_dir/$TOP.do"
 
     if {[file exists $wave_file]} {
+        puts "Loading wave file: $wave_file"
         do $wave_file
     } else {
+        puts "No wave file found, loading full hierarchy"
         add wave -r sim:/*
     }
-
 }
 
-# -------------------------
-# Coverage Configuration
-# -------------------------
+# ------------------------------------------------------------
+# Load Coverage Configuration (if exists)
+# ------------------------------------------------------------
 
 if {$MODE eq "debug" || $MODE eq "report"} {
 
-    set cov_cfg_file "../coverage_cfg/$TOP.do"
-
-    if {[file exists $cov_cfg_file]} {
-        puts "Loading coverage config: $cov_cfg_file"
-        do $cov_cfg_file
+    set global_cov_cfg "$coverage_cfg_dir/global.do"
+    if {[file exists $global_cov_cfg]} {
+        puts "Loading global coverage config"
+        do $global_cov_cfg
     }
 
+    set tb_cov_cfg "$coverage_cfg_dir/$TOP.do"
+    if {[file exists $tb_cov_cfg]} {
+        puts "Loading TB coverage config"
+        do $tb_cov_cfg
+    }
 }
 
 # -------------------------
@@ -141,45 +207,45 @@ run -all
 
 if {$MODE eq "report"} {
 
-    file mkdir ../coverage
-    set cov_dir "../coverage/$TOP"
+    set tb_cov_dir "$coverage_dir/$TOP"
 
-    if {[file exists $cov_dir]} {
-        file delete -force $cov_dir
+    if {[file exists $tb_cov_dir]} {
+        file delete -force $tb_cov_dir
     }
 
-    file mkdir $cov_dir
-
-    coverage save "$cov_dir/$TOP.ucdb" -onexit
-
+    file mkdir $tb_cov_dir
+    
     if {$REPORT_EXT eq "txt"} {
+
+        coverage save "$tb_cov_dir/$TOP.ucdb" -onexit
 
         quit -sim
 
         vcover report \
-        "$cov_dir/$TOP.ucdb" \
+        "$tb_cov_dir/$TOP.ucdb" \
         -details \
         -all \
         -annotate \
-        -output "$cov_dir/coverage_rpt.txt"
+        -output "$tb_cov_dir/coverage_rpt.txt"
+
     } elseif {$REPORT_EXT eq "html"} {
+
+        coverage save "$tb_cov_dir/$TOP.ucdb" 
+
         vcover report \
-        "$cov_dir/$TOP.ucdb" \
+        "$tb_cov_dir/$TOP.ucdb" \
         -details \
         -html \
         -annotate \
-        -output "$cov_dir"
+        -output "$tb_cov_dir"
     }
 
-    puts "Coverage report generated in $cov_dir"
+    puts "Coverage report generated in $tb_cov_dir"
 
     quit -f
 }
 
-# -------------------------
-# Auto Quit for Run Mode
-# -------------------------
+if {$MODE eq "run" || $MODE eq "ci"} {
 
-if {$MODE eq "run"} {
     quit -f
 }
