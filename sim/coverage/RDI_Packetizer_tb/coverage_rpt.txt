@@ -15,7 +15,7 @@ Branch Coverage for instance /RDI_Packetizer_tb/DUT
 
     Line         Item                      Count     Source 
     ----         ----                      -----     ------ 
-  File ../../rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
 ------------------------------------IF Branch------------------------------------
     31                                       199     Count coming in to IF
     31              1                         90             if (RDI_msg_no_send <= DISABLE_REQ)
@@ -71,7 +71,7 @@ Condition Coverage:
 
 Condition Coverage for instance /RDI_Packetizer_tb/DUT --
 
-  File ../../rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
 ----------------Focused Condition View-------------------
 Line       31 Item    1  (RDI_msg_no_send <= DISABLE_REQ)
 Condition totals: 1 of 1 input term covered = 100.00%
@@ -126,7 +126,7 @@ Statement Coverage for instance /RDI_Packetizer_tb/DUT --
 
     Line         Item                      Count     Source 
     ----         ----                      -----     ------ 
-  File ../../rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
     3                                                module RDI_Packetizer(
     4                                                    input logic clk,
     5                                                    input logic rst_n,
@@ -196,7 +196,7 @@ Statement Coverage for instance /RDI_Packetizer_tb/DUT --
 Toggle Coverage:
     Enabled Coverage              Bins      Hits    Misses  Coverage
     ----------------              ----      ----    ------  --------
-    Toggles                        554       168       386    30.32%
+    Toggles                        552       167       385    30.25%
 
 ================================Toggle Details================================
 
@@ -327,14 +327,13 @@ Toggle Coverage for instance /RDI_Packetizer_tb/DUT --
                                                           SB_PRIORITY_MSG1           0        0.00 
                                                           SB_PRIORITY_MSG2           0        0.00 
                                         push_ready           0           0                                0.00 
-                                             rst_n           0           1                               50.00 
                                         stall_send           1           1                              100.00 
 
-Total Node Count     =        309 
+Total Node Count     =        308 
 Toggled Node Count   =         85 
-Untoggled Node Count =        224 
+Untoggled Node Count =        223 
 
-Toggle Coverage      =      30.32% (168 of 554 bins)
+Toggle Coverage      =      30.25% (167 of 552 bins)
 
 =================================================================================
 === Instance: /RDI_Packetizer_tb
@@ -351,7 +350,7 @@ Branch Coverage for instance /RDI_Packetizer_tb
 
     Line         Item                      Count     Source 
     ----         ----                      -----     ------ 
-  File ../../tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
 ------------------------------------IF Branch------------------------------------
     65                                       205     Count coming in to IF
     65              1                         95             if (msg <= DISABLE_REQ)
@@ -412,7 +411,7 @@ Condition Coverage:
 
 Condition Coverage for instance /RDI_Packetizer_tb --
 
-  File ../../tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
 ----------------Focused Condition View-------------------
 Line       65 Item    1  (msg <= DISABLE_REQ)
 Condition totals: 1 of 1 input term covered = 100.00%
@@ -464,7 +463,7 @@ Statement Coverage for instance /RDI_Packetizer_tb --
 
     Line         Item                      Count     Source 
     ----         ----                      -----     ------ 
-  File ../../tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
     1                                                module RDI_Packetizer_tb;
     2                                                
     3                                                    import sb_pkg::*; 
@@ -681,5 +680,5 @@ Untoggled Node Count =        166
 Toggle Coverage      =      21.73% (90 of 414 bins)
 
 
-Total Coverage By Instance (filtered view): 72.01%
+Total Coverage By Instance (filtered view): 72.00%
 
