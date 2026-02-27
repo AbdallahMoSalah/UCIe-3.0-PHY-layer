@@ -6,10 +6,10 @@
 # Packages (لو فيه)
 rtl/SideBand/common/sb_pkg.sv
 rtl/SideBand/common/rdi_codec_pkg.sv
-tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb_pkg.sv
+tb/unit/sideband/rdi_depacketizer/RDI_DePacketizer_tb_pkg.sv
 
 # DUT
-rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+rtl/SideBand/LinkMgmt/RDI_DePacketizer.sv
 
 # Testbench
-tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+tb/unit/sideband/rdi_depacketizer/RDI_DePacketizer_tb.sv

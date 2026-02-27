@@ -91,7 +91,7 @@ if {[catch {vlog {*}$vlog_flags -f $filelist_path} result]} {
     puts "Compilation Failed!"
     puts $result
 
-    if {$MODE eq "ci" || $MODE eq "report"} {
+    if {$MODE eq "ci" || $MODE eq "report" || $MODE eq "run"} {
         quit -f
     } else {
         return
@@ -152,7 +152,7 @@ if {[catch {
     puts "Simulation Launch Failed!"
     puts $result
 
-    if {$MODE eq "ci" || $MODE eq "report"} {
+    if {$MODE eq "ci" || $MODE eq "report" || $MODE eq "run"} {
         quit -f
     } else {
         return
