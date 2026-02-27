@@ -78,23 +78,23 @@ package sb_pkg;
   } sb_header_t;
 
   typedef enum logic [7:0] {
-    SBINIT_outofrst_code = 8'h91,
-    SBINIT_REQ_code      = 8'h95,
-    SBINIT_RESP_code     = 8'h9A,
-    MBINIT_REQ_code      = 8'hA5,
-    MBINIT_RESP_code     = 8'hAA,
-    MBTRAIN_REQ_code     = 8'hB5,
-    MBTRAIN_RESP_code    = 8'hBA,
-    RECAL_REQ_code       = 8'hD5,
-    RECAL_RESP_code      = 8'hDA,
-    PHYRETRAIN_REQ_code  = 8'hC5,
-    PHYRETRAIN_RESP_code = 8'hCA,
-    TRAINERROR_REQ_code  = 8'hE5,
-    TRAINERROR_RESP_code = 8'hEA,
-    RDI_REQ_code         = 8'h01,
-    RDI_RESP_code        = 8'h02,
-    TEST_REQ_code        = 8'h85,
-    TEST_RESP_code       = 8'h8A
+    SBINIT_OFFRESET_DOMAIN = 8'h91,
+    SBINIT_REQ_DOMAIN      = 8'h95,
+    SBINIT_RESP_DOMAIN     = 8'h9A,
+    MBINIT_REQ_DOMAIN      = 8'hA5,
+    MBINIT_RESP_DOMAIN     = 8'hAA,
+    MBTRAIN_REQ_DOMAIN     = 8'hB5,
+    MBTRAIN_RESP_DOMAIN    = 8'hBA,
+    RECAL_REQ_DOMAIN       = 8'hD5,
+    RECAL_RESP_DOMAIN      = 8'hDA,
+    PHYRETRAIN_REQ_DOMAIN  = 8'hC5,
+    PHYRETRAIN_RESP_DOMAIN = 8'hCA,
+    TRAINERROR_REQ_DOMAIN  = 8'hE5,
+    TRAINERROR_RESP_DOMAIN = 8'hEA,
+    RDI_REQ_DOMAIN         = 8'h01,
+    RDI_RESP_DOMAIN        = 8'h02,
+    TEST_REQ_DOMAIN        = 8'h85,
+    TEST_RESP_DOMAIN       = 8'h8A
   } msg_code_e;
 
 

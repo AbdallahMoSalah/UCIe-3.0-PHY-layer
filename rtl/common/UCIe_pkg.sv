@@ -171,7 +171,7 @@ package UCIe_pkg;
     MBTRAIN_LINKSPEED_exit_to_repair_resp,         // d86
     MBTRAIN_LINKSPEED_exit_to_speed_degrade_req,   // d87
     MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp,  // d88
-    MBTRAIN_LINKSPEED_exit_to_phy_retrain_req,     // d89
+    MBTRAIN_LINKSPEED_exit_to_phy_retrain_req,     // d89 
     MBTRAIN_LINKSPEED_exit_to_phy_retrain_resp,    // d90
     MBTRAIN_LINKSPEED_done_req,                    // d91
     MBTRAIN_LINKSPEED_done_resp,                   // d92
