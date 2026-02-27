@@ -76,11 +76,11 @@ module Demapper #(
                 endcase
                 if (cycle_count == CLOCK_CYCLES_16-1) begin
                     pl_valid <= 1;
+                    cycle_count <= 0;
                 end
-                cycle_count <= cycle_count + 1;
-                if (cycle_count == CLOCK_CYCLES_16) begin
-                    cycle_count <=0;
-                    pl_valid <= 0;
+                else begin
+                    cycle_count <= cycle_count + 1;
+                    pl_valid    <= 0;
                 end
             end
 
@@ -115,14 +115,13 @@ module Demapper #(
                         i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24],
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
                 endcase
-                if (cycle_count == CLOCK_CYCLES_8-1) begin
+                 if (cycle_count == CLOCK_CYCLES_8-1) begin
                     pl_valid <= 1;
+                    cycle_count <= 0;
                 end
-                cycle_count <= cycle_count + 1;
-                
-                if (cycle_count == CLOCK_CYCLES_8) begin
-                    cycle_count <=0;
-                    pl_valid <= 0;
+                else begin
+                    cycle_count <= cycle_count + 1;
+                    pl_valid    <= 0;
                 end
             end
 
@@ -157,13 +156,13 @@ module Demapper #(
                         i_lane_8[31:24],i_lane_9[31:24],i_lane_10[31:24],i_lane_11[31:24],
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
                 endcase
-                cycle_count <= cycle_count + 1;
-                if (cycle_count == CLOCK_CYCLES_8-1) begin
+                 if (cycle_count == CLOCK_CYCLES_8-1) begin
                     pl_valid <= 1;
+                    cycle_count <= 0;
                 end
-                if (cycle_count == CLOCK_CYCLES_8) begin
-                    cycle_count <=0;
-                    pl_valid <= 0
+                else begin
+                    cycle_count <= cycle_count + 1;
+                    pl_valid    <= 0;
                 end
             end
 
@@ -192,13 +191,13 @@ module Demapper #(
                                                i_lane_0[23:16],i_lane_1[23:16],i_lane_2[23:16],i_lane_3[23:16],
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
                 endcase
-                if (cycle_count == CLOCK_CYCLES_4-1) begin
+              if (cycle_count == CLOCK_CYCLES_4-1) begin
                     pl_valid <= 1;
+                    cycle_count <= 0;
                 end
-                cycle_count <= cycle_count + 1;
-                if (cycle_count == CLOCK_CYCLES_4) begin
-                    cycle_count <=0;
-                    pl_valid <= 0;
+                else begin
+                    cycle_count <= cycle_count + 1;
+                    pl_valid    <= 0;
                 end
             end
 
@@ -225,13 +224,13 @@ module Demapper #(
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
               
                 endcase
-                if (cycle_count == CLOCK_CYCLES_8-1) begin
+                 if (cycle_count == CLOCK_CYCLES_4-1) begin
                     pl_valid <= 1;
+                    cycle_count <= 0;
                 end
-                cycle_count <= cycle_count + 1;
-                if (cycle_count == CLOCK_CYCLES_4) begin
-                    cycle_count <=0;
-                    pl_valid <= 0;
+                else begin
+                    cycle_count <= cycle_count + 1;
+                    pl_valid    <= 0;
                 end
             end
 
