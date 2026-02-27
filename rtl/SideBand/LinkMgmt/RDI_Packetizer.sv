@@ -1,37 +1,40 @@
 import sb_pkg::*;
 
-module RDI_Packetizer(
+module RDI_Packetizer (
     input logic clk,
     input logic rst_n,
 
     // From RDI_SM
-    input logic [3:0]  RDI_msg_no_send,
-    input logic stall_send,
-    input logic        RDI_vld_send,
-    output logic        RDI_ready, // Indicates that the packetizer is ready to accept a new message from RDI_SM
-    
-    input logic push_ready, // Indicates that the fifo is ready to accept a new message (!= full)
+    input  sb_rdi_msg_no_e RDI_msg_no_send,
+    input  logic stall_send,
+    input  logic RDI_vld_send,
+    output logic RDI_ready, // Indicates that the packetizer is ready to accept a new message from RDI_SM
+
+    input  logic push_ready,  // Indicates that the fifo is ready to accept a new message (!= full)
     output logic [127:0] RDI_msg,
-    output logic        RDI_vld_out
+    output logic RDI_vld_out
 );
 
     sb_header_t header_reg;
     sb_header_t header_next;
 
-    always_comb begin 
+    always_comb begin
         header_next = '0;
 
-        header_next.opcode  = SB_MSG_WITHOUT_DATA;
-        header_next.srcid   = PHY;
-        header_next.dstid   = REMOTE_PHY;
+        header_next.opcode = SB_MSG_WITHOUT_DATA;
+        header_next.srcid = PHY;
+        header_next.dstid = REMOTE_PHY;
 
         header_next.dp = 1'b0;
 
         // msgcode
-        if (RDI_msg_no_send <= DISABLE_REQ)
+        if (RDI_msg_no_send <= DISABLE_REQ) begin
             header_next.msgcode = 8'h01;  // Request
-        else
+        end else if (RDI_msg_no_send == NOP)begin
+             header_next.msgcode = 8'h00;
+        end else begin
             header_next.msgcode = 8'h02;  // Response
+        end
 
         // subcode mapping
         case (RDI_msg_no_send)
@@ -47,35 +50,36 @@ module RDI_Packetizer(
         endcase
 
         // MsgInfo
-        if (RDI_msg_no_send >= ACTIVE_RSP)
+        if (RDI_msg_no_send >= ACTIVE_RSP && RDI_msg_no_send != NOP) begin
             header_next.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
-        else
+        end else begin
             header_next.MsgInfo = 16'h0000;
+        end
 
         // parity (even)
         header_next.cp = ^header_next[61:0];
     end
-    
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            RDI_vld_out <= 1'b0; // No valid message on reset
-            header_reg  <= '0; // Clear header on reset
-        end else if(RDI_vld_send && push_ready) begin
+            RDI_vld_out <= 1'b0;  // No valid message on reset
+            header_reg  <= '0;  // Clear header on reset
+        end else if (RDI_vld_send && push_ready) begin
             header_reg  <= header_next;
-            RDI_vld_out <= 1'b1; // Indicate that the message is valid and ready to be sent  
+            RDI_vld_out <= 1'b1;  // Indicate that the message is valid and ready to be sent  
         end else begin
-            RDI_vld_out <= 1'b0; // No valid message if not sending
+            RDI_vld_out <= 1'b0;  // No valid message if not sending
         end
     end
 
 
     assign RDI_ready = push_ready; // Packetizer is ready to accept a new message if the fifo is ready
-    
+
     // ---------------------------
     // Output mapping
     // ---------------------------
 
-    assign RDI_msg[63:0]   = header_reg;
+    assign RDI_msg[63:0] = header_reg;
     assign RDI_msg[127:64] = 64'b0;
 
 endmodule
