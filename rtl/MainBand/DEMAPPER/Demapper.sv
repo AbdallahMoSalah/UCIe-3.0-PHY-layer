@@ -90,7 +90,7 @@ module Demapper #(
             //====================================================
             DEGRADE_LANES_0_TO_7: begin
                 case (cycle_count)
-                    0: o_out_data[4*N_BYTES-1 :0] <= {
+                    0: o_out_data[8*N_BYTES-1:4*N_BYTES] <= {
                         i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                         i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
 
@@ -103,7 +103,7 @@ module Demapper #(
                         i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24],
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
 
-                    1: o_out_data[8*N_BYTES-1:4*N_BYTES] <= {
+                    1: o_out_data[4*N_BYTES-1 :0] <= {
                         i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                         i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
 
@@ -132,7 +132,7 @@ module Demapper #(
             //====================================================
             DEGRADE_LANES_8_TO_15: begin
                 case (cycle_count)
-                    0: o_out_data[4*N_BYTES-1 :0] <= {
+                    0: o_out_data[8*N_BYTES-1:4*N_BYTES] <= {
                         i_lane_8[7:0],i_lane_9[7:0],i_lane_10[7:0],i_lane_11[7:0],
                         i_lane_12[7:0],i_lane_13[7:0],i_lane_14[7:0],i_lane_15[7:0],
 
@@ -145,7 +145,7 @@ module Demapper #(
                         i_lane_8[31:24],i_lane_9[31:24],i_lane_10[31:24],i_lane_11[31:24],
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
 
-                    1: o_out_data[8*N_BYTES-1:4*N_BYTES] <= {
+                    1: o_out_data[4*N_BYTES-1 :0] <= {
                         i_lane_8[7:0],i_lane_9[7:0],i_lane_10[7:0],i_lane_11[7:0],
                         i_lane_12[7:0],i_lane_13[7:0],i_lane_14[7:0],i_lane_15[7:0],
 
@@ -157,20 +157,15 @@ module Demapper #(
 
                         i_lane_8[31:24],i_lane_9[31:24],i_lane_10[31:24],i_lane_11[31:24],
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
+                    default: o_out_data <= 0;   
                 endcase
                  if (cycle_count == CLOCK_CYCLES_8-1) begin
                     pl_valid <= 1;
                     cycle_count <= 0;
                 end
-<<<<<<< HEAD
                 else begin
                     cycle_count <= cycle_count + 1;
                     pl_valid    <= 0;
-=======
-                if (cycle_count == CLOCK_CYCLES_8) begin
-                    cycle_count <=0;
-                    pl_valid <= 0;
->>>>>>> a1c7b292a999a008e2c23e3973b7340244ec1885
                 end
             end
 
@@ -179,25 +174,26 @@ module Demapper #(
             //====================================================
             DEGRADE_LANES_0_TO_3: begin
                 case (cycle_count)
-                    0: o_out_data[2*N_BYTES-1:0]   <= {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
+                    0: o_out_data[8*N_BYTES-1:6*N_BYTES]   <= {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                                                i_lane_0[15:8],i_lane_1[15:8],i_lane_2[15:8],i_lane_3[15:8],
                                                i_lane_0[23:16],i_lane_1[23:16],i_lane_2[23:16],i_lane_3[23:16],
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
                    
-                    1: o_out_data[4*N_BYTES-1:2*N_BYTES] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
+                    1: o_out_data[6*N_BYTES-1:4*N_BYTES] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                                                i_lane_0[15:8],i_lane_1[15:8],i_lane_2[15:8],i_lane_3[15:8],
                                                i_lane_0[23:16],i_lane_1[23:16],i_lane_2[23:16],i_lane_3[23:16],
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
                    
-                    2: o_out_data[6*N_BYTES-1:4*N_BYTES] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
+                    2: o_out_data[4*N_BYTES-1:2*N_BYTES] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                                                i_lane_0[15:8],i_lane_1[15:8],i_lane_2[15:8],i_lane_3[15:8],
                                                i_lane_0[23:16],i_lane_1[23:16],i_lane_2[23:16],i_lane_3[23:16],
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
                    
-                    3: o_out_data[8*N_BYTES-1:6*N_BYTES] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
+                    3: o_out_data[2*N_BYTES-1:0] <=  {i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                                                i_lane_0[15:8],i_lane_1[15:8],i_lane_2[15:8],i_lane_3[15:8],
                                                i_lane_0[23:16],i_lane_1[23:16],i_lane_2[23:16],i_lane_3[23:16],
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
+               default : o_out_data <= 0;
                 endcase
               if (cycle_count == CLOCK_CYCLES_4-1) begin
                     pl_valid <= 1;
@@ -211,26 +207,26 @@ module Demapper #(
 
             DEGRADE_LANES_4_TO_7: begin
                 case (cycle_count)
-                    0: o_out_data[2*N_BYTES-1:0]   <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
+                    0: o_out_data[8*N_BYTES-1:6*N_BYTES]   <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
                                                i_lane_4[15:8],i_lane_5[15:8],i_lane_6[15:8],i_lane_7[15:8],
                                                i_lane_4[23:16],i_lane_5[23:16],i_lane_6[23:16],i_lane_7[23:16],
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
                    
-                    1: o_out_data[4*N_BYTES-1:2*N_BYTES] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
+                    1: o_out_data[6*N_BYTES-1:4*N_BYTES] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
                                                i_lane_4[15:8],i_lane_5[15:8],i_lane_6[15:8],i_lane_7[15:8],
                                                i_lane_4[23:16],i_lane_5[23:16],i_lane_6[23:16],i_lane_7[23:16],
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
                    
-                    2: o_out_data[6*N_BYTES-1:4*N_BYTES] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
+                    2: o_out_data[4*N_BYTES-1:2*N_BYTES] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
                                                i_lane_4[15:8],i_lane_5[15:8],i_lane_6[15:8],i_lane_7[15:8],
                                                i_lane_4[23:16],i_lane_5[23:16],i_lane_6[23:16],i_lane_7[23:16],
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
                    
-                    3: o_out_data[8*N_BYTES-1:6*N_BYTES] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
+                    3: o_out_data[2*N_BYTES-1:0] <= {i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
                                                i_lane_4[15:8],i_lane_5[15:8],i_lane_6[15:8],i_lane_7[15:8],
                                                i_lane_4[23:16],i_lane_5[23:16],i_lane_6[23:16],i_lane_7[23:16],
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
-              
+              default : o_out_data <= 0;
                 endcase
                  if (cycle_count == CLOCK_CYCLES_4-1) begin
                     pl_valid <= 1;
