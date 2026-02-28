@@ -1,7 +1,7 @@
 
 `timescale 1ns/1ps
 
-module mapper_tb;
+module Mapper_tb;
 
     // =========================================================
     // Parameters
