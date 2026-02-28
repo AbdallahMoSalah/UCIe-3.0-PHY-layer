@@ -15,7 +15,7 @@ package rdi_codec_pkg;
         // msgcode
         case (msg_no)
             ACTIVE_REQ: begin
-                hdr.msgcode = 8'h01;
+                hdr.msgcode = msg_code_e'(8'h01);
                 hdr.MsgSubcode = 8'h01;
                 hdr.MsgInfo = 16'h0000;
             end

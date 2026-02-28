@@ -2,12 +2,36 @@ package UCIe_pkg;
 
   typedef enum logic [7:0] {
 
+
+
     // ==================================================
     // SBINIT
     // ==================================================
     SBINIT_Out_of_Reset,  // d00
     SBINIT_done_req,      // d01
     SBINIT_done_resp,     // d02  
+
+    // ==================================================
+    // RDI
+    // ==================================================
+
+    RDI_ACTIVE_REQ, 
+    RDI_ACTIVE_RSP,
+    RDI_L1_REQ,
+    RDI_L1_RSP,
+    RDI_L2_REQ,
+    RDI_L2_RSP,
+    RDI_LINK_RESET_REQ,
+    RDI_LINK_RESET_RSP,
+    RDI_LINK_ERROR_REQ,
+    RDI_LINK_ERROR_RSP,
+    RDI_RETRAIN_REQ,
+    RDI_RETRAIN_RSP,
+    RDI_DISABLE_REQ,
+    RDI_DISABLE_RSP,
+    NOP
+    RDI_PMNAK_RSP,
+    
 
     // ==================================================
     // MBINIT
@@ -60,6 +84,8 @@ package UCIe_pkg;
     // =========================
     MBINIT_REPAIRMB_start_req,           // d29
     MBINIT_REPAIRMB_start_resp,          // d30
+    MBINIT_REPAIRMB_apply_repair_req,    // d31
+    MBINIT_REPAIRMB_apply_repair_resp,   // d32
     MBINIT_REPAIRMB_apply_degrade_req,   // d31
     MBINIT_REPAIRMB_apply_degrade_resp,  // d32
     MBINIT_REPAIRMB_end_req,             // d33
@@ -145,8 +171,6 @@ package UCIe_pkg;
     // =========================
     MBTRAIN_RXDESKEW_start_req,                      // d69
     MBTRAIN_RXDESKEW_start_resp,                     // d70
-    MBTRAIN_RXDESKEW_EQ_Preset_req,                  // d71
-    MBTRAIN_RXDESKEW_EQ_Preset_resp,                 // d72
     MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req,   // d73
     MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp,  // d74
     MBTRAIN_RXDESKEW_end_req,                        // d75
@@ -171,8 +195,8 @@ package UCIe_pkg;
     MBTRAIN_LINKSPEED_exit_to_repair_resp,         // d86
     MBTRAIN_LINKSPEED_exit_to_speed_degrade_req,   // d87
     MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp,  // d88
-    MBTRAIN_LINKSPEED_exit_to_phy_retrain_req,     // d89 
-    MBTRAIN_LINKSPEED_exit_to_phy_retrain_resp,    // d90
+    MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req,     // d89 
+    MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp,    // d90
     MBTRAIN_LINKSPEED_done_req,                    // d91
     MBTRAIN_LINKSPEED_done_resp,                   // d92
 
@@ -181,6 +205,8 @@ package UCIe_pkg;
     // =========================
     MBTRAIN_REPAIR_init_req,            // d93
     MBTRAIN_REPAIR_init_resp,           // d94
+    MBTRAIN_REPAIR_apply_repair_req,   // d95
+    MBTRAIN_REPAIR_apply_repair_resp,  // d96
     MBTRAIN_REPAIR_apply_degrade_req,   // d95
     MBTRAIN_REPAIR_apply_degrade_resp,  // d96
     MBTRAIN_REPAIR_end_req,             // d97
@@ -217,14 +243,14 @@ package UCIe_pkg;
     // =========================
     Start_Tx_Init_D_to_C_point_test_req,   // d109
     Start_Tx_Init_D_to_C_point_test_resp,  // d110
-    Start_Tx_Init_D_to_C_eye_sweep_req,    // d111
-    Start_Tx_Init_D_to_C_eye_sweep_resp,   // d112
-    LFSR_clear_error_req,                  // d113
-    LFSR_clear_error_resp,                 // d114
-    Tx_Init_D_to_C_results_req,            // d115
-    Tx_Init_D_to_C_results_resp,           // d116
-    End_Tx_Init_D_to_C_point_test_req,     // d117
-    End_Tx_Init_D_to_C_point_test_resp,    // d118
+    LFSR_clear_error_req,    // d111
+    LFSR_clear_error_resp,   // d112
+    Tx_Init_D_to_C_results_req,     // d113
+    Tx_Init_D_to_C_results_resp,    // d114
+    End_Tx_Init_D_to_C_point_test_req,            // d115
+    End_Tx_Init_D_to_C_point_test_resp,           // d116
+    Start_Tx_Init_D_to_C_eye_sweep_req,     // d117
+    Start_Tx_Init_D_to_C_eye_sweep_resp,    // d118
     End_Tx_Init_D_to_C_eye_sweep_req,      // d119
     End_Tx_Init_D_to_C_eye_sweep_resp,     // d120
 
@@ -233,21 +259,20 @@ package UCIe_pkg;
     // =========================
     Start_Rx_Init_D_to_C_point_test_req,   // d121
     Start_Rx_Init_D_to_C_point_test_resp,  // d122
-    Start_Rx_Init_D_to_C_eye_sweep_req,    // d123
-    Start_Rx_Init_D_to_C_eye_sweep_resp,   // d124
-    Rx_Init_D_to_C_Tx_Count_Done_req,      // d125
-    Rx_Init_D_to_C_Tx_Count_Done_resp,     // d126
-    Rx_Init_D_to_C_results_req,            // d127
-    Rx_Init_D_to_C_results_resp,           // d128
-    End_Rx_Init_D_to_C_point_test_req,     // d129
-    End_Rx_Init_D_to_C_point_test_resp,    // d130
+    Rx_Init_D_to_C_Tx_Count_Done_req,    // d123
+    Rx_Init_D_to_C_Tx_Count_Done_resp,   // d124
+    End_Rx_Init_D_to_C_point_test_req,      // d125
+    End_Rx_Init_D_to_C_point_test_resp,     // d126
+    Start_Rx_Init_D_to_C_eye_sweep_req,            // d127
+    Start_Rx_Init_D_to_C_eye_sweep_resp,           // d128
+    Rx_Init_D_to_C_results_req,     // d129
+    Rx_Init_D_to_C_results_resp,    // d130
     End_Rx_Init_D_to_C_eye_sweep_req,      // d131
-    End_Rx_Init_D_to_C_eye_sweep_resp      // d132
+    End_Rx_Init_D_to_C_eye_sweep_resp,     // d132
 
-    // ==================================================
-    // RDI
-    // ==================================================
+    Rx_Init_D_to_C_sweep_done_with_results,
 
+    NOTHING = 8'hff
 
   } msg_no_e;
 endpackage

@@ -60,25 +60,9 @@ package sb_pkg;
     NOP = 4'b1111
   } sb_rdi_msg_no_e;
 
-  typedef struct packed {
-
-    logic        dp;          // [63]
-    logic        cp;          // [62]
-    logic [2:0]  rsvd2;       // [61:59]
-    sb_dstid_e   dstid;       // [58:56]
-    logic [15:0] MsgInfo;     // [55:40]
-    logic [7:0]  MsgSubcode;  // [39:32]
-
-    sb_srcid_e  srcid;    // [31:29]
-    logic [6:0] rsvd1;    // [28:22]
-    msg_code_e  msgcode;  // [21:14]
-    logic [8:0] rsvd0;    // [13:5]
-    sb_opcode_e opcode;   // [4:0]
-
-  } sb_header_t;
-
   typedef enum logic [7:0] {
     SBINIT_OFFRESET_DOMAIN = 8'h91,
+    RX_TEST_SWEEP_DONE_RESULT = 8'h81,
     SBINIT_REQ_DOMAIN      = 8'h95,
     SBINIT_RESP_DOMAIN     = 8'h9A,
     MBINIT_REQ_DOMAIN      = 8'hA5,
@@ -96,6 +80,25 @@ package sb_pkg;
     TEST_REQ_DOMAIN        = 8'h85,
     TEST_RESP_DOMAIN       = 8'h8A
   } msg_code_e;
+
+
+
+  typedef struct packed {
+
+    logic        dp;         // [63]
+    logic        cp;       // [62]
+    logic [2:0]  rsvd2;       // [61:59]
+    sb_dstid_e   dstid;       // [58:56]
+    logic [15:0] MsgInfo;     // [55:40]
+    logic [7:0]  MsgSubcode;  // [39:32]
+
+    sb_srcid_e  srcid;    // [31:29]
+    logic [6:0] rsvd1;    // [28:22]
+    msg_code_e  msgcode;  // [21:14]
+    logic [8:0] rsvd0;   // [13:5]
+    sb_opcode_e opcode;   // [4:0]
+
+  } sb_header_t;
 
 
 
