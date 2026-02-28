@@ -1,4 +1,4 @@
-module tb_demapper;
+module Demapper_tb;
 
     //============================================================
     // Parameters (same as DUT)

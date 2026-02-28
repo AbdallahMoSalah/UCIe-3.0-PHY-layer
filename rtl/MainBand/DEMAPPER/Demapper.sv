@@ -50,8 +50,8 @@ module Demapper #(
             // x16 MODE
             //====================================================
             DEGRADE_LANES_0_TO_15: begin
-                case (cycle_count)
-                    0: begin
+               // case (cycle_count)
+                 //   0: begin
                         o_out_data <= {
                         i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                         i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
@@ -72,16 +72,17 @@ module Demapper #(
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24],
                         i_lane_8[31:24],i_lane_9[31:24],i_lane_10[31:24],i_lane_11[31:24],
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
-                    end
-                endcase
-                if (cycle_count == CLOCK_CYCLES_16-1) begin
+                 //       default: o_out_data <= 0; 
+               //     end
+             //endcase
+              //  if (cycle_count == CLOCK_CYCLES_16-1) begin
                     pl_valid <= 1;
-                    cycle_count <= 0;
-                end
-                else begin
-                    cycle_count <= cycle_count + 1;
-                    pl_valid    <= 0;
-                end
+                //    cycle_count <= 0;
+           //     end
+             //   else begin
+               //     cycle_count <= cycle_count + 1;
+                 //   pl_valid    <= 0;
+                //end
             end
 
             //====================================================
@@ -114,6 +115,7 @@ module Demapper #(
 
                         i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24],
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
+                        default : o_out_data <= 0;
                 endcase
                  if (cycle_count == CLOCK_CYCLES_8-1) begin
                     pl_valid <= 1;
