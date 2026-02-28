@@ -1,0 +1,1 @@
+coverage exclude -du Mapper -togglenode i_rst_n

@@ -129,6 +129,16 @@ module Mapper #(
                         lane_data[6]  <= {i_in_data[311:304], i_in_data[375:368], i_in_data[439:432], i_in_data[503:496]};
                         lane_data[7]  <= {i_in_data[319:312], i_in_data[383:376], i_in_data[447:440], i_in_data[511:504]};
                     end
+                    default: begin
+        lane_data[0] <= 0;
+        lane_data[1] <= 0;
+        lane_data[2] <= 0;
+        lane_data[3] <= 0;
+        lane_data[4] <= 0;
+        lane_data[5] <= 0;
+        lane_data[6] <= 0;
+        lane_data[7] <= 0;
+    end
                     endcase
                     cycle_count <= cycle_count + 1;
                  if (cycle_count == CLOCK_CYCLES_8) begin
@@ -168,6 +178,16 @@ module Mapper #(
                         lane_data[14]  <= {i_in_data[311:304], i_in_data[375:368], i_in_data[439:432], i_in_data[503:496]};
                         lane_data[15]  <= {i_in_data[319:312], i_in_data[383:376], i_in_data[447:440], i_in_data[511:504]};
                     end
+                    default: begin
+        lane_data[8]  <= 0;
+        lane_data[9]  <= 0;
+        lane_data[10] <= 0;
+        lane_data[11] <= 0;
+        lane_data[12] <= 0;
+        lane_data[13] <= 0;
+        lane_data[14] <= 0;
+        lane_data[15] <= 0;
+    end
                     endcase
                     cycle_count <= cycle_count + 1;
                  if (cycle_count == CLOCK_CYCLES_8) begin
@@ -206,6 +226,13 @@ module Mapper #(
                 lane_data[2] <= {i_in_data[407:400], i_in_data[439:432], i_in_data[471:464], i_in_data[503:496]};
                 lane_data[3] <= {i_in_data[415:408], i_in_data[447:440], i_in_data[479:472], i_in_data[511:504]};
             end
+        default: begin
+        lane_data[0] <= 0;
+        lane_data[1] <= 0;
+        lane_data[2] <= 0;
+        lane_data[3] <= 0;
+
+    end
         endcase
         cycle_count <= cycle_count + 1;
          if (cycle_count == CLOCK_CYCLES_4) begin
@@ -244,6 +271,12 @@ module Mapper #(
                 lane_data[6] <= {i_in_data[407:400], i_in_data[439:432], i_in_data[471:464], i_in_data[503:496]};
                 lane_data[7] <= {i_in_data[415:408], i_in_data[447:440], i_in_data[479:472], i_in_data[511:504]};
             end
+        default: begin
+        lane_data[4] <= 0;
+        lane_data[5] <= 0;
+        lane_data[6] <= 0;
+        lane_data[7] <= 0;
+    end
         endcase
         cycle_count <= cycle_count + 1;
      if (cycle_count == CLOCK_CYCLES_4) begin
