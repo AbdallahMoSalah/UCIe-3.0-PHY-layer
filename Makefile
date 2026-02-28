@@ -7,13 +7,13 @@
 # -----------------------------------------------
 ifneq ($(MAKECMDGOALS),clean)
 
-	ifndef CONFIG
-	$(error CONFIG is not defined. Example: make run CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb)
-	endif
-	
-	ifndef TOP
-	$(error TOP is not defined. Example: make run CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb)
-	endif
+ifndef CONFIG
+$(error CONFIG is not defined. Example: make run CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb)
+endif
+
+ifndef TOP
+$(error TOP is not defined. Example: make run CONFIG=unit_rdi_packetizer TOP=RDI_Packetizer_tb)
+endif
 
 endif
 
