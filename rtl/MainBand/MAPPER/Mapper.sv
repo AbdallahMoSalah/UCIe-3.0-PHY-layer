@@ -39,11 +39,8 @@ module Mapper #(
     // Internal Registers
     //============================================================
     reg [$clog2(CLOCK_CYCLES_4)-1:0] cycle_count;
-    reg [WIDTH-1:0] lane_data [0:NUM_LANES-1];
+    reg [WIDTH-1:0] lane_data [0:NUM_LANES-1] ; 
    
-
-    integer i;
-
     //============================================================
     // Sequential Logic
     //============================================================
@@ -97,6 +94,9 @@ module Mapper #(
                             lane_data [15] <= {i_in_data[127:120],i_in_data[255:248], i_in_data[383:376], i_in_data[511:504]};  
                 end
                 cycle_count <= cycle_count + 1 ;
+                 if (cycle_count == CLOCK_CYCLES_16) begin
+                    cycle_count <=0;
+                end
                 end 
                 end
             
@@ -131,6 +131,9 @@ module Mapper #(
                     end
                     endcase
                     cycle_count <= cycle_count + 1;
+                 if (cycle_count == CLOCK_CYCLES_8) begin
+                    cycle_count <=0;
+                end
                 end
             
             end
@@ -167,9 +170,11 @@ module Mapper #(
                     end
                     endcase
                     cycle_count <= cycle_count + 1;
+                 if (cycle_count == CLOCK_CYCLES_8) begin
+                    cycle_count <=0;
                 end
-            
-            end
+                end
+                end
 
             //====================================================
             // Lanes 0 → 3
@@ -203,8 +208,12 @@ module Mapper #(
             end
         endcase
         cycle_count <= cycle_count + 1;
-    end
-end
+         if (cycle_count == CLOCK_CYCLES_4) begin
+                    cycle_count <=0;
+                  
+            end
+            end
+            end
 
             //====================================================
             // Lanes 4 → 7
@@ -237,8 +246,12 @@ end
             end
         endcase
         cycle_count <= cycle_count + 1;
-    end
-end
+     if (cycle_count == CLOCK_CYCLES_4) begin
+                    cycle_count <=0;
+                end
+    
+              end
+              end
 
             default: begin
             cycle_count    <= 0;

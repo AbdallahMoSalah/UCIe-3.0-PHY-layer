@@ -162,9 +162,15 @@ module Demapper #(
                     pl_valid <= 1;
                     cycle_count <= 0;
                 end
+<<<<<<< HEAD
                 else begin
                     cycle_count <= cycle_count + 1;
                     pl_valid    <= 0;
+=======
+                if (cycle_count == CLOCK_CYCLES_8) begin
+                    cycle_count <=0;
+                    pl_valid <= 0;
+>>>>>>> a1c7b292a999a008e2c23e3973b7340244ec1885
                 end
             end
 

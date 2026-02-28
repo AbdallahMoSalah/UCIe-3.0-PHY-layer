@@ -1,0 +1,21 @@
+# Questa
+*.ini
+*.wlf
+*.vcd
+*.mti
+*.mpf
+work/
+transcript
+logs/
+# Compiled simulation databases
+*_lib*.qdb
+*_lib*.qpg
+*_lib*.qtl
+
+# Questa internal dirs
+@_opt/
+_opt/
+_opt1__lock
+_opt__lock
+_temp/
+_tempmsg/

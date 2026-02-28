@@ -1,0 +1,988 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /RDI_Packetizer_tb/DUT
+=== Design Unit: work.RDI_Packetizer
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        26        26         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /RDI_Packetizer_tb/DUT
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+------------------------------------IF Branch------------------------------------
+    31                                      1636     Count coming in to IF
+    31              1                        741             if (RDI_msg_no_send <= DISABLE_REQ) begin
+    33              1                         79             end else if (RDI_msg_no_send == NOP)begin
+    35              1                        816             end else begin
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    40                                      1636     Count coming in to CASE
+    41              1                        101                 ACTIVE_REQ, ACTIVE_RSP:         header_next.MsgSubcode = 8'h01;
+    41              2                        109     
+    42              1                        112                 PMNAK_RSP:                      header_next.MsgSubcode = 8'h02;
+    43              1                         96                 L1_REQ, L1_RSP:                 header_next.MsgSubcode = 8'h04;
+    43              2                        102     
+    44              1                        120                 L2_REQ, L2_RSP:                 header_next.MsgSubcode = 8'h08;
+    44              2                         90     
+    45              1                         90                 LINK_RESET_REQ, LINK_RESET_RSP: header_next.MsgSubcode = 8'h09;
+    45              2                        103     
+    46              1                        115                 LINK_ERROR_REQ, LINK_ERROR_RSP: header_next.MsgSubcode = 8'h0A;
+    46              2                        103     
+    47              1                        103                 RETRAIN_REQ, RETRAIN_RSP:       header_next.MsgSubcode = 8'h0B;
+    47              2                         98     
+    48              1                        116                 DISABLE_REQ, DISABLE_RSP:       header_next.MsgSubcode = 8'h0C;
+    48              2                         97     
+    49              1                         81                 default:                        header_next.MsgSubcode = 8'h00;
+Branch totals: 16 hits of 16 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    53                                      1636     Count coming in to IF
+    53              1                        814             if (RDI_msg_no_send >= ACTIVE_RSP && RDI_msg_no_send != NOP) begin
+    55              1                        822             end else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    54                                       814     Count coming in to IF
+    54              1                        561                 header_next.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    54              2                        253                 header_next.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    64                                      2159     Count coming in to IF
+    64              1                        391             if (!rst_n) begin
+    67              1                       1196             end else if (RDI_vld_send && push_ready) begin
+    70              1                        572             end else begin
+Branch totals: 3 hits of 3 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       6         6         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /RDI_Packetizer_tb/DUT --
+
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+----------------Focused Condition View-------------------
+Line       31 Item    1  (RDI_msg_no_send <= DISABLE_REQ)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                        Input Term   Covered  Reason for no coverage   Hint
+                       -----------  --------  -----------------------  --------------
+  (RDI_msg_no_send <= DISABLE_REQ)         Y
+
+     Rows:       Hits  FEC Target                          Non-masking condition(s)      
+ ---------  ---------  --------------------                -------------------------     
+  Row   1:          1  (RDI_msg_no_send <= DISABLE_REQ)_0  -                             
+  Row   2:          1  (RDI_msg_no_send <= DISABLE_REQ)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       33 Item    1  (RDI_msg_no_send == NOP)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                Input Term   Covered  Reason for no coverage   Hint
+               -----------  --------  -----------------------  --------------
+  (RDI_msg_no_send == NOP)         Y
+
+     Rows:       Hits  FEC Target                  Non-masking condition(s)      
+ ---------  ---------  --------------------        -------------------------     
+  Row   1:          1  (RDI_msg_no_send == NOP)_0  -                             
+  Row   2:          1  (RDI_msg_no_send == NOP)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       53 Item    1  ((RDI_msg_no_send >= ACTIVE_RSP) && (RDI_msg_no_send != NOP))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+                       Input Term   Covered  Reason for no coverage   Hint
+                      -----------  --------  -----------------------  --------------
+  (RDI_msg_no_send >= ACTIVE_RSP)         Y
+         (RDI_msg_no_send != NOP)         Y
+
+     Rows:       Hits  FEC Target                         Non-masking condition(s)      
+ ---------  ---------  --------------------               -------------------------     
+  Row   1:          1  (RDI_msg_no_send >= ACTIVE_RSP)_0  -                             
+  Row   2:          1  (RDI_msg_no_send >= ACTIVE_RSP)_1  (RDI_msg_no_send != NOP)      
+  Row   3:          1  (RDI_msg_no_send != NOP)_0         (RDI_msg_no_send >= ACTIVE_RSP)
+  Row   4:          1  (RDI_msg_no_send != NOP)_1         (RDI_msg_no_send >= ACTIVE_RSP)
+
+----------------Focused Condition View-------------------
+Line       67 Item    1  (RDI_vld_send && push_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+    Input Term   Covered  Reason for no coverage   Hint
+   -----------  --------  -----------------------  --------------
+  RDI_vld_send         Y
+    push_ready         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  RDI_vld_send_0        -                             
+  Row   2:          1  RDI_vld_send_1        push_ready                    
+  Row   3:          1  push_ready_0          RDI_vld_send                  
+  Row   4:          1  push_ready_1          RDI_vld_send                  
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      27        27         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /RDI_Packetizer_tb/DUT --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/LinkMgmt/RDI_Packetizer.sv
+    3                                                module RDI_Packetizer (
+    4                                                    input logic clk,
+    5                                                    input logic rst_n,
+    6                                                
+    7                                                    // From RDI_SM
+    8                                                    input  sb_rdi_msg_no_e RDI_msg_no_send,
+    9                                                    input  logic stall_send,
+    10                                                   input  logic RDI_vld_send,
+    11                                                   output logic RDI_ready, // Indicates that the packetizer is ready to accept a new message from RDI_SM
+    12                                               
+    13                                                   input  logic push_ready,  // Indicates that the fifo is ready to accept a new message (!= full)
+    14                                                   output logic [127:0] RDI_msg,
+    15                                                   output logic RDI_vld_out
+    16                                               );
+    17                                               
+    18                                                   sb_header_t header_reg;
+    19                                                   sb_header_t header_next;
+    20                                               
+    21              1                       1636         always_comb begin
+    22              1                       1636             header_next = '0;
+    23                                               
+    24              1                       1636             header_next.opcode = SB_MSG_WITHOUT_DATA;
+    25              1                       1636             header_next.srcid = PHY;
+    26              1                       1636             header_next.dstid = REMOTE_PHY;
+    27                                               
+    28              1                       1636             header_next.dp = 1'b0;
+    29                                               
+    30                                                       // msgcode
+    31                                                       if (RDI_msg_no_send <= DISABLE_REQ) begin
+    32              1                        741                 header_next.msgcode = 8'h01;  // Request
+    33                                                       end else if (RDI_msg_no_send == NOP)begin
+    34              1                         79                  header_next.msgcode = 8'h00;
+    35                                                       end else begin
+    36              1                        816                 header_next.msgcode = 8'h02;  // Response
+    37                                                       end
+    38                                               
+    39                                                       // subcode mapping
+    40                                                       case (RDI_msg_no_send)
+    41              1                        210                 ACTIVE_REQ, ACTIVE_RSP:         header_next.MsgSubcode = 8'h01;
+    42              1                        112                 PMNAK_RSP:                      header_next.MsgSubcode = 8'h02;
+    43              1                        198                 L1_REQ, L1_RSP:                 header_next.MsgSubcode = 8'h04;
+    44              1                        210                 L2_REQ, L2_RSP:                 header_next.MsgSubcode = 8'h08;
+    45              1                        193                 LINK_RESET_REQ, LINK_RESET_RSP: header_next.MsgSubcode = 8'h09;
+    46              1                        218                 LINK_ERROR_REQ, LINK_ERROR_RSP: header_next.MsgSubcode = 8'h0A;
+    47              1                        201                 RETRAIN_REQ, RETRAIN_RSP:       header_next.MsgSubcode = 8'h0B;
+    48              1                        213                 DISABLE_REQ, DISABLE_RSP:       header_next.MsgSubcode = 8'h0C;
+    49              1                         81                 default:                        header_next.MsgSubcode = 8'h00;
+    50                                                       endcase
+    51                                               
+    52                                                       // MsgInfo
+    53                                                       if (RDI_msg_no_send >= ACTIVE_RSP && RDI_msg_no_send != NOP) begin
+    54              1                        814                 header_next.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    55                                                       end else begin
+    56              1                        822                 header_next.MsgInfo = 16'h0000;
+    57                                                       end
+    58                                               
+    59                                                       // parity (even)
+    60              1                       1636             header_next.cp = ^header_next[61:0];
+    61                                                   end
+    62                                               
+    63              1                       2159         always @(posedge clk or negedge rst_n) begin
+    64                                                       if (!rst_n) begin
+    65              1                        391                 RDI_vld_out <= 1'b0;  // No valid message on reset
+    66              1                        391                 header_reg  <= '0;  // Clear header on reset
+    67                                                       end else if (RDI_vld_send && push_ready) begin
+    68              1                       1196                 header_reg  <= header_next;
+    69              1                       1196                 RDI_vld_out <= 1'b1;  // Indicate that the message is valid and ready to be sent  
+    70                                                       end else begin
+    71              1                        572                 RDI_vld_out <= 1'b0;  // No valid message if not sending
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        354       178       176    50.28%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /RDI_Packetizer_tb/DUT --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                       RDI_msg[62]           1           1                              100.00 
+                                    RDI_msg[58-57]           1           1                              100.00 
+                                    RDI_msg[55-40]           1           1                              100.00 
+                                    RDI_msg[35-32]           1           1                              100.00 
+                                       RDI_msg[30]           1           1                              100.00 
+                                    RDI_msg[15-14]           1           1                              100.00 
+                                        RDI_msg[4]           1           1                              100.00 
+                                        RDI_msg[1]           1           1                              100.00 
+                              RDI_msg_no_send[0-3]           1           1                              100.00 
+                                         RDI_ready           1           1                              100.00 
+                                       RDI_vld_out           1           1                              100.00 
+                                      RDI_vld_send           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                                    header_next.dp           0           0                                0.00 
+                                    header_next.cp           1           1                              100.00 
+                            header_next.rsvd2[2-0]           0           0                                0.00 
+                                 header_next.dstid               ENUM type       Value       Count 
+                                                             LOCAL_ADAPTER           0        0.00 
+                                                                 LOCAL_PHY           0        0.00 
+                                                            REMOTE_ADAPTER           0        0.00 
+                                                                REMOTE_PHY        1635      100.00 
+                                                         REMOTE_REG_ACCESS           0        0.00 
+                                                             MNGT_PORT_dst           0        0.00 
+                         header_next.MsgInfo[15-0]           1           1                              100.00 
+                       header_next.MsgSubcode[7-4]           0           0                                0.00 
+                       header_next.MsgSubcode[3-0]           1           1                              100.00 
+                                 header_next.srcid               ENUM type       Value       Count 
+                                                                    STACK0           0        0.00 
+                                                                   ADAPTER           0        0.00 
+                                                                       PHY        1635      100.00 
+                                                             MNGT_PORT_src           0        0.00 
+                                                                    STACK1           0        0.00 
+                            header_next.rsvd1[6-0]           0           0                                0.00 
+                          header_next.msgcode[7-2]           0           0                                0.00 
+                          header_next.msgcode[1-0]           1           1                              100.00 
+                            header_next.rsvd0[8-0]           0           0                                0.00 
+                                header_next.opcode               ENUM type       Value       Count 
+                                                            SB_32_MEM_READ           0        0.00 
+                                                           SB_32_MEM_WRITE           0        0.00 
+                                                        SB_32_DMS_REG_READ           0        0.00 
+                                                       SB_32_DMS_REG_WRITE           0        0.00 
+                                                            SB_32_CFG_READ           0        0.00 
+                                                           SB_32_CFG_WRITE           0        0.00 
+                                                            SB_64_MEM_READ           0        0.00 
+                                                           SB_64_MEM_WRITE           0        0.00 
+                                                        SB_64_DMS_REG_READ           0        0.00 
+                                                       SB_64_DMS_REG_WRITE           0        0.00 
+                                                            SB_64_CFG_READ           0        0.00 
+                                                           SB_64_CFG_WRITE           0        0.00 
+                                                   SB_COMPLETION_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_32_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITHOUT_DATA        1635      100.00 
+                                                   SB_MNGT_PORT_MSG_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_MNGT_PORT_MSG_WITH_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_64_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITH_64_DATA           0        0.00 
+                                                          SB_PRIORITY_MSG1           0        0.00 
+                                                          SB_PRIORITY_MSG2           0        0.00 
+                                     header_reg.dp           0           0                                0.00 
+                                     header_reg.cp           1           1                              100.00 
+                             header_reg.rsvd2[2-0]           0           0                                0.00 
+                                  header_reg.dstid               ENUM type       Value       Count 
+                                                             LOCAL_ADAPTER           0        0.00 
+                                                                 LOCAL_PHY           0        0.00 
+                                                            REMOTE_ADAPTER           0        0.00 
+                                                                REMOTE_PHY         162      100.00 
+                                                         REMOTE_REG_ACCESS           0        0.00 
+                                                             MNGT_PORT_dst           0        0.00 
+                          header_reg.MsgInfo[15-0]           1           1                              100.00 
+                        header_reg.MsgSubcode[7-4]           0           0                                0.00 
+                        header_reg.MsgSubcode[3-0]           1           1                              100.00 
+                                  header_reg.srcid               ENUM type       Value       Count 
+                                                                    STACK0         163      100.00 
+                                                                   ADAPTER           0        0.00 
+                                                                       PHY         162      100.00 
+                                                             MNGT_PORT_src           0        0.00 
+                                                                    STACK1           0        0.00 
+                             header_reg.rsvd1[6-0]           0           0                                0.00 
+                           header_reg.msgcode[7-2]           0           0                                0.00 
+                           header_reg.msgcode[1-0]           1           1                              100.00 
+                             header_reg.rsvd0[8-0]           0           0                                0.00 
+                                 header_reg.opcode               ENUM type       Value       Count 
+                                                            SB_32_MEM_READ         163      100.00 
+                                                           SB_32_MEM_WRITE           0        0.00 
+                                                        SB_32_DMS_REG_READ           0        0.00 
+                                                       SB_32_DMS_REG_WRITE           0        0.00 
+                                                            SB_32_CFG_READ           0        0.00 
+                                                           SB_32_CFG_WRITE           0        0.00 
+                                                            SB_64_MEM_READ           0        0.00 
+                                                           SB_64_MEM_WRITE           0        0.00 
+                                                        SB_64_DMS_REG_READ           0        0.00 
+                                                       SB_64_DMS_REG_WRITE           0        0.00 
+                                                            SB_64_CFG_READ           0        0.00 
+                                                           SB_64_CFG_WRITE           0        0.00 
+                                                   SB_COMPLETION_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_32_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITHOUT_DATA         162      100.00 
+                                                   SB_MNGT_PORT_MSG_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_MNGT_PORT_MSG_WITH_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_64_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITH_64_DATA           0        0.00 
+                                                          SB_PRIORITY_MSG1           0        0.00 
+                                                          SB_PRIORITY_MSG2           0        0.00 
+                                        push_ready           1           1                              100.00 
+                                             rst_n           1           1                              100.00 
+                                        stall_send           1           1                              100.00 
+
+Total Node Count     =        209 
+Toggled Node Count   =         93 
+Untoggled Node Count =        116 
+
+Toggle Coverage      =      50.28% (178 of 354 bins)
+
+=================================================================================
+=== Instance: /RDI_Packetizer_tb
+=== Design Unit: work.RDI_Packetizer_tb
+=================================================================================
+
+Assertion Coverage:
+    Assertions                       2         2         0   100.00%
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/RDI_Packetizer_tb/apply_reset/immed__53
+                     tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv(53)
+                                                        0          1
+/RDI_Packetizer_tb/send_random/immed__70
+                     tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv(70)
+                                                        0          1
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         2         1         1    50.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /RDI_Packetizer_tb
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+------------------------------------IF Branch------------------------------------
+    87                                      2001     Count coming in to IF
+    87              1                       2001             if (dut_hdr === RDI_Packetizer_object.exp_hdr && RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp) begin
+    89              1                    ***0***             end else begin
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       2         0         2     0.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /RDI_Packetizer_tb --
+
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+----------------Focused Condition View-------------------
+Line       87 Item    1  ((dut_hdr === RDI_Packetizer_object.exp_hdr) && (RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp))
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+                                               Input Term   Covered  Reason for no coverage   Hint
+                                              -----------  --------  -----------------------  --------------
+              (dut_hdr === RDI_Packetizer_object.exp_hdr)         N  '_0' not hit             Hit '_0'
+  (RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp)         N  '_0' not hit             Hit '_0'
+
+     Rows:       Hits  FEC Target                                                 Non-masking condition(s)      
+ ---------  ---------  --------------------                                       -------------------------     
+  Row   1:    ***0***  (dut_hdr === RDI_Packetizer_object.exp_hdr)_0              -                             
+  Row   2:          1  (dut_hdr === RDI_Packetizer_object.exp_hdr)_1              (RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp)
+  Row   3:    ***0***  (RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp)_0  (dut_hdr === RDI_Packetizer_object.exp_hdr)
+  Row   4:          1  (RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp)_1  (dut_hdr === RDI_Packetizer_object.exp_hdr)
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      40        36         4    90.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /RDI_Packetizer_tb --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv
+    1                                                module RDI_Packetizer_tb;
+    2                                                
+    3                                                    import sb_pkg::*;
+    4                                                    import RDI_Packetizer_pkg::*;
+    5                                                
+    6                                                    
+    7                                                    logic clk;
+    8                                                    logic rst_n;
+    9                                                    sb_rdi_msg_no_e RDI_msg_no_send;
+    10                                                   logic stall_send;
+    11                                                   logic RDI_vld_send;
+    12                                                   logic RDI_ready_send;
+    13                                                   logic push_ready;
+    14                                                   logic [127:0] RDI_msg;
+    15                                                   logic RDI_vld_out;
+    16                                                   
+    17                                                   int pass_count = 0;
+    18                                                   int fail_count = 0;
+    19                                               
+    20                                                   sb_header_t dut_hdr;
+    21                                               
+    22              1                          1         RDI_Packetizer_class RDI_Packetizer_object = new();
+    23                                                   // -----------------------------------
+    24                                                   // DUT
+    25                                                   // ----------------------------------   
+    26                                                   RDI_Packetizer DUT (
+    27                                                       .clk(clk),
+    28                                                       .rst_n(rst_n),
+    29                                                       .RDI_msg_no_send(RDI_msg_no_send),
+    30                                                       .stall_send(stall_send),
+    31                                                       .RDI_vld_send(RDI_vld_send),
+    32                                                       .RDI_ready(RDI_ready_send),
+    33                                                       .push_ready(push_ready),
+    34                                                       .RDI_msg(RDI_msg),
+    35                                                       .RDI_vld_out(RDI_vld_out)
+    36                                                   );
+    37                                               
+    38                                                   // -----------------------------------
+    39                                                   // Clock
+    40                                                   // ----------------------------------   
+    41                                                   initial begin
+    42              1                          1             clk = 0;
+    43              1                          1             forever begin
+    44              1                       4006                 #5 clk = ~clk;
+    44              2                       4005     
+    45                                                       end
+    46                                                   end
+    47                                               
+    48                                                   // -----------------------------------
+    49                                                   // Reset
+    50                                                   // ----------------------------------   
+    51                                                   task apply_reset();
+    52              1                          1             RDI_Packetizer_object.testtype = WITH_RESET;
+    53                                                       assert(RDI_Packetizer_object.randomize());
+    54              1                          1             rst_n = RDI_Packetizer_object.rst_n;
+    55              1                          1             RDI_Packetizer_object.build_expected();
+    56              1                          1             checker_result();
+    57              1                          1             rst_n = 1;
+    58                                                   endtask
+    59                                               
+    60                                                   // -----------------------------------
+    61                                                   // Expected Model using struct
+    62                                                   // ----------------------------------   
+    63                                                   
+    64                                               
+    65                                                   // -----------------------------------
+    66                                                   // Random Send Task
+    67                                                   // ----------------------------------   
+    68                                                   task send_random(); 
+    69                                                       
+    70                                                       assert(RDI_Packetizer_object.randomize());
+    71                                                       
+    72              1                       2000             rst_n = RDI_Packetizer_object.rst_n;
+    73              1                       2000             RDI_msg_no_send = RDI_Packetizer_object.RDI_msg_no_send;
+    74              1                       2000             stall_send = RDI_Packetizer_object.stall_send;
+    75              1                       2000             RDI_vld_send = RDI_Packetizer_object.RDI_vld_send;
+    76              1                       2000             push_ready = RDI_Packetizer_object.push_ready;
+    77                                               
+    78                                                   endtask
+    79                                               
+    80                                                   // -----------------------------------
+    81                                                   // Monitor + Checker
+    82                                                   // ----------------------------------   
+    83                                                   task checker_result();
+    84              1                       2001             @(negedge clk);
+    85              1                       2001             dut_hdr = sb_header_t'(RDI_msg[63:0]);
+    86                                                       
+    87                                                       if (dut_hdr === RDI_Packetizer_object.exp_hdr && RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp) begin
+    88              1                       2001                 pass_count++;
+    89                                                       end else begin
+    90              1                    ***0***                 fail_count++;
+    91              1                    ***0***                 $display("Mismatch at time %0t", $time);
+    92              1                    ***0***                 $display("Expected = %h", RDI_Packetizer_object.exp_hdr);
+    93              1                    ***0***                 $display("Got      = %h", dut_hdr);
+    94                                                       end
+    95                                                       
+    96                                                   endtask
+    97                                               
+    98                                                   // -----------------------------------
+    99                                                   // Test Sequence
+    100                                                  // ----------------------------------   
+    101                                                  initial begin
+    102             1                          1             push_ready   = 1;
+    103             1                          1             RDI_vld_send = 0;
+    104             1                          1             stall_send   = 0;
+    105             1                          1             apply_reset();
+    106                                                      // Directed
+    107             1                       1000             repeat (1000) begin 
+    108             1                       1000               RDI_Packetizer_object.testtype = WITHOUT_RESET;
+    109             1                       1000               send_random();
+    110             1                       1000               RDI_Packetizer_object.build_expected();
+    111                                                        
+    112             1                       1000               checker_result();
+    113                                                        
+    114                                                      end
+    115             1                       1000             repeat (1000) begin 
+    116             1                       1000               RDI_Packetizer_object.testtype = NORMAL;
+    117             1                       1000               send_random();
+    118             1                       1000               RDI_Packetizer_object.build_expected();
+    119                                                        
+    120             1                       1000               checker_result();
+    121                                                        
+    122                                                      end
+    123                                               
+    124             1                          1             #20 $display("PASS = %0d", pass_count);
+    124             2                          1     
+    125             1                          1             $display("FAIL = %0d", fail_count);
+    126             1                          1             $stop;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        552       158       394    28.62%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /RDI_Packetizer_tb --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                        RDI_msg[0]           0           0                                0.00 
+                                        RDI_msg[1]           1           1                              100.00 
+                                      RDI_msg[2-3]           0           0                                0.00 
+                                        RDI_msg[4]           1           1                              100.00 
+                                     RDI_msg[5-13]           0           0                                0.00 
+                                    RDI_msg[14-15]           1           1                              100.00 
+                                    RDI_msg[16-29]           0           0                                0.00 
+                                       RDI_msg[30]           1           1                              100.00 
+                                       RDI_msg[31]           0           0                                0.00 
+                                    RDI_msg[32-35]           1           1                              100.00 
+                                    RDI_msg[36-39]           0           0                                0.00 
+                                    RDI_msg[40-55]           1           1                              100.00 
+                                       RDI_msg[56]           0           0                                0.00 
+                                    RDI_msg[57-58]           1           1                              100.00 
+                                    RDI_msg[59-61]           0           0                                0.00 
+                                       RDI_msg[62]           1           1                              100.00 
+                                   RDI_msg[63-127]           0           0                                0.00 
+                                   RDI_msg_no_send               ENUM type       Value       Count 
+                                                                ACTIVE_REQ           3      100.00 
+                                                                    L1_REQ           4      100.00 
+                                                                    L2_REQ           4      100.00 
+                                                            LINK_RESET_REQ           4      100.00 
+                                                            LINK_ERROR_REQ           4      100.00 
+                                                               RETRAIN_REQ           1      100.00 
+                                                               DISABLE_REQ           2      100.00 
+                                                                ACTIVE_RSP           6      100.00 
+                                                                 PMNAK_RSP           6      100.00 
+                                                                    L1_RSP           3      100.00 
+                                                                    L2_RSP           3      100.00 
+                                                            LINK_RESET_RSP           1      100.00 
+                                                            LINK_ERROR_RSP           2      100.00 
+                                                               RETRAIN_RSP           6      100.00 
+                                                               DISABLE_RSP           2      100.00 
+                                                                       NOP           1      100.00 
+                                    RDI_ready_send           1           1                              100.00 
+                                       RDI_vld_out           1           1                              100.00 
+                                      RDI_vld_send           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                             dut_hdr.MsgInfo[0-15]           1           1                              100.00 
+                           dut_hdr.MsgSubcode[0-3]           1           1                              100.00 
+                           dut_hdr.MsgSubcode[4-7]           0           0                                0.00 
+                                        dut_hdr.cp           1           1                              100.00 
+                                        dut_hdr.dp           0           0                                0.00 
+                                     dut_hdr.dstid               ENUM type       Value       Count 
+                                                             LOCAL_ADAPTER           0        0.00 
+                                                                 LOCAL_PHY           0        0.00 
+                                                            REMOTE_ADAPTER           0        0.00 
+                                                                REMOTE_PHY         162      100.00 
+                                                         REMOTE_REG_ACCESS           0        0.00 
+                                                             MNGT_PORT_dst           0        0.00 
+                                    dut_hdr.opcode               ENUM type       Value       Count 
+                                                            SB_32_MEM_READ         163      100.00 
+                                                           SB_32_MEM_WRITE           0        0.00 
+                                                        SB_32_DMS_REG_READ           0        0.00 
+                                                       SB_32_DMS_REG_WRITE           0        0.00 
+                                                            SB_32_CFG_READ           0        0.00 
+                                                           SB_32_CFG_WRITE           0        0.00 
+                                                            SB_64_MEM_READ           0        0.00 
+                                                           SB_64_MEM_WRITE           0        0.00 
+                                                        SB_64_DMS_REG_READ           0        0.00 
+                                                       SB_64_DMS_REG_WRITE           0        0.00 
+                                                            SB_64_CFG_READ           0        0.00 
+                                                           SB_64_CFG_WRITE           0        0.00 
+                                                   SB_COMPLETION_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_32_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITHOUT_DATA         162      100.00 
+                                                   SB_MNGT_PORT_MSG_WITHOUT_DATA 
+                                                                                    0        0.00 
+                                                   SB_MNGT_PORT_MSG_WITH_DATA 
+                                                                                    0        0.00 
+                                                   SB_COMPLETION_WITH_64_DATA 
+                                                                                    0        0.00 
+                                                       SB_MSG_WITH_64_DATA           0        0.00 
+                                                          SB_PRIORITY_MSG1           0        0.00 
+                                                          SB_PRIORITY_MSG2           0        0.00 
+                                     dut_hdr.srcid               ENUM type       Value       Count 
+                                                                    STACK0         163      100.00 
+                                                                   ADAPTER           0        0.00 
+                                                                       PHY         162      100.00 
+                                                             MNGT_PORT_src           0        0.00 
+                                                                    STACK1           0        0.00 
+                              dut_hdr.msgcode[0-1]           1           1                              100.00 
+                              dut_hdr.msgcode[2-7]           0           0                                0.00 
+                                dut_hdr.rsvd0[0-8]           0           0                                0.00 
+                                dut_hdr.rsvd1[0-6]           0           0                                0.00 
+                                dut_hdr.rsvd2[0-2]           0           0                                0.00 
+                                  fail_count[0-31]           0           0                                0.00 
+                                   pass_count[0-9]           1           1                              100.00 
+                                    pass_count[10]           0           1                               50.00 
+                                 pass_count[11-31]           0           0                                0.00 
+                                        push_ready           1           1                              100.00 
+                                             rst_n           1           1                              100.00 
+                                        stall_send           1           1                              100.00 
+
+Total Node Count     =        300 
+Toggled Node Count   =         89 
+Untoggled Node Count =        211 
+
+Toggle Coverage      =      28.62% (158 of 552 bins)
+
+=================================================================================
+=== Instance: /RDI_Packetizer_pkg
+=== Design Unit: work.RDI_Packetizer_pkg
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        35        35         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /RDI_Packetizer_pkg
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_pkg.sv
+------------------------------------CASE Branch------------------------------------
+    69                                      2001     Count coming in to CASE
+    70              1                        132                 ACTIVE_REQ: begin
+    75              1                        139                 L1_REQ: begin
+    80              1                        147                 L2_REQ: begin
+    85              1                        116                 LINK_RESET_REQ: begin
+    90              1                        146                 LINK_ERROR_REQ: begin
+    95              1                        123                 RETRAIN_REQ: begin
+    100             1                        146                 DISABLE_REQ: begin
+    105             1                        127                 ACTIVE_RSP: begin
+    110             1                        132                 PMNAK_RSP: begin
+    115             1                        113                 L1_RSP: begin
+    120             1                        112                 L2_RSP: begin
+    125             1                        119                 LINK_RESET_RSP: begin
+    130             1                        122                 LINK_ERROR_RSP: begin
+    135             1                        112                 RETRAIN_RSP: begin
+    140             1                        113                 DISABLE_RSP: begin
+    145             1                        102                 default: begin
+Branch totals: 16 hits of 16 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    108                                      127     Count coming in to IF
+    108             1                         92                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    108             2                         35                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    113                                      132     Count coming in to IF
+    113             1                         90                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    113             2                         42                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    118                                      113     Count coming in to IF
+    118             1                         87                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    118             2                         26                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    123                                      112     Count coming in to IF
+    123             1                         81                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    123             2                         31                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    128                                      119     Count coming in to IF
+    128             1                         90                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    128             2                         29                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    133                                      122     Count coming in to IF
+    133             1                         86                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    133             2                         36                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    138                                      112     Count coming in to IF
+    138             1                         79                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    138             2                         33                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    143                                      113     Count coming in to IF
+    143             1                         78                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    143             2                         35                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    158                                     2001     Count coming in to IF
+    158             1                        220             if (!rst_n) begin
+    161             1                       1196             end else if (RDI_vld_send && push_ready) begin
+    164             1                        585             end else begin
+Branch totals: 3 hits of 3 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       2         2         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /RDI_Packetizer_pkg --
+
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_pkg.sv
+----------------Focused Condition View-------------------
+Line       161 Item    1  (this.RDI_vld_send && this.push_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+         Input Term   Covered  Reason for no coverage   Hint
+        -----------  --------  -----------------------  --------------
+  this.RDI_vld_send         Y
+    this.push_ready         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  this.RDI_vld_send_0   -                             
+  Row   2:          1  this.RDI_vld_send_1   this.push_ready               
+  Row   3:          1  this.push_ready_0     this.RDI_vld_send             
+  Row   4:          1  this.push_ready_1     this.RDI_vld_send             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      62        62         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /RDI_Packetizer_pkg --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/rdi_packetizer/RDI_Packetizer_pkg.sv
+    1                                                package RDI_Packetizer_pkg;
+    2                                                    import sb_pkg::*;
+    3                                                    typedef enum bit [1:0]{WITHOUT_RESET, WITH_RESET, NORMAL} testType_t;
+    4                                                    class RDI_Packetizer_class;
+    5                                                        rand logic rst_n;
+    6                                                        rand sb_rdi_msg_no_e RDI_msg_no_send;
+    7                                                        rand logic stall_send;
+    8                                                        rand logic RDI_vld_send;
+    9                                                        rand logic push_ready;
+    10                                               
+    11                                                       testType_t testtype = WITHOUT_RESET;
+    12                                                       sb_rdi_msg_no_e Prev_RDI_msg_no_send = NOP;
+    13                                                       logic Prev_push_ready = 1;
+    14                                                       logic Prev_RDI_vld_send = 0;
+    15                                               
+    16                                                       sb_header_t exp_hdr;
+    17                                               
+    18                                                       logic RDI_vld_out_exp;
+    19                                               
+    20                                                       constraint rst_constraint{
+    21                                                           if(testtype == WITHOUT_RESET){
+    22                                                               rst_n == 1;
+    23                                                           }else if(testtype == WITH_RESET){
+    24                                                               rst_n == 0;
+    25                                                           }
+    26                                                           else {
+    27                                                               rst_n dist { 1 :/ 80, 0 :/20};
+    28                                                           }
+    29                                                           
+    30                                                       }
+    31                                               
+    32                                                       constraint stall_constraint{
+    33                                                           if(RDI_msg_no_send >= ACTIVE_RSP && (RDI_msg_no_send != NOP)){
+    34                                                               stall_send dist { 1 :/ 70, 0 :/30};
+    35                                                           }
+    36                                                           else {
+    37                                                               stall_send dist { 1 :/ 10, 0 :/ 90};
+    38                                                           }
+    39                                                       }
+    40                                               
+    41                                                       constraint push_ready_constraint{
+    42                                                           push_ready dist { 1 :/ 80, 0 :/ 20};
+    43                                                       }
+    44                                               
+    45                                                       constraint RDI_msg_no_send_constraint{
+    46                                                           if(Prev_push_ready == 0 ){
+    47                                                               RDI_msg_no_send == Prev_RDI_msg_no_send;
+    48                                                           }
+    49                                                       }
+    50                                               
+    51                                                       constraint RDI_vld_send_constraint{
+    52                                                           if(Prev_push_ready == 0  && Prev_RDI_vld_send == 1){
+    53                                                               RDI_vld_send == 1;
+    54                                                           }
+    55                                                           else {
+    56                                                               RDI_vld_send dist { 1 :/ 80, 0 :/ 20};
+    57                                                           }
+    58                                                       }
+    59                                               
+    60                                               
+    61                                               function build_expected();
+    62                                                       sb_header_t hdr;
+    63              1                       2001             hdr        = '0;
+    64              1                       2001             hdr.opcode = SB_MSG_WITHOUT_DATA;
+    65              1                       2001             hdr.srcid  = PHY;
+    66              1                       2001             hdr.dstid  = REMOTE_PHY;
+    67              1                       2001             hdr.dp     = 1'b0;
+    68                                                       // msgcode
+    69                                                       case (RDI_msg_no_send)
+    70                                                           ACTIVE_REQ: begin
+    71              1                        132                     hdr.msgcode = 8'h01;
+    72              1                        132                     hdr.MsgSubcode = 8'h01;
+    73              1                        132                     hdr.MsgInfo = 16'h0000;
+    74                                                           end
+    75                                                           L1_REQ: begin
+    76              1                        139                     hdr.msgcode = 8'h01;
+    77              1                        139                     hdr.MsgSubcode = 8'h04;
+    78              1                        139                     hdr.MsgInfo = 16'h0000;
+    79                                                           end
+    80                                                           L2_REQ: begin
+    81              1                        147                     hdr.msgcode = 8'h01;
+    82              1                        147                     hdr.MsgSubcode = 8'h08;
+    83              1                        147                     hdr.MsgInfo = 16'h0000;
+    84                                                           end
+    85                                                           LINK_RESET_REQ: begin
+    86              1                        116                     hdr.msgcode = 8'h01;
+    87              1                        116                     hdr.MsgSubcode = 8'h09;
+    88              1                        116                     hdr.MsgInfo = 16'h0000;
+    89                                                           end
+    90                                                           LINK_ERROR_REQ: begin
+    91              1                        146                     hdr.msgcode = 8'h01;
+    92              1                        146                     hdr.MsgSubcode = 8'h0A;
+    93              1                        146                     hdr.MsgInfo = 16'h0000;
+    94                                                           end
+    95                                                           RETRAIN_REQ: begin
+    96              1                        123                     hdr.msgcode = 8'h01;
+    97              1                        123                     hdr.MsgSubcode = 8'h0B;
+    98              1                        123                     hdr.MsgInfo = 16'h0000;
+    99                                                           end
+    100                                                          DISABLE_REQ: begin
+    101             1                        146                     hdr.msgcode = 8'h01;
+    102             1                        146                     hdr.MsgSubcode = 8'h0C;
+    103             1                        146                     hdr.MsgInfo = 16'h0000;
+    104                                                          end
+    105                                                          ACTIVE_RSP: begin
+    106             1                        127                     hdr.msgcode = 8'h02;
+    107             1                        127                     hdr.MsgSubcode = 8'h01;
+    108             1                        127                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    109                                                          end
+    110                                                          PMNAK_RSP: begin
+    111             1                        132                     hdr.msgcode = 8'h02;
+    112             1                        132                     hdr.MsgSubcode = 8'h02;
+    113             1                        132                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    114                                                          end
+    115                                                          L1_RSP: begin
+    116             1                        113                     hdr.msgcode = 8'h02;
+    117             1                        113                     hdr.MsgSubcode = 8'h04;
+    118             1                        113                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    119                                                          end
+    120                                                          L2_RSP: begin
+    121             1                        112                     hdr.msgcode = 8'h02;
+    122             1                        112                     hdr.MsgSubcode = 8'h08;
+    123             1                        112                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    124                                                          end
+    125                                                          LINK_RESET_RSP: begin
+    126             1                        119                     hdr.msgcode = 8'h02;
+    127             1                        119                     hdr.MsgSubcode = 8'h09;
+    128             1                        119                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    129                                                          end
+    130                                                          LINK_ERROR_RSP: begin
+    131             1                        122                     hdr.msgcode = 8'h02;
+    132             1                        122                     hdr.MsgSubcode = 8'h0A;
+    133             1                        122                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    134                                                          end
+    135                                                          RETRAIN_RSP: begin
+    136             1                        112                     hdr.msgcode = 8'h02;
+    137             1                        112                     hdr.MsgSubcode = 8'h0B;
+    138             1                        112                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    139                                                          end
+    140                                                          DISABLE_RSP: begin
+    141             1                        113                     hdr.msgcode = 8'h02;
+    142             1                        113                     hdr.MsgSubcode = 8'h0C;
+    143             1                        113                     hdr.MsgInfo = stall_send ? 16'hFFFF : 16'h0000;
+    144                                                          end
+    145                                                          default: begin
+    146             1                        102                     hdr.msgcode = 8'h00;
+    147             1                        102                     hdr.MsgSubcode = 8'h00;
+    148             1                        102                     hdr.MsgInfo = 16'h0000;
+    149                                                          end
+    150                                                      endcase
+    151                                                      // Parity (even)
+    152                                                      /*         sb_header_t tmp;
+    153                                                      tmp = hdr;
+    154                                                      tmp.cp = 0;
+    155                                                      tmp.dp = 0; */
+    156             1                       2001             hdr.cp = ^hdr[61:0];
+    157                                              
+    158                                                      if (!rst_n) begin
+    159             1                        220                 RDI_vld_out_exp = 1'b0;  // No valid message on reset
+    160             1                        220                 exp_hdr  = '0;  // Clear header on reset
+    161                                                      end else if (RDI_vld_send && push_ready) begin
+    162             1                       1196                 exp_hdr  = hdr;
+    163             1                       1196                 RDI_vld_out_exp = 1'b1;  // Indicate that the message is valid and ready to be sent  
+    164                                                      end else begin
+    165             1                        585                 RDI_vld_out_exp = 1'b0;  // No valid message if not sending
+    166                                                      end
+    167                                                      
+    168                                                  endfunction
+    169                                              
+    170                                                  function void post_randomize();
+    171             1                       2001           Prev_RDI_msg_no_send = RDI_msg_no_send;
+    172             1                       2001           Prev_push_ready = push_ready;
+    173             1                       2001           Prev_RDI_vld_send = RDI_vld_send;
+
+
+
+ASSERTION RESULTS:
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/RDI_Packetizer_tb/apply_reset/immed__53
+                     tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv(53)
+                                                        0          1
+/RDI_Packetizer_tb/send_random/immed__70
+                     tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv(70)
+                                                        0          1
+
+Total Coverage By Instance (filtered view): 82.47%
+
