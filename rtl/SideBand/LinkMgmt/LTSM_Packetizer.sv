@@ -6,7 +6,7 @@ module LTSM_Packetizer (
     input  logic         rst_n,
     input  logic [ 63:0] ltsm_msg_data_send,
     input  logic [ 15:0] ltsm_msg_info_send,
-    input  logic [  7:0] ltsm_msg_no_send,
+    input  logic [  7:0] msg_no_send,
     input  logic         ltsm_valid_send,
     input  logic         push_ready,
     output logic [127:0] ltsm_msg,
@@ -18,30 +18,55 @@ module LTSM_Packetizer (
 sb_header_t header_comb,header_reg;
 logic [63:0] payload;
 
+logic is_there_data;
+logic is_req;
+assign ltsm_ready = push_ready;
 
-assign dp = ^ltsm_msg_data_send;
-assign cp = ^header_comb[61:0]; 
-
-    always_comb begin
+always_comb begin
 
     // =====================================================
     // Defaults
     // =====================================================
     header_comb             = '0;
     header_comb.dstid       = REMOTE_PHY;
-    header_comb.srcid       = LOCAL_PHY;
-    header_comb.dp          = dp;
-    header_comb.cp          = cp;
+    header_comb.srcid       = PHY;
     header_comb.MsgInfo     = ltsm_msg_info_send;
+    is_there_data           = 0;
+    is_req = msg_no_send[0];
+
+    // =====================================================
+    // RDI DOMAIN
+    // =====================================================
+    if (msg_no_send >= RDI_ACTIVE_REQ && msg_no_send <= RDI_PMNAK_RSP && msg_no_send != NOP) begin
+         // msgcode
+        if (msg_no_send[0]) begin
+            header_comb.msgcode = RDI_REQ_DOMAIN;  // Request
+        end else begin
+            header_comb.msgcode = RDI_RESP_DOMAIN;  // Response
+        end
+
+        // subcode mapping
+        case (msg_no_send)
+            ACTIVE_REQ, ACTIVE_RSP:         header_comb.MsgSubcode = 8'h01;
+            PMNAK_RSP:                      header_comb.MsgSubcode = 8'h02;
+            L1_REQ, L1_RSP:                 header_comb.MsgSubcode = 8'h04;
+            L2_REQ, L2_RSP:                 header_comb.MsgSubcode = 8'h08;
+            LINK_RESET_REQ, LINK_RESET_RSP: header_comb.MsgSubcode = 8'h09;
+            LINK_ERROR_REQ, LINK_ERROR_RSP: header_comb.MsgSubcode = 8'h0A;
+            RETRAIN_REQ, RETRAIN_RSP:       header_comb.MsgSubcode = 8'h0B;
+            DISABLE_REQ, DISABLE_RSP:       header_comb.MsgSubcode = 8'h0C;
+        endcase
+  
+    end
 
     // =====================================================
     // SBINIT DOMAIN
     // =====================================================
-    if (msg_no >= SBINIT_Out_of_Reset && msg_no <= SBINIT_done_resp) begin // لو عايز تبسطها ماشي كنت عايز اخليها شبه الي تحت مش فارقه 
-      if (msg_no == SBINIT_Out_of_Reset) header_comb.msgcode = SBINIT_OFFRESET_DOMAIN;
-      else if (msg_no[0] == 1'b0) header_comb.msgcode = SBINIT_REQ_DOMAIN;
+    else if (msg_no_send >= SBINIT_Out_of_Reset && msg_no_send <= SBINIT_done_resp) begin // لو عايز تبسطها ماشي كنت عايز اخليها شبه الي تحت مش فارقه 
+      if (msg_no_send == SBINIT_Out_of_Reset) header_comb.msgcode = SBINIT_OFFRESET_DOMAIN;
+      else if (msg_no_send[0] == 1'b1) header_comb.msgcode = SBINIT_REQ_DOMAIN;
       else header_comb.msgcode = SBINIT_RESP_DOMAIN;
-      case (msg_no)
+      case (msg_no_send)
         SBINIT_Out_of_Reset: header_comb.MsgSubcode = 8'h00;
         SBINIT_done_req:     header_comb.MsgSubcode = 8'h01;
         SBINIT_done_resp:    header_comb.MsgSubcode = 8'h02;
@@ -53,23 +78,25 @@ assign cp = ^header_comb[61:0];
     // =====================================================
     // MBINIT DOMAIN
     // =====================================================
-    else if (msg_no >= MBINIT_PARAM_configuration_req &&
-             msg_no <= MBINIT_REPAIRMB_end_resp) begin
+    else if (msg_no_send >= MBINIT_PARAM_configuration_req &&
+             msg_no_send <= MBINIT_REPAIRMB_end_resp) begin
 
-        if (msg_no[0] == 1'b0)
+        if (msg_no_send[0] == 1'b1)
             header_comb.msgcode = MBINIT_REQ_DOMAIN;
         else
             header_comb.msgcode = MBINIT_RESP_DOMAIN;
 
-        case (msg_no)
+        case (msg_no_send)
 
             MBINIT_PARAM_configuration_req,
-            MBINIT_PARAM_configuration_resp:
-                header_comb.MsgSubcode = 8'h00;
+            MBINIT_PARAM_configuration_resp: begin
+                header_comb.MsgSubcode = 8'h00; is_there_data = 1'b1;
+            end
 
             MBINIT_PARAM_SBFE_req,
-            MBINIT_PARAM_SBFE_resp:
-                header_comb.MsgSubcode = 8'h01;
+            MBINIT_PARAM_SBFE_resp: begin
+                header_comb.MsgSubcode = 8'h01; is_there_data = 1'b1;
+            end
 
             MBINIT_CAL_Done_req,
             MBINIT_CAL_Done_resp:
@@ -111,8 +138,9 @@ assign cp = ^header_comb[61:0];
                 header_comb.MsgSubcode = 8'h0E;
 
             MBINIT_REVERSALMB_result_req,
-            MBINIT_REVERSALMB_result_resp:
-                header_comb.MsgSubcode = 8'h0F;
+            MBINIT_REVERSALMB_result_resp: begin
+                header_comb.MsgSubcode = 8'h0F; is_there_data = !is_req;
+            end
 
             MBINIT_REVERSALMB_done_req,
             MBINIT_REVERSALMB_done_resp:
@@ -123,13 +151,18 @@ assign cp = ^header_comb[61:0];
             MBINIT_REPAIRMB_start_resp:
                 header_comb.MsgSubcode = 8'h11;
 
-            MBINIT_REPAIRMB_apply_degrade_req,
-            MBINIT_REPAIRMB_apply_degrade_resp:
-                header_comb.MsgSubcode = 8'h12;
+            MBINIT_REPAIRMB_apply_repair_req,
+            MBINIT_REPAIRMB_apply_repair_resp: begin
+                header_comb.MsgSubcode = 8'h12; is_there_data = is_req;
+            end
 
             MBINIT_REPAIRMB_end_req,
             MBINIT_REPAIRMB_end_resp:
                 header_comb.MsgSubcode = 8'h13;
+
+            MBINIT_REPAIRMB_apply_degrade_req,
+            MBINIT_REPAIRMB_apply_degrade_resp:
+                header_comb.MsgSubcode = 8'h14;
 
         endcase
     end
@@ -139,20 +172,20 @@ assign cp = ^header_comb[61:0];
     // MBTRAIN DOMAIN (B5 / BA)
     // includes RECAL_track_tx_adjust
     // =====================================================
-    else if ( (msg_no >= MBTRAIN_VALVREF_start_req &&
-               msg_no <= MBTRAIN_REPAIR_end_resp)
+    else if ( (msg_no_send >= MBTRAIN_VALVREF_start_req &&
+               msg_no_send <= MBTRAIN_REPAIR_end_resp)
               ||
-              (msg_no == RECAL_track_tx_adjust_req)
+              (msg_no_send == RECAL_track_tx_adjust_req)
               ||
-              (msg_no == RECAL_track_tx_adjust_resp)
+              (msg_no_send == RECAL_track_tx_adjust_resp)
             ) begin
 
-        if (msg_no[0] == 1'b0)
+        if (msg_no_send[0] == 1'b1)
             header_comb.msgcode = MBTRAIN_REQ_DOMAIN;
         else
             header_comb.msgcode = MBTRAIN_RESP_DOMAIN;
 
-        case (msg_no)
+        case (msg_no_send)
 
             // ---------- VALVREF ----------
             MBTRAIN_VALVREF_start_req,
@@ -239,10 +272,6 @@ assign cp = ^header_comb[61:0];
             MBTRAIN_RXDESKEW_end_resp:
                 header_comb.MsgSubcode = 8'h12;
             
-            MBTRAIN_RXDESKEW_EQ_Preset_req,                  // d71
-            MBTRAIN_RXDESKEW_EQ_Preset_resp:
-                header_comb.MsgSubcode = 8'h1F;
-
             MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req,
             MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp:
                 header_comb.MsgSubcode = 8'h20;
@@ -278,22 +307,28 @@ assign cp = ^header_comb[61:0];
             MBTRAIN_LINKSPEED_done_resp:
                 header_comb.MsgSubcode = 8'h19;
 
-            MBTRAIN_LINKSPEED_exit_to_phy_retrain_req,
-            MBTRAIN_LINKSPEED_exit_to_phy_retrain_resp:
+            MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req,
+            MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp:
                 header_comb.MsgSubcode = 8'h1F;
 
             // ---------- REPAIR ----------
             MBTRAIN_REPAIR_init_req,
             MBTRAIN_REPAIR_init_resp:
                 header_comb.MsgSubcode = 8'h1B;
+            
+            MBTRAIN_REPAIR_apply_repair_req,
+            MBTRAIN_REPAIR_apply_repair_resp:
+                header_comb.MsgSubcode = 8'h1C; is_there_data = is_req;
+
+            MBTRAIN_REPAIR_end_req,
+            MBTRAIN_REPAIR_end_resp:
+                header_comb.MsgSubcode = 8'h1D;
+
 
             MBTRAIN_REPAIR_apply_degrade_req,
             MBTRAIN_REPAIR_apply_degrade_resp:
                 header_comb.MsgSubcode = 8'h1E;
 
-            MBTRAIN_REPAIR_end_req,
-            MBTRAIN_REPAIR_end_resp:
-                header_comb.MsgSubcode = 8'h1D;
 
             // ---------- RECAL TX ADJUST ----------
             RECAL_track_tx_adjust_req,
@@ -307,19 +342,19 @@ assign cp = ^header_comb[61:0];
     // =====================================================
     // RECAL PATTERN DOMAIN (D5 / DA)
     // =====================================================
-    else if (msg_no == RECAL_track_pattern_init_req || //هنا مختلفه واخدها من شات فمكسل اخليها شبه الي فوق 
-             msg_no == RECAL_track_pattern_init_resp) begin
+    else if (msg_no_send == RECAL_track_pattern_init_req || //هنا مختلفه واخدها من شات فمكسل اخليها شبه الي فوق 
+             msg_no_send == RECAL_track_pattern_init_resp) begin
 
-        header_comb.msgcode = (msg_no[0] == 1'b0) ?
+        header_comb.msgcode = (msg_no_send[0] == 1'b1) ?
                    RECAL_REQ_DOMAIN :
                    RECAL_RESP_DOMAIN;
 
         header_comb.MsgSubcode = 8'h00;
     end
-    else if (msg_no == RECAL_track_pattern_done_req ||
-             msg_no == RECAL_track_pattern_done_resp) begin
+    else if (msg_no_send == RECAL_track_pattern_done_req ||
+             msg_no_send == RECAL_track_pattern_done_resp) begin
 
-        header_comb.msgcode = (msg_no[0] == 1'b0) ?
+        header_comb.msgcode = (msg_no_send[0] == 1'b1) ?
                    RECAL_REQ_DOMAIN :
                    RECAL_RESP_DOMAIN;
 
@@ -330,11 +365,11 @@ assign cp = ^header_comb[61:0];
     // =====================================================
     // PHYRETRAIN
     // =====================================================
-    else if (msg_no == PHYRETRAIN_retrain_start_req) begin
+    else if (msg_no_send == PHYRETRAIN_retrain_start_req) begin
         header_comb.msgcode    = PHYRETRAIN_REQ_DOMAIN;
         header_comb.MsgSubcode = 8'h01;
     end
-    else if (msg_no == PHYRETRAIN_retrain_start_resp) begin
+    else if (msg_no_send == PHYRETRAIN_retrain_start_resp) begin
         header_comb.msgcode    = PHYRETRAIN_RESP_DOMAIN;
         header_comb.MsgSubcode = 8'h01;
     end
@@ -343,14 +378,99 @@ assign cp = ^header_comb[61:0];
     // =====================================================
     // TRAINERROR
     // =====================================================
-    else if (msg_no == TRAINERROR_Entry_req) begin
+    else if (msg_no_send == TRAINERROR_Entry_req) begin
         header_comb.msgcode    = TRAINERROR_REQ_DOMAIN;
         header_comb.MsgSubcode = 8'h00;
     end
-    else if (msg_no == TRAINERROR_Entry_resp) begin
+    else if (msg_no_send == TRAINERROR_Entry_resp) begin
         header_comb.msgcode    = TRAINERROR_RESP_DOMAIN;
         header_comb.MsgSubcode = 8'h00;
     end
+
+    // =====================================================
+    // TEST DOMAIN
+    // =====================================================
+    else if (msg_no_send >= Start_Tx_Init_D_to_C_point_test_req &&
+             msg_no_send <= End_Rx_Init_D_to_C_eye_sweep_resp) begin
+
+        if (msg_no_send[0] == 1'b1)
+            header_comb.msgcode = TEST_REQ_DOMAIN;
+        else
+            header_comb.msgcode = TEST_RESP_DOMAIN;
+
+        case (msg_no_send)
+
+            Start_Tx_Init_D_to_C_point_test_req,
+            Start_Tx_Init_D_to_C_point_test_resp: begin 
+                header_comb.MsgSubcode = 8'h01; is_there_data = is_req;
+            end
+
+            LFSR_clear_error_req,
+            LFSR_clear_error_resp:
+                header_comb.MsgSubcode = 8'h02;
+
+            Tx_Init_D_to_C_results_req,
+            Tx_Init_D_to_C_results_resp: begin
+                header_comb.MsgSubcode = 8'h03; is_there_data = !is_req;
+            end
+
+            End_Tx_Init_D_to_C_point_test_req,
+            End_Tx_Init_D_to_C_point_test_resp:
+                header_comb.MsgSubcode = 8'h04;
+
+            Start_Tx_Init_D_to_C_eye_sweep_req,
+            Start_Tx_Init_D_to_C_eye_sweep_resp: begin
+                header_comb.MsgSubcode = 8'h05; is_there_data = is_req;
+            end
+
+            End_Tx_Init_D_to_C_eye_sweep_req,
+            End_Tx_Init_D_to_C_eye_sweep_resp:
+                header_comb.MsgSubcode = 8'h06;
+
+            // ---------------- REPAIRVAL ----------------
+            Start_Rx_Init_D_to_C_point_test_req,
+            Start_Rx_Init_D_to_C_point_test_resp: begin
+                header_comb.MsgSubcode = 8'h07; is_there_data = is_req;
+            end
+
+            Rx_Init_D_to_C_Tx_Count_Done_req,
+            Rx_Init_D_to_C_Tx_Count_Done_resp:
+                header_comb.MsgSubcode = 8'h08;
+
+            End_Rx_Init_D_to_C_point_test_req,
+            End_Rx_Init_D_to_C_point_test_resp:
+                header_comb.MsgSubcode = 8'h09;
+
+            // ---------------- REVERSALMB ----------------
+            Start_Rx_Init_D_to_C_eye_sweep_req,
+            Start_Rx_Init_D_to_C_eye_sweep_resp: begin
+                header_comb.MsgSubcode = 8'h0A; is_there_data = is_req;
+            end
+
+            Rx_Init_D_to_C_results_req,
+            Rx_Init_D_to_C_results_resp: begin
+                header_comb.MsgSubcode = 8'h0B; is_there_data = !is_req;
+            end
+
+            End_Rx_Init_D_to_C_eye_sweep_req,
+            End_Rx_Init_D_to_C_eye_sweep_resp:
+                header_comb.MsgSubcode = 8'h0D;
+
+        endcase
+    end
+    else if (msg_no_send == Rx_Init_D_to_C_sweep_done_with_results) begin
+
+        header_comb.msgcode = RX_TEST_SWEEP_DONE_RESULT;
+
+        header_comb.MsgSubcode = 8'h0C;
+        is_there_data = 1'b1;
+    end
+
+
+
+    header_comb.dp = ^ltsm_msg_data_send;
+    header_comb.opcode = is_there_data ? SB_MSG_WITH_64_DATA : SB_MSG_WITHOUT_DATA;
+    header_comb.cp = ^header_comb[61:0]; 
 
 end
             
@@ -358,18 +478,18 @@ end
          
   always_ff @(posedge clk, negedge rst_n) begin : seq_part
     if (!rst_n) begin
-      ltsm_vld <= 1'0;
+      ltsm_vld <= 1'b0;
       header_reg <= '0;
       payload <= '0;
-    end else if (ltsm_valid_send) begin
-      ltsm_vld = 1'1;
+    end else if (ltsm_valid_send && push_ready) begin
+      ltsm_vld <= 1'b1;
       header_reg <= header_comb;
       payload <= ltsm_msg_data_send;
     end else begin
-      ltsm_vld <= 1'0;
+      ltsm_vld <= 1'b0;
     end
   end
 
-    assign ltsm_msg = {header_reg, payload}; 
+    assign ltsm_msg = {payload, header_reg}; 
 
 endmodule

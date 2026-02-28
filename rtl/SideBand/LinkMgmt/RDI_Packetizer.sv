@@ -5,12 +5,12 @@ module RDI_Packetizer (
     input logic rst_n,
 
     // From RDI_SM
-    input  sb_rdi_msg_no_e RDI_msg_no_send,
-    input  logic stall_send,
-    input  logic RDI_vld_send,
+    input sb_rdi_msg_no_e RDI_msg_no_send,
+    input logic stall_send,
+    input logic RDI_vld_send,
     output logic RDI_ready, // Indicates that the packetizer is ready to accept a new message from RDI_SM
 
-    input  logic push_ready,  // Indicates that the fifo is ready to accept a new message (!= full)
+    input logic push_ready,  // Indicates that the fifo is ready to accept a new message (!= full)
     output logic [127:0] RDI_msg,
     output logic RDI_vld_out
 );
@@ -30,8 +30,8 @@ module RDI_Packetizer (
         // msgcode
         if (RDI_msg_no_send <= DISABLE_REQ) begin
             header_next.msgcode = 8'h01;  // Request
-        end else if (RDI_msg_no_send == NOP)begin
-             header_next.msgcode = 8'h00;
+        end else if (RDI_msg_no_send == NOP) begin
+            header_next.msgcode = 8'h00;
         end else begin
             header_next.msgcode = 8'h02;  // Response
         end
