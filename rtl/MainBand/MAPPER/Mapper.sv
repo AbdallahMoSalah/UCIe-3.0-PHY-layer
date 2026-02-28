@@ -72,7 +72,7 @@ module Mapper #(
             //====================================================
             // 16 Lanes Active
             //====================================================
-            DEGRADE_LANES_0_TO_15: begin
+            DEGRADE_LANES_0_TO_15: begin  // import 
                 if (cycle_count < CLOCK_CYCLES_16) begin
                     if (cycle_count == 0) begin
                        
