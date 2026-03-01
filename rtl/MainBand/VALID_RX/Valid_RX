@@ -17,7 +17,8 @@ module VALID_DETECTOR (
     localparam  MAX_ERROR      = 12'hFFF;
 
     reg [11:0] error_count ;
-    reg [7:0] consec_count ;
+    reg [7:0] consec_count ; 
+    reg [6:0] mismatch_count ;
     
     
 endmodule
