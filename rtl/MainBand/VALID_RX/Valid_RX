@@ -1,0 +1,23 @@
+module VALID_DETECTOR (
+    input wire i_clk ,
+    input wire i_rst_n ,
+    input wire [31:0] RVLD_L ,
+    input wire i_Valid_en ,
+    input wire [11:0] i_max_error_threshold ,
+
+    output reg O_result_logged 
+);
+
+ 
+    localparam VALID_8BIT = 8'b11110000;  
+    localparam VALID_PATTERN = {VALID_8BIT, VALID_8BIT, VALID_8BIT, VALID_8BIT}; // 32-bit pattern
+
+    localparam MAX_ITERATIONS  = 128;
+    localparam MIN_CONSECUTIVE = 16 ;
+    localparam  MAX_ERROR      = 12'hFFF;
+
+    reg [11:0] error_count ;
+    reg [7:0] consec_count ;
+    
+    
+endmodule
