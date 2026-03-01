@@ -9,8 +9,8 @@ module VALID_DETECTOR (
 );
 
  
-    localparam VALID_8BIT = 8'b11110000;  
-    localparam VALID_PATTERN = {VALID_8BIT, VALID_8BIT, VALID_8BIT, VALID_8BIT}; // 32-bit pattern
+    localparam VALID_8B = 8'b11110000;  
+    localparam VALID_PATTERN = {VALID_8B, VALID_8B, VALID_8B, VALID_8B}; // 32-bit pattern
 
     localparam MAX_ITERATIONS  = 128;
     localparam MIN_CONSECUTIVE = 16 ;
@@ -18,7 +18,7 @@ module VALID_DETECTOR (
 
     reg [11:0] error_count ;
     reg [7:0] consec_count ; 
-    reg [6:0] mismatch_count ;
+  
     
     
 endmodule
