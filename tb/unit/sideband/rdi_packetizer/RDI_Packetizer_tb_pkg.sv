@@ -60,7 +60,7 @@ package RDI_Packetizer_tb_pkg;
         }
 
 
-    function build_expected();
+    function void build_expected();
         sb_header_t hdr;
         hdr = encode_rdi_header(RDI_msg_no_send, stall_send);
 

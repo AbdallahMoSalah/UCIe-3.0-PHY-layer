@@ -29,11 +29,11 @@ module RDI_Packetizer (
 
         // msgcode
         if (RDI_msg_no_send <= DISABLE_REQ) begin
-            header_next.msgcode = 8'h01;  // Request
+            header_next.msgcode = msg_code_e'(8'h01);  // Request
         end else if (RDI_msg_no_send == NOP) begin
-            header_next.msgcode = 8'h00;
+            header_next.msgcode = msg_code_e'(8'h00);
         end else begin
-            header_next.msgcode = 8'h02;  // Response
+            header_next.msgcode = msg_code_e'(8'h02);  // Response
         end
 
         // subcode mapping

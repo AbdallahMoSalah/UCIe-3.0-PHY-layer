@@ -100,7 +100,7 @@ package RDI_DePacketizer_tb_pkg;
                 end
 
                 MSGCODE_ERROR: begin
-                    hdr.msgcode = not_msgcode;
+                    hdr.msgcode = msg_code_e'(not_msgcode);
                     affects_decode = 1;
                 end
                 MSGSUBCODE_ERROR: begin
