@@ -18,7 +18,33 @@ module VALID_DETECTOR (
 
     reg [11:0] error_count ;
     reg [7:0] consec_count ; 
-  
+    reg [5:0] mismatch_count   ;
+    localparam IDLE           = 2'b00 ;      
+    localparam ITERATIONS_128 = 2'b01 ;
+    localparam CONSECUTIVE_16 = 2'b10 ;
     
+    reg [1:0] current_state; 
+    integer i; 
+
+ 
+  // كنت بشيل كل الفيلات بتاعت qestasim قبل ما اعمل push ازاي ؟
+
+  always @(posedge i_clk or negedge i_rst_n ) begin
+    if (!i_rst_n) begin
+      O_result_logged <= 1'b0 ;
+      current_state <= IDLE ;
+      mismatch_count <= 6'd0;
+    end
+else begin
+  case (current_state)
+    ITERATIONS_128: begin
+               for (i = 0; i < 32; i = i + 1) begin
+                mismatch_count = mismatch_count + (RVLD_L[i] ^ VALID_PATTERN[i]);
+            end
+    end 
+    default: 
+  endcase
+end
+  end    
     
 endmodule

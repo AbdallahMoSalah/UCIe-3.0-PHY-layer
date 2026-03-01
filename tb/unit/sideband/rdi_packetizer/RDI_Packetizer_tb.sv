@@ -45,6 +45,38 @@ module RDI_Packetizer_tb;
         end
     end
 
+
+    // -----------------------------------
+    // Test Sequence
+    // ----------------------------------   
+    initial begin
+        push_ready   = 1;
+        RDI_vld_send = 0;
+        stall_send   = 0;
+        apply_reset();
+        
+        repeat (1000) begin 
+          RDI_Packetizer_object.testtype = WITHOUT_RESET;
+          send_random();
+          RDI_Packetizer_object.build_expected();
+          
+          checker_result();
+          
+        end
+        repeat (1000) begin 
+          RDI_Packetizer_object.testtype = NORMAL;
+          send_random();
+          RDI_Packetizer_object.build_expected();
+          
+          checker_result();
+          
+        end
+ 
+        #20 $display("PASS = %0d", pass_count);
+        $display("FAIL = %0d", fail_count);
+        $stop;
+    end
+
     // -----------------------------------
     // Reset
     // ----------------------------------   
@@ -56,11 +88,6 @@ module RDI_Packetizer_tb;
         checker_result();
         rst_n = 1;
     endtask
-
-    // -----------------------------------
-    // Expected Model using struct
-    // ----------------------------------   
-    
 
     // -----------------------------------
     // Random Send Task
@@ -94,36 +121,5 @@ module RDI_Packetizer_tb;
         end
         
     endtask
-
-    // -----------------------------------
-    // Test Sequence
-    // ----------------------------------   
-    initial begin
-        push_ready   = 1;
-        RDI_vld_send = 0;
-        stall_send   = 0;
-        apply_reset();
-        // Directed
-        repeat (1000) begin 
-          RDI_Packetizer_object.testtype = WITHOUT_RESET;
-          send_random();
-          RDI_Packetizer_object.build_expected();
-          
-          checker_result();
-          
-        end
-        repeat (1000) begin 
-          RDI_Packetizer_object.testtype = NORMAL;
-          send_random();
-          RDI_Packetizer_object.build_expected();
-          
-          checker_result();
-          
-        end
- 
-        #20 $display("PASS = %0d", pass_count);
-        $display("FAIL = %0d", fail_count);
-        $stop;
-    end
 
 endmodule
