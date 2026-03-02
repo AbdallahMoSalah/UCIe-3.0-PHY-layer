@@ -9,6 +9,7 @@ module LTSM_Packetizer (
     input  logic [  7:0] msg_no_send,
     input  logic         ltsm_valid_send,
     input  logic         push_ready,
+    input logic          stall_send,
     output logic [127:0] ltsm_msg,
     output logic         ltsm_vld,
     output logic         ltsm_ready
@@ -56,6 +57,7 @@ always_comb begin
             RETRAIN_REQ, RETRAIN_RSP:       header_comb.MsgSubcode = 8'h0B;
             DISABLE_REQ, DISABLE_RSP:       header_comb.MsgSubcode = 8'h0C;
         endcase
+        header_comb.MsgInfo     = stall_send ? 16'hffff : 16'h0000;
   
     end
 
@@ -317,8 +319,9 @@ always_comb begin
                 header_comb.MsgSubcode = 8'h1B;
             
             MBTRAIN_REPAIR_apply_repair_req,
-            MBTRAIN_REPAIR_apply_repair_resp:
+            MBTRAIN_REPAIR_apply_repair_resp: begin
                 header_comb.MsgSubcode = 8'h1C; is_there_data = is_req;
+            end
 
             MBTRAIN_REPAIR_end_req,
             MBTRAIN_REPAIR_end_resp:
@@ -468,7 +471,7 @@ always_comb begin
 
 
 
-    header_comb.dp = ^ltsm_msg_data_send;
+    header_comb.dp = is_there_data ? ^ltsm_msg_data_send : 1'b0;
     header_comb.opcode = is_there_data ? SB_MSG_WITH_64_DATA : SB_MSG_WITHOUT_DATA;
     header_comb.cp = ^header_comb[61:0]; 
 
