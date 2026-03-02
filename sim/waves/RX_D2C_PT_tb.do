@@ -37,14 +37,6 @@ add wave -noupdate -radix unsigned /RX_D2C_PT_tb/mb_rx_clk_lane_sel
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/mb_rx_data_lane_sel
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/mb_rx_val_lane_sel
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/mb_rx_trk_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_tx_clk_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_tx_data_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_tx_val_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_tx_trk_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_rx_clk_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_rx_data_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_rx_val_lane_sel
-add wave -noupdate -radix unsigned /RX_D2C_PT_tb/phy_rx_trk_lane_sel
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/d2c_clk_sampling
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/d2c_timeout_or_error
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/d2c_lfsr_en
@@ -70,12 +62,12 @@ add wave -noupdate -radix unsigned /RX_D2C_PT_tb/cfg_train4_max_err_thresh_perla
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/cfg_train4_max_err_thresh_aggr
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/lclk
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/sb_clk
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/timeout_8ms_counter
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/aggr_err
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/perlane_err
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/val_err
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/clk_err
-add wave -noupdate -expand -group errors -color Maroon -itemcolor Maroon -radix unsigned /RX_D2C_PT_tb/wait_timeout
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/timeout_8ms_counter
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/aggr_err
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/perlane_err
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/val_err
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/clk_err
+add wave -noupdate -expand -group errors -color Coral -itemcolor Coral -radix unsigned /RX_D2C_PT_tb/wait_timeout
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/burst_counter
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/idle_counter
 add wave -noupdate -radix unsigned /RX_D2C_PT_tb/iter_counter
@@ -86,7 +78,7 @@ add wave -noupdate -color {Slate Blue} -itemcolor {Blue Violet} -radix unsigned 
 add wave -noupdate -color Cyan -itemcolor Blue -radix unsigned /RX_D2C_PT_tb/current_state
 add wave -noupdate -color Cyan -itemcolor Blue -radix unsigned /RX_D2C_PT_tb/previous_state
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {928358 ps} 0}
+WaveRestoreCursors {{Cursor 1} {19797017 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 204
 configure wave -valuecolwidth 100
@@ -102,4 +94,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {781056 ps} {1070336 ps}
+WaveRestoreZoom {19731684 ps} {19942705 ps}

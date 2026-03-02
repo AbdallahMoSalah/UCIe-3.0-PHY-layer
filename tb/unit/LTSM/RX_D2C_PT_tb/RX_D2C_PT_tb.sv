@@ -59,14 +59,14 @@ module RX_D2C_PT_tb ();
     wire       mb_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
      
     // PHY Level Control & Analog Interface
-    wire [1:0] phy_tx_clk_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Clock Lane).
-    wire [1:0] phy_tx_data_lane_sel; // 0b: Held Low, 1b: Active (Tx Physical Data Lanes).
-    wire [1:0] phy_tx_val_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Valid Lane).
-    wire [1:0] phy_tx_trk_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Track Lane).
-    wire       phy_rx_clk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Clock Lane).
-    wire       phy_rx_data_lane_sel; // 0b: Disabled, 1b: Enabled (Rx Physical Data Lanes).
-    wire       phy_rx_val_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Valid Lane).
-    wire       phy_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Track Lane).
+    // wire [1:0] phy_tx_clk_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Clock Lane).
+    // wire [1:0] phy_tx_data_lane_sel; // 0b: Held Low, 1b: Active (Tx Physical Data Lanes).
+    // wire [1:0] phy_tx_val_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Valid Lane).
+    // wire [1:0] phy_tx_trk_lane_sel ; // 0b: Held Low, 1b: Active (Tx Physical Track Lane).
+    // wire       phy_rx_clk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Clock Lane).
+    // wire       phy_rx_data_lane_sel; // 0b: Disabled, 1b: Enabled (Rx Physical Data Lanes).
+    // wire       phy_rx_val_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Valid Lane).
+    // wire       phy_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Physical Track Lane).
     
     //=====================================//
     // Control Signals From Sub-states:    //
