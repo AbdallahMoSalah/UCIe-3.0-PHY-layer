@@ -7,6 +7,7 @@ module RX_D2C_PT  #() (
     input wire timeout_8ms,
     output reg test_d2c_done,
 
+
     
     //=====================================//
     // Control Signals To MB:              //
@@ -57,14 +58,14 @@ module RX_D2C_PT  #() (
     output reg          mb_rx_trk_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
      
     // PHY Level Control & Analog Interface
-    output reg  [1:0]  phy_tx_clk_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Clock Lane).
-    output reg  [1:0]  phy_tx_data_lane_sel, // 0b: Held Low, 1b: Active (Tx Physical Data Lanes).
-    output reg  [1:0]  phy_tx_val_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Valid Lane).
-    output reg  [1:0]  phy_tx_trk_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Track Lane).
-    output reg         phy_rx_clk_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Clock Lane).
-    output reg         phy_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Physical Data Lanes).
-    output reg         phy_rx_val_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Valid Lane).
-    output reg         phy_rx_trk_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Track Lane).
+    // output reg  [1:0]  phy_tx_clk_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Clock Lane).
+    // output reg  [1:0]  phy_tx_data_lane_sel, // 0b: Held Low, 1b: Active (Tx Physical Data Lanes).
+    // output reg  [1:0]  phy_tx_val_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Valid Lane).
+    // output reg  [1:0]  phy_tx_trk_lane_sel,  // 0b: Held Low, 1b: Active (Tx Physical Track Lane).
+    // output reg         phy_rx_clk_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Clock Lane).
+    // output reg         phy_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Physical Data Lanes).
+    // output reg         phy_rx_val_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Valid Lane).
+    // output reg         phy_rx_trk_lane_sel,  // 0b: Disabled, 1b: Enabled (Rx Physical Track Lane).
     
 
     
@@ -304,16 +305,6 @@ module RX_D2C_PT  #() (
         mb_rx_data_lane_sel = 1'b1 ; // 1b: Enabled  (Rx Logical Data Lanes).
         mb_rx_val_lane_sel  = 1'b1 ; // 1b: Enabled  (Rx Logical Valid Lane).
         mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled (Rx Logical Track Lane).
-
-        // PHY Level Control & Analog Interface
-        phy_tx_clk_lane_sel  = 2'b00; // 00b: Low (Tx Physical Clock Lane).
-        phy_tx_data_lane_sel = 2'b00; // 00b: Low (Tx Physical Data Lanes).
-        phy_tx_val_lane_sel  = 2'b00; // 00b: Low (Tx Physical Valid Lane).
-        phy_tx_trk_lane_sel  = 2'b00; // 00b: Low (Tx Physical Track Lane).
-        phy_rx_clk_lane_sel  = 1'b1 ; // 1b: Enabled  (Rx Physical Clock Lane).
-        phy_rx_data_lane_sel = 1'b1 ; // 1b: Enabled  (Rx Physical Data Lanes).
-        phy_rx_val_lane_sel  = 1'b1 ; // 1b: Enabled  (Rx Physical Valid Lane).
-        phy_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled (Rx Physical Track Lane).
     
         
         //=====================================//
@@ -415,12 +406,7 @@ module RX_D2C_PT  #() (
                 mb_tx_data_lane_sel = (d2c_pattern_setup[0]); // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
                 mb_tx_val_lane_sel  = (d2c_pattern_setup[1]); // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
                 mb_tx_trk_lane_sel  = 2'b00;                  // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
-     
-                // Physical Lane Selection:
-                phy_tx_clk_lane_sel  = 2'b01;                  // 0b: Held Low, 1b: Active (Tx Physical Clock Lane).
-                phy_tx_data_lane_sel = (d2c_pattern_setup[0]); // 0b: Held Low, 1b: Active (Tx Physical Data Lanes).
-                phy_tx_val_lane_sel  = (d2c_pattern_setup[1]); // 0b: Held Low, 1b: Active (Tx Physical Valid Lane).
-                phy_tx_trk_lane_sel  = 2'b00;                  // 0b: Held Low, 1b: Active (Tx Physical Track Lane).
+
             end
             // (S6) Send & Receive SB Message {Rx Init D to C Tx count done req}.
             RX_PT_COUNT_DONE_REQ: begin
@@ -479,48 +465,5 @@ module RX_D2C_PT  #() (
             end
         endcase
     end
-
-    // always @(posedge lclk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         mb_rx_max_err_thresh_perlane <= 0;
-    //         mb_rx_max_err_thresh_aggr    <= 0;
-    //         mb_rx_compare_setup          <= 0;
-    //         mb_tx_iter_count             <= 0;
-    //         mb_tx_idle_count             <= 0;
-    //         mb_tx_burst_count            <= 0;
-    //         mb_tx_pattern_mode           <= 0;
-    //         mb_tx_clk_sampling           <= 0;  
-    //         mb_tx_val_pattern_sel        <= 0;
-    //         mb_tx_data_pattern_sel       <= 0;
-    //     end else begin
-    //         // For Req MSG received:
-    //         if(rx_sb_msg == MSG_START_REQ && rx_sb_msg_valid) begin
-    //             // For the Tx Init D to C Point Test:
-    //             // mb_rx_max_err_thresh_perlane = (rx_data_field[59] == 0)? rx_msginfo : 0; // Receive Per-lane error threshold.
-    //             // mb_rx_max_err_thresh_aggr    = (rx_data_field[59] == 1)? rx_msginfo : 1; // Receive Aggregate error threshold.
-    //             // mb_rx_compare_setup          = (d2c_compare_setup == 0 | d2c_compare_setup == 1)? rx_data_field[59] : d2c_compare_setup; // Comparison Mode (0: Per Lane; 1: Aggregate)
-    //             // mb_tx_iter_count             =  rx_data_field[58:43]                   ; // Iteration Count Setting.
-    //             // mb_tx_idle_count             =  rx_data_field[42:27]                   ; // Idle Count Setting.
-    //             // mb_tx_burst_count            =  rx_data_field[26:11]                   ; // Burst Count Setting.
-    //             // mb_tx_pattern_mode           =  rx_data_field[10]                      ; // Pattern Mode (0: continuous mode, 1: Burst Mode).
-    //             // mb_tx_clk_sampling           =  rx_data_field[9:6]                     ; // Clock Phase control at Transmitter (0h: Clock PI Center, 1h: Left Edge, 2h: Right Edge).
-    //             // mb_tx_val_pattern_sel        =  rx_data_field[5:3]                     ; // Valid Pattern (0h: Functional pattern).
-    //             // mb_tx_data_pattern_sel       =  rx_data_field[2:0]                     ; // Data pattern (0h: LFSR, 1h: Per Lane ID).
-
-    //             // For the Rx Init D to C Point Test:
-    //             mb_rx_max_err_thresh_perlane <= cfg_train4_max_err_thresh_perlane; 
-    //             mb_rx_max_err_thresh_aggr    <= cfg_train4_max_err_thresh_aggr   ; 
-    //             mb_rx_compare_setup          <= d2c_compare_setup                ;  // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
-    //             mb_tx_iter_count             <= d2c_iter_count                   ;  // Iteration Count: Indicates the iteration count of bursts followed by idle.
-    //             mb_tx_idle_count             <= d2c_idle_count                   ;  // IDLE Count: Indicates the duration of low following the burst (UI count).
-    //             mb_tx_burst_count            <= d2c_burst_count                  ;  // Burst Count: Indicates the duration of selected pattern (UI count).
-    //             mb_tx_pattern_mode           <= d2c_pattern_mode                 ;  // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
-    //             mb_tx_clk_sampling           <= d2c_clk_sampling                 ;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-    //             mb_tx_val_pattern_sel        <= d2c_val_pattern_sel              ;  // 0: VALTRAIN pattern, 1: Don't use VALTRAIN, 2: Operational Valid.
-    //             mb_tx_data_pattern_sel       <= d2c_data_pattern_sel             ;  // Data pattern used during training: 0h: LFSR; 1h: ID, or all 0.
-    //         end
-    //         else if(rx_sb_msg == MSG_START_REQ && rx_sb_msg_valid)
-    //     end
-    // end
 
 endmodule
