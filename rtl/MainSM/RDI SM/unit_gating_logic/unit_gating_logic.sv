@@ -1,5 +1,5 @@
 import RDI_SM_pkg::*;
-module GATING_block(
+module unit_gating_logic(
     input lclk, pl_phyinrecenter, pl_clk_req, ungating_req, 
     input RDI_state pl_state_sts,
     output lclk_g, ungating_done

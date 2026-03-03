@@ -1,4 +1,4 @@
-module CLK_handshake_block(
+module unit_clk_handshake(
     input lp_clk_ack, clk_handshake_strt, lclk,
     output pl_clk_req, clk_handshake_done
 );
