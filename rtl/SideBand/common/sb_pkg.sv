@@ -41,7 +41,7 @@ package sb_pkg;
     MNGT_PORT_dst = 3'b111
   } sb_dstid_e;
 
-  typedef enum logic [3:0] {  //RDI message number enum
+/*   typedef enum logic [3:0] {  //RDI message number enum
     ACTIVE_REQ = 4'b0000,
     L1_REQ = 4'b0001,
     L2_REQ = 4'b0010,
@@ -59,7 +59,7 @@ package sb_pkg;
     DISABLE_RSP = 4'b1110,
     NOP = 4'b1111
   } sb_rdi_msg_no_e;
-
+ */
   typedef enum logic [7:0] {
     SBINIT_OFFRESET_DOMAIN = 8'h91,
     RX_TEST_SWEEP_DONE_RESULT = 8'h81,

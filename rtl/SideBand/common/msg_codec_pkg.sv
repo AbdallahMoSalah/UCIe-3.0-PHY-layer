@@ -1,7 +1,8 @@
 package msg_codec_pkg;
+    import UCIe_pkg::*;
     import sb_pkg::*;
 
-    function automatic sb_header_t encode_rdi_header(
+/*     function automatic sb_header_t encode_rdi_header(
         input sb_rdi_msg_no_e msg_no,
         input logic stall
     );
@@ -99,7 +100,7 @@ package msg_codec_pkg;
 
         return hdr;
     endfunction
-
+ */
 
     function automatic sb_header_t encode_msg_header(
         input msg_no_e       msg_no,
@@ -135,7 +136,7 @@ package msg_codec_pkg;
 
       SBINIT_done_resp: begin
           hdr.msgcode    = SBINIT_RESP_DOMAIN;
-          hdr.MsgSubcode = 8'h02;
+          hdr.MsgSubcode = 8'h01;
       end
 
       // ==================================================
@@ -395,7 +396,7 @@ package msg_codec_pkg;
       // DEFAULT
       // ==================================================
       default: begin
-          hdr.msgcode    = 8'h00;
+          hdr.msgcode    = msg_code_e'(8'h00);
           hdr.MsgSubcode = 8'h00;
       end
 
