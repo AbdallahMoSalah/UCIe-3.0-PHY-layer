@@ -33,7 +33,7 @@ class Packetizer_class;
     }
 
     constraint stall_constraint{
-        if(msg_no_send >= ACTIVE_RSP && (msg_no_send <= PMNAK_RSP)){
+        if(msg_no_send >= RDI_ACTIVE_RSP && (msg_no_send <= RDI_PMNAK_RSP)){
             stall_send dist { 1 :/ 70, 0 :/30};
         }
         else {

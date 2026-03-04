@@ -55,7 +55,7 @@ Packetizer_class obj = new();
 initial begin
     apply_reset();
     
-    repeat (1000) begin
+    repeat (10000) begin
       assert(obj.randomize());
       drive();
       obj.build_expected();
@@ -105,10 +105,14 @@ task check();
           obj.exp_vld, LINK_vld,
           obj.exp_msg, LINK_msg,
           valid_send, LINK_ready);
+    $display("msgno= %s",msg_no_send);
+    $display("exmsgcode=%s,msgcode=%s",obj.hdr.msgcode, dut.header_reg.msgcode);
+    $display("exmsgsubcode=%h,msgsubcode=%h",obj.hdr.MsgSubcode, dut.header_reg.MsgSubcode);
+    
     fail_count++;
   end else begin
-    $display("Test Passed: Exp LINK_vld=%b, LINK_msg=%h, ready=%b and got Link_vld=%b, LINK_msg=%h, ready=%b @time=%0t",
-          obj.exp_vld, obj.exp_msg, obj.exp_ready, LINK_vld, LINK_msg, ready ,$time);
+    //$display("Test Passed: Exp LINK_vld=%b, LINK_msg=%h, ready=%b and got Link_vld=%b, LINK_msg=%h, ready=%b @time=%0t",
+       //   obj.exp_vld, obj.exp_msg, obj.exp_ready, LINK_vld, LINK_msg, ready ,$time);
     pass_count++;
   end
 endtask
