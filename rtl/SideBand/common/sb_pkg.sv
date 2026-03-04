@@ -57,7 +57,7 @@ package sb_pkg;
     LINK_ERROR_RSP = 4'b1100,
     RETRAIN_RSP = 4'b1101,
     DISABLE_RSP = 4'b1110,
-    NOP = 4'b1111
+    NOOP = 4'b1111
   } sb_rdi_msg_no_e;
  */
   typedef enum logic [7:0] {
