@@ -2,7 +2,7 @@ package msg_codec_pkg;
     import UCIe_pkg::*;
     import sb_pkg::*;
 
-/*     function automatic sb_header_t encode_rdi_header(
+    function automatic sb_header_t encode_rdi_header(
         input sb_rdi_msg_no_e msg_no,
         input logic stall
     );
@@ -100,7 +100,7 @@ package msg_codec_pkg;
 
         return hdr;
     endfunction
- */
+ q
 
     function automatic sb_header_t encode_msg_header(
         input msg_no_e       msg_no,
@@ -403,8 +403,17 @@ package msg_codec_pkg;
       endcase
 
 
-      if (stall)
-          hdr.MsgInfo = 16'hFFFF;
+    if ((msg_no >= RDI_ACTIVE_REQ && 
+      msg_no <= RDI_PMNAK_RSP && 
+      msg_no != NOP))begin
+        if(stall) begin
+            hdr.MsgInfo = 16'hFFFF;
+        end
+        else begin
+            hdr.MsgInfo = 16'h0000;
+        end
+    end
+    else hdr.MsgInfo = msg_info;
 
       hdr.opcode = has_data ? SB_MSG_WITH_64_DATA
                             : SB_MSG_WITHOUT_DATA;
