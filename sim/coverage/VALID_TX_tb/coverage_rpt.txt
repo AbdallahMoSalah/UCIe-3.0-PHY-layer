@@ -1,0 +1,461 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /VALID_TX_tb/DUT
+=== Design Unit: work.VALID_TX
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        21        19         2    90.47%
+
+================================Branch Details================================
+
+Branch Coverage for instance /VALID_TX_tb/DUT
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/VALID_TX/Valid_tx.sv
+------------------------------------IF Branch------------------------------------
+    38                                        41     Count coming in to IF
+    38              1                          2         if (!i_rst_n)
+    40              1                         39         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    41                                        39     Count coming in to CASE
+    43              1                          5                 IDLE: begin
+    52              1                         32                 VALID_PATTERN: begin
+    59              1                          2                 VALID_FRAME: begin
+    66              1                    ***0***                 default: current_state <= IDLE;
+Branch totals: 3 hits of 4 branches = 75.00%
+
+------------------------------------IF Branch------------------------------------
+    44                                         5     Count coming in to IF
+    44              1                          1                     if (valid_pattern_en)
+    46              1                          1                     else if (valid_frame_en)
+    48              1                          3                     else
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    53                                        32     Count coming in to IF
+    53              1                          1                     if (COUNTER == MAX_COUNT-1)
+    55              1                         31                     else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    60                                         2     Count coming in to IF
+    60              1                          1                     if (!valid_frame_en)
+    62              1                          1                     else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    78                                        41     Count coming in to IF
+    78              1                          2         if (!i_rst_n) begin
+    83              1                         39         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    84                                        39     Count coming in to CASE
+    89              1                          5                 IDLE: begin
+    98              1                         32                 VALID_PATTERN: begin
+    115             1                          2                 VALID_FRAME: begin
+    121             1                    ***0***                 default: begin
+Branch totals: 3 hits of 4 branches = 75.00%
+
+------------------------------------IF Branch------------------------------------
+    102                                       32     Count coming in to IF
+    102             1                          1                     if (COUNTER == MAX_COUNT-1) begin
+    107             1                         31                     else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       2         2         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /VALID_TX_tb/DUT --
+
+  File rtl/MainBand/VALID_TX/Valid_tx.sv
+----------------Focused Condition View-------------------
+Line       53 Item    1  (COUNTER == (32 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (COUNTER == (32 - 1))         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (COUNTER == (32 - 1))_0  -                             
+  Row   2:          1  (COUNTER == (32 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       102 Item    1  (COUNTER == (32 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (COUNTER == (32 - 1))         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (COUNTER == (32 - 1))_0  -                             
+  Row   2:          1  (COUNTER == (32 - 1))_1  -                             
+
+
+FSM Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    FSM States                       3         3         0   100.00%
+    FSM Transitions                  4         4         0   100.00%
+
+================================FSM Details================================
+
+FSM Coverage for instance /VALID_TX_tb/DUT --
+
+FSM_ID: current_state
+    Current State Object : current_state
+    ----------------------
+    State Value MapInfo :
+    ---------------------
+Line          State Name               Value
+----          ----------               -----
+  43                IDLE                   0
+  59         VALID_FRAME                   2
+  52       VALID_PATTERN                   1
+    Covered States :
+    ----------------
+                   State           Hit_count
+                   -----           ---------
+                    IDLE                   7          
+             VALID_FRAME                   2          
+           VALID_PATTERN                  32          
+    Covered Transitions :
+    ---------------------
+Line            Trans_ID           Hit_count          Transition          
+----            --------           ---------          ----------          
+  47                   0                   1          IDLE -> VALID_FRAME           
+  45                   1                   1          IDLE -> VALID_PATTERN          
+  61                   2                   1          VALID_FRAME -> IDLE           
+  54                   3                   1          VALID_PATTERN -> IDLE          
+
+
+    Summary                       Bins      Hits    Misses  Coverage
+    -------                       ----      ----    ------  --------
+        FSM States                   3         3         0   100.00%
+        FSM Transitions              4         4         0   100.00%
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      29        25         4    86.20%
+
+================================Statement Details================================
+
+Statement Coverage for instance /VALID_TX_tb/DUT --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/VALID_TX/Valid_tx.sv
+    1                                                module VALID_TX (
+    2                                                    input  wire        i_clk,
+    3                                                    input  wire        i_rst_n,
+    4                                                    input  wire        valid_pattern_en,
+    5                                                    input  wire        valid_frame_en,
+    6                                                
+    7                                                    // Outputs
+    8                                                    output reg         O_done,
+    9                                                    output reg [31:0]  o_TVLD_L
+    10                                               );
+    11                                               
+    12                                               // ============================================================
+    13                                               // Local Parameters
+    14                                               // ============================================================
+    15                                               
+    16                                               localparam VALID_8B = 8'b11110000;
+    17                                               localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
+    18                                               
+    19                                               localparam MAX_COUNT = 32;
+    20                                               
+    21                                               localparam [1:0]
+    22                                                   IDLE          = 2'b00,
+    23                                                   VALID_PATTERN = 2'b01,
+    24                                                   VALID_FRAME   = 2'b10;
+    25                                               
+    26                                               // ============================================================
+    27                                               // Internal Registers
+    28                                               // ============================================================
+    29                                               
+    30                                               reg [7:0] COUNTER;
+    31                                               reg [1:0] current_state;
+    32                                               
+    33                                               // ============================================================
+    34                                               // FSM - State Transition Logic
+    35                                               // ============================================================
+    36                                               
+    37              1                         41     always @(posedge i_clk or negedge i_rst_n) begin
+    38                                                   if (!i_rst_n)
+    39              1                          2             current_state <= IDLE;
+    40                                                   else begin
+    41                                                       case (current_state)
+    42                                               
+    43                                                           IDLE: begin
+    44                                                               if (valid_pattern_en)
+    45              1                          1                         current_state <= VALID_PATTERN;
+    46                                                               else if (valid_frame_en)
+    47              1                          1                         current_state <= VALID_FRAME;
+    48                                                               else
+    49              1                          3                         current_state <= IDLE;
+    50                                                           end
+    51                                               
+    52                                                           VALID_PATTERN: begin
+    53                                                               if (COUNTER == MAX_COUNT-1)
+    54              1                          1                         current_state <= IDLE;
+    55                                                               else
+    56              1                         31                         current_state <= VALID_PATTERN;
+    57                                                           end
+    58                                               
+    59                                                           VALID_FRAME: begin
+    60                                                               if (!valid_frame_en)
+    61              1                          1                         current_state <= IDLE;
+    62                                                               else
+    63              1                          1                         current_state <= VALID_FRAME;
+    64                                                           end
+    65                                               
+    66              1                    ***0***                 default: current_state <= IDLE;
+    67                                               
+    68                                                       endcase
+    69                                                   end
+    70                                               end
+    71                                               
+    72                                               
+    73                                               // ============================================================
+    74                                               // Output & Counter Logic
+    75                                               // ============================================================
+    76                                               
+    77              1                         41     always @(posedge i_clk or negedge i_rst_n) begin
+    78                                                   if (!i_rst_n) begin
+    79              1                          2             o_TVLD_L <= 32'b0;
+    80              1                          2             O_done   <= 1'b0;
+    81              1                          2             COUNTER  <= 8'd0;
+    82                                                   end
+    83                                                   else begin
+    84                                                       case (current_state)
+    85                                               
+    86                                                           // -------------------------
+    87                                                           // IDLE
+    88                                                           // -------------------------
+    89                                                           IDLE: begin
+    90              1                          5                     o_TVLD_L <= 32'b0;
+    91              1                          5                     O_done   <= 1'b0;
+    92              1                          5                     COUNTER  <= 8'd0;
+    93                                                           end
+    94                                               
+    95                                                           // -------------------------
+    96                                                           // VALID_PATTERN (exactly 32 cycles)
+    97                                                           // -------------------------
+    98                                                           VALID_PATTERN: begin
+    99              1                         32                     o_TVLD_L <= VALID_PATTERN_CODE;
+    100             1                         32                     O_done   <= 1'b0;
+    101                                              
+    102                                                              if (COUNTER == MAX_COUNT-1) begin
+    103             1                          1                         COUNTER <= 8'd0;
+    104             1                          1                         O_done  <= 1'b1;   // One-cycle pulse
+    105             1                          1                         o_TVLD_L <= 32'b0; // Clean end
+    106                                                              end
+    107                                                              else begin
+    108             1                         31                         COUNTER <= COUNTER + 1;
+    109                                                              end
+    110                                                          end
+    111                                              
+    112                                                          // -------------------------
+    113                                                          // VALID_FRAME (continuous)
+    114                                                          // -------------------------
+    115                                                          VALID_FRAME: begin
+    116             1                          2                     o_TVLD_L <= VALID_PATTERN_CODE;
+    117             1                          2                     O_done   <= 1'b0;
+    118             1                          2                     COUNTER  <= 8'd0;
+    119                                                          end
+    120                                              
+    121                                                          default: begin
+    122             1                    ***0***                     o_TVLD_L <= 32'b0;
+    123             1                    ***0***                     O_done   <= 1'b0;
+    124             1                    ***0***                     COUNTER  <= 8'd0;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                         94        55        39    58.51%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /VALID_TX_tb/DUT --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                      COUNTER[0-4]           1           1      100.00 
+                                      COUNTER[5-7]           0           0        0.00 
+                                            O_done           1           1      100.00 
+                                current_state[0-1]           1           1      100.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                     o_TVLD_L[0-3]           0           0        0.00 
+                                     o_TVLD_L[4-7]           1           1      100.00 
+                                    o_TVLD_L[8-11]           0           0        0.00 
+                                   o_TVLD_L[12-15]           1           1      100.00 
+                                   o_TVLD_L[16-19]           0           0        0.00 
+                                   o_TVLD_L[20-23]           1           1      100.00 
+                                   o_TVLD_L[24-27]           0           0        0.00 
+                                   o_TVLD_L[28-31]           1           1      100.00 
+                                    valid_frame_en           1           1      100.00 
+                                  valid_pattern_en           1           1      100.00 
+
+Total Node Count     =         47 
+Toggled Node Count   =         27 
+Untoggled Node Count =         20 
+
+Toggle Coverage      =      58.51% (55 of 94 bins)
+
+=================================================================================
+=== Instance: /VALID_TX_tb
+=== Design Unit: work.VALID_TX_tb
+=================================================================================
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      26        26         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /VALID_TX_tb --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/Valid_tb/VALID_TX_tb.sv
+    3                                                module VALID_TX_tb;
+    4                                                
+    5                                                    // ============================================================
+    6                                                    // DUT Signals
+    7                                                    // ============================================================
+    8                                                    reg         i_clk;
+    9                                                    reg         i_rst_n;
+    10                                                   reg         valid_pattern_en;
+    11                                                   reg         valid_frame_en;
+    12                                               
+    13                                                   wire        O_done;
+    14                                                   wire [31:0] o_TVLD_L;
+    15                                               
+    16                                                   // ============================================================
+    17                                                   // Instantiate DUT
+    18                                                   // ============================================================
+    19                                                   VALID_TX DUT (
+    20                                                       .i_clk(i_clk),
+    21                                                       .i_rst_n(i_rst_n),
+    22                                                       .valid_pattern_en(valid_pattern_en),
+    23                                                       .valid_frame_en(valid_frame_en),
+    24                                                       .O_done(O_done),
+    25                                                       .o_TVLD_L(o_TVLD_L)
+    26                                                   );
+    27                                               
+    28                                                   // ============================================================
+    29                                                   // Clock Generation (100 MHz -> 10ns period)
+    30                                                   // ============================================================
+    31                                                   initial begin
+    32              1                          1             i_clk = 0;
+    33              1                          1             forever #5 i_clk = ~i_clk;
+    33              2                        104     
+    33              3                        103     
+    34                                                   end
+    35                                               
+    36                                                   // ============================================================
+    37                                                   // Test Sequence
+    38                                                   // ============================================================
+    39                                                   initial begin
+    40                                               
+    41                                                       // Initialize
+    42              1                          1             i_rst_n          = 0;
+    43              1                          1             valid_pattern_en = 0;
+    44              1                          1             valid_frame_en   = 0;
+    45                                               
+    46                                                       // Reset
+    47              1                          1             #20;
+    48              1                          1             i_rst_n = 1;
+    49                                               
+    50                                                       // =====================================================
+    51                                                       // Test 1: VALID_PATTERN Mode
+    52                                                       // =====================================================
+    53              1                          1             $display("---- Test VALID_PATTERN ----");
+    54                                               
+    55              1                          1             @(posedge i_clk);
+    56              1                          1             valid_pattern_en = 1;
+    57                                               
+    58              1                          1             @(posedge i_clk);
+    59              1                          1             valid_pattern_en = 0 ;
+    60                                               
+    61                                                       // Wait for O_done
+    62              1                          1             wait (O_done == 1);
+    63                                               
+    64              1                          1             @(posedge i_clk);  // observe done pulse
+    65                                               
+    66                                                       // =====================================================
+    67                                                       // Test 2: VALID_FRAME Mode
+    68                                                       // =====================================================
+    69              1                          1             $display("---- Test VALID_FRAME ----");
+    70              1                          1             valid_frame_en = 1;
+    71                                               
+    72              1                         10             repeat (10) @(posedge i_clk);
+    72              2                         10     
+    73                                               
+    74              1                          1             valid_frame_en = 0;
+    75                                               
+    76              1                          5             repeat (5) @(posedge i_clk);
+    76              2                          5     
+    77                                               
+    78                                                       // Finish simulation
+    79              1                          1             $display("Simulation Finished");
+    80              1                          1             $stop;
+    81                                                   end
+    82                                               
+    83                                                   // ============================================================
+    84                                                   // Monitor
+    85                                                   // ============================================================
+    86                                                   initial begin
+    87              1                          1             $monitor("Time=%0t | State Signals: pattern_en=%b frame_en=%b | TVLD=%h | Done=%b",
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                         74        41        33    55.40%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /VALID_TX_tb --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                            O_done           1           1      100.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                     o_TVLD_L[0-3]           0           0        0.00 
+                                     o_TVLD_L[4-7]           1           1      100.00 
+                                    o_TVLD_L[8-11]           0           0        0.00 
+                                   o_TVLD_L[12-15]           1           1      100.00 
+                                   o_TVLD_L[16-19]           0           0        0.00 
+                                   o_TVLD_L[20-23]           1           1      100.00 
+                                   o_TVLD_L[24-27]           0           0        0.00 
+                                   o_TVLD_L[28-31]           1           1      100.00 
+                                    valid_frame_en           1           1      100.00 
+                                  valid_pattern_en           1           1      100.00 
+
+Total Node Count     =         37 
+Toggled Node Count   =         20 
+Untoggled Node Count =         17 
+
+Toggle Coverage      =      55.40% (41 of 74 bins)
+
+
+Total Coverage By Instance (filtered view): 90.05%
+
