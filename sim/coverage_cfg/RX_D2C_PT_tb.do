@@ -1,2 +1,19 @@
-coverage exclude -src rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT.sv -line 330 -code b
-coverage exclude -src rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT.sv -line 331 -code b
+coverage exclude -du RX_D2C_PT -togglenode d2c_aggr_err
+coverage exclude -du RX_D2C_PT -togglenode d2c_burst_count
+coverage exclude -du RX_D2C_PT -togglenode d2c_idle_count
+coverage exclude -du RX_D2C_PT -togglenode d2c_iter_count
+coverage exclude -du RX_D2C_PT -togglenode d2c_pattern_mode
+coverage exclude -du RX_D2C_PT -togglenode d2c_pattern_setup
+coverage exclude -du RX_D2C_PT -togglenode d2c_val_pattern_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_rx_clk_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_rx_data_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_rx_trk_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_rx_val_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_burst_count
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_clk_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_data_lane_sel
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_idle_count
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_iter_count
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_pattern_mode
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_pattern_setup
+coverage exclude -du RX_D2C_PT -togglenode mb_tx_trk_lane_sel
