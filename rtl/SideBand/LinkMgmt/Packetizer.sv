@@ -71,7 +71,7 @@ always_comb begin
       case (msg_no_send)
         SBINIT_Out_of_Reset: header_comb.MsgSubcode = 8'h00;
         SBINIT_done_req:     header_comb.MsgSubcode = 8'h01;
-        SBINIT_done_resp:    header_comb.MsgSubcode = 8'h02;
+        SBINIT_done_resp:    header_comb.MsgSubcode = 8'h01;
       endcase
     end
 
