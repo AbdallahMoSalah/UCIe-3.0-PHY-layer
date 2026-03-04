@@ -1,11 +1,11 @@
 module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_done); 
     parameter MAIN=128;
-    parameter TOGGLE=16;
+    parameter TOGGLE=17;
     parameter ZERO=8;
 
     input logic i_clk,i_rst_n,clk_pattern_en;
     output logic o_clk_p,o_clk_n,track,o_done;
-    logic [3:0]counter_toggle;
+    logic [4:0]counter_toggle;
     logic [2:0]counter_zero;
     logic [6:0] counter_main;
 

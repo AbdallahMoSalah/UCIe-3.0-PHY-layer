@@ -28,8 +28,6 @@ package RDI_DePacketizer_tb_pkg;
         logic affects_decode;
 
         rand sb_opcode_e error_opcode;
-        rand logic [7:0] msgcode;
-        rand logic [7:0] msgsubcode;
 
         rand logic [7:0] not_msgcode;
         rand logic [7:0] not_msgsubcode;

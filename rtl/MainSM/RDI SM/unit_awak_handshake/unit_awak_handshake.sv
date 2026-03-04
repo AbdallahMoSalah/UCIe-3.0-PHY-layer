@@ -1,4 +1,4 @@
-module AWAKE_handshake_block (
+module unit_awak_handshake (
     input lp_awak_req, ungating_done, lclk,
     output pl_awak_ack, ungating_req
 );
@@ -11,21 +11,15 @@ state AWAK_cs=IDLE;
         case (AWAK_cs)
             IDLE:begin
                 if (lp_awak_req)
-                    AWAK_cs=UNGATING;
-                else 
-                    AWAK_cs=IDLE;
+                    AWAK_cs<=UNGATING;
             end
             UNGATING:begin
                 if(ungating_done)
-                    AWAK_cs=ACK;
-                else 
-                    AWAK_cs=UNGATING;
+                    AWAK_cs<=ACK;
             end
             ACK:begin
                 if (~lp_awak_req)
-                    AWAK_cs=IDLE;
-                else 
-                    AWAK_cs=ACK;
+                    AWAK_cs<=IDLE;
             end
         endcase
     end

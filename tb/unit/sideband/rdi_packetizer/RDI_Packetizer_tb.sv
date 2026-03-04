@@ -101,7 +101,7 @@ module RDI_Packetizer_tb;
         stall_send = RDI_Packetizer_object.stall_send;
         RDI_vld_send = RDI_Packetizer_object.RDI_vld_send;
         push_ready = RDI_Packetizer_object.push_ready;
-
+        
     endtask
 
     // -----------------------------------

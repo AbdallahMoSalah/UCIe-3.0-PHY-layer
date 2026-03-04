@@ -13,16 +13,11 @@ module VALID_TX (
 // Local Parameters
 // ============================================================
 
-// 8-bit valid pattern
-localparam VALID_8B = 8'b11110000;          // 8'hF0
-
-// 32-bit pattern = 4 × 8-bit pattern
+localparam VALID_8B = 8'b11110000;
 localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
-// Counter maximum value (generate pattern for 32 cycles)
-localparam MAX_COUNT = 31;
+localparam MAX_COUNT = 32;
 
-// FSM States
 localparam [1:0]
     IDLE          = 2'b00,
     VALID_PATTERN = 2'b01,
@@ -32,23 +27,19 @@ localparam [1:0]
 // Internal Registers
 // ============================================================
 
-reg [7:0] COUNTER;          // Counter for VALID_PATTERN duration
-reg [1:0] current_state;    // FSM current state
+reg [7:0] COUNTER;
+reg [1:0] current_state;
 
 // ============================================================
 // FSM - State Transition Logic
 // ============================================================
 
 always @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
+    if (!i_rst_n)
         current_state <= IDLE;
-    end
     else begin
         case (current_state)
 
-            // -------------------------
-            // IDLE State
-            // -------------------------
             IDLE: begin
                 if (valid_pattern_en)
                     current_state <= VALID_PATTERN;
@@ -58,22 +49,14 @@ always @(posedge i_clk or negedge i_rst_n) begin
                     current_state <= IDLE;
             end
 
-            // -------------------------
-            // VALID_PATTERN State
-            // -------------------------
             VALID_PATTERN: begin
-                // Return to IDLE after done pulse
-                if (O_done)
+                if (COUNTER == MAX_COUNT-1)
                     current_state <= IDLE;
                 else
                     current_state <= VALID_PATTERN;
             end
 
-            // -------------------------
-            // VALID_FRAME State
-            // -------------------------
             VALID_FRAME: begin
-                // Stay while frame enable is high
                 if (!valid_frame_en)
                     current_state <= IDLE;
                 else
@@ -110,25 +93,24 @@ always @(posedge i_clk or negedge i_rst_n) begin
             end
 
             // -------------------------
-            // VALID_PATTERN
-            // Generates pattern for 32 cycles
+            // VALID_PATTERN (exactly 32 cycles)
             // -------------------------
             VALID_PATTERN: begin
                 o_TVLD_L <= VALID_PATTERN_CODE;
+                O_done   <= 1'b0;
 
-                if (COUNTER < MAX_COUNT) begin
-                    COUNTER <= COUNTER + 1;
-                    O_done  <= 1'b0;
+                if (COUNTER == MAX_COUNT-1) begin
+                    COUNTER <= 8'd0;
+                    O_done  <= 1'b1;   // One-cycle pulse
+                    o_TVLD_L <= 32'b0; // Clean end
                 end
                 else begin
-                    COUNTER <= 8'd0;
-                    O_done  <= 1'b1;   // Pulse done for 1 cycle
+                    COUNTER <= COUNTER + 1;
                 end
             end
 
             // -------------------------
-            // VALID_FRAME
-            // Continuous valid output while enabled
+            // VALID_FRAME (continuous)
             // -------------------------
             VALID_FRAME: begin
                 o_TVLD_L <= VALID_PATTERN_CODE;
