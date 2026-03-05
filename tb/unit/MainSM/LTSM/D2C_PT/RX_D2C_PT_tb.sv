@@ -1,7 +1,7 @@
 
 `timescale 1ps / 1ps
 module RX_D2C_PT_tb ();
-    parameter LCLK_PERIOD    =   1*1000; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
+    parameter LCLK_PERIOD    = 1.00*1000; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
     parameter SB_CLK_PERIOD  = 1.25*1000; // That means SB clk period = 1.25ns (800Hz) and for the waveform persetion: multiply by 1000.
     parameter TIMEOUT_CYCLES = 10000; // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles).
     // LTSM signals.
@@ -278,9 +278,11 @@ module RX_D2C_PT_tb ();
         MSG_TRAINERROR_REQ  = RX_D2C_PT_inst.MSG_TRAINERROR_REQ   // From SB to LTSM to indicate that a TRAINERROR condition has occurred on the partner side (e.g., due to timeout or other errors during training).
     } sb_msg_t;
     sb_msg_t  tx_sb_msg_enum, rx_sb_msg_enum; // The SB message that the testbench will send to the RX_D2C_PT instance.
-    reg [1:0] rx_sb_msg_valid_reg; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
-    integer   sb_msg_waiting_time; // A counter to track the waiting time for the SB message to be received, used for testing the timeout condition.
-
+    reg [1:0] rx_sb_msg_valid_reg ; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
+    integer   sb_msg_waiting_time ; // A counter to track the waiting time for the SB message to be received, used for testing the timeout condition.
+    reg       receive_wrong_sb_msg; // To identecate if we want to test the case of receiving wrong SB message by setting this signal to 1 and assigning a wrong SB message to "wrong_sb_msg".
+    sb_msg_t  wrong_sb_msg_value  ; // A wrong SB message to be used in the test scenario of receiving wrong SB message.
+    
     always @(*) begin
         tx_sb_msg_enum = RX_D2C_PT_inst.tx_sb_msg; // Capture the received SB message from the RX_D2C_PT instance.
         rx_sb_msg_enum = RX_D2C_PT_inst.rx_sb_msg; // Capture the received SB message from the RX_D2C_PT instance.
@@ -307,12 +309,12 @@ module RX_D2C_PT_tb ();
                        tx_sb_msg_enum == MSG_COUNT_DONE_REQ  ||
                        tx_sb_msg_enum == MSG_COUNT_DONE_RESP ||
                        tx_sb_msg_enum == MSG_END_REQ         || 
-                       tx_sb_msg_enum == MSG_END_RESP         ) begin
-                            rx_sb_msg <= tx_sb_msg; // Capture the received SB message.
+                       tx_sb_msg_enum == MSG_END_RESP        ) begin
+                            rx_sb_msg <= (receive_wrong_sb_msg)? wrong_sb_msg_value : tx_sb_msg; // Capture the received SB message.
                     end
                 end 
                 // Set the rx_sb_msg_valid signal activated for some times (using SB clk) (ex: 15 cycles):
-                else if(sb_msg_waiting_time >= (128 + 15)) begin
+                else if(sb_msg_waiting_time >= (128 + 15) ) begin
                     rx_sb_msg_valid_reg <= 1'b0;
                     sb_msg_waiting_time <= 0; // Clear the waiting time after the message is received and valid signal is deactivated.
                 end
@@ -426,20 +428,28 @@ module RX_D2C_PT_tb ();
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------               ( Start Test Task)             ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
-    task start_test(input integer abort_mb_or_sb_after = TIMEOUT_CYCLES); // The input argument is used to determine whether the testbench should simulate the timeout condition caused by MB or SB by waiting for some time before setting mb_tx_pattern_count_done to 1 or before sending the expected SB response, respectively.
+    integer lclk_counter = 0; // A counter to track the number of lclk cycles during the test execution, used for debugging and verification purposes.
+    reg lclk_counter_run_flag = 0; // A flag to indicate whether the lclk counter should be running to count the lclk cycles during the test execution.
+
+    task start_test(
+        input integer  abort_mb_or_sb_after       = TIMEOUT_CYCLES    , // The input argument is used to determine whether the testbench should simulate the timeout condition caused by MB or SB by waiting for some time before setting mb_tx_pattern_count_done to 1 or before sending the expected SB response, respectively.
+        input integer  receive_wrong_sb_msg_after = TIMEOUT_CYCLES    , // The input argument is used to determine whether the testbench should simulate the timeout condition caused by SB by waiting for some time before sending the expected SB response.
+        input sb_msg_t wrong_sb_msg               = MSG_TRAINERROR_REQ  // The wrong SB message to be sent if we want to test the case of receiving wrong SB message.
+    );
         reg [11:0] entered_states;
         entered_states = 0;
-
         fork : test_execution
             begin
                 counter_8ms_en = 1; // Enable the 8ms timeout counter at the start of the test.
                 rx_pt_trigger  = 1; // Trigger the Rx D2C Pattern Test.
+                lclk_counter_run_flag = 1; // Start counting the lclk cycles from the moment we trigger the test.
                 #(LCLK_PERIOD);     // Wait for one clock cycle after triggering the test.
                 rx_pt_trigger  = 0; // Clear the trigger after one cycle.
 
                 wait(test_d2c_done || d2c_timeout_or_error); // Wait until the test is done or a timeout/error occurs.
                 @(posedge lclk); // To keep the $monitor system function (that is used in the main initial block) print the final state of the FSM first, before the next $display content. 
                 if(d2c_timeout_or_error == 1) begin
+                    #1; // To make sure that the $monitor function has printed its sentence.
                     $display("%8t ps: The test passed but is directed to TO_TRAINERROR due to timeout.", $realtime());
                 end
                 else if(d2c_timeout_or_error == 0) begin
@@ -450,6 +460,16 @@ module RX_D2C_PT_tb ();
                 $display("=========   =========   =========   =========   =========   =========");
                 counter_8ms_en = 0; // Disable the 8ms timeout counter at the end of the test.
                 disable test_execution; // Disable the fork to end the test execution.
+            end
+
+            begin
+                // Wait some lclk cycles = "receive_wrong_sb_msg_after" to simulate receiving wrong SB message condition caused by SB, then set the "d2c_timeout_or_error" signal to 1 to indicate that an error has occurred during the test.
+                for (int i=0; i<receive_wrong_sb_msg_after ; i++) begin
+                    @(posedge lclk);
+                    receive_wrong_sb_msg = 0;
+                    wrong_sb_msg_value = wrong_sb_msg; // Assign the wrong SB message to be sent.
+                end
+                receive_wrong_sb_msg = 1; // Set the timeout_or_error signal to 1 after applying the wrong SB message.
             end
 
             begin
@@ -489,20 +509,47 @@ module RX_D2C_PT_tb ();
             end
         join
 
-        wait_timeout = 0; // Clear the timeout_or_error signal after the test is done.
-
+        #1step;
         if(entered_states == 12'b111111111111) begin
-            $display("%8t ps: The FSM entered all the expected states in the correct order.\n", $realtime());
+            $display("%8t ps, (Total lclk cycles: %0d): The FSM entered all the expected states in the correct order.\n", $realtime(), lclk_counter);
         end
-        else if (d2c_timeout_or_error == 1'b1) begin
-            $display("%8t ps: The FSM entered the \"TO_TRAINERROR\" state as expected correctly.\n", $realtime());
+        else if ((d2c_timeout_or_error == 1'b1 && (wait_timeout == 1'b1 || receive_wrong_sb_msg == 1'b1)) ||
+                 (receive_wrong_sb_msg == 1'b1 &&  wrong_sb_msg == MSG_TRAINERROR_REQ)) begin
+            $display("%8t ps, (Total lclk cycles: %0d): The FSM entered the \"TO_TRAINERROR\" state as expected correctly.", $realtime(), lclk_counter);
+            if(receive_wrong_sb_msg) begin
+                $display("\t\t That happens because the wrong Msg \"%s\" after passing %0d clock of lclk (Note we assume timeout be at %0d)\n", 
+                wrong_sb_msg_value.name(), 
+                receive_wrong_sb_msg_after, 
+                TIMEOUT_CYCLES);
+            end 
+            else begin
+                $display("\0"); // Just write a new line.
+            end
         end else begin
-            $display("%8t ps: The FSM did not enter all the expected states in the correct order. <================================= [Error]\n", $realtime());
+            $display("%8t ps, (Total lclk cycles: %0d): The FSM did not enter all the expected states in the correct order. <================================= [Error]\n", $realtime(), lclk_counter);
             $stop;
         end
+
+        #1step; 
+        lclk_counter_run_flag = 0; // Stop counting the lclk cycles at the end of the test.
+        wait_timeout          = 0; // Clear the timeout_or_error signal after the test is done.
+        receive_wrong_sb_msg  = 0; // Clear the receive_wrong_sb_msg signal after the test is done.
+        @(posedge lclk); // To set the lclk_counter to 0 in the always block that is used to count the lclk cycles, to prepare for the next test execution.
     endtask
 
 
+    // We use this always block to count the number of lclk cycles from the start of the test to print them in the results. not any thing else.
+    always @(posedge lclk or negedge rst_n) begin
+        if(!rst_n) begin
+            lclk_counter <= 0; // Reset the lclk counter at the beginning of the test.
+        end
+        else if(lclk_counter_run_flag) begin
+            lclk_counter <= lclk_counter + 1; // Increment the lclk counter at each clock cycle during the test execution.
+        end
+        else begin
+            lclk_counter <= 0; // Reset the lclk counter when the flag is not set, to prepare for the next test execution.
+        end
+    end
 
     // \\\\\\\\\\\\\\\\\\\\\                                                                  ////////////////////////
     //    \\\\\\\\\\\\\\\\\\\\\\                                                          ////////////////////////
@@ -512,6 +559,8 @@ module RX_D2C_PT_tb ();
     //    //////////////////////                                                          \\\\\\\\\\\\\\\\\\\\\\\\
     // /////////////////////                                                                  \\\\\\\\\\\\\\\\\\\\\\\\ 
 
+    sb_msg_t random_msg; // A random SB message to be used in the test scenarios that do not require specific SB message.
+    integer random_clocks; // A random number of clock cycles to be used in the test scenarios that do not require specific timing for SB message reception or timeout.
     initial begin
         // Reset the system.
         reset();
@@ -523,6 +572,7 @@ module RX_D2C_PT_tb ();
         /////////////////////////////////////////////////////////////////////////
         // Set the D2C configuration for the VALVREF test scenario.            //  
         /////////////////////////////////////////////////////////////////////////
+        $display("\n1) Test Scenario 1: VALVREF");
         $display("=========>  Start (VALVREF) Test Scenario:  <=========");
 
         set_d2c_configuration (
@@ -559,6 +609,7 @@ module RX_D2C_PT_tb ();
         /////////////////////////////////////////////////////////////////////////
         // Set the D2C configuration for the DATAVREF test scenario.           //  
         /////////////////////////////////////////////////////////////////////////
+        $display("\n2) Test Scenario 2: DATAVREF");
         $display("=========>  Start (DATAVREF) Test Scenario:  <=========");
 
         set_d2c_configuration (
@@ -595,8 +646,49 @@ module RX_D2C_PT_tb ();
 
 
         /////////////////////////////////////////////////////////////////////////
-        // Set the D2C configuration for the VALVREF test scenario.            //  
+        // Set the D2C configuration for the DATAVREF test scenario.           //
+        // Here we're testing some corner cases for coverage                   //  
         /////////////////////////////////////////////////////////////////////////
+        $display("\n3) Test Scenario 3: DATAVREF");
+        $display("=========>  Start (DATAVREF) Test Scenario:  <=========");
+        for (int i=0; i<4; i++) begin
+            set_d2c_configuration (
+                // Clock sampling/PI phase control:
+                .task_clk_sampling   (i), // Set the clock sampling/PI phase control state to "0: "Eye Center"", "1: "Left edge"", or "2: "Right edge"" for this test scenario.
+                
+                // Tx Pattern Generator Setup:
+                .task_pattern_setup   (3'b011), // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+                .task_data_pattern_sel(   i  ), // Data pattern used during training: (0: LFSR; 1: ID; 3: All 0)
+                .task_val_pattern_sel (3'b10 ), // 0: VALTRAIN pattern, 1: Valid lane is Held low, 2: Operational Valid (Valid Framing).
+                .task_lfsr_en         (1     ), // 1: Enable the LFSR, 0: Disable the LFSR for both Rx and Tx.
+                
+                // Tx Pattern Mode Setup:
+                .task_pattern_mode(1'b0), // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+                .task_burst_count (4096), // Burst Count: Indicates the duration of selected pattern (UI count).
+                .task_idle_count  (4'h0), // IDLE Count: Indicates the duration of low following the burst (UI count).
+                .task_iter_count  (4'h1), // Iterations: Indicates the iteration count of bursts followed by idle.
+
+                // Receiver Comparison Setup:
+                .task_compare_setup     (    i   ), // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+                .task_aggr_err_thresh   (16'hFFFF), // Set the aggregate error threshold from RF for this test scenario.
+                .task_perlane_err_thresh(16'hFFFF)  // Set the per-lane error threshold from RF for this test scenario.
+            );
+
+            assume_errors (
+                .task_aggr_err     (16'hFFFF), // The aggregate error to be assumed for the test scenario.
+                .task_perlane_err  (16'hFFFF), // The per-lane error to be assumed for the test scenario.
+                .task_val_err      (i[0]    ), // The valid lane error to be assumed for the test scenario.
+                .task_clk_err      (i[1]    )  // The clock lane error to be assumed for the test scenario.
+            );
+
+            start_test();
+        end
+
+        /////////////////////////////////////////////////////////////////////////
+        // Set the D2C configuration for the DATAVREF test scenario.           //
+        // Here we're testing the timeout caused by the connection interruption// 
+        /////////////////////////////////////////////////////////////////////////
+        $display("\n4) Test Scenario 4: (timeout 8ms)");
         $display("=========>  Start (timeout 8ms) Test Scenario:  <=========");
 
         // Start the test with the previous configurations.
@@ -605,13 +697,55 @@ module RX_D2C_PT_tb ();
 
 
         /////////////////////////////////////////////////////////////////////////
-        // Set the D2C configuration for the VALVREF test scenario.            //  
+        // Set the D2C configuration for the DATAVREF test scenario.           //
+        // Here we are testing receiving TRAINERROR Msg on SB                  //  
         /////////////////////////////////////////////////////////////////////////
-        $display("=========>  Start (timeout 8ms) Test Scenario again:  <=========");
+        reset(); // because the previous test went to TO_TRAINERROR state, we need to reset the system before starting a new test scenario.
+        $display("\n5) Test Scenario 5: (TRAINERROR Req Msg receiving)");
+        $display("=========>  Start (TRAINERROR Req Msg receiving) Test Scenario:  <=========");
 
+        // We can use the same configuration as the previous test scenario, as we are just testing TRAINERROR Req Msg receiving here.
         // Start the test with the previous configurations.
-        reset();
-        start_test(.abort_mb_or_sb_after(400)); // We can use the same configuration as the previous test scenario, as we are just testing the timeout condition here.
+        start_test(
+            .receive_wrong_sb_msg_after(600) ,
+            .wrong_sb_msg(MSG_TRAINERROR_REQ)
+        );
+        
+
+        /////////////////////////////////////////////////////////////////////////
+        // Set the D2C configuration for the DATAVREF test scenario.           //
+        // Here we are testing receiving Wrong Msg on SB                       //  
+        /////////////////////////////////////////////////////////////////////////
+        reset(); // because the previous test went to TO_TRAINERROR state, we need to reset the system before starting a new test scenario.
+        $display("\n6) Test Scenario 6: (Wrong Msg receiving)");
+        $display("=========>  Start (Wrong Msg receiving) Test Scenario:  <=========");
+
+        // We can use the same configuration as the previous test scenario, as we are just testing TRAINERROR Req Msg receiving here.
+        // Start the test with the previous configurations.
+        for (int i = 0; i < 10; i++) begin
+            case (i[3:0])
+                0,9 : random_msg = MSG_START_REQ;
+                1,10: random_msg = MSG_START_RESP;
+                2,11: random_msg = MSG_CLR_ERR_REQ;
+                3,12: random_msg = MSG_CLR_ERR_RESP;
+                4,13: random_msg = MSG_COUNT_DONE_REQ;
+                5,14: random_msg = MSG_COUNT_DONE_RESP;
+                6,15: random_msg = MSG_END_REQ;
+                7   : random_msg = MSG_END_RESP;
+                8   : random_msg = MSG_TRAINERROR_REQ; // Although this is a valid SB message, we can still use it as a wrong message in this test scenario to test the behavior of the system when receiving TRAINERROR Req Msg.
+            endcase
+
+            // Determine a random number of clock cycles to wait before sending the wrong SB message, to simulate receiving the wrong SB message at any moment during the test execution. 
+            // After passing these clocks, the testbench will send the wrong SB message to the RX_D2C_PT instance by setting the "receive_wrong_sb_msg" signal to 1 and assigning the "random_msg" to "wrong_sb_msg_value", then it will set the "receive_wrong_sb_msg" signal back to 0 after one cycle to clear it.
+            // The random value is between 0 and 1500 clocks because the fsm applies all fsm states successfully in around 1500 clocks of lclk.
+            random_clocks = $urandom_range(0, 1500); 
+
+            start_test(
+                .receive_wrong_sb_msg_after(random_clocks), // Randomize the time of receiving the wrong SB message to be at any moment.
+                .wrong_sb_msg(random_msg) // We can use any expected SB message as the wrong SB message here, as we are just testing the case of receiving wrong SB message.
+            );
+            reset(); // Reset the system after each iteration to be able to start a new test scenario.
+        end
         
 
         @(posedge lclk); // Just wait for some time to let the test scenario run and observe the behavior.
