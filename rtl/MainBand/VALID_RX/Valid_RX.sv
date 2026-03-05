@@ -135,7 +135,7 @@ module VALID_DETECTOR (
             // =============================================
             // Default: go to IDLE
             // =============================================
-            default: current_state <= IDLE;
+            default: current_state <= IDLE ; 
 
             endcase
         end
