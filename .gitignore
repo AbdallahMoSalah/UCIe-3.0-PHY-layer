@@ -19,3 +19,8 @@ _opt1__lock
 _opt__lock
 _temp/
 _tempmsg/
+.vscode/configurationCache.log
+.vscode/dryrun.log
+.gitignore
+.vscode/targets.log
+.vscode/settings.json

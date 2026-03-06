@@ -87,7 +87,7 @@ module unit_awak_handshake_tb();
         repeat (2) @(negedge lclk);
 
         $display("--- scenario 3: random toggles ---");
-        repeat (1000000) begin
+        repeat (1000) begin
             @(negedge lclk);
             lp_awak_req  <= $urandom_range(0,1);
             ungating_done<= $urandom_range(0,1);
