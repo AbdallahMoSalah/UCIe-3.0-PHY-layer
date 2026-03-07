@@ -1,0 +1,1258 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /sb_serializer_tb/dut/SVA
+=== Design Unit: work.sb_serializer_sva
+=================================================================================
+
+Assertion Coverage:
+    Assertions                       4         4         0   100.00%
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/sb_serializer_tb/dut/SVA/assert__p_clock_forward
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(61)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_gap_length
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(51)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_shift_length
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(41)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_valid_hold
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(31)
+                                                        0          1
+
+Directive Coverage:
+    Directives                       4         4         0   100.00%
+
+DIRECTIVE COVERAGE:
+--------------------------------------------------------------------------------------------
+Name                                     Design Design   Lang File(Line)      Hits Status    
+                                         Unit   UnitType                                     
+--------------------------------------------------------------------------------------------
+/sb_serializer_tb/dut/SVA/cover__p_clock_forward 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(62)
+                                                                              338653 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_gap_length 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(52)
+                                                                              10432 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_shift_length 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(42)
+                                                                              10433 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_valid_hold 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(32)
+                                                                              837506 Covered   
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        140       139         1    99.28%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_serializer_tb/dut/SVA --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                            TXCKSB           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                                             rst_n           0           1                               50.00 
+                                     tx_data_valid           1           1                              100.00 
+                            tx_parallel_data[0-63]           1           1                              100.00 
+                                          tx_ready           1           1                              100.00 
+                                     tx_serial_out           1           1                              100.00 
+
+Total Node Count     =         70 
+Toggled Node Count   =         69 
+Untoggled Node Count =          1 
+
+Toggle Coverage      =      99.28% (139 of 140 bins)
+
+=================================================================================
+=== Instance: /sb_serializer_tb/dut
+=== Design Unit: work.sb_serializer
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        33        33         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /sb_serializer_tb/dut
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/sb_serializer.sv
+------------------------------------IF Branch------------------------------------
+    47                                     45814     Count coming in to IF
+    47              1                          2         if (!rst_n)
+    49              1                      45812         else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    61                                   1261745     Count coming in to CASE
+    63              1                       6238             IDLE:
+    67              1                     836046             SHIFT:
+    71              1                     419459             GAP:
+    79              1                          2             default:
+Branch totals: 4 hits of 4 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    64                                      6238     Count coming in to IF
+    64              1                       3119                 if (tx_data_valid)
+                                            3119     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    68                                    836046     Count coming in to IF
+    68              1                      13046                 if (bit_cnt == DATA_WIDTH-1)
+                                          823000     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    72                                    419459     Count coming in to IF
+    72              1                      14208                 if (bit_cnt == GAP_WIDTH-1)begin
+                                          405251     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    73                                     14208     Count coming in to IF
+    73              1                       9962                     if(tx_data_valid)
+    75              1                       4246                     else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    92                                   1005650     Count coming in to IF
+    92              1                          2         if (!rst_n)
+    95              1                    1005648         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    97                                   1005648     Count coming in to IF
+    97              1                      23985             if (state != next_state)
+    99              1                     980702             else if (state != IDLE)
+                                             961     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    112                                   767256     Count coming in to IF
+    112             1                          2         if (!rst_n)
+    115             1                     767254         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    117                                   767254     Count coming in to IF
+    117             1                      10434             if (tx_ready && tx_data_valid )
+    120             1                     662758             else if (state == SHIFT)
+                                           94062     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    133                                   352150     Count coming in to IF
+    133             1                     338597         if (state == SHIFT)
+    135             1                      13553         else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    148                                  1004689     Count coming in to CASE
+    150             1                       3119             IDLE:
+    153             1                     333856             GAP:
+                                          667714     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    154                                   333856     Count coming in to IF
+    154             1                      10433                 if (bit_cnt == GAP_WIDTH-1)begin
+                                          323423     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    170                                  2036727     Count coming in to IF
+    170             1                    1345858         if (state == SHIFT)
+    172             1                     690869         else
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                      10        10         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /sb_serializer_tb/dut --
+
+  File rtl/SideBand/sb_serializer.sv
+----------------Focused Condition View-------------------
+Line       68 Item    1  (bit_cnt == (64 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (bit_cnt == (64 - 1))         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (bit_cnt == (64 - 1))_0  -                             
+  Row   2:          1  (bit_cnt == (64 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       72 Item    1  (bit_cnt == (32 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (bit_cnt == (32 - 1))         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (bit_cnt == (32 - 1))_0  -                             
+  Row   2:          1  (bit_cnt == (32 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       97 Item    1  (state != next_state)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (state != next_state)         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (state != next_state)_0  -                             
+  Row   2:          1  (state != next_state)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       99 Item    1  (state != IDLE)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+       Input Term   Covered  Reason for no coverage   Hint
+      -----------  --------  -----------------------  --------------
+  (state != IDLE)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (state != IDLE)_0     -                             
+  Row   2:          1  (state != IDLE)_1     -                             
+
+----------------Focused Condition View-------------------
+Line       117 Item    1  (tx_ready && tx_data_valid)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+     Input Term   Covered  Reason for no coverage   Hint
+    -----------  --------  -----------------------  --------------
+       tx_ready         Y
+  tx_data_valid         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  tx_ready_0            -                             
+  Row   2:          1  tx_ready_1            tx_data_valid                 
+  Row   3:          1  tx_data_valid_0       tx_ready                      
+  Row   4:          1  tx_data_valid_1       tx_ready                      
+
+----------------Focused Condition View-------------------
+Line       120 Item    1  (state == SHIFT)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+        Input Term   Covered  Reason for no coverage   Hint
+       -----------  --------  -----------------------  --------------
+  (state == SHIFT)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (state == SHIFT)_0    -                             
+  Row   2:          1  (state == SHIFT)_1    -                             
+
+----------------Focused Condition View-------------------
+Line       133 Item    1  (state == SHIFT)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+        Input Term   Covered  Reason for no coverage   Hint
+       -----------  --------  -----------------------  --------------
+  (state == SHIFT)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (state == SHIFT)_0    -                             
+  Row   2:          1  (state == SHIFT)_1    -                             
+
+----------------Focused Condition View-------------------
+Line       154 Item    1  (bit_cnt == (32 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (bit_cnt == (32 - 1))         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (bit_cnt == (32 - 1))_0  -                             
+  Row   2:          1  (bit_cnt == (32 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       170 Item    1  (state == SHIFT)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+        Input Term   Covered  Reason for no coverage   Hint
+       -----------  --------  -----------------------  --------------
+  (state == SHIFT)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (state == SHIFT)_0    -                             
+  Row   2:          1  (state == SHIFT)_1    -                             
+
+
+FSM Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    FSM States                       3         3         0   100.00%
+    FSM Transitions                  5         4         1    80.00%
+
+================================FSM Details================================
+
+FSM Coverage for instance /sb_serializer_tb/dut --
+
+FSM_ID: state
+    Current State Object : state
+    ----------------------
+    State Value MapInfo :
+    ---------------------
+Line          State Name               Value
+----          ----------               -----
+  63                IDLE                   0
+  67               SHIFT                   1
+  71                 GAP                   2
+    Covered States :
+    ----------------
+                   State           Hit_count
+                   -----           ---------
+                    IDLE                4081          
+                   SHIFT               20867          
+                     GAP               20866          
+    Covered Transitions :
+    ---------------------
+Line            Trans_ID           Hit_count          Transition          
+----            --------           ---------          ----------          
+  65                   0                3119          IDLE -> SHIFT                 
+  69                   1               10433          SHIFT -> GAP                  
+  76                   3                3118          GAP -> IDLE                   
+  74                   4                7315          GAP -> SHIFT                  
+    Uncovered Transitions :
+    -----------------------
+Line            Trans_ID          Transition          
+----            --------          ----------          
+  48                   2          SHIFT -> IDLE       
+
+
+    Summary                       Bins      Hits    Misses  Coverage
+    -------                       ----      ----    ------  --------
+        FSM States                   3         3         0   100.00%
+        FSM Transitions              5         4         1    80.00%
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      28        28         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_serializer_tb/dut --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/sb_serializer.sv
+    2                                                module sb_serializer
+    3                                                #(
+    4                                                    parameter DATA_WIDTH = 64,
+    5                                                    parameter GAP_WIDTH  = 32
+    6                                                )
+    7                                                (
+    8                                                    input  logic                     clk,
+    9                                                    input  logic                     rst_n,
+    10                                               
+    11                                                   // Parallel interface
+    12                                                   input  logic [DATA_WIDTH-1:0]    tx_parallel_data,
+    13                                                   input  logic                     tx_data_valid,
+    14                                                   output logic                     tx_ready,
+    15                                               
+    16                                                   // Serial output
+    17                                                   output logic                     tx_serial_out,
+    18                                               
+    19                                                   // Forwarded sideband clock
+    20                                                   output logic                     TXCKSB
+    21                                               );
+    22                                               
+    23                                               ////////////////////////////////////////////////////////////
+    24                                               // State Machine
+    25                                               ////////////////////////////////////////////////////////////
+    26                                               
+    27                                               typedef enum logic [1:0] {
+    28                                                   IDLE,
+    29                                                   SHIFT,
+    30                                                   GAP
+    31                                               } state_t;
+    32                                               
+    33                                               state_t state, next_state;
+    34                                               
+    35                                               ////////////////////////////////////////////////////////////
+    36                                               // Registers
+    37                                               ////////////////////////////////////////////////////////////
+    38                                               
+    39                                               logic [DATA_WIDTH-1:0] shift_reg;
+    40                                               logic [$clog2(DATA_WIDTH):0] bit_cnt;
+    41                                               
+    42                                               ////////////////////////////////////////////////////////////
+    43                                               // State Register
+    44                                               ////////////////////////////////////////////////////////////
+    45                                               
+    46              1                      45814     always_ff @(posedge clk or negedge rst_n) begin
+    47                                                   if (!rst_n)
+    48              1                          2             state <= IDLE;
+    49                                                   else
+    50              1                      45812             state <= next_state;
+    51                                               end
+    52                                               
+    53                                               ////////////////////////////////////////////////////////////
+    54                                               // Next State Logic
+    55                                               ////////////////////////////////////////////////////////////
+    56                                               
+    57              1                    1261745     always_comb begin
+    58                                               
+    59              1                    1261745         next_state = state;
+    60                                               
+    61                                                   case(state)
+    62                                               
+    63                                                       IDLE:
+    64                                                           if (tx_data_valid)
+    65              1                       3119                     next_state = SHIFT;
+    66                                               
+    67                                                       SHIFT:
+    68                                                           if (bit_cnt == DATA_WIDTH-1)
+    69              1                      13046                     next_state = GAP;
+    70                                               
+    71                                                       GAP:
+    72                                                           if (bit_cnt == GAP_WIDTH-1)begin
+    73                                                               if(tx_data_valid)
+    74              1                       9962                         next_state = SHIFT;
+    75                                                               else
+    76              1                       4246                         next_state = IDLE;
+    77                                                           end
+    78                                               
+    79                                                       default:
+    80              1                          2                 next_state = IDLE;
+    81                                               
+    82                                                   endcase
+    83                                               
+    84                                               end
+    85                                               
+    86                                               ////////////////////////////////////////////////////////////
+    87                                               // Counter
+    88                                               ////////////////////////////////////////////////////////////
+    89                                               
+    90              1                    1005650     always_ff @(posedge clk or negedge rst_n) begin
+    91                                               
+    92                                                   if (!rst_n)
+    93              1                          2             bit_cnt <= '0;
+    94                                               
+    95                                                   else begin
+    96                                               
+    97                                                       if (state != next_state)
+    98              1                      23985                 bit_cnt <= '0;
+    99                                                       else if (state != IDLE)
+    100             1                     980702                 bit_cnt <= bit_cnt + 1'b1;
+    101                                              
+    102                                                  end
+    103                                              
+    104                                              end
+    105                                              
+    106                                              ////////////////////////////////////////////////////////////
+    107                                              // Shift Register
+    108                                              ////////////////////////////////////////////////////////////
+    109                                              
+    110             1                     767256     always_ff @(posedge clk or negedge rst_n) begin
+    111                                              
+    112                                                  if (!rst_n)
+    113             1                          2             shift_reg <= '0;
+    114                                              
+    115                                                  else begin
+    116                                              
+    117                                                      if (tx_ready && tx_data_valid )
+    118             1                      10434                 shift_reg <= tx_parallel_data;
+    119                                              
+    120                                                      else if (state == SHIFT)
+    121             1                     662758                 shift_reg <= {1'b0, shift_reg[DATA_WIDTH-1 : 1]};
+    122                                              
+    123                                                  end
+    124                                              
+    125                                              end
+    126                                              
+    127                                              ////////////////////////////////////////////////////////////
+    128                                              // Serial Output
+    129                                              ////////////////////////////////////////////////////////////
+    130                                              
+    131             1                     352150     always_comb begin
+    132                                              
+    133                                                  if (state == SHIFT)
+    134             1                     338597             tx_serial_out = shift_reg[0];
+    135                                                  else
+    136             1                      13553             tx_serial_out = 1'b0;
+    137                                              
+    138                                              end
+    139                                              
+    140                                              ////////////////////////////////////////////////////////////
+    141                                              // Ready Signal
+    142                                              ////////////////////////////////////////////////////////////
+    143                                              
+    144             1                    1004689     always_comb begin
+    145                                              
+    146             1                    1004689         tx_ready = 0;
+    147                                              
+    148                                                  case(state)
+    149                                              
+    150                                                      IDLE:
+    151             1                       3119                 tx_ready = 1;
+    152                                              
+    153                                                      GAP:
+    154                                                          if (bit_cnt == GAP_WIDTH-1)begin
+    155             1                      10433                     tx_ready = 1;
+    156                                                          end
+    157                                              
+    158                                                  endcase
+    159                                              
+    160                                              end
+    161                                              
+    162                                              ////////////////////////////////////////////////////////////
+    163                                              // Forwarded Clock (TXCKSB)
+    164                                              //
+    165                                              // Forward clock only during data transmission
+    166                                              ////////////////////////////////////////////////////////////
+    167                                              
+    168             1                    2036727     always_comb begin
+    169                                              
+    170                                                  if (state == SHIFT)
+    171             1                    1345858             TXCKSB = clk;
+    172                                                  else
+    173             1                     690869             TXCKSB = 1'b0;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        288       285         3    98.95%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_serializer_tb/dut --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                            TXCKSB           1           1                              100.00 
+                                        bit_cnt[6]           0           0                                0.00 
+                                      bit_cnt[5-0]           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                                        next_state               ENUM type       Value       Count 
+                                                                      IDLE           1      100.00 
+                                                                     SHIFT           1      100.00 
+                                                                       GAP           1      100.00 
+                                             rst_n           0           1                               50.00 
+                                   shift_reg[63-0]           1           1                              100.00 
+                                             state               ENUM type       Value       Count 
+                                                                      IDLE           1      100.00 
+                                                                     SHIFT           1      100.00 
+                                                                       GAP           1      100.00 
+                                     tx_data_valid           1           1                              100.00 
+                            tx_parallel_data[0-63]           1           1                              100.00 
+                                          tx_ready           1           1                              100.00 
+                                     tx_serial_out           1           1                              100.00 
+
+Total Node Count     =        147 
+Toggled Node Count   =        145 
+Untoggled Node Count =          2 
+
+Toggle Coverage      =      98.95% (285 of 288 bins)
+
+=================================================================================
+=== Instance: /sb_serializer_tb
+=== Design Unit: work.sb_serializer_tb
+=================================================================================
+
+Assertion Coverage:
+    Assertions                       1         1         0   100.00%
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/sb_serializer_tb/send_random/immed__203
+                     tb/unit/sideband/sb_serializer/sb_serializer_tb.sv(203)
+                                                        0          1
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         6         5         1    83.33%
+
+================================Branch Details================================
+
+Branch Coverage for instance /sb_serializer_tb
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_serializer/sb_serializer_tb.sv
+------------------------------------IF Branch------------------------------------
+    89                                         2     Count coming in to IF
+    89              1                          1         if(!rst_n) begin
+    92              1                          1         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    111                                   688579     Count coming in to IF
+    111             1                      10433         if(bit_count == DATA_WIDTH+1)begin
+                                          678146     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    184                                    10433     Count coming in to IF
+    184             1                      10433         if(serial_capture === tx_parallel_data) begin
+    187             1                    ***0***         else begin
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       2         1         1    50.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /sb_serializer_tb --
+
+  File tb/unit/sideband/sb_serializer/sb_serializer_tb.sv
+----------------Focused Condition View-------------------
+Line       111 Item    1  (bit_count == (64 + 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+               Input Term   Covered  Reason for no coverage   Hint
+              -----------  --------  -----------------------  --------------
+  (bit_count == (64 + 1))         Y
+
+     Rows:       Hits  FEC Target                 Non-masking condition(s)      
+ ---------  ---------  --------------------       -------------------------     
+  Row   1:          1  (bit_count == (64 + 1))_0  -                             
+  Row   2:          1  (bit_count == (64 + 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       184 Item    1  (serial_capture === tx_parallel_data)
+Condition totals: 0 of 1 input term covered = 0.00%
+
+                             Input Term   Covered  Reason for no coverage   Hint
+                            -----------  --------  -----------------------  --------------
+  (serial_capture === tx_parallel_data)         N  '_0' not hit             Hit '_0'
+
+     Rows:       Hits  FEC Target                               Non-masking condition(s)      
+ ---------  ---------  --------------------                     -------------------------     
+  Row   1:    ***0***  (serial_capture === tx_parallel_data)_0  -                             
+  Row   2:          1  (serial_capture === tx_parallel_data)_1  -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      59        56         3    94.91%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_serializer_tb --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_serializer/sb_serializer_tb.sv
+    1                                                module sb_serializer_tb;
+    2                                                import sb_serializer_tb_pkg::*;
+    3                                                
+    4                                                logic clk;
+    5                                                logic rst_n;
+    6                                                
+    7                                                logic [DATA_WIDTH-1:0] tx_parallel_data;
+    8                                                logic tx_data_valid;
+    9                                                logic tx_ready;
+    10                                               
+    11                                               logic tx_serial_out;
+    12                                               logic TXCKSB;
+    13                                               
+    14              1                          1     sb_serializer_class obj = new;
+    15                                               
+    16                                               int pass,fail;
+    17                                               /////////////////////////////////////////////////////
+    18                                               // DUT
+    19                                               /////////////////////////////////////////////////////
+    20                                               
+    21                                               sb_serializer dut (
+    22                                                   .clk(clk),
+    23                                                   .rst_n(rst_n),
+    24                                               
+    25                                                   .tx_parallel_data(tx_parallel_data),
+    26                                                   .tx_data_valid(tx_data_valid),
+    27                                                   .tx_ready(tx_ready),
+    28                                               
+    29                                                   .tx_serial_out(tx_serial_out),
+    30                                                   .TXCKSB(TXCKSB)
+    31                                               );
+    32                                               
+    33                                               bind sb_serializer sb_serializer_sva SVA (    
+    34                                                   .clk(clk),
+    35                                                   .rst_n(rst_n),
+    36                                               
+    37                                                   .tx_parallel_data(tx_parallel_data),
+    38                                                   .tx_data_valid(tx_data_valid),
+    39                                                   .tx_ready(tx_ready),
+    40                                               
+    41                                                   .tx_serial_out(tx_serial_out),
+    42                                                   .TXCKSB(TXCKSB)
+    43                                               );
+    44                                               
+    45                                               
+    46                                               /////////////////////////////////////////////////////
+    47                                               // Clock
+    48                                               /////////////////////////////////////////////////////
+    49                                               
+    50              1                          1     initial clk = 0;
+    51              1                    2012740     always #5 clk = ~clk;
+    51              2                    2012739     
+    52                                               
+    53                                               /////////////////////////////////////////////////////
+    54                                               // Reset
+    55                                               /////////////////////////////////////////////////////
+    56                                               
+    57                                               initial begin
+    58              1                          1         rst_n = 0;
+    59              1                          1         tx_data_valid = 0;
+    60              1                          1         #50;
+    61              1                          1         rst_n = 1;
+    62                                               end
+    63                                               
+    64                                               /////////////////////////////////////////////////////
+    65                                               // Packet Send Task
+    66                                               /////////////////////////////////////////////////////
+    67                                               
+    68                                               task send_packet(input logic [63:0] data);
+    69                                               
+    70              1                         63         @(negedge clk);
+    71                                               
+    72              1                       5630         while (!tx_ready)
+    73              1                       5567             @(negedge clk);
+    74                                               
+    75              1                         63         tx_parallel_data = data;
+    76              1                         63         tx_data_valid    = 1;
+    77                                               
+    78              1                         63         @(negedge clk);
+    79                                               
+    80              1                         63         tx_data_valid    = 0;
+    81                                               
+    82                                               endtask
+    83                                               
+    84              1                    1006370     always_ff @(posedge clk) begin
+    85              1                    1006370         obj.sample_cov(dut.state);
+    86                                               end
+    87                                               
+    88              1                          2     always_comb begin
+    89                                                   if(!rst_n) begin
+    90              1                          1             obj.cvr_gp.stop();
+    91                                                   end
+    92                                                   else begin
+    93              1                          1             obj.cvr_gp.start();
+    94                                                   end
+    95                                               end
+    96                                               /////////////////////////////////////////////////////
+    97                                               // Monitor
+    98                                               /////////////////////////////////////////////////////
+    99                                               
+    100                                              logic [DATA_WIDTH-1 : 0] serial_capture;
+    101                                              int bit_count;
+    102                                              
+    103             1                     678146     always @(posedge TXCKSB) begin
+    104                                              
+    105             1                     678146         serial_capture = {tx_serial_out, serial_capture[DATA_WIDTH-1 : 1]};
+    106             1                     678146         bit_count++;
+    107                                              end
+    108                                              
+    109             1                     688579     always @(posedge clk) begin
+    110                                              
+    111                                                  if(bit_count == DATA_WIDTH+1)begin
+    112             1                      10433             check_result();
+    113             1                      10433             bit_count = 0;
+    114                                                  end
+    115                                              
+    116                                              end
+    117                                              
+    118                                              /////////////////////////////////////////////////////
+    119                                              // Testcases
+    120                                              /////////////////////////////////////////////////////
+    121                                              
+    122                                              initial begin
+    123                                              
+    124             1                          1         wait(rst_n);
+    125                                              
+    126                                                  //////////////////////////////////////////////////
+    127                                                  // TEST 1 : single packet
+    128                                                  //////////////////////////////////////////////////
+    129                                              
+    130             1                          1         send_packet(64'hA5A5A5A5A5A5A5A5);
+    131                                              
+    132             1                        200         repeat(200) @(posedge clk);
+    132             2                        200     
+    133                                              
+    134                                                  //////////////////////////////////////////////////
+    135                                                  // TEST 2 : back to back
+    136                                                  //////////////////////////////////////////////////
+    137                                              
+    138             1                          1         send_packet(64'h1111111111111111);
+    139             1                          1         send_packet(64'h2222222222222222);
+    140                                              
+    141             1                        200         repeat(200) @(posedge clk);
+    141             2                        200     
+    142                                              
+    143                                                  //////////////////////////////////////////////////
+    144                                                  // TEST 3 : random traffic
+    145                                                  //////////////////////////////////////////////////
+    146                                              
+    147             1                         10         repeat(10) begin
+    148                                              
+    149             1                         10             send_packet($random);
+    150                                              
+    151             1                         83             repeat($urandom_range(0,20))
+    152             1                         83                 @(posedge clk);
+    153                                              
+    154                                                  end
+    155                                              
+    156                                                  //////////////////////////////////////////////////
+    157                                                  // TEST 4 : heavy load
+    158                                                  //////////////////////////////////////////////////
+    159                                              
+    160             1                         50         repeat(50) begin
+    161             1                         50             send_packet($random);
+    162                                                  end
+    163                                              
+    164             1                        200         repeat(200) @(posedge clk);
+    164             2                        200     
+    165                                              
+    166                                                  //////////////////////////////////////////////////
+    167                                                  // TEST 5 : 
+    168                                                  //////////////////////////////////////////////////
+    169             1                    1000000         repeat (1000000) begin 
+    170             1                    1000000             obj.testtype = WITHOUT_RESET;
+    171             1                    1000000             send_random();
+    172                                              
+    173                                                  end
+    174                                              
+    175             1                          1         $display("TEST DONE");
+    176             1                          1         #20 $display("PASS = %0d", pass);
+    176             2                          1     
+    177             1                          1         $display("FAIL = %0d", fail);
+    178             1                          1         $stop;
+    179                                              
+    180                                              end
+    181                                              
+    182                                              task check_result();
+    183                                              
+    184                                                  if(serial_capture === tx_parallel_data) begin
+    185             1                      10433             pass++;
+    186                                                  end
+    187                                                  else begin
+    188             1                    ***0***             fail++;
+    189             1                    ***0***             $display("Mismatch at time %0t", $time);
+    190             1                    ***0***             $display("FAIL exp=%h act=%h", serial_capture, tx_parallel_data);
+    191                                                  end
+    192                                              
+    193                                              endtask
+    194                                              
+    195                                              
+    196                                              // -----------------------------------
+    197                                              // Random Send Task
+    198                                              // ----------------------------------   
+    199                                              task send_random(); 
+    200                                                  
+    201             1                    1000000         @(negedge clk);
+    202             1                    1000000         obj.tx_ready = tx_ready;
+    203                                                  assert(obj.randomize());
+    204                                                  
+    205             1                    1000000         rst_n = obj.rst_n;
+    206             1                    1000000         tx_parallel_data = obj.tx_parallel_data;
+    207             1                    1000000         tx_data_valid = obj.tx_data_valid;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        460       308       152    66.95%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_serializer_tb --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                            TXCKSB           1           1                              100.00 
+                                    bit_count[0-6]           1           1                              100.00 
+                                   bit_count[7-31]           0           0                                0.00 
+                                               clk           1           1                              100.00 
+                                        fail[0-31]           0           0                                0.00 
+                                        pass[0-12]           1           1                              100.00 
+                                          pass[13]           0           1                               50.00 
+                                       pass[14-31]           0           0                                0.00 
+                                             rst_n           0           1                               50.00 
+                              serial_capture[0-63]           1           1                              100.00 
+                                     tx_data_valid           1           1                              100.00 
+                            tx_parallel_data[0-63]           1           1                              100.00 
+                                          tx_ready           1           1                              100.00 
+                                     tx_serial_out           1           1                              100.00 
+
+Total Node Count     =        230 
+Toggled Node Count   =        153 
+Untoggled Node Count =         77 
+
+Toggle Coverage      =      66.95% (308 of 460 bins)
+
+=================================================================================
+=== Instance: /sb_serializer_tb_pkg
+=== Design Unit: work.sb_serializer_tb_pkg
+=================================================================================
+
+Covergroup Coverage:
+    Covergroups                      1        na        na   100.00%
+        Coverpoints/Crosses          6        na        na        na
+            Covergroup Bins         19        19         0   100.00%
+----------------------------------------------------------------------------------------------------------
+Covergroup                                             Metric       Goal       Bins    Status               
+                                                                                                         
+----------------------------------------------------------------------------------------------------------
+ TYPE /sb_serializer_tb_pkg/sb_serializer_class/cvr_gp 
+                                                      100.00%        100          -    Covered              
+    covered/total bins:                                    19         19          -                      
+    missing/total bins:                                     0         19          -                      
+    % Hit:                                            100.00%        100          -                      
+    Coverpoint trans_state_cp                         100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint state_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 3          3          -                      
+        missing/total bins:                                 0          3          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint valid_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint ready_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+    Cross valid_ready                                 100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+    Cross valid_ready_state                           100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+ Covergroup instance \/sb_serializer_tb_pkg::sb_serializer_class::cvr_gp  
+                                                      100.00%        100          -    Covered              
+    covered/total bins:                                    19         19          -                      
+    missing/total bins:                                     0         19          -                      
+    % Hit:                                            100.00%        100          -                      
+    Coverpoint trans_state_cp                         100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        illegal_bin illegal                                 0                     -    ZERO                 
+        bin idle_to_shift                                3119          1          -    Covered              
+        bin shift_to_gap                                10433          1          -    Covered              
+        bin gap_to_idle                                  3118          1          -    Covered              
+        bin gap_to_shift                                 7314          1          -    Covered              
+    Coverpoint state_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 3          3          -                      
+        missing/total bins:                                 0          3          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin idle                                         4797          1          -    Covered              
+        bin gap                                        333856          1          -    Covered              
+        bin shift                                      667712          1          -    Covered              
+    Coverpoint valid_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin auto[0]                                    152124          1          -    Covered              
+        bin auto[1]                                    847877          1          -    Covered              
+    Coverpoint ready_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin auto[0]                                    985151          1          -    Covered              
+        bin auto[1]                                     14850          1          -    Covered              
+    Cross valid_ready                                 100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        Auto, Default and User Defined Bins:
+            bin <auto[1],auto[1]>                       10370          1          -    Covered              
+            bin <auto[0],auto[1]>                        4480          1          -    Covered              
+            bin <auto[1],auto[0]>                      837507          1          -    Covered              
+            bin <auto[0],auto[0]>                      147644          1          -    Covered              
+    Cross valid_ready_state                           100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        Auto, Default and User Defined Bins:
+            bin gap_0_0                                 48096          1          -    Covered              
+            bin shift_0_0                               99548          1          -    Covered              
+            bin idle_1_1                                 3116          1          -    Covered              
+            bin gap_1_1                                  7254          1          -    Covered              
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      10        10         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_serializer_tb_pkg --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_serializer/sb_serializer_tb_pkg.sv
+    1                                                package sb_serializer_tb_pkg;
+    2                                                
+    3                                                    typedef enum bit [1:0]{WITHOUT_RESET, WITH_RESET, NORMAL} testType_t;
+    4                                                    typedef enum logic [1:0] {
+    5                                                        IDLE,
+    6                                                        SHIFT,
+    7                                                        GAP
+    8                                                    } state_t;
+    9                                                
+    10                                                   parameter DATA_WIDTH = 64;
+    11                                                   parameter GAP_WIDTH  = 32;
+    12                                               
+    13                                                   class sb_serializer_class;
+    14                                                       
+    15                                                       logic clk;
+    16                                               
+    17                                                       rand logic rst_n;
+    18                                               
+    19                                                       rand logic [DATA_WIDTH-1:0] tx_parallel_data;
+    20                                                       rand logic tx_data_valid;
+    21                                                       logic tx_ready;
+    22                                                       state_t Prev_state;
+    23                                                       state_t state;
+    24                                               
+    25                                                       logic [DATA_WIDTH-1:0] Prev_tx_parallel_data;
+    26              1                          1             logic Prev_tx_data_valid = 0;
+    27              1                          1             logic Prev_tx_ready = 1;
+    28                                               
+    29                                                       logic tx_serial_out;
+    30                                                       logic TXCKSB;
+    31                                                
+    32                                               
+    33              1                          1             testType_t testtype = WITHOUT_RESET;
+    34                                               
+    35                                               
+    36                                                       constraint rst_constraint{
+    37                                                           if(testtype == WITHOUT_RESET){
+    38                                                               rst_n == 1;
+    39                                                           }else if(testtype == WITH_RESET){
+    40                                                               rst_n == 0;
+    41                                                           }
+    42                                                           else {
+    43                                                               rst_n dist { 1 :/ 80, 0 :/20};
+    44                                                           }
+    45                                                           
+    46                                                       }
+    47                                               
+    48                                               
+    49                                                       constraint RDI_msg_no_send_constraint{
+    50                                                           if(tx_ready == 0 ){
+    51                                                               tx_parallel_data == Prev_tx_parallel_data;
+    52                                                           }
+    53                                                       }
+    54                                               
+    55                                                       constraint RDI_vld_send_constraint{
+    56                                                           if(tx_ready == 0  && tx_data_valid == 1){
+    57                                                               tx_data_valid == 1;
+    58                                                           }
+    59                                                           else {
+    60                                                               tx_data_valid dist { 1 :/ 70, 0 :/ 30};
+    61                                                           }
+    62                                                       }
+    63                                               
+    64                                                       covergroup cvr_gp;
+    65                                                           trans_state_cp : coverpoint {Prev_state, state} {
+    66                                               
+    67                                                               bins idle_to_shift = { {IDLE,SHIFT} };
+    68                                                               bins shift_to_gap  = { {SHIFT,GAP} };
+    69                                                               bins gap_to_idle   = { {GAP,IDLE} };
+    70                                                               bins gap_to_shift  = { {GAP,SHIFT} };
+    71                                                               illegal_bins illegal = (IDLE  => GAP), (SHIFT => IDLE);
+    72                                                           }
+    73                                                           state_cp : coverpoint state {
+    74                                                               bins idle = {IDLE};
+    75                                                               bins gap = {GAP};
+    76                                                               bins shift = {SHIFT};
+    77                                                           }
+    78                                                           valid_cp : coverpoint tx_data_valid;
+    79                                                           ready_cp : coverpoint tx_ready;
+    80                                                           valid_ready : cross valid_cp, ready_cp;
+    81                                                           valid_ready_state : cross valid_cp, ready_cp, state_cp{
+    82                                                               option.cross_auto_bin_max   = 0;
+    83                                                               bins gap_0_0 = binsof(valid_cp) intersect{0} && binsof(ready_cp) intersect{0} && binsof(state_cp.gap);
+    84                                                               bins shift_0_0 = binsof(valid_cp) intersect{0} && binsof(ready_cp) intersect{0} && binsof(state_cp.shift);
+    85                                                               bins idle_1_1 = binsof(valid_cp) intersect{1} && binsof(ready_cp) intersect{1} && binsof(state_cp.idle);
+    86                                                               bins gap_1_1 = binsof(valid_cp) intersect{1} && binsof(ready_cp) intersect{1} && binsof(state_cp.gap);
+    87                                                           }
+    88                                               
+    89                                                       endgroup
+    90                                               
+    91                                                       function new();
+    92              1                          1                cvr_gp = new;   
+    93                                                       endfunction
+    94                                               
+    95                                                       function void sample_cov(state_t s);
+    96              1                    1006370                 state = s;
+    97              1                    1006370                 cvr_gp.sample();
+    98              1                    1006370                 Prev_state = s;
+    99                                                       endfunction
+    100                                              
+    101                                              
+    102                                              
+    103                                                      function void post_randomize();
+    104             1                    1000000                 Prev_tx_parallel_data = tx_parallel_data;
+    105             1                    1000000                 Prev_tx_ready = tx_ready;
+    106             1                    1000000                 Prev_tx_data_valid = tx_data_valid;
+
+
+COVERGROUP COVERAGE:
+----------------------------------------------------------------------------------------------------------
+Covergroup                                             Metric       Goal       Bins    Status               
+                                                                                                         
+----------------------------------------------------------------------------------------------------------
+ TYPE /sb_serializer_tb_pkg/sb_serializer_class/cvr_gp 
+                                                      100.00%        100          -    Covered              
+    covered/total bins:                                    19         19          -                      
+    missing/total bins:                                     0         19          -                      
+    % Hit:                                            100.00%        100          -                      
+    Coverpoint trans_state_cp                         100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint state_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 3          3          -                      
+        missing/total bins:                                 0          3          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint valid_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+    Coverpoint ready_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+    Cross valid_ready                                 100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+    Cross valid_ready_state                           100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+ Covergroup instance \/sb_serializer_tb_pkg::sb_serializer_class::cvr_gp  
+                                                      100.00%        100          -    Covered              
+    covered/total bins:                                    19         19          -                      
+    missing/total bins:                                     0         19          -                      
+    % Hit:                                            100.00%        100          -                      
+    Coverpoint trans_state_cp                         100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        illegal_bin illegal                                 0                     -    ZERO                 
+        bin idle_to_shift                                3119          1          -    Covered              
+        bin shift_to_gap                                10433          1          -    Covered              
+        bin gap_to_idle                                  3118          1          -    Covered              
+        bin gap_to_shift                                 7314          1          -    Covered              
+    Coverpoint state_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 3          3          -                      
+        missing/total bins:                                 0          3          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin idle                                         4797          1          -    Covered              
+        bin gap                                        333856          1          -    Covered              
+        bin shift                                      667712          1          -    Covered              
+    Coverpoint valid_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin auto[0]                                    152124          1          -    Covered              
+        bin auto[1]                                    847877          1          -    Covered              
+    Coverpoint ready_cp                               100.00%        100          -    Covered              
+        covered/total bins:                                 2          2          -                      
+        missing/total bins:                                 0          2          -                      
+        % Hit:                                        100.00%        100          -                      
+        bin auto[0]                                    985151          1          -    Covered              
+        bin auto[1]                                     14850          1          -    Covered              
+    Cross valid_ready                                 100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        Auto, Default and User Defined Bins:
+            bin <auto[1],auto[1]>                       10370          1          -    Covered              
+            bin <auto[0],auto[1]>                        4480          1          -    Covered              
+            bin <auto[1],auto[0]>                      837507          1          -    Covered              
+            bin <auto[0],auto[0]>                      147644          1          -    Covered              
+    Cross valid_ready_state                           100.00%        100          -    Covered              
+        covered/total bins:                                 4          4          -                      
+        missing/total bins:                                 0          4          -                      
+        % Hit:                                        100.00%        100          -                      
+        Auto, Default and User Defined Bins:
+            bin gap_0_0                                 48096          1          -    Covered              
+            bin shift_0_0                               99548          1          -    Covered              
+            bin idle_1_1                                 3116          1          -    Covered              
+            bin gap_1_1                                  7254          1          -    Covered              
+
+TOTAL COVERGROUP COVERAGE: 100.00%  COVERGROUP TYPES: 1
+
+DIRECTIVE COVERAGE:
+--------------------------------------------------------------------------------------------
+Name                                     Design Design   Lang File(Line)      Hits Status    
+                                         Unit   UnitType                                     
+--------------------------------------------------------------------------------------------
+/sb_serializer_tb/dut/SVA/cover__p_clock_forward 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(62)
+                                                                              338653 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_gap_length 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(52)
+                                                                              10432 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_shift_length 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(42)
+                                                                              10433 Covered   
+/sb_serializer_tb/dut/SVA/cover__p_valid_hold 
+                                         sb_serializer_sva Verilog  SVA  tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(32)
+                                                                              837506 Covered   
+
+TOTAL DIRECTIVE COVERAGE: 100.00%  COVERS: 4
+
+ASSERTION RESULTS:
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/sb_serializer_tb/send_random/immed__203
+                     tb/unit/sideband/sb_serializer/sb_serializer_tb.sv(203)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_clock_forward
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(61)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_gap_length
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(51)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_shift_length
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(41)
+                                                        0          1
+/sb_serializer_tb/dut/SVA/assert__p_valid_hold
+                     tb/unit/sideband/sb_serializer/sb_serializer_sva.sv(31)
+                                                        0          1
+
+Total Coverage By Instance (filtered view): 93.93%
+
