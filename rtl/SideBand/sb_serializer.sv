@@ -1,4 +1,3 @@
-
 module sb_serializer
 #(
     parameter DATA_WIDTH = 64,
@@ -7,6 +6,9 @@ module sb_serializer
 (
     input  logic                     clk,
     input  logic                     rst_n,
+
+    // control
+    input  logic                     pmo_en,
 
     // Parallel interface
     input  logic [DATA_WIDTH-1:0]    tx_parallel_data,
@@ -30,8 +32,7 @@ typedef enum logic [1:0] {
     GAP
 } state_t;
 
-state_t state, next_state;
-
+state_t state, next_state, prev_state;
 ////////////////////////////////////////////////////////////
 // Registers
 ////////////////////////////////////////////////////////////
@@ -46,8 +47,10 @@ logic [$clog2(DATA_WIDTH):0] bit_cnt;
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
         state <= IDLE;
-    else
+    else begin
         state <= next_state;
+        prev_state <= state;
+    end
 end
 
 ////////////////////////////////////////////////////////////
@@ -65,15 +68,28 @@ always_comb begin
                 next_state = SHIFT;
 
         SHIFT:
-            if (bit_cnt == DATA_WIDTH-1)
-                next_state = GAP;
+            if (bit_cnt == DATA_WIDTH-1) begin
+                if(pmo_en)begin                       // PMO mode
+                    if(tx_data_valid)begin
+                        next_state = SHIFT;
+                    end
+                    else begin
+                         next_state = IDLE;
+                    end
+                end 
+                else begin
+                    next_state = GAP;
+                end
+                    
+            end
 
         GAP:
-            if (bit_cnt == GAP_WIDTH-1)
-                next_state = IDLE;
-
-        default:
-            next_state = IDLE;
+            if (bit_cnt == GAP_WIDTH-1) begin
+                if (tx_data_valid)
+                    next_state = SHIFT;
+                else
+                    next_state = IDLE;
+            end
 
     endcase
 
@@ -88,19 +104,31 @@ always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
         bit_cnt <= '0;
 
-    else begin
+    else if (state == SHIFT) begin
 
-        if (state != next_state)
+        if (bit_cnt == DATA_WIDTH-1)
             bit_cnt <= '0;
-        else if (state != IDLE)
+        else
             bit_cnt <= bit_cnt + 1'b1;
 
     end
 
+    else if (state == GAP) begin
+
+        if (bit_cnt == GAP_WIDTH-1)
+            bit_cnt <= '0;
+        else
+            bit_cnt <= bit_cnt + 1'b1;
+
+    end
+
+    else
+        bit_cnt <= '0;
+
 end
 
 ////////////////////////////////////////////////////////////
-// Shift Register
+// Shift Register (Race-safe)
 ////////////////////////////////////////////////////////////
 
 always_ff @(posedge clk or negedge rst_n) begin
@@ -110,11 +138,17 @@ always_ff @(posedge clk or negedge rst_n) begin
 
     else begin
 
-        if (state == IDLE && tx_data_valid )
+        // load new packet
+        if (tx_ready && tx_data_valid)
             shift_reg <= tx_parallel_data;
 
+/*         // PMO case: last bit and next packet exists
+        else if (state == SHIFT && bit_cnt == DATA_WIDTH-1 && pmo_en && tx_data_valid)
+            shift_reg <= tx_parallel_data;
+ */
+        // normal shifting
         else if (state == SHIFT)
-            shift_reg <= {1'b0, shift_reg[DATA_WIDTH-1 : 1]};
+            shift_reg <= {1'b0, shift_reg[DATA_WIDTH-1:1]};
 
     end
 
@@ -125,33 +159,46 @@ end
 ////////////////////////////////////////////////////////////
 
 always_comb begin
-
     if (state == SHIFT)
         tx_serial_out = shift_reg[0];
     else
         tx_serial_out = 1'b0;
-
 end
 
 ////////////////////////////////////////////////////////////
 // Ready Signal
 ////////////////////////////////////////////////////////////
 
-assign tx_ready = (state == IDLE);
+always_comb begin
+
+    tx_ready = 0;
+
+    case(state)
+
+        IDLE:
+            tx_ready = 1;
+
+        SHIFT:
+            if (bit_cnt == DATA_WIDTH-1 && pmo_en)
+                tx_ready = 1;   // allows PMO
+
+        GAP:
+            if (bit_cnt == GAP_WIDTH-1)
+                tx_ready = 1;
+
+    endcase
+
+end
 
 ////////////////////////////////////////////////////////////
-// Forwarded Clock (TXCKSB)
-//
-// Forward clock only during data transmission
+// Forwarded Clock
 ////////////////////////////////////////////////////////////
 
 always_comb begin
-
-    if (state == SHIFT)
+    if (state == SHIFT || (state == GAP && bit_cnt == 0) || (state == IDLE && prev_state == SHIFT))
         TXCKSB = clk;
     else
         TXCKSB = 1'b0;
-
 end
 
 endmodule
