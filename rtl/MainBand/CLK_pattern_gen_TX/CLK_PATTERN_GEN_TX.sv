@@ -1,6 +1,6 @@
 module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_done); 
     parameter MAIN=128;
-    parameter TOGGLE=17;
+    parameter TOGGLE=16;
     parameter ZERO=8;
 
     input logic i_clk,i_rst_n,clk_pattern_en;
@@ -21,13 +21,13 @@ module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_d
         end
         else begin
             if (clk_pattern_en && counter_main < MAIN-1) begin
-                if (counter_toggle < TOGGLE-1) begin
+                if (counter_toggle < TOGGLE) begin
                     o_clk_p = i_clk;
                     track = i_clk;
                     o_clk_n = ~i_clk;
-                counter_toggle = counter_toggle +1;  
+                counter_toggle = counter_toggle +1; 
                 end
-                else if (counter_toggle == TOGGLE-1 && counter_zero < ZERO-1) begin
+                else if (counter_toggle == TOGGLE && counter_zero < ZERO-1) begin
                     o_clk_p = 0;
                     track = 0;
                     o_clk_n = 0;
