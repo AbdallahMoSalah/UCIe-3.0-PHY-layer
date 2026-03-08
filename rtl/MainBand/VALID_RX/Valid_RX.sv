@@ -32,7 +32,7 @@ module VALID_DETECTOR (
     reg [5:0]  mismatch_count;
     reg [2:0]  valid_bytes;
 
-    integer i;
+    integer i ;
 
     // =====================================================
     // Split 32-bit word into 4 bytes
