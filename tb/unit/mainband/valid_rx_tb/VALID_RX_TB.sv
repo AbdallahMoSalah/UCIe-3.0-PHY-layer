@@ -18,84 +18,86 @@ module VALID_RX_TB;
     // DUT Instantiation
     // =====================================================
     VALID_DETECTOR DUT (
-        .i_clk(i_clk),
-        .i_rst_n(i_rst_n),
-        .RVLD_L(RVLD_L),
-        .i_Valid_en(i_Valid_en),
-        .i_max_error_threshold(i_max_error_threshold),
-        .O_result_logged_iteration(O_result_logged_iteration),
-        .O_result_logged_consecutive(O_result_logged_consecutive)
+        .i_clk                    (i_clk),
+        .i_rst_n                  (i_rst_n),
+        .RVLD_L                   (RVLD_L),
+        .i_Valid_en               (i_Valid_en),
+        .i_max_error_threshold    (i_max_error_threshold),
+        .O_result_logged_iteration   (O_result_logged_iteration),
+        .O_result_logged_consecutive (O_result_logged_consecutive)
     );
 
     // =====================================================
     // Clock Generation
     // =====================================================
-    initial begin
-        i_clk = 0;
-        forever #5 i_clk = ~i_clk;   // 100MHz
-    end
+    initial i_clk = 0;
+    always #5 i_clk = ~i_clk; // 100MHz
 
     // =====================================================
     // Test Sequence
     // =====================================================
     initial begin
+
         // Reset
-        i_rst_n = 0;
-        i_Valid_en = 0;
-        RVLD_L = 32'd0;
+        i_rst_n               = 0;
+        i_Valid_en            = 0;
+        RVLD_L                = 32'd0;
         i_max_error_threshold = 12'd10;
-
-        #20;
+        repeat(4) @(posedge i_clk);
         i_rst_n = 1;
+        @(posedge i_clk);
 
-        // Start valid test
-        #10;
+        // Enable
         i_Valid_en = 1;
 
-        // ---------------------------
-        // Send 128 correct iterations
-        // ---------------------------
-        repeat (128) begin
-            RVLD_L = 32'hF0F0F0F0;
-            #10;
-        end
-
-        // ---------------------------
-        // Send 16 consecutive bytes
-        // 4 per cycle → 4 cycles = 16 bytes
-        // ---------------------------
+        // --------------------------------------------------
+        // PHASE 1: CONSECUTIVE_16
+        // محتاج 16 byte صح = 4 cycles (كل cycle = 4 bytes)
+        // --------------------------------------------------
+        $display("[%0t] >> CONSECUTIVE_16 Phase Start", $time);
         repeat (4) begin
             RVLD_L = 32'hF0F0F0F0;
-            #10;
+            @(posedge i_clk);
         end
 
-        // ---------------------------
-        // Introduce an error frame
-        // ---------------------------
-        RVLD_L = 32'hF0F0F0F0; // 1 bit wrong
-        #10;
+        // --------------------------------------------------
+        // PHASE 2: ITERATIONS_128
+        // محتاج 128 iteration صح
+        // --------------------------------------------------
+        $display("[%0t] >> ITERATIONS_128 Phase Start", $time);
+        repeat (128) begin
+            RVLD_L = 32'hF0F0F0F0;
+            @(posedge i_clk);
+        end
+
+        // --------------------------------------------------
+        // Test error frame في ITERATIONS_128
+        // --------------------------------------------------
+        $display("[%0t] >> Injecting error frame", $time);
+        RVLD_L = 32'hF0F0F0F1; // bit error
+        @(posedge i_clk);
 
         // Stop
-        RVLD_L = 32'h00000000;
-        #50;
+        i_Valid_en = 0;
+        RVLD_L     = 32'h0;
+        repeat(10) @(posedge i_clk);
 
+        $display("[%0t] >> All tests done!", $time);
         $stop;
     end
 
     // =====================================================
-    // Monitor for iteration and consecutive results
+    // Monitor
     // =====================================================
     always @(posedge i_clk) begin
-        if (O_result_logged_iteration) begin
-            $display("[%0t] Iteration Test FAILED: too many bit errors", $time);
-        end
-        else if (O_result_logged_iteration === 1'b0 && i_Valid_en) begin
-            $display("[%0t] Iteration Test PASSED", $time);
-        end
 
-        if (O_result_logged_consecutive) begin
-            $display("[%0t] Consecutive Test PASSED (16 iterations detected)", $time);
-        end
+        if (O_result_logged_consecutive)
+            $display("[%0t] Consecutive Test PASSED", $time);
+
+        if (O_result_logged_iteration === 1'b1)
+            $display("[%0t] Iteration Test FAILED: too many errors", $time);
+        else if (O_result_logged_iteration === 1'b0 && i_Valid_en)
+            $display("[%0t] Iteration Test PASSED", $time);
     end
 
 endmodule

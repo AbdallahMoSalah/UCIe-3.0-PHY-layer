@@ -14,7 +14,7 @@ add wave -noupdate -color Magenta -radix binary /MB_SERIALIZER_TB/DUT/SER_out
 add wave -noupdate /MB_SERIALIZER_TB/DUT/ser_counter
 add wave -noupdate -radix binary /MB_SERIALIZER_TB/DUT/data_reg
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {30631 ps} 0}
+WaveRestoreCursors {{Cursor 1} {116000 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
@@ -30,4 +30,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {106240 ps}
+WaveRestoreZoom {40666 ps} {146906 ps}
