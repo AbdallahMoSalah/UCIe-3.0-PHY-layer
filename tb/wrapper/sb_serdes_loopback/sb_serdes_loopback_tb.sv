@@ -22,6 +22,8 @@ logic RXCKSB;
 // RX side
 logic [DATA_WIDTH-1:0] rx_parallel_data;
 logic rx_data_valid;
+logic packet_done;
+logic [DATA_WIDTH-1:0] packet_data;
 
 
 sb_serializer_class obj = new;
@@ -38,12 +40,12 @@ int pass, fail;
 // DUTs
 ////////////////////////////////////////////////////////
 
-assign #1 RXCKSB    = TXCKSB;
+assign #(1) RXCKSB  = TXCKSB;
 sb_serializer serializer (
 
     .clk(clk),
     .rst_n(rst_n),
-    .pmo_en(0),
+    .pmo_en(pmo_en),
 
     .tx_parallel_data(tx_parallel_data),
     .tx_data_valid(tx_data_valid),
@@ -56,13 +58,14 @@ sb_serializer serializer (
 sb_deserializer deserializer (
 
     .rst_n(rst_n),
-    .pmo_en(0),
 
     .rx_serial_in(tx_serial_out),
     .RXCKSB(RXCKSB),
 
     .rx_parallel_data(rx_parallel_data),
-    .rx_data_valid(rx_data_valid)
+    .rx_data_valid(rx_data_valid),
+    .packet_done(packet_done),
+    .packet_data(packet_data)
 );
 
 bind sb_serializer sb_serializer_sva SVA_ser (    
@@ -81,6 +84,7 @@ bind sb_serializer sb_serializer_sva SVA_ser (
 bind sb_deserializer sb_deserializer_sva SVA_des (
 
     .rst_n(rst_n),
+    
 
     .rx_serial_in(tx_serial_out),
     .RXCKSB(RXCKSB),
@@ -167,9 +171,9 @@ end
 
 end */
 
-always @(posedge clk) begin
+always @(posedge RXCKSB) begin
 
-    if(rx_data_valid) begin
+    if(packet_done) begin
 
         check_result();
 
@@ -218,6 +222,15 @@ initial begin
 
     repeat(200) @(posedge clk);
 
+
+    repeat(50) begin
+        pmo_en = $random;
+        send_packet($random);
+    end
+
+    repeat(200) @(posedge clk);
+
+    pmo_en = 0;
     repeat (1000000) begin 
         obj.testtype = WITHOUT_RESET;
         send_random();
@@ -234,7 +247,7 @@ end
 
 task check_result();
 
-    if(rx_parallel_data === tx_parallel_data) begin
+    if(packet_data === tx_parallel_data) begin
         pass++;
     end
     else begin
