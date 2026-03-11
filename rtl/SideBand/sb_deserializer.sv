@@ -10,9 +10,9 @@ module sb_deserializer
 
     // registered outputs
     output logic [DATA_WIDTH-1:0]    rx_parallel_data,
-    output logic                     rx_data_valid,
+    output logic                     rx_data_vld,
 
-    // FIFO interface (combinational)
+    // output interface (combinational)
     output logic [DATA_WIDTH-1:0]    packet_data,
     output logic                     packet_done
 );
@@ -39,7 +39,7 @@ assign next_shift = {rx_serial_in, shift_reg[DATA_WIDTH-1:1]};
 assign packet_done = (bit_cnt == DATA_WIDTH-1);
 
 ////////////////////////////////////////////////////////////
-// Data ready for FIFO (same cycle)
+// Data ready (same cycle)
 ////////////////////////////////////////////////////////////
 
 assign packet_data = next_shift;
@@ -54,16 +54,11 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
         shift_reg        <= '0;
         rx_parallel_data <= '0;
         bit_cnt          <= '0;
-        rx_data_valid    <= 1'b0;
+        rx_data_vld    <= 1'b0;
     end
 
     else begin
-
-        ////////////////////////////////////////////////
-        // shift register
-        ////////////////////////////////////////////////
-
-        shift_reg <= next_shift;
+        
 
         ////////////////////////////////////////////////
         // counter
@@ -71,8 +66,14 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
 
         if(packet_done)
             bit_cnt <= '0;
-        else
+        else begin
+            ////////////////////////////////////////////////
+            // shift register
+            ////////////////////////////////////////////////
+
             bit_cnt <= bit_cnt + 1;
+            shift_reg <= next_shift;
+        end
 
         ////////////////////////////////////////////////
         // registered outputs
@@ -81,7 +82,7 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
         if(packet_done)
             rx_parallel_data <= next_shift;
 
-        rx_data_valid <= packet_done;
+        rx_data_vld <= packet_done;
 
     end
 

@@ -19,10 +19,14 @@ add wave -noupdate -expand -group ser -radix decimal /sb_serdes_loopback_tb/seri
 add wave -noupdate -expand -group ser /sb_serdes_loopback_tb/serializer/shift_reg
 add wave -noupdate -expand -group des -radix decimal /sb_serdes_loopback_tb/deserializer/bit_cnt
 add wave -noupdate -expand -group des /sb_serdes_loopback_tb/deserializer/shift_reg
+add wave -noupdate /sb_serdes_loopback_tb/deserializer/packet_data
+add wave -noupdate /sb_serdes_loopback_tb/deserializer/packet_done
+add wave -noupdate /sb_serdes_loopback_tb/deserializer/next_shift
 add wave -noupdate /sb_serdes_loopback_tb/pass
 add wave -noupdate /sb_serdes_loopback_tb/fail
+add wave -noupdate /sb_serdes_loopback_tb/deserializer/SVA_des/cover__p_data_stable
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {14876 ns} 0}
+WaveRestoreCursors {{Cursor 1} {696 ns} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
@@ -38,4 +42,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {14859 ns} {14891 ns}
+WaveRestoreZoom {679 ns} {711 ns}

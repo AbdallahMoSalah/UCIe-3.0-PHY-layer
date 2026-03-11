@@ -21,7 +21,7 @@ logic RXCKSB;
 
 // RX side
 logic [DATA_WIDTH-1:0] rx_parallel_data;
-logic rx_data_valid;
+logic rx_data_vld;
 logic packet_done;
 logic [DATA_WIDTH-1:0] packet_data;
 
@@ -40,7 +40,7 @@ int pass, fail;
 // DUTs
 ////////////////////////////////////////////////////////
 
-assign #(1) RXCKSB  = TXCKSB;
+assign #(5) RXCKSB  = TXCKSB;
 sb_serializer serializer (
 
     .clk(clk),
@@ -63,7 +63,7 @@ sb_deserializer deserializer (
     .RXCKSB(RXCKSB),
 
     .rx_parallel_data(rx_parallel_data),
-    .rx_data_valid(rx_data_valid),
+    .rx_data_vld(rx_data_vld),
     .packet_done(packet_done),
     .packet_data(packet_data)
 );
@@ -90,7 +90,9 @@ bind sb_deserializer sb_deserializer_sva SVA_des (
     .RXCKSB(RXCKSB),
 
     .rx_parallel_data(rx_parallel_data),
-    .rx_data_valid(rx_data_valid)
+    .rx_data_vld(rx_data_vld),
+    .packet_done(packet_done),
+    .packet_data(packet_data)
 );
 
 ////////////////////////////////////////////////////////
@@ -152,7 +154,7 @@ end
 
 /* always @(posedge clk) begin
 
-    if(rx_data_valid) begin
+    if(rx_data_vld) begin
 
         logic [63:0] exp;
 

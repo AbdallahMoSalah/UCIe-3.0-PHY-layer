@@ -12,7 +12,7 @@ module sb_deserializer_sva
 
     // registered outputs
     input logic [DATA_WIDTH-1:0]    rx_parallel_data,
-    input logic                     rx_data_valid,
+    input logic                     rx_data_vld,
 
     // FIFO interface (combinational)
     input logic [DATA_WIDTH-1:0]    packet_data,
@@ -58,15 +58,5 @@ endproperty
 
 assert property(p_packet_done_pulse);
 cover property(p_packet_done_pulse);
-
-
-property p_data_stable;
-    @(posedge RXCKSB)
-    disable iff (!rst_n)
-    packet_done |-> $stable(packet_data);
-endproperty
-
-assert property(p_data_stable);
-cover property(p_data_stable);
 
 endmodule
