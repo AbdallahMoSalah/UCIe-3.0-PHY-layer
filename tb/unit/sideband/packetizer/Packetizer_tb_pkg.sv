@@ -43,13 +43,13 @@ class Packetizer_class;
     }
 
     constraint msg_no_send_constraint{
-        if(prev_LINK_ready == 0 ){
+        if(LINK_ready == 0 ){
             msg_no_send == prev_msg_no_send;
         }
     }
 
     constraint valid_send_constraint{
-        if(prev_LINK_ready == 0){
+        if(LINK_ready == 0){
             valid_send == prev_valid_send;
         }
         else {
