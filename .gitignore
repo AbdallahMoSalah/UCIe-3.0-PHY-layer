@@ -21,7 +21,7 @@ _temp/
 _tempmsg/
 .vscode/configurationCache.log
 .vscode/dryrun.log
-.gitignore
 .vscode/targets.log
 .vscode/settings.json
 a.out
+.vscode/
