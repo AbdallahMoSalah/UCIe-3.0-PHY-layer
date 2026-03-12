@@ -148,6 +148,7 @@ module TX_D2C_PT  #() (
     // Log Rx Comparison Results from MB:
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
+            d2c_aggr_err    <= 16'b0;
             d2c_perlane_err <= 16'b0;
             d2c_val_err     <= 1'b0;
             d2c_clk_err     <= 1'b0;
@@ -301,8 +302,8 @@ module TX_D2C_PT  #() (
                 // For Req MSG sent: (We send these information Because the partner uses it).
                 tx_sb_msg_valid      = (~data_incoherence); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
                 tx_sb_msg            = MSG_START_REQ;
-                tx_msginfo           = (d2c_compare_setup == 1)? {4'b0, cfg_train4_max_err_thresh_aggr} :    // Send aggregate comparison mode,
-                                       (d2c_compare_setup == 0)? cfg_train4_max_err_thresh_perlane      : 0; // Send Per-lane comparison mode, otherwise 0.
+                tx_msginfo           = (d2c_compare_setup == 1)? {cfg_train4_max_err_thresh_aggr}         :    // Send aggregate comparison mode,
+                                       (d2c_compare_setup == 0)? {4'b0, cfg_train4_max_err_thresh_perlane}: 0; // Send Per-lane comparison mode, otherwise 0.
                 tx_data_field[63:60] = 4'b0                    ; // Reserved for future use. Just set it to 0 for now.
                 tx_data_field[59]    = (d2c_compare_setup != 0); // Comparison Mode (0: Per Lane; 1: Aggregate)
                 tx_data_field[58:43] = d2c_iter_count          ; // Iteration Count Setting.
@@ -464,6 +465,9 @@ module TX_D2C_PT  #() (
             mb_tx_clk_sampling           <= 0;  
             mb_tx_val_pattern_sel        <= 0;
             mb_tx_data_pattern_sel       <= 0;
+            d2c_val_err                  <= 0;
+            d2c_aggr_err                 <= 0;
+            d2c_perlane_err              <= 0;
         end
         // For Req SB Msg received: {Start Tx Init D to C point test req}
         else if(rx_sb_msg == MSG_START_REQ && rx_sb_msg_valid) begin

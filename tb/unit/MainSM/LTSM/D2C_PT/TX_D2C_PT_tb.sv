@@ -129,8 +129,8 @@ module TX_D2C_PT_tb ();
     fsm_state_t current_state, previous_state;
 
     always @(*) begin
-        current_state  = (TX_D2C_PT_inst.current_state );
-        previous_state = (TX_D2C_PT_inst.previous_state);
+        current_state  = fsm_state_t'(TX_D2C_PT_inst.current_state);
+        previous_state = fsm_state_t'(TX_D2C_PT_inst.previous_state);
     end
 
 
