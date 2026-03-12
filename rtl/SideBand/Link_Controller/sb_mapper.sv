@@ -4,8 +4,8 @@ module sb_mapper (
     input  logic         rst_n,
 
     // From TX Arbiter
-    input  logic [127:0] Msg_word_send,
-    input  logic         word_valid_s,
+    input  logic [127:0] msg_word_send,
+    input  logic         word_vld_send,
 
     // From SerDes
     input  logic         ser_ready,
@@ -15,7 +15,7 @@ module sb_mapper (
 
     // To SerDes
     output logic [63:0]  msg_send,
-    output logic         msg_vld_s
+    output logic         msg_vld_send
 );
     import sb_pkg::*;
     // ---------------------------------------------------------
@@ -38,7 +38,7 @@ module sb_mapper (
     sb_opcode_e opcode;
     logic       is_128bit;
 
-    assign opcode = sb_opcode_e'(Msg_word_send[4:0]);
+    assign opcode = sb_opcode_e'(msg_word_send[4:0]);
 
     // ---------------------------------------------------------
     // Determine Message Length
@@ -73,7 +73,7 @@ module sb_mapper (
 
     logic arb_fire;
 
-    assign arb_fire = word_valid_s && mapper_ready;
+    assign arb_fire = word_vld_send && mapper_ready;
 
     // ---------------------------------------------------------
     // FSM State Register
@@ -91,7 +91,7 @@ module sb_mapper (
 
             // latch second half
             if (arb_fire && is_128bit) begin
-                second_half_reg <= Msg_word_send[127:64];
+                second_half_reg <= msg_word_send[127:64];
             end
 
         end
@@ -131,7 +131,7 @@ module sb_mapper (
 
         // defaults
         
-        msg_vld_s    = 1'b0;
+        msg_vld_send    = 1'b0;
         mapper_ready = 1'b0;
 
         case (current_state)
@@ -143,9 +143,9 @@ module sb_mapper (
 
                 mapper_ready = ser_ready;
 
-                if (word_valid_s && ser_ready) begin
-                    msg_send  = Msg_word_send[63:0];
-                    msg_vld_s = 1'b1;
+                if (word_vld_send && ser_ready) begin
+                    msg_send  = msg_word_send[63:0];
+                    msg_vld_send = 1'b1;
                 end
 
             end
@@ -158,7 +158,7 @@ module sb_mapper (
                 mapper_ready = 1'b0;
 
                 msg_send  = second_half_reg;
-                msg_vld_s = 1'b1;
+                msg_vld_send = 1'b1;
 
             end
 

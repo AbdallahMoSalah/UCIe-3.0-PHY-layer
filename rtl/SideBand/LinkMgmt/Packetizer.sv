@@ -8,10 +8,10 @@ module Packetizer (
     input  logic [ 15:0] msg_info_send,
     input  logic [  7:0] msg_no_send,
     input  logic         valid_send,
-    input  logic         LINK_ready,
+    input  logic         Link_ready,
     input  logic         stall_send,
-    output logic [127:0] LINK_msg,
-    output logic         LINK_vld,
+    output logic [127:0] Link_msg_send,
+    output logic         Link_vld_send,
     output logic         ready
 );
 
@@ -21,7 +21,7 @@ logic [63:0] payload;
 
 logic is_there_data;
 logic is_req;
-assign ready = LINK_ready;
+assign ready = Link_ready;
 
 always_comb begin
 
@@ -479,18 +479,18 @@ end
          
   always_ff @(posedge clk, negedge rst_n) begin : seq_part
     if (!rst_n) begin
-        LINK_vld <= 1'b0;
+        Link_vld_send <= 1'b0;
         header_reg <= '0;
         payload <= '0;
-    end else if (valid_send && LINK_ready) begin
-        LINK_vld <= 1'b1;
+    end else if (valid_send && Link_ready) begin
+        Link_vld_send <= 1'b1;
         header_reg <= header_comb;
         payload <= msg_data_send;
     end else begin
-        LINK_vld <= 1'b0;
+        Link_vld_send <= 1'b0;
     end
   end
 
-    assign LINK_msg = {payload, header_reg}; 
+    assign Link_msg_send = {payload, header_reg}; 
 
 endmodule
