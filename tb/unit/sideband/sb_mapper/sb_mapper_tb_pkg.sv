@@ -56,11 +56,11 @@ package sb_mapper_tb_pkg;
                 assert(pkt.randomize());
 
                 // random valid & ready
-                vif.word_valid_s = pkt.in_valid;
+                vif.word_vld_send = pkt.in_valid;
                 vif.ser_ready = pkt.in_ready;
 
                 if(pkt.in_valid && vif.mapper_ready) begin
-                    vif.Msg_word_send = pkt.data;
+                    vif.msg_word_send = pkt.data;
                 end
 
             end
@@ -92,10 +92,10 @@ package sb_mapper_tb_pkg;
                 @(posedge vif.clk);
 
                 // input handshake
-                if(vif.word_valid_s && vif.mapper_ready) begin
+                if(vif.word_vld_send && vif.mapper_ready) begin
 
                     pkt = new();
-                    pkt.data = vif.Msg_word_send;
+                    pkt.data = vif.msg_word_send;
 
                     in_q.push_back(pkt);
 
@@ -103,7 +103,7 @@ package sb_mapper_tb_pkg;
 
 
                 // output handshake
-                if(vif.msg_vld_s && vif.ser_ready) begin
+                if(vif.msg_vld_send && vif.ser_ready) begin
 
                     ch = new();
                     ch.data = vif.msg_send;
