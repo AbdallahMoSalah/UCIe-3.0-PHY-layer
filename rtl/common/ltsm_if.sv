@@ -1,0 +1,891 @@
+    
+
+interface ltsm_if #(
+    parameter MAX_VAL_VREF_CODE, // for Reference Rx Valid Lane Vref control.
+    parameter MAX_DATA_VREF_CODE // for Reference Rx Data Lanes Vref control.
+    ) (
+    input logic lclk, 
+    input logic rst_n
+    );
+
+    // For analog Voltage control.
+    localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
+    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+
+    // ==========================================
+    // Not arranged signals yet:
+    // ==========================================
+
+    // depends on test (Rx Init Data to Clock Point test).
+    logic valvref_fail_flag     ; // For MBTRAIN.VALVREF       FSM state: To report if the Valid Vref calibration failed.
+    logic datavref_fail_flag    ; // For MBTRAIN.DATAVREF      FSM state: To report if the Data  Vref calibration failed.
+    logic valtrainvref_fail_flag; // For MBTRAIN.VALTRAINVREF  FSM state: To report if the Valid Vref calibration failed.
+    logic dtvref_fail_flag      ; // For MBTRAIN.DATATRAINVREF FSM state: To report if the Data  Vref calibration failed.
+    logic rxdeskew_fail_flag    ; // For MBTRAIN.RXDESKEW      FSM state: To report if the per-lane deskew failed.
+
+    // depends on test (Rx Init Data to Clock Point test).
+    logic repairmb_fail_flag      ; // For MBTRAIN.REPAIRMB         FSM state: To report if 
+    logic valtraincenter_fail_flag; // For MBTRAIN.VALTRAINCENTER   FSM state: To report if 
+    logic dtc1_fail_flag          ; // For MBTRAIN.DATATRAINCENTER1 FSM state: To report if 
+    logic dtc2_fail_flag          ; // For MBTRAIN.DATATRAINCENTER2 FSM state: To report if 
+    logic linkspeed_fail_flag     ; // For MBTRAIN.LINKSPEED        FSM state: To report if 
+
+    logic [1:0] successful_clk_sampling; // To know if the clock needs to take a shift (to righ or to left). Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    logic       trainerror_req, trainerror_en, trainerror_done;
+    // ltsm enable and done signals for the MBTRAIN states and the sub-states
+    logic       repairmb_done      , repairmb_en      ;
+    logic       valvref_done       , valvref_en       ;
+    logic       datavref_done      , datavref_en      ; 
+    logic       speedidle_done     , speedidle_en     ;
+    logic       txselfcal_done     , txselfcal_en     ;
+    logic       rxclkcal_done      , rxclkcal_en      ;
+    logic       valtraincenter_done, valtraincenter_en;
+    logic       valtrainvref_done  , valtrainvref_en  ;
+    logic       dtc1_done          , dtc1_en          ;
+    logic       dtvref_done        , dtvref_en        ;
+    logic       rxdeskew_done      , rxdeskew_en      ; 
+    logic       dtc2_done          , dtc2_en          ;
+    logic       linkspeed_done     , linkspeed_en     ;
+    
+
+    //=====================================//
+    // Control Signals For Timers:         //
+    //=====================================//
+    logic timeout_8ms_occured    ;
+    logic timeout_timer_en       ;
+    logic analog_settle_time_done;
+    logic analog_settle_timer_en ;
+
+    //=====================================//
+    // Control Signals From RDI:           //
+    //=====================================//
+    logic [3:0] state_req   ; // To know if the next state is TRAINERROR or not.
+    logic [3:0] state_status; // To tell RDI the current state.
+    
+    //=====================================//
+    // Control Signals For MB:              //
+    //=====================================//
+    
+    //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+    // Clock Sampling and Shapes Details Group:
+    logic        mb_tx_clk_shape               ; // 0: Differential clocking, 1: Quadrature clocking.
+    logic        mb_tx_continuous_or_strobe_clk; // 0: continuous mode clock, 1: strobe mode clock.
+    logic        mb_tx_clk_sampling_en         ; // Enable changing Clock sampling/PI phase control state.
+    logic [1:0]  mb_tx_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    
+    // Tx Pattern Generator Setup Group:
+    logic        mb_tx_pattern_en      ; // 1: Send pattern immediately, 0: Don't send pattern.
+    logic [2:0]  mb_tx_pattern_setup   ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    logic [1:0]  mb_tx_data_pattern_sel; // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+    logic        mb_tx_val_pattern_sel ; // 0: VALTRAIN pattern, 1: Held Low.
+    logic        mb_tx_lfsr_en         ; // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+    logic        mb_tx_lfsr_rst        ; // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+    logic        mb_rx_lfsr_en         ; // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+    logic        mb_rx_lfsr_rst        ; // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+    
+    // Tx Pattern Mode Setup Group:
+    logic        mb_tx_pattern_mode      ; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+    logic [15:0] mb_tx_burst_count       ; // Burst Count: Indicates the duration of selected pattern (UI count).
+    logic [15:0] mb_tx_idle_count        ; // IDLE Count: Indicates the duration of low following the burst (UI count).
+    logic [15:0] mb_tx_iter_count        ; // Iterations: Indicates the iteration count of bursts followed by idle.
+    logic        mb_tx_pattern_count_done; // Asserted (=1) once MB completes the iter_count.
+    
+    // Receiver Comparison Setup & Errors
+    logic        mb_rx_compare_en            ; // 1: Enable the Rx comparison circuit, 0: Disable.
+    logic [15:0] mb_rx_max_err_thresh_aggr   ; // Max error Threshold in aggregate comparison.
+    logic [11:0] mb_rx_max_err_thresh_perlane; // Max error Threshold in per Lane comparison.
+    logic [1:0]  mb_rx_compare_setup         ; // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+    logic [15:0] mb_rx_aggr_err              ; // The total calculated Aggregate Errors on Rx.
+    logic [15:0] mb_rx_perlane_err           ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
+    logic        mb_rx_val_err               ; // The error coming from Valid Lane receiver in MB.
+    logic        mb_rx_clk_err               ; // The error coming from Clock Lane receiver in MB.
+    logic        mb_rx_compare_done          ; // From MB to LTSM to tell that comparison of burst_count is done.
+    
+    //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+    
+    // MB Lane Control
+    logic [2:0]  mb_rx_data_lane_mask; // Describes the Functional Rx Lanes (Active Lanes).
+    logic [2:0]  mb_tx_data_lane_mask; // Describes the Functional Tx Lanes (Active Lanes).
+    logic        mb_mapper_en        ; // 0: Disable the mapper, 1: Enable the mapper.
+
+    // Lane Behavior Control
+    logic [1:0]  mb_tx_clk_lane_sel ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+    logic [1:0]  mb_tx_data_lane_sel; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+    logic [1:0]  mb_tx_val_lane_sel ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+    logic [1:0]  mb_tx_trk_lane_sel ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+    logic        mb_rx_clk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+    logic        mb_rx_data_lane_sel; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+    logic        mb_rx_val_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+    logic        mb_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+     
+    // PHY Level Control & Analog Interface
+    logic [2:0]  phy_negotiated_speed      ; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    logic        phy_rx_clock_lock_en      ; // Allow analog Rx circuit to Lock the coming clock.
+    logic        phy_rx_track_lock_en      ; // Allow analog Rx circuit to Lock the coming Track.
+    logic        phy_rx_phase_detector_en  ; // Activate Phase Detector Circuit for IQ clock phase shift test.
+    logic        phy_tx_tckn_shift_en      ; // Activate circuits to calculate shift on partner TCKN_L.
+    logic [4:0]  phy_rx_tclkn_shift        ; // The required shift of the partner TCKN_L (range 0 to 12).
+    logic        phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
+    logic [VAL_VREF_CODE_WIDTH-1 :0] phy_rx_valvref_ctrl       ; // Tell ADC the Rx Valid Lane Vref level to operate in.
+    logic [DATA_VREF_CODE_WIDTH-1:0] phy_rx_datavref_ctrl[15:0]; // Tell ADC the Rx Data Lane Vref level to operate in.
+    logic [5:0]  phy_tx_pi_phase_ctrl      ; // Tell ADC the Tx Clock Lane PI phase level.
+    logic [6:0]  phy_rx_deskew_ctrl[15:0]  ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+    logic [2:0]  phy_tx_eq_preset_ctrl     ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+    logic        phy_rx_clk_drift_cal_state; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+    logic        phy_rx_clk_drift_cal_valid; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+
+
+   
+    //=================================================//
+    // Control Signals For (Rx init D to C point test) //
+    // Control Signals For (Tx init D to C point test) //
+    //=================================================//
+    logic        rx_pt_en;
+    logic        tx_pt_en;
+    logic        test_d2c_done;
+    logic [1:0]  d2c_clk_sampling    ;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    logic        d2c_timeout_or_error; // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+    
+    //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+    // Received Tx Pattern Generator Setup Group:
+    logic        d2c_lfsr_en         ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
+    logic [2:0]  d2c_pattern_setup   ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    logic [1:0]  d2c_data_pattern_sel; // Data pattern used during training: LFSR, ID, or all 0.
+    logic        d2c_val_pattern_sel ; // 0: VALTRAIN pattern, 1: Held Low.
+    
+    // Received Tx Pattern Mode Setup Group:
+    logic        d2c_pattern_mode; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+    logic [15:0] d2c_burst_count ; // Burst Count: Indicates the duration of selected pattern (UI count).
+    logic [15:0] d2c_idle_count  ; // IDLE Count: Indicates the duration of low following the burst (UI count).
+    logic [15:0] d2c_iter_count  ; // Iteration Count: Indicates the iteration count of bursts followed by idle.
+    
+    // Received Receiver Comparison Setup & Errors
+    logic [1:0]  d2c_compare_setup; // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+    logic [15:0] d2c_aggr_err     ; // The total calculated Aggregate Errors on Rx.
+    logic [15:0] d2c_perlane_err  ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
+    logic        d2c_val_err      ; // The error coming from Valid Lane receiver in MB.
+    logic        d2c_clk_err      ; // The error coming from Clock Lane receiver in MB.
+    
+
+    //=====================================//
+    // Sideband Control Signals:           //
+    //=====================================//
+    import UCIe_pkg::msg_no_e;
+    
+    // For SB TX:
+    logic        tx_sb_msg_valid; // Tell the SB that the selected message is valid.
+    msg_no_e     tx_sb_msg      ; // Tell the Sideband the message that it should to send. 
+    logic [15:0] tx_msginfo     ; // MsgInfo field of the SB message. 
+    logic [63:0] tx_data_field  ; // Data field of the SB message.
+    
+    // For SB RX:
+    logic        rx_sb_msg_valid; // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+    msg_no_e     rx_sb_msg      ; // Get the Received SB msg.
+    logic [15:0] rx_msginfo     ; // MsgInfo field of the SB message received.
+    logic [63:0] rx_data_field  ; // Data field of the SB message.
+    
+
+    //=====================================//
+    // Register File (RF) Control Signals: //
+    //=====================================//
+    //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
+    logic  [2:0] cfg_max_link_width; // Max Link Width 0h: x16; 7h: x8
+    logic  [7:4] cfg_max_link_speed; // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    logic        cfg_SPMW          ; // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+    // Note cfg_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
+    
+    // // PHY Control (Offset 1004h)
+    // input wire         cfg_force_x8_width, // Force x8 Width Mode in a UCIe-S x16 Module (used only for test and debug). This feature can be used only when there is no lane reversal on the UCIe-S x16 link (cfg_lane_reversal = 0).
+    // ...
+
+    // // PHY Status (Offset 1008h)
+    // input wire         cfg_lane_reversal, //Lane Reversal within Module: Indicates if Lanes within a module are reversed. (0: not reversed; 1: reversed)
+    // ...
+
+	// Training Setup 3 (Offset 1030h)
+    logic [15:0]  cfg_train3_lane_mask ; // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    logic cfg_current_rx_lane_map_valid; // To tell the RF to apply the change on cfg_current_rx_lane_map field.
+
+ 
+    // Training Setup 4 (Offset 1050h)
+    // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
+    logic [11:0]  cfg_train4_max_err_thresh_perlane; // Max error Threshold in per-Lane comparison for error counting.
+    logic [15:0]  cfg_train4_max_err_thresh_aggr   ; // Max error Threshold in aggregate comparison for error counting.
+    
+    // Current Lane Map Module 0 (Offset 1060h)
+    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    logic [15:0]  cfg_current_rx_lane_map; // 1b indicates the corresponding Rx physical Lane is operational.
+    
+    // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
+    logic  [7:0]   log0_state_n        ; // Captures the current Link training state machine (LTSM) status.
+    logic          log0_lane_reversal  ; // 1b indicates Lane Reversal was applied within the module.
+    logic          log0_width_degrade  ; // 1b indicates Module width Degrade occurred (Standard package only).
+    logic  [7:0]   log0_state_n_minus_1; // Captures the LTSM state before State N was entered.
+    logic  [7:0]   log0_state_n_minus_2; // Captures the LTSM state before State (N-1) was entered.
+    logic log0_state_n_valid           ; // To tell the RF to apply the change on log0_state_n         field.
+    logic log0_lane_reversal_valid     ; // To tell the RF to apply the change on log0_lane_reversal   field.
+    logic log0_width_degrade_valid     ; // To tell the RF to apply the change on log0_width_degrade   field.
+    logic log0_state_n_minus_1_valid   ; // To tell the RF to apply the change on log0_state_n_minus_1 field.
+    logic log0_state_n_minus_2_valid   ; // To tell the RF to apply the change on log0_state_n_minus_2 field.
+    
+    // Error Log 1 (Offset 1090h) - (ROS / RW1CS driven by PHY)
+    logic  [7:0]   log1_state_n_minus_3     ; // Captures the LTSM state before State (N-2) was entered.
+    logic          log1_state_timeout_occ   ; // 1b if a Link Training state or sub-state timed out (Fatal error).
+    logic          log1_sideband_timeout_occ; // 1b if a sideband handshake timed out (e.g., > 8ms).
+    logic          log1_remote_link_error   ; // 1b if remote Link partner requested LinkError transition via Sideband.
+    logic          log1_internal_error      ; // 1b if any implementation-specific internal error occurred in the PHY.
+    logic log1_state_n_minus_3_valid        ; // To tell the RF to apply the change on log1_state_n_minus_3      field.
+    logic log1_state_timeout_occ_valid      ; // To tell the RF to apply the change on log1_state_timeout_occ    field.
+    logic log1_sideband_timeout_occ_valid   ; // To tell the RF to apply the change on log1_sideband_timeout_occ field.
+    logic log1_remote_link_error_valid      ; // To tell the RF to apply the change on log1_remote_link_error    field.
+    logic log1_internal_error_valid         ; // To tell the RF to apply the change on log1_internal_error       field.   
+   
+
+
+
+    
+    // for any module has a sequential logic.
+    modport clk_rst_mp(
+        input  lclk ,
+        input  rst_n
+    );
+    
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>                                 Timers interface                               <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+
+    //========================================================================//
+    // Timers signals from LTSM states Prespective:                           //
+    //========================================================================//
+    modport state_timerout_8ms_mp (
+        // Timers signals.
+        input  timeout_8ms_occured,
+        output timeout_timer_en   
+    );
+
+    modport state_analog_settle_timer_mp (
+        // Timers signals.
+        input  analog_settle_time_done,
+        output analog_settle_timer_en 
+    );
+    
+    //========================================================================//
+    // Timers signals from Timers blocks Prespective:                         //
+    //========================================================================//
+    modport timer_timerout_8ms_mp (
+        // Timers signals.
+        output timeout_8ms_occured,
+        input  timeout_timer_en        
+    );
+
+    modport timer_analog_settle_mp (
+        // Timers signals.
+        output analog_settle_time_done,
+        input  analog_settle_timer_en    
+    );
+    
+  
+        
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>                                                                                <<  >=========<  //
+    //  >=========<  >>              //=================================================\\             <<  >=========<  //
+    //  >=========<  >>             |   Control Signals For (Rx init D to C point test)   |            <<  >=========<  //
+    //  >=========<  >>             |   Control Signals For (Tx init D to C point test)   |            <<  >=========<  //
+    //  >=========<  >>              \\=================================================//             <<  >=========<  //
+    //  >=========<  >>                                                                                <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+
+    //  >======<  /////////////////////////////////////////////////////  >======<  //                              
+    //  >======<  //=================================================//  >======<  //                              
+    //  >======<  // Control Signals For (Rx init D to C point test) //  >======<  //                              
+    //  >======<  // Control Signals For (Tx init D to C point test) //  >======<  //                              
+    //  >======<  //=================================================//  >======<  //                              
+    //  >======<  /////////////////////////////////////////////////////  >======<  //
+
+    // It's LTSM sub-states prespective (Not the test FSM prespective).                         
+    modport ltsm2d2c_mp(
+        output rx_pt_en, // To enable Rx init Data to Clock Point Test
+        output tx_pt_en, // To enable Tx init Data to Clock Point Test
+        input  test_d2c_done, // To identecate the enabled test (Rx/Tx init Data)
+        output timeout_8ms_occured,
+
+        // Clock sampling.
+        output d2c_clk_sampling    ,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        input  d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+        
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+        // Received Tx Pattern Generator Setup Group:
+        output d2c_lfsr_en         , // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
+        output d2c_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        output d2c_data_pattern_sel, // Data pattern used during training: LFSR, ID, or all 0.
+        output d2c_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+        
+        // Received Tx Pattern Mode Setup Group:
+        output d2c_pattern_mode, // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        output d2c_burst_count , // Burst Count: Indicates the duration of selected pattern (UI count).
+        output d2c_idle_count  , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        output d2c_iter_count  , // Iteration Count: Indicates the iteration count of bursts followed by idle.
+        
+        // Received Receiver Comparison Setup & Errors
+        output d2c_compare_setup, // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+        input  d2c_aggr_err     , // The total calculated Aggregate Errors on Rx.
+        input  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        input  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
+        input  d2c_clk_err        // The error coming from Clock Lane receiver in MB.
+    );
+
+    // It's the test (Rx/Tx D-to-C point test FSM) prespective (Not the LTSM prespective)                           
+    modport d2c2ltsm_mp(
+        input  rx_pt_en,
+        input  tx_pt_en,
+        output test_d2c_done,
+        input  timeout_8ms_occured,
+
+        // Clock sampling.
+        input  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        output d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+        
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+        // Received Tx Pattern Generator Setup Group:
+        input  d2c_lfsr_en         , // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
+        input  d2c_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        input  d2c_data_pattern_sel, // Data pattern used during training: LFSR, ID, or all 0.
+        input  d2c_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+        
+        // Received Tx Pattern Mode Setup Group:
+        input  d2c_pattern_mode, // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        input  d2c_burst_count , // Burst Count: Indicates the duration of selected pattern (UI count).
+        input  d2c_idle_count  , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        input  d2c_iter_count  , // Iteration Count: Indicates the iteration count of bursts followed by idle.
+        
+        // Received Receiver Comparison Setup & Errors
+        input   d2c_compare_setup, // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+        output  d2c_aggr_err     , // The total calculated Aggregate Errors on Rx.
+        output  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
+        output  d2c_clk_err        // The error coming from Clock Lane receiver in MB.
+    );
+
+    
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>                           MB signals from LTSM States                          <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+
+    //=======================================================================================//
+    // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
+    // LTSM -> MB                                                                            //
+    //=======================================================================================//
+    modport ltsm2mb_mp (
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+        // Clock Sampling and Shapes Details Group:
+        output mb_tx_clk_shape               , // 0: Differential clocking, 1: Quadrature clocking.
+        output mb_tx_continuous_or_strobe_clk, // 0: continuous mode clock, 1: strobe mode clock.
+        output mb_tx_clk_sampling_en         , // Enable changing Clock sampling/PI phase control state.
+        output mb_tx_clk_sampling            , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    
+        // Tx Pattern Generator Setup Group:
+        output mb_tx_pattern_en      , // 1: Send pattern immediately, 0: Don't send pattern.
+        output mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        output mb_tx_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+        output mb_tx_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+        output mb_tx_lfsr_en         , // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+        output mb_tx_lfsr_rst        , // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+        output mb_rx_lfsr_en         , // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+        output mb_rx_lfsr_rst        , // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+
+        // Tx Pattern Mode Setup Group:
+        output mb_tx_pattern_mode      , // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        output mb_tx_burst_count       , // Burst Count: Indicates the duration of selected pattern (UI count).
+        output mb_tx_idle_count        , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        output mb_tx_iter_count        , // Iterations: Indicates the iteration count of bursts followed by idle.
+        input  mb_tx_pattern_count_done, // Asserted (=1) once MB completes the iter_count.
+
+        // Receiver Comparison Setup & Errors
+        output mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
+        output mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
+        output mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
+        output mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+        input  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
+        input  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        input  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        input  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
+        input  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
+
+        //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+        // MB Lane Control
+        output mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes).
+        output mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes).
+        output mb_mapper_en        , // 0: Disable the mapper, 1: Enable the mapper.
+
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+
+        // PHY Level Control & Analog Interface
+        output phy_negotiated_speed      , // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+        output phy_rx_clock_lock_en      , // Allow analog Rx circuit to Lock the coming clock.
+        output phy_rx_track_lock_en      , // Allow analog Rx circuit to Lock the coming Track.
+        output phy_rx_phase_detector_en  , // Activate Phase Detector Circuit for IQ clock phase shift test.
+        output phy_tx_tckn_shift_en      , // Activate circuits to calculate shift on partner TCKN_L.
+        input  phy_rx_tclkn_shift        , // The required shift of the partner TCKN_L (range 0 to 12).
+        input  phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
+        output phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
+        output phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
+        output phy_tx_pi_phase_ctrl      , // Tell ADC the Tx Clock Lane PI phase level.
+        output phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+        output phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+        input  phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+        input  phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+    );
+
+    //=======================================================================================//
+    // Control Signals from the MB to the LTSM direction: (MB prespective)                   //
+    // MB -> LTSM                                                                            //
+    //=======================================================================================//
+    modport mb2ltsm_mp (
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+        // Clock Sampling and Shapes Details Group:
+        input mb_tx_clk_shape               , // 0: Differential clocking, 1: Quadrature clocking.
+        input mb_tx_continuous_or_strobe_clk, // 0: continuous mode clock, 1: strobe mode clock.
+        input mb_tx_clk_sampling_en         , // Enable changing Clock sampling/PI phase control state.
+        input mb_tx_clk_sampling            , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    
+        // Tx Pattern Generator Setup Group:
+        input mb_tx_pattern_en      , // 1: Send pattern immediately, 0: Don't send pattern.
+        input mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        input mb_tx_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+        input mb_tx_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+        input mb_tx_lfsr_en         , // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+        input mb_tx_lfsr_rst        , // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+        input mb_rx_lfsr_en         , // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+        input mb_rx_lfsr_rst        , // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+
+        // Tx Pattern Mode Setup Group:
+        input  mb_tx_pattern_mode      , // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        input  mb_tx_burst_count       , // Burst Count: Indicates the duration of selected pattern (UI count).
+        input  mb_tx_idle_count        , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        input  mb_tx_iter_count        , // Iterations: Indicates the iteration count of bursts followed by idle.
+        output mb_tx_pattern_count_done, // Asserted (=1) once MB completes the iter_count.
+
+        // Receiver Comparison Setup & Errors
+        input  mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
+        input  mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
+        input  mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
+        input  mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+        output mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
+        output mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        output mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
+        output mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
+
+        //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+        // MB Lane Control
+        input mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes).
+        input mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes).
+        input mb_mapper_en        , // 0: Disable the mapper, 1: Enable the mapper.
+
+        // Lane Behavior Control
+        input mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        input mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        input mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        input mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        input mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        input mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        input mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        input mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+
+        // PHY Level Control & Analog Interface
+        input  phy_negotiated_speed      , // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+        input  phy_rx_clock_lock_en      , // Allow analog Rx circuit to Lock the coming clock.
+        input  phy_rx_track_lock_en      , // Allow analog Rx circuit to Lock the coming Track.
+        input  phy_rx_phase_detector_en  , // Activate Phase Detector Circuit for IQ clock phase shift test.
+        input  phy_tx_tckn_shift_en      , // Activate circuits to calculate shift on partner TCKN_L.
+        output phy_rx_tclkn_shift        , // The required shift of the partner TCKN_L (range 0 to 12).
+        output phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
+        input  phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
+        input  phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
+        input  phy_tx_pi_phase_ctrl      , // Tell ADC the Tx Clock Lane PI phase level.
+        input  phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+        input  phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+        output phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+        output phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+    );
+        
+    
+    
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>                      SB signals from LTSM States Prespective                   <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+    
+    //=======================================================================================//
+    // Control Signals from the LTSM states to the SB direction: (LTSM prespective)          //
+    // LTSM -> SB                                                                            //
+    //=======================================================================================//
+    modport ltsm2sb_mp(
+        // For SB TX:
+    output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+    output tx_sb_msg      , // Tell the Sideband the message that it should to send. 
+    output tx_msginfo     , // MsgInfo field of the SB message. 
+    output tx_data_field  , // Data field of the SB message.
+    
+    // For SB RX:
+    input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+    input rx_sb_msg      , // Get the Received SB msg.
+    input rx_msginfo     , // MsgInfo field of the SB message received.
+    input rx_data_field    // Data field of the SB message.
+    );
+    
+    
+    //=======================================================================================//
+    // Control Signals from the SB to the LTSM direction: (SB prespective)                   //
+    // SB -> LTSM                                                                            //
+    //=======================================================================================//
+    modport sb2ltsm_mp(
+    // For SB TX:
+        input tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        input tx_sb_msg      , // Tell the Sideband the message that it should to send. 
+        input tx_msginfo     , // MsgInfo field of the SB message. 
+        input tx_data_field  , // Data field of the SB message.
+        
+        // For SB RX:
+        output rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+        output rx_sb_msg      , // Get the Received SB msg.
+        output rx_msginfo     , // MsgInfo field of the SB message received.
+        output rx_data_field    // Data field of the SB message.
+    );
+
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>                Regester File signals from LTSM States Prespective              <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+
+    
+    //======================================================================================//
+    // Register File (RF) signals from LTSM States Prespective:                             //
+    // These modport is used in                                                             //
+    //          - each sub-state needs to use it.                                           //
+    //          - interface with the RF.                                                    // 
+    //          - MUX signals exporting side.                                               //
+    //======================================================================================//
+
+    //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
+    modport state_rf_offset_c_mp (
+        input  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
+        input  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+        input  cfg_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+        // Note cfg_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
+    );
+
+	// Training Setup 3 (Offset 1030h)
+    modport state_rf_offset_1030_mp (
+        input  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    );
+
+    // Training Setup 4 (Offset 1050h)
+    // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
+    modport state_rf_offset_1050_mp (
+        input  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
+        input  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
+    );
+
+    // Current Lane Map Module 0 (Offset 1060h)
+    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    modport state_rf_offset_1060_mp (    
+        output cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
+        output cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
+    );
+
+    // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
+    modport state_rf_offset_1080_mp (
+        output log0_state_n              , // Captures the current Link training state machine (LTSM) status.
+        output log0_lane_reversal        , // 1b indicates Lane Reversal was applied within the module.
+        output log0_width_degrade        , // 1b indicates Module width Degrade occurred (Standard package only).
+        output log0_state_n_minus_1      , // Captures the LTSM state before State N was entered.
+        output log0_state_n_minus_2      , // Captures the LTSM state before State (N-1) was entered.
+        output log0_state_n_valid        , // To tell the RF to apply the change on log0_state_n         field.
+        output log0_lane_reversal_valid  , // To tell the RF to apply the change on log0_lane_reversal   field.
+        output log0_width_degrade_valid  , // To tell the RF to apply the change on log0_width_degrade   field.
+        output log0_state_n_minus_1_valid, // To tell the RF to apply the change on log0_state_n_minus_1 field.
+        output log0_state_n_minus_2_valid  // To tell the RF to apply the change on log0_state_n_minus_2 field.
+    );
+
+    // Error Log 1 (Offset 1090h) - (ROS / RW1CS driven by PHY)
+    modport state_rf_offset_1090_mp (
+        output log1_state_n_minus_3           , // Captures the LTSM state before State (N-2) was entered.
+        output log1_state_timeout_occ         , // 1b if a Link Training state or sub-state timed out (Fatal error).
+        output log1_sideband_timeout_occ      , // 1b if a sideband handshake timed out (e.g., > 8ms).
+        output log1_remote_link_error         , // 1b if remote Link partner requested LinkError transition via Sideband.
+        output log1_internal_error            , // 1b if any implementation-specific internal error occurred in the PHY.
+        output log1_state_n_minus_3_valid     , // To tell the RF to apply the change on log1_state_n_minus_3      field.
+        output log1_state_timeout_occ_valid   , // To tell the RF to apply the change on log1_state_timeout_occ    field.
+        output log1_sideband_timeout_occ_valid, // To tell the RF to apply the change on log1_sideband_timeout_occ field.
+        output log1_remote_link_error_valid   , // To tell the RF to apply the change on log1_remote_link_error    field.
+        output log1_internal_error_valid        // To tell the RF to apply the change on log1_internal_error       field.
+    );
+
+
+    
+    //  ><  \\\\\\\\\\\\\\\\\\\\\\\\\                                                      ///////////////////////  ><  //
+    //  >===<  \\\\\\\\\\\\\\\\\\\\\\\\\                                                ///////////////////////  >===<  //
+    //  >======<  \\\\\\\\\\\\\\\\\\\\\\\\\==========================================///////////////////////  >======<  //
+    //  >=========<  >>               Regester File signals from the MUX side Prespective              <<  >=========<  //
+    //  >=========<  >>                     (that's connected with the LTSM states)                    <<  >=========<  //
+    //  >======<  /////////////////////////==========================================\\\\\\\\\\\\\\\\\\\\\\\  >======<  //
+    //  >===<  /////////////////////////                                                \\\\\\\\\\\\\\\\\\\\\\\  >===<  //
+    //  ><  /////////////////////////                                                      \\\\\\\\\\\\\\\\\\\\\\\  ><  //
+    
+    //======================================================================================//
+    // Register File (RF) signals LTSM states side prespective in the MUXs:                 //
+    // This modport is used in                                                              //
+    //          - MUX side from the LTSM states side.                                       //
+    // Note: for the "another side of the MUX" we will use the modport "state_rf_offset_*". //
+    //======================================================================================//
+
+    //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
+    modport mux_rf_offset_c_mp (
+        output  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
+        output  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+        output  cfg_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+    );
+
+	// Training Setup 3 (Offset 1030h)
+    modport mux_rf_offset_1030_mp (
+        output  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    );
+
+    // Training Setup 4 (Offset 1050h)
+    // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
+    modport mux_rf_offset_1050_mp (
+        output  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
+        output  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
+    );
+
+    // Current Lane Map Module 0 (Offset 1060h)
+    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    modport mux_rf_offset_1060_mp (    
+        input cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
+        input cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
+    );
+
+    // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
+    modport mux_rf_offset_1080_mp (
+        input log0_state_n              , // Captures the current Link training state machine (LTSM) status.
+        input log0_lane_reversal        , // 1b indicates Lane Reversal was applied within the module.
+        input log0_width_degrade        , // 1b indicates Module width Degrade occurred (Standard package only).
+        input log0_state_n_minus_1      , // Captures the LTSM state before State N was entered.
+        input log0_state_n_minus_2      , // Captures the LTSM state before State (N-1) was entered.
+        input log0_state_n_valid        , // To tell the RF to apply the change on log0_state_n         field.
+        input log0_lane_reversal_valid  , // To tell the RF to apply the change on log0_lane_reversal   field.
+        input log0_width_degrade_valid  , // To tell the RF to apply the change on log0_width_degrade   field.
+        input log0_state_n_minus_1_valid, // To tell the RF to apply the change on log0_state_n_minus_1 field.
+        input log0_state_n_minus_2_valid  // To tell the RF to apply the change on log0_state_n_minus_2 field.
+    );
+
+    // Error Log 1 (Offset 1090h) - (ROS / RW1CS driven by PHY)
+    modport mux_rf_offset_1090_mp (
+        input log1_state_n_minus_3           , // Captures the LTSM state before State (N-2) was entered.
+        input log1_state_timeout_occ         , // 1b if a Link Training state or sub-state timed out (Fatal error).
+        input log1_sideband_timeout_occ      , // 1b if a sideband handshake timed out (e.g., > 8ms).
+        input log1_remote_link_error         , // 1b if remote Link partner requested LinkError transition via Sideband.
+        input log1_internal_error            , // 1b if any implementation-specific internal error occurred in the PHY.
+        input log1_state_n_minus_3_valid     , // To tell the RF to apply the change on log1_state_n_minus_3      field.
+        input log1_state_timeout_occ_valid   , // To tell the RF to apply the change on log1_state_timeout_occ    field.
+        input log1_sideband_timeout_occ_valid, // To tell the RF to apply the change on log1_sideband_timeout_occ field.
+        input log1_remote_link_error_valid   , // To tell the RF to apply the change on log1_remote_link_error    field.
+        input log1_internal_error_valid        // To tell the RF to apply the change on log1_internal_error       field.
+    );
+
+// ============================================================================================================================================================================================================================================== //
+//                                                                                                                                                                                                                                                //
+//         ===========                                   ======                                                                                                                                                                                   //
+//      =================                                ======                                                                                                                                                                                   //
+//    ========     ========                              ======                                                                   ======                                        ======                                                            //
+//   ======           ======                             ======                                                                   ======                                        ======                                                            //
+//   ======           ======   ======           ======   ======   =======                              ===========         =================            ===========      =================            ===========             ===========         //
+//    ========                 ======           ======   ====================                       =================     =================          =================  =================          =================       =================      //
+//      ============           ======           ======   =======================                   ========     ========        ======             =======      ======        ======             =======       =======    ========     ========   //
+//         =============       ======           ======   =========        ========   ===========   ======                       ======                          ======        ======            ======           ======   ======                  //
+//              ==========     ======           ======   =======            ======   ===========    =========                   ======               =================        ======            =======================    =========              //
+//   ======           ======   ======           ======   =======            ======   ===========      ==============            ======             ========     ======        ======            ======                       ==============       //
+//   ======           ======    ======          ======   =========        =======                             =========         ======            ======        ======        ======             ======                              =========    //
+//    ========     ========      =======      ========   =======================                   ========     ========        ======            ======      ========        ======              =======        ======   ========     ========   //
+//      =================          ===================   ====== =============                        =================            =============    ===================          =============       =================       =================     //
+//         ===========                =========  =====   ======   =======                               ===========                  ========        ==========   ====             ========            ===========             ===========        //
+//                                                                                                                                                                                                                                                //
+// ============================================================================================================================================================================================================================================== //
+      
+
+    //=======================================================================================//
+    // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
+    // LTSM -> MB                                                                            //
+    //=======================================================================================//
+    modport d2c2mb_mp (
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+        // Clock Sampling and Shapes Details Group:
+        output mb_tx_clk_sampling_en         , // Enable changing Clock sampling/PI phase control state.
+        output mb_tx_clk_sampling            , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    
+        // Tx Pattern Generator Setup Group:
+        output mb_tx_pattern_en      , // 1: Send pattern immediately, 0: Don't send pattern.
+        output mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        output mb_tx_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+        output mb_tx_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+        output mb_tx_lfsr_en         , // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+        output mb_tx_lfsr_rst        , // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+        output mb_rx_lfsr_en         , // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+        output mb_rx_lfsr_rst        , // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+
+        // Tx Pattern Mode Setup Group:
+        output mb_tx_pattern_mode      , // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        output mb_tx_burst_count       , // Burst Count: Indicates the duration of selected pattern (UI count).
+        output mb_tx_idle_count        , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        output mb_tx_iter_count        , // Iterations: Indicates the iteration count of bursts followed by idle.
+        input  mb_tx_pattern_count_done, // Asserted (=1) once MB completes the iter_count.
+
+        // Receiver Comparison Setup & Errors
+        output mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
+        output mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
+        output mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
+        output mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+        input  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
+        input  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        input  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        input  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
+        input  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
+
+        //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+        // MB Lane Control
+        output mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes).
+        output mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes).
+        output mb_mapper_en        , // 0: Disable the mapper, 1: Enable the mapper.
+
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel   // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+    );
+
+
+    
+    //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
+    //=========================.
+    // MBTRAIN.VALVREF:        |
+    //=======================================================================================//
+    // Control Signals from the LTSM to the LTSM direction:                                  //
+    // LTSM -> LTSM                                                                          //
+    //=======================================================================================//
+    modport valvref2ltsm_mp (
+        input  valvref_en             , // Enable the VALVREF FSM.
+        output valvref_done           , // To Know if the VALVREF FSM is done.
+        output valvref_fail_flag      , // To report if the Valid Vref calibration failed.
+        output successful_clk_sampling, // To know if the clock needs to take a shift (to righ or to left).
+        output trainerror_req            // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)). 
+    );
+
+    //=======================================================================================//
+    // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
+    // LTSM -> MB                                                                            //
+    //=======================================================================================//
+    modport valvref2mb_mp (
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+
+        output phy_rx_valvref_ctrl  // Tell ADC the Rx Valid Lane Vref level to operate in.
+    );
+
+    // For the unused signals here (of MB Signals):
+    // //=========================
+    // // MB signals:
+    // //=========================
+    // //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+    // // Clock Sampling and Shapes Details Group:
+    // mb_if.mb_tx_clk_shape                = 1'b0; // 0: Differential clocking, 1: Quadrature clocking.
+    // mb_if.mb_tx_continuous_or_strobe_clk = 1'b0; // 0: continuous mode clock, 1: strobe mode clock.
+    // mb_if.mb_tx_clk_sampling_en          = 1'b0; // Enable changing Clock sampling/PI phase control state.
+    // mb_if.mb_tx_clk_sampling             = 1'b0; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+
+    // // Tx Pattern Generator Setup Group:
+    // mb_if.mb_tx_pattern_en       = 1'b0  ; // 1: Send pattern immediately, 0: Don't send pattern.
+    // mb_if.mb_tx_pattern_setup    = 3'b000; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    // mb_if.mb_tx_data_pattern_sel = 2'b11 ; // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+    // mb_if.mb_tx_val_pattern_sel  = 1'b0  ; // 0: VALTRAIN pattern, 1: Held Low.
+    // mb_if.mb_tx_lfsr_en          = 1'b0  ; // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+    // mb_if.mb_tx_lfsr_rst         = 1'b0  ; // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+    // mb_if.mb_rx_lfsr_en          = 1'b0  ; // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+    // mb_if.mb_rx_lfsr_rst         = 1'b0  ; // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+
+    // // Tx Pattern Mode Setup Group:
+    // mb_if. mb_tx_pattern_mode =  1'b0; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+    // mb_if. mb_tx_burst_count  = 16'b0; // Burst Count: Indicates the duration of selected pattern (UI count).
+    // mb_if. mb_tx_idle_count   = 16'b0; // IDLE Count: Indicates the duration of low following the burst (UI count).
+    // mb_if. mb_tx_iter_count   = 16'b0; // Iterations: Indicates the iteration count of bursts followed by idle.
+
+    // // Receiver Comparison Setup & Errors
+    // mb_if.mb_rx_compare_en             =  1'b0; // 1: Enable the Rx comparison circuit, 0: Disable.
+    // mb_if.mb_rx_max_err_thresh_aggr    = 16'b0; // Max error Threshold in aggregate comparison.
+    // mb_if.mb_rx_max_err_thresh_perlane = 12'b0; // Max error Threshold in per Lane comparison.
+    // mb_if.mb_rx_compare_setup          = 16'b0; // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+
+    // //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+    // // MB Lane Control
+    // mb_if.mb_rx_data_lane_mask = mb_rx_data_lane_mask_logged; // Describes the Functional Rx Lanes (Active Lanes).
+    // mb_if.mb_tx_data_lane_mask = mb_tx_data_lane_mask_logged; // Describes the Functional Tx Lanes (Active Lanes).
+    // mb_if.mb_mapper_en         = 1'b0                       ; // 0: Disable the mapper, 1: Enable the mapper. 
+
+    // // PHY Level Control & Analog Interface
+    // phy_negotiated_speed     = 1'b0         ; // Target Link Speed = 4 GT/s. (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    // phy_rx_clock_lock_en     = 1'b0         ; // Allow analog Rx circuit to Lock the coming clock.
+    // phy_rx_track_lock_en     = 1'b0         ; // Allow analog Rx circuit to Lock the coming Track.
+    // phy_rx_phase_detector_en = 1'b0         ; // Activate Phase Detector Circuit for IQ clock phase shift test.
+    // phy_tx_tckn_shift_en     = 1'b0         ; // Activate circuits to calculate shift on partner TCKN_L.
+    // phy_rx_valvref_ctrl      = vref_code_reg; // Tell ADC the Rx Valid Lane Vref level to operate in.
+    // for(data_lane_num = 0; data_lane_num < 16; data_lane_num = data_lane_num + 1) begin
+    //     phy_rx_datavref_ctrl[data_lane_num] = 'b0; // Tell ADC the Rx Data Lane Vref level to operate in.
+    //     phy_rx_deskew_ctrl  [data_lane_num] = 'b0; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+    // end
+    // phy_tx_pi_phase_ctrl     = 1'b0; // Tell ADC the Tx Clock Lane PI phase level.
+    // phy_tx_eq_preset_ctrl    = 1'b0; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).  
+     
+
+
+
+    
+
+endinterface
