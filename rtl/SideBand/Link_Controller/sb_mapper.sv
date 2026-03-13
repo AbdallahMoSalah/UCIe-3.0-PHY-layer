@@ -143,7 +143,7 @@ module sb_mapper (
 
                 mapper_ready = ser_ready;
 
-                if (word_vld_send && ser_ready) begin
+                if (word_vld_send) begin
                     msg_send  = msg_word_send[63:0];
                     msg_vld_send = 1'b1;
                 end
