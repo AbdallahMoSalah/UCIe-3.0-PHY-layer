@@ -1,0 +1,282 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /MB_DESERIALIZER_TB/DUT
+=== Design Unit: work.MB_DESERIALIZER
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         4         4         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /MB_DESERIALIZER_TB/DUT
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/MB_DeSerializer/mb_deserializer.sv
+------------------------------------IF Branch------------------------------------
+    12                                        37     Count coming in to IF
+    12              1                          2         if (!i_rst_n) begin
+    16              1                         35         end else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    20                                        35     Count coming in to IF
+    20              1                          1             if (des_counter == 6'd31) begin
+                                              34     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       1         1         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /MB_DESERIALIZER_TB/DUT --
+
+  File rtl/MainBand/MB_DeSerializer/mb_deserializer.sv
+----------------Focused Condition View-------------------
+Line       20 Item    1  (des_counter == 31)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+           Input Term   Covered  Reason for no coverage   Hint
+          -----------  --------  -----------------------  --------------
+  (des_counter == 31)         Y
+
+     Rows:       Hits  FEC Target             Non-masking condition(s)      
+ ---------  ---------  --------------------   -------------------------     
+  Row   1:          1  (des_counter == 31)_0  -                             
+  Row   2:          1  (des_counter == 31)_1  -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                       8         8         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /MB_DESERIALIZER_TB/DUT --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/MB_DeSerializer/mb_deserializer.sv
+    1                                                module MB_DESERIALIZER (
+    2                                                    input  wire        i_clk,
+    3                                                    input  wire        i_rst_n,
+    4                                                    input  wire        in_des_data,
+    5                                                    output reg [31:0]  deser_data_out
+    6                                                );
+    7                                                
+    8                                                reg [5:0]  des_counter;
+    9                                                reg [31:0] deser_data_out_temp;
+    10                                               
+    11              1                         37     always @(posedge i_clk or negedge i_rst_n) begin
+    12                                                   if (!i_rst_n) begin
+    13              1                          2             des_counter         <= 0;
+    14              1                          2             deser_data_out_temp <= 0;
+    15              1                          2             deser_data_out      <= 0;
+    16                                                   end else begin
+    17              1                         35            deser_data_out_temp <= {in_des_data, deser_data_out_temp[31:1]};
+    18              1                         35             des_counter         <= des_counter + 1;
+    19                                               
+    20                                                       if (des_counter == 6'd31) begin
+    21              1                          1              deser_data_out <= {in_des_data, deser_data_out_temp[31:1]};
+    22              1                          1                 des_counter    <= 0;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        146        92        54    63.01%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /MB_DESERIALIZER_TB/DUT --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                  des_counter[0-4]           1           1      100.00 
+                                    des_counter[5]           0           0        0.00 
+                               deser_data_out[0-1]           0           0        0.00 
+                               deser_data_out[2-5]           0           1       50.00 
+                               deser_data_out[6-7]           0           0        0.00 
+                              deser_data_out[8-11]           0           1       50.00 
+                             deser_data_out[12-19]           0           0        0.00 
+                             deser_data_out[20-24]           0           1       50.00 
+                                deser_data_out[25]           0           0        0.00 
+                                deser_data_out[26]           0           1       50.00 
+                             deser_data_out[27-28]           0           0        0.00 
+                                deser_data_out[29]           0           1       50.00 
+                                deser_data_out[30]           0           0        0.00 
+                                deser_data_out[31]           0           1       50.00 
+                          deser_data_out_temp[0-2]           0           1       50.00 
+                         deser_data_out_temp[3-31]           1           1      100.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                       in_des_data           1           1      100.00 
+
+Total Node Count     =         73 
+Toggled Node Count   =         36 
+Untoggled Node Count =         37 
+
+Toggle Coverage      =      63.01% (92 of 146 bins)
+
+=================================================================================
+=== Instance: /MB_DESERIALIZER_TB
+=== Design Unit: work.MB_DESERIALIZER_TB
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         2         1         1    50.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /MB_DESERIALIZER_TB
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/MB_DESERIALIZER_tb/MB_DESERIALIZER_TB.sv
+------------------------------------IF Branch------------------------------------
+    46                                         1     Count coming in to IF
+    46              1                          1         if (deser_data_out == test_data)
+    48              1                    ***0***         else
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       1         0         1     0.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /MB_DESERIALIZER_TB --
+
+  File tb/unit/mainband/MB_DESERIALIZER_tb/MB_DESERIALIZER_TB.sv
+----------------Focused Condition View-------------------
+Line       46 Item    1  (deser_data_out == test_data)
+Condition totals: 0 of 1 input term covered = 0.00%
+
+                     Input Term   Covered  Reason for no coverage   Hint
+                    -----------  --------  -----------------------  --------------
+  (deser_data_out == test_data)         N  '_0' not hit             Hit '_0'
+
+     Rows:       Hits  FEC Target                       Non-masking condition(s)      
+ ---------  ---------  --------------------             -------------------------     
+  Row   1:    ***0***  (deser_data_out == test_data)_0  -                             
+  Row   2:          1  (deser_data_out == test_data)_1  -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      24        22         2    91.66%
+
+================================Statement Details================================
+
+Statement Coverage for instance /MB_DESERIALIZER_TB --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/MB_DESERIALIZER_tb/MB_DESERIALIZER_TB.sv
+    3                                                module MB_DESERIALIZER_TB;
+    4                                                
+    5                                                reg        i_clk;
+    6                                                reg        i_rst_n;
+    7                                                reg        in_des_data;
+    8                                                wire [31:0] deser_data_out;
+    9                                                
+    10                                               integer i;
+    11                                               reg [31:0] test_data;
+    12                                               
+    13                                               MB_DESERIALIZER DUT (
+    14                                                   .i_clk          (i_clk),
+    15                                                   .i_rst_n        (i_rst_n),
+    16                                                   .in_des_data    (in_des_data),
+    17                                                   .deser_data_out (deser_data_out)
+    18                                               );
+    19                                               initial begin
+    20              1                    ***0***         $monitor("TIME=%0t | in_bit=%b | deser_out=%h",
+    21                                                             $time, in_des_data, deser_data_out);
+    22                                               end
+    23              1                          1     initial i_clk = 0;
+    24              1                         79     always #5 i_clk = ~i_clk;
+    24              2                         78     
+    25                                               
+    26                                               initial begin
+    27              1                          1         $display("===== DESERIALIZER TEST START =====");
+    28                                               
+    29              1                          1         i_rst_n     = 0;
+    30              1                          1         in_des_data = 0;
+    31              1                          1         test_data   = 32'hA5F00F3C;
+    32              1                          4         repeat(4) @(posedge i_clk);
+    32              2                          4     
+    33              1                          1         i_rst_n = 1;
+    34                                               
+    35              1                          1         $display("Sending Data = %h", test_data);
+    36                                               
+    37              1                          1         for (i = 0; i < 32; i = i + 1) begin
+    37              2                         32     
+    38              1                         32             in_des_data = test_data[i];
+    39              1                         32             @(posedge i_clk);
+    40                                                   end
+    41                                               
+    42              1                          2         repeat(2) @(posedge i_clk);
+    42              2                          2     
+    43                                               
+    44              1                          1         $display("Received = %h", deser_data_out);
+    45                                               
+    46                                                   if (deser_data_out == test_data)
+    47              1                          1             $display("PASS: Data Correct");
+    48                                                   else
+    49              1                    ***0***             $display("FAIL: Expected %h | Got %h", test_data, deser_data_out);
+    50                                               
+    51              1                          1         $display("===== TEST FINISHED =====");
+    52              1                          1         #20;
+    53              1                          1         $stop;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        198        32       166    16.16%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /MB_DESERIALIZER_TB --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                               deser_data_out[0-1]           0           0        0.00 
+                               deser_data_out[2-5]           0           1       50.00 
+                               deser_data_out[6-7]           0           0        0.00 
+                              deser_data_out[8-11]           0           1       50.00 
+                             deser_data_out[12-19]           0           0        0.00 
+                             deser_data_out[20-24]           0           1       50.00 
+                                deser_data_out[25]           0           0        0.00 
+                                deser_data_out[26]           0           1       50.00 
+                             deser_data_out[27-28]           0           0        0.00 
+                                deser_data_out[29]           0           1       50.00 
+                                deser_data_out[30]           0           0        0.00 
+                                deser_data_out[31]           0           1       50.00 
+                                            i[0-4]           1           1      100.00 
+                                              i[5]           0           1       50.00 
+                                           i[6-31]           0           0        0.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                       in_des_data           1           1      100.00 
+                                   test_data[0-31]           0           0        0.00 
+
+Total Node Count     =         99 
+Toggled Node Count   =          7 
+Untoggled Node Count =         92 
+
+Toggle Coverage      =      16.16% (32 of 198 bins)
+
+
+Total Coverage By Instance (filtered view): 65.78%
+
