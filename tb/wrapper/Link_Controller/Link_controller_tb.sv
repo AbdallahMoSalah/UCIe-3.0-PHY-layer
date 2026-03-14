@@ -1,48 +1,50 @@
 module Link_Controller_tb();
 
-logic         clk,
-logic         rst_n,
-logic [127:0] LINK_msg,
-logic         LINK_valid,
-logic [127:0] remote_msg,
-logic         remote_vld,
-logic         ser_ready,
-logic [63:0]  msg_rcvd,
-logic         msg_vld_r,
-logic [127:0] Adapter_msg
-logic         Adapter_val
-logic [127:0] LINK_msg_rc
-logic         LINK_valid_
-logic         remote_read
-logic         LINK_ready,
-logic [63:0]  msg_send,
-logic         msg_vld_s  
+logic         clk;
+logic         rst_n;
+logic [127:0] Link_msg_send;
+logic         Link_vld_send;
+logic [127:0] Adapter_msg_send;
+logic         Adapter_vld_send;
+logic         ser_ready;        // input
+logic [63:0]  msg_rcvd;
+logic         msg_vld_rcvd;
+
+
+logic [127:0] Adapter_msg_rcvd;
+logic         Adapter_vld_rcvd;
+logic [127:0] Link_msg_rcvd;
+logic         Link_vld_rcvd;
+logic         Adapter_ready;
+logic         Link_ready;
+logic [63:0]  msg_send;     //output
+logic         msg_vld_send;
 
 int pass_count = 0;
 int fail_count = 0;
 
-parameter Link =0,adapter=1 ;
+parameter Link =0,Adapter=1 ;
 //=====================================//
-//                 DUT                 //
+///////////////////DUT///////////////////
 //=====================================//
 Link_Controller u_Link_Controller(
     .clk               ( clk               ),
     .rst_n             ( rst_n             ),
-    .LINK_msg          ( LINK_msg          ),
-    .LINK_valid        ( LINK_valid        ),
-    .remote_msg        ( remote_msg        ),
-    .remote_vld        ( remote_vld        ),
+    .Link_msg_send     ( Link_msg_send     ),
+    .Link_vld_send     ( Link_vld_send     ),
+    .Adapter_msg_send  ( Adapter_msg_send  ),
+    .Adapter_vld_send  ( Adapter_vld_send  ),
     .ser_ready         ( ser_ready         ),
     .msg_rcvd          ( msg_rcvd          ),
-    .msg_vld_r         ( msg_vld_r         ),
+    .msg_vld_rcvd      ( msg_vld_rcvd      ),
     .Adapter_msg_rcvd  ( Adapter_msg_rcvd  ),
-    .Adapter_valid_r   ( Adapter_valid_r   ),
-    .LINK_msg_rcvd     ( LINK_msg_rcvd     ),
-    .LINK_valid_r      ( LINK_valid_r      ),
-    .remote_ready      ( remote_ready      ),
-    .LINK_ready        ( LINK_ready        ),
+    .Adapter_vld_rcvd  ( Adapter_vld_rcvd  ),
+    .Link_msg_rcvd     ( Link_msg_rcvd     ),
+    .Link_vld_rcvd     ( Link_vld_rcvd     ),
+    .Adapter_ready     ( Adapter_ready     ),
+    .Link_ready        ( Link_ready        ),
     .msg_send          ( msg_send          ),
-    .msg_vld_s         ( msg_vld_s         )
+    .msg_vld_send      ( msg_vld_send      )
 );
 
 //============================//
@@ -62,22 +64,66 @@ task automatic send_msg(
     input logic         type_m, // link =0 , adapter = 1
 );
 begin
-    LINK_msg='0;
-    LINK_valid=0;
-    remote_msg=0;
-    remote_vld=0;
+    Link_msg_send='0;
+    Link_vld_send=0;
+    Adapter_msg_send='0;
+    Adapter_vld_send=0;
     
+@(posedge clk);
+    if (type_m==Adapter)begin
+        Adapter_msg_send= msg;
+        Adapter_vld_send=1;
+    end
+    else if (type_m==Link) begin
+        Link_msg_send= msg;
+        Link_vld_send=1;
+    end
+    if(Link_vld_send || Adapter_vld_send) begin
+    @(posedge clk);
+        if (type_m==Link) begin
+            if (Link_ready) begin
+                Link_vld_send = 0;
+            end
+        end
+        else if (type_m==Adapter) begin
+            if (Adapter_ready) begin
+                Adapter_vld_send = 0;
+            end
+        end
+    end
 
-    if (adapter)begin
-        remote_msg= msg;
-        remote_vld=1
-    end
-    else begin
-        LINK_msg= msg;
-        LINK_valid=1;
-    end
-    
 end
 endtask
+
+task automatic receive_msg(
+    input logic [63:0] recived_half,
+);
+@(posedge clk);
+    msg_rcvd = recived_half;
+    msg_vld_rcvd = 1;
+@(posedge clk);
+endtask 
+
+
+//=====================================//
+/////////////initial block///////////////
+//=====================================//
+initial begin
+    clk = 0;
+    forever #5 clk = ~clk;  
+end
+
+
+initial begin
+    ser_ready = 1;
+    apply_reset();
+    
+    send_msg(128'h1234567890abcdef1234567890abcdef,Link);
+    receive_msg(64'h1234567890abcdef);
+    #20 $display("PASS = %0d", pass_count);
+    $display("FAIL = %0d", fail_count);
+
+    
+end  
 
 endmodule
