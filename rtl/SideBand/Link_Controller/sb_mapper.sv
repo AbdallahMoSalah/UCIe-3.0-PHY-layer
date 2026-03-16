@@ -132,7 +132,8 @@ module sb_mapper (
         // defaults
         
         msg_vld_send    = 1'b0;
-        mapper_ready = 1'b0;
+        msg_send        = '0;
+        mapper_ready    = 1'b0;
 
         case (current_state)
 
@@ -154,8 +155,6 @@ module sb_mapper (
             // SEND_SECOND_HALF
             //--------------------------------
             SEND_SECOND_HALF: begin
-
-                mapper_ready = 1'b0;
 
                 msg_send  = second_half_reg;
                 msg_vld_send = 1'b1;

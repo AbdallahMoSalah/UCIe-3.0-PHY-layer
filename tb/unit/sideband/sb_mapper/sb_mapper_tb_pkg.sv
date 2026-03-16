@@ -7,6 +7,11 @@ package sb_mapper_tb_pkg;
         rand bit [127:0] data;
         rand bit in_valid;
         rand bit in_ready;
+        logic mapper_ready;
+
+        logic Prev_data = '0;
+        logic Prev_in_ready = 0;
+        logic Prev_in_valid = 0;
         
 
         constraint opcode_c {
@@ -19,13 +24,25 @@ package sb_mapper_tb_pkg;
         }
 
         constraint valid_dist {
-            in_valid dist {1 := 60, 0 := 40};
+            if(Prev_in_valid && !mapper_ready) {
+                in_valid == 1;
+            } 
+            else {
+                in_valid dist {1 := 60, 0 := 40};
+            }
+            
         }
 
 
         constraint ready_dist {
-            in_ready dist {0 := 60, 1 := 40};
+            in_ready dist {1 := 60, 0 := 40};
         }
+
+        function void post_randomize();
+            Prev_data = data;
+            Prev_in_ready = in_ready;
+            Prev_in_valid = in_valid;
+        endfunction
 
 
     endclass
@@ -48,20 +65,21 @@ package sb_mapper_tb_pkg;
         task run();
 
             sb_mapper_in_trans pkt;
-
+            pkt = new();
             forever begin
 
-                @(negedge vif.clk);
+                @(posedge vif.clk);
 
-                pkt = new();
+                
+                pkt.mapper_ready = vif.mapper_ready;
                 assert(pkt.randomize());
 
                 // random valid & ready
-                vif.word_vld_send = pkt.in_valid;
-                vif.ser_ready = pkt.in_ready;
+                vif.word_vld_send <= pkt.in_valid;
+                vif.ser_ready <= pkt.in_ready;
 
-                if(pkt.in_valid && vif.mapper_ready) begin
-                    vif.msg_word_send = pkt.data;
+                if(vif.word_vld_send && vif.mapper_ready) begin
+                    vif.msg_word_send <= pkt.data;
                 end
 
             end
@@ -101,7 +119,6 @@ package sb_mapper_tb_pkg;
                     in_q.push_back(pkt);
 
                 end
-
 
                 // output handshake
                 if(vif.msg_vld_send && vif.ser_ready) begin

@@ -56,15 +56,13 @@ package sb_serializer_tb_pkg;
         }
 
         constraint vld_send_constraint{
-            if(tx_ready == 0  && Prev_tx_ready == 0 && Prev_tx_data_valid == 1){
+            if(tx_ready == 0 && Prev_tx_data_valid == 1){
                 tx_data_valid == 1;
             }
-            else if(tx_ready == 0  && Prev_tx_ready == 0 && Prev_tx_data_valid == 0){
-                tx_data_valid dist { 0 :/ 100, 1 :/ 5};
-            }
             else {
-                tx_data_valid dist { 1 :/ 70, 0 :/ 30};
+                tx_data_valid dist { 0 :/ 90, 1 :/ 10};
             }
+
         }   
 
         covergroup cvr_gp;

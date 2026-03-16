@@ -90,9 +90,9 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
 
 
   typedef struct packed {
-
-    logic        dp;         // [63]
-    logic        cp;       // [62]
+ 
+    logic        dp;          // [63]
+    logic        cp;          // [62]
     logic [2:0]  rsvd2;       // [61:59]
     sb_dstid_e   dstid;       // [58:56]
     logic [15:0] MsgInfo;     // [55:40]
@@ -106,6 +106,12 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
 
   } sb_header_t;
 
+  typedef struct packed {
+
+    logic [63:0] payload;  // [127:64]
+    sb_header_t header;    // [63:0]
+
+  } sb_packet_t;
 
 
 endpackage
