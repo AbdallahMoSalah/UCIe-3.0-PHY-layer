@@ -5,6 +5,7 @@ module sb_pattern_engine (
 
     // control from LTSM
     input  logic        pattern_mode,
+    input  logic        start_pat_req,
     input  logic        send_4_iter,
 
     output logic        four_iter_done,
@@ -26,38 +27,28 @@ module sb_pattern_engine (
 // Pattern constant
 ////////////////////////////////////////////////////////////
 
-localparam logic [63:0] CLOCK_PATTERN = 64'hAAAAAAAAAAAAAAAA;
+localparam logic [63:0] CLOCK_PATTERN = 64'h5555_5555_5555_5555;
 
 ////////////////////////////////////////////////////////////
 // Iteration Counter
 ////////////////////////////////////////////////////////////
 
 logic [2:0] iter_cnt;
-logic counting;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        counting <= 0;
-    else if(send_4_iter)
-        counting <= 1;
-    else if(four_iter_done)
-        counting <= 0;
-end
 
 always_ff @(posedge clk or negedge rst_n) begin
 
     if(!rst_n)
         iter_cnt <= 0;
 
-    else if(!counting)
-        iter_cnt <= 0;
-
-    else if(ser_ready && ser_valid)
+    else if(pattern_mode && send_4_iter && ser_ready && ser_valid && (iter_cnt != 4))
         iter_cnt <= iter_cnt + 1;
 
+    else if(iter_cnt == 4)
+        iter_cnt <= 0;
+
 end
 
-assign four_iter_done = counting && (iter_cnt == 4);
+assign four_iter_done = (iter_cnt == 4);
 
 ////////////////////////////////////////////////////////////
 // Sequential valid generation
@@ -68,11 +59,14 @@ always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         ser_valid <= 0;
 
-    else if(pattern_mode)
+    else if(pattern_mode && start_pat_req)
         ser_valid <= 1;
 
-    else
+    else if(!pattern_mode)
         ser_valid <= mapper_valid;
+    else begin
+        ser_valid <= 0;
+    end
 
 end
 
@@ -85,10 +79,10 @@ always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         ser_data <= '0;
 
-    else if(pattern_mode)
+    else if(pattern_mode && start_pat_req)
         ser_data <= CLOCK_PATTERN;
 
-    else if(mapper_valid && ser_ready)
+    else if(!pattern_mode)
         ser_data <= mapper_data;
 
 end
@@ -97,6 +91,6 @@ end
 // Mapper ready
 ////////////////////////////////////////////////////////////
 
-assign mapper_ready = (!pattern_mode) && ser_ready;
+assign mapper_ready = (!pattern_mode) && (!start_pat_req) && ser_ready;
 
 endmodule
