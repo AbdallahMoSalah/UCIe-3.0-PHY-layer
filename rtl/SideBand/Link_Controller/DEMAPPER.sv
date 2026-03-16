@@ -4,7 +4,7 @@ module DEMAPPER (
     
     // --- Inputs from SerDes ---
     input  logic [63:0]  msg_rcvd,      // Data captured from SerDes
-    input  logic         msg_vld_rcvd,  // Valid signal from SerDes
+    input  logic         msg_vld_rcvd,     // Valid signal from SerDes
 
     // --- Outputs to Demux (Router) ---
     output logic [127:0] msg_word_rcvd, // Reconstructed 64-bit or 128-bit message
@@ -53,51 +53,50 @@ module DEMAPPER (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             current_state  <= IDLE;
-            first_half_reg <= 64'b0;
         end else begin
             current_state <= next_state;
-            
-            // Latch the first half ONLY if we are in IDLE, data is valid, and it's a 128-bit message
-            if (current_state == IDLE && msg_vld_rcvd && is_128bit) begin
+            end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            first_half_reg <= 64'b0;
+            msg_word_rcvd <= 128'b0;
+            word_vld_rcvd <= 1'b0;
+        end else begin
+            if (msg_vld_rcvd && current_state == IDLE && is_128bit) begin
                 first_half_reg <= msg_rcvd;
+            end
+            if (msg_vld_rcvd && current_state == IDLE && !is_128bit) begin
+                msg_word_rcvd <= {64'b0, msg_rcvd}; // Pad upper 64-bits with zeros
+                word_vld_rcvd <= 1'b1; // Full 64-bit message is ready
+            end else if (msg_vld_rcvd && current_state == WAIT_SECOND_HALF) begin
+                msg_word_rcvd <= {msg_rcvd, first_half_reg}; // Combine halves
+                word_vld_rcvd <= 1'b1; // Full 128-bit message is ready
+            end else begin
+                word_vld_rcvd <= 1'b0; // Default: not valid
             end
         end
     end
 
-    // =========================================================
-    // 4. FSM Combinational Logic (Next State & Outputs)
-    // =========================================================
     always_comb begin
-        // 1. Default Values (To prevent unintended latches)
-        next_state    = current_state;
-        msg_word_rcvd = 128'b0;
-        word_vld_rcvd  = 1'b0;
-
-        // 2. State Machine Logic
+        next_state = current_state; // Default: stay in current state
         case (current_state)
             IDLE: begin
-                if (msg_vld_rcvd) begin
-                    if (is_128bit) begin
-                        // It's a 128-bit message -> Wait for the second half
-                        next_state = WAIT_SECOND_HALF;
-                    end else begin
-                        // It's a 64-bit message -> Output immediately with Zero-Padding
-                        msg_word_rcvd = {64'b0, msg_rcvd}; 
-                        word_vld_rcvd  = 1'b1; // Raise Valid to Demux
-                    end
+                if (msg_vld_rcvd && is_128bit) begin
+                    next_state = WAIT_SECOND_HALF; // Wait for the second half
+                end else if (msg_vld_rcvd && !is_128bit) begin
+                    next_state = IDLE; // Stay in IDLE, 64-bit message is ready immediately
                 end
             end
 
             WAIT_SECOND_HALF: begin
-                // Check if the second half has arrived from SerDes
                 if (msg_vld_rcvd) begin
-                    // Combine both halves: {Second Half, First Half}
-                    msg_word_rcvd = {msg_rcvd, first_half_reg};
-                    word_vld_rcvd  = 1'b1; // Raise Valid to Demux
-                    
-                    next_state = IDLE; // Return to IDLE to process the next packet
+                    next_state = IDLE; // After receiving second half, go back to IDLE
                 end
             end
+
+            default: next_state = IDLE;
         endcase
     end
 

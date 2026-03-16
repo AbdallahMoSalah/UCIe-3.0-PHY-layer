@@ -1,12 +1,11 @@
-package sb_mapper_tb_pkg;
+package sb_demapper_tb_pkg;
 
     import sb_pkg::*;
 
-    class sb_mapper_in_trans;
+    class sb_demapper_in_trans;
 
-        rand bit [127:0] data;
+        rand bit [63:0] data;
         rand bit in_valid;
-        rand bit in_ready;
         
 
         constraint opcode_c {
@@ -18,36 +17,33 @@ package sb_mapper_tb_pkg;
             };
         }
 
+
         constraint valid_dist {
             in_valid dist {1 := 60, 0 := 40};
         }
 
 
-        constraint ready_dist {
-            in_ready dist {0 := 60, 1 := 40};
-        }
-
 
     endclass
 
-    class sb_mapper_chunk;
+    class sb_demapper_word;
 
-        bit [63:0] data;
+        bit [127:0] data;
 
     endclass
-    class sb_mapper_driver;
+    class sb_demapper_driver;
 
-        virtual sb_mapper_if vif;
+        virtual sb_demapper_if vif;
 
-        function new(virtual sb_mapper_if vif);
+        
+        function new(virtual sb_demapper_if vif);
             this.vif = vif;
         endfunction
 
 
-
         task run();
 
-            sb_mapper_in_trans pkt;
+            sb_demapper_in_trans pkt;
 
             forever begin
 
@@ -57,11 +53,10 @@ package sb_mapper_tb_pkg;
                 assert(pkt.randomize());
 
                 // random valid & ready
-                vif.word_vld_send = pkt.in_valid;
-                vif.ser_ready = pkt.in_ready;
-
-                if(pkt.in_valid && vif.mapper_ready) begin
-                    vif.msg_word_send = pkt.data;
+                vif.msg_vld_rcvd = pkt.in_valid;
+                
+                if(pkt.in_valid ) begin
+                    vif.msg_rcvd = pkt.data;
                 end
 
             end
@@ -71,45 +66,45 @@ package sb_mapper_tb_pkg;
     endclass
 
 
-    class sb_mapper_monitor;
+    class sb_demapper_monitor;
 
-        virtual sb_mapper_if vif;
+        virtual sb_demapper_if vif;
 
-        sb_mapper_in_trans in_q[$];
-        sb_mapper_chunk  out_q[$];
+        sb_demapper_in_trans in_q[$];
+        sb_demapper_word  out_q[$];
 
-        function new(virtual sb_mapper_if vif);
+        function new(virtual sb_demapper_if vif);
             this.vif = vif;
         endfunction
 
 
         task run();
 
-            sb_mapper_in_trans pkt;
-            sb_mapper_chunk  ch;
+            sb_demapper_in_trans pkt;
+            sb_demapper_word  wd;
 
             forever begin
 
                 @(posedge vif.clk);
 
                 // input handshake
-                if(vif.word_vld_send && vif.mapper_ready) begin
+                if(vif.msg_vld_rcvd ) begin
 
                     pkt = new();
-                    pkt.data = vif.msg_word_send;
+                    pkt.data = vif.msg_rcvd;
 
-                    in_q.push_back(pkt);
+                    in_q.push_back(pkt); // target 
 
                 end
 
 
                 // output handshake
-                if(vif.msg_vld_send && vif.ser_ready) begin
+                if(vif.word_vld_rcvd ) begin
 
-                    ch = new();
-                    ch.data = vif.msg_send;
+                    wd = new();
+                    wd.data = vif.msg_word_rcvd;
 
-                    out_q.push_back(ch);
+                    out_q.push_back(wd); // target 
 
                 end
 
@@ -120,18 +115,18 @@ package sb_mapper_tb_pkg;
     endclass
 
 
-    class sb_mapper_scoreboard;
+    class sb_demapper_scoreboard;
 
-        sb_mapper_monitor mon;
+        sb_demapper_monitor mon;
 
-        bit [63:0] expected_q[$];
+        sb_demapper_word expected_q[$];
         int pass,fail;
 
-        function new(sb_mapper_monitor mon);
+        function new(sb_demapper_monitor mon);
             this.mon = mon;
         endfunction
 
-        function bit is_128bit(bit [127:0] pkt);
+        function bit is_128bit(bit [63:0] pkt);
 
             bit [4:0] opcode;
 
@@ -159,21 +154,32 @@ package sb_mapper_tb_pkg;
 
         task run();
 
-            sb_mapper_in_trans pkt;
-
+            sb_demapper_in_trans pkt;
+            sb_demapper_in_trans pkt1;
+            sb_demapper_word inter_pkt;
             forever begin
 
                 wait(mon.in_q.size() > 0);
 
                 pkt = mon.in_q.pop_front();
 
-                // header
-                expected_q.push_back(pkt.data[63:0]);
+                // 64 bit header only
+                
+                if(!is_128bit(pkt.data)) begin
+                    inter_pkt = new();
+                    inter_pkt.data = {64'b0,pkt.data};
+                    expected_q.push_back(inter_pkt);
+                end
+                // header + payload for 128 bit messages
+                else begin                    
+                    wait(mon.in_q.size() > 0);
 
-                // payload
-                if(is_128bit(pkt.data))
-                    expected_q.push_back(pkt.data[127:64]);
-
+                    pkt1 = mon.in_q.pop_front();
+                    inter_pkt = new();
+                    inter_pkt.data = {pkt1.data,pkt.data};
+                    expected_q.push_back(inter_pkt); // push header with payload
+                end
+           
             end
 
         endtask
@@ -182,20 +188,20 @@ package sb_mapper_tb_pkg;
 
         task check();
 
-            sb_mapper_chunk ch;
-            bit [63:0] exp;
+            sb_demapper_word wd;
+            sb_demapper_word exp;
 
             forever begin
 
                 wait(expected_q.size() > 0);
                 wait(mon.out_q.size() > 0);
 
-                ch = mon.out_q.pop_front();
+                wd = mon.out_q.pop_front();
 
                 exp = expected_q.pop_front();
 
-                if(ch.data !== exp) begin
-                    $display("sb_mapper mismatch exp=%h got=%h",exp,ch.data);
+                if(wd.data !== exp.data) begin
+                    $display("sb_demapper mismatch exp=%h got=%h",exp.data,wd.data);
                     fail++;
                 end
                 else begin
