@@ -1,5 +1,11 @@
 package sb_pkg;
 
+parameter SB_FREQ = 100.0;
+parameter  SB_CLK = (1000/SB_FREQ);
+
+parameter  SERDES_FREQ = 800.0;
+parameter  SERDES_CLK = (1000/SERDES_FREQ);
+
   typedef enum logic [4:0] {  //Opcode enum
     SB_32_MEM_READ                = 5'b00000,
     SB_32_MEM_WRITE               = 5'b00001,
