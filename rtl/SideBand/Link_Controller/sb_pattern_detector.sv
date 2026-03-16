@@ -24,10 +24,10 @@ module sb_pattern_detector
 ////////////////////////////////////////////////////////////
 // Pattern check
 ////////////////////////////////////////////////////////////
-
+localparam logic [63:0] CLOCK_PATTERN = 64'h5555_5555_5555_5555;
 logic is_pattern;
 
-assign is_pattern = &(packet_data ^ (packet_data >> 1));
+assign is_pattern = (packet_data == CLOCK_PATTERN);
 
 ////////////////////////////////////////////////////////////
 // Pattern counter
@@ -50,7 +50,6 @@ always_ff @(posedge clk or negedge rst_n) begin
 
                 if(pattern_cnt == 1) begin
                     pattern_detected <= 1;
-                    pattern_cnt <= 0;
                 end
                 else begin
                     pattern_cnt <= pattern_cnt + 1;
