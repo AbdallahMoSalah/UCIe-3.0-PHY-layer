@@ -1,8 +1,7 @@
-`include "UCIe-3.0-PHY-layer/rtl/common/ltsm_if.sv"
 
 module VALVREF #(
-    parameter MAX_VAL_VREF_CODE = 7'D127,
-    parameter MIN_VAL_VREF_CODE = 6'D10 
+    parameter MAX_VAL_VREF_CODE   = 7'D127,
+    parameter MIN_VAL_VREF_CODE   = 7'D10  
     ) (
     // lclk and rst
     ltsm_if.clk_rst_mp clk_rst_if,
@@ -21,7 +20,7 @@ module VALVREF #(
 
 );
     // For analog Voltage control.
-    localparam VREF_CODE_WIDTH = clog2(MAX_VAL_VREF_CODE);
+    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE);
     reg [1:0] clk_sampling; // To know if the fsm has looped on all Clock sampling values (0h(Eye Center), 1h(Left edge), 2h(Right edge)).
     
     // To get the used SB messages for: (sb_if.tx_sb_msg, sb_it.rx_sb_msg)
@@ -94,7 +93,7 @@ module VALVREF #(
                 end
                 // (S4) Implement the test (Rx Init Data to Clock Point Test).
                 VALVREF_RX_D2C_PT: begin
-                    if (d2c_if.d2c_timeout_or_error) next_state = TO_TRAINERROR;
+                    // if (d2c_if.d2c_timeout_or_error) next_state = TO_TRAINERROR;
                     if (d2c_if.test_d2c_done) next_state = VALVREF_LOG_RESULT;
                     else next_state = VALVREF_RX_D2C_PT;
                 end
@@ -142,12 +141,13 @@ module VALVREF #(
         //==========================
         // LTSM -> LTSM signals:
         //==========================
-        ltsm_if.valvref_done = 0;
+        ltsm_if.valvref_done   = 1'b0;
+        ltsm_if.trainerror_req = 1'b0;
 
         //==========================
         // Timers:
         //==========================
-        timeout_8ms_if.timeout_timer_en               = 0;
+        timeout_8ms_if.timeout_timer_en               = 1;
         analog_settle_timer_if.analog_settle_timer_en = 0;
 
         //=================================================
@@ -204,6 +204,7 @@ module VALVREF #(
             // (S0) IDLE state: Wait for the trigger to start VALVREF FSM.
             VALVREF_IDLE: begin
                 //Nothing special
+                timeout_8ms_if.timeout_timer_en = 0;
             end
             // (S1) Send & Receive SB Message: {MBTRAIN.VALVREF start req}
             VALVREF_START_REQ: begin
@@ -233,10 +234,12 @@ module VALVREF #(
             // (S5) Log the current vref_code value if the received pattern on MB Receiver is valid.
             VALVREF_LOG_RESULT: begin
                 // There is only sequential logic here. we just log Vref of Valid lane (if was no valid lane error). 
+                // look at "VALVREF_LOG_RESULT_PROC" always block below.
             end
             // (S6) Caluculate the best value for vref_code.
             VALVREF_CALC_APPLY: begin
                 // There is only sequential logic here. we calculate the best Vref value.
+                // look at "VALVREF_CALC_APPLY_PROC" always block below.
             end
             // (S7) Send & Receive SB Message: {MBTRAIN.VALVREFF end resp}. Also, drive Vref_code to the PHY MB Receiver Valid Lane.
             VALVREF_END_REQ: begin
@@ -267,21 +270,35 @@ module VALVREF #(
         endcase
     end
 
-    
     //================================
     // Caluculate Vref Code:
     //================================
-    reg [VREF_CODE_WIDTH-1:0] vref_range[2:0];
+    wire [VREF_CODE_WIDTH-1:0] vref_range[2:0];
+    wire [VREF_CODE_WIDTH-1:0] temp_vref_range;
+    reg  [VREF_CODE_WIDTH-1:0] temp_min_vref;      // To store the start of the current valid Vref range.
+    reg  [VREF_CODE_WIDTH-1:0] min_vref_code [2:0];
+    reg  [VREF_CODE_WIDTH-1:0] max_vref_code [2:0];
+    reg  [2:0] vref_code_filled; // To represent each "vref_code" register to know if it filled with correct data or not.
+    
+    // Get the Vref range of each clk_sampling.
+    assign vref_range[0]   = (vref_code_filled[0] == 1'b1) ? (max_vref_code[0] - min_vref_code[0]) : '0;
+    assign vref_range[1]   = (vref_code_filled[1] == 1'b1) ? (max_vref_code[1] - min_vref_code[1]) : '0;
+    assign vref_range[2]   = (vref_code_filled[2] == 1'b1) ? (max_vref_code[2] - min_vref_code[2]) : '0;
+    assign temp_vref_range = (mb_if.phy_rx_valvref_ctrl - temp_min_vref);
 
-    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin
+    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin : VALVREF_CALC_APPLY_PROC
         if(!clk_rst_if.rst_n) begin
             mb_if.phy_rx_valvref_ctrl       <= MIN_VAL_VREF_CODE; // To send (drive) the Vref value.
             ltsm_if.valvref_fail_flag       <= 1'b0             ; // To report if the Valid Vref calibration failed.
-            ltsm_if.successful_clk_sampling <= 2'b0             ; // To know if the clock needs to take a shift (to righ or to left). Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-            clk_sampling                    <=  'd0             ;
-            vref_range[0]                   <=  'd0             ;
-            vref_range[1]                   <=  'd0             ;
-            vref_range[2]                   <=  'd0             ;
+            // ltsm_if.successful_clk_sampling <= 2'b0             ; // To know if the clock needs to take a shift (to righ or to left). Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+            clk_sampling                    <= 2'b0             ; // 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        end
+
+        // This case not needed at all. I put it here to keep the module "VALVREF" more generalized and able to use it many times (not just 1 time).
+        else if(current_state == VALVREF_START_REQ) begin 
+            mb_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE; // To send (drive) the Vref value.
+            ltsm_if.valvref_fail_flag <= 1'b0             ; // To report if the Valid Vref calibration failed.
+            clk_sampling              <= 2'd0             ;
         end
 
         // change the Vref value:
@@ -298,93 +315,135 @@ module VALVREF #(
         // Calculate the best Vref value:
         // find the operational clock sampling (clk_sampling = (0h(Eye Center), 1h(Left edge), 2h(Right edge))).
         else if(current_state == VALVREF_CALC_APPLY) begin
-
-            // Get the Vref range of each clk_sampling.
-            if(vref_code_filled[1:0] == 2'b11) begin
-                vref_range[0] <= (max_vref_code[0] - min_vref_code[0]);
-            end
-            if(vref_code_filled[3:2] == 2'b11) begin
-                vref_range[1] <= (max_vref_code[1] - min_vref_code[1]);
-            end
-            if(vref_code_filled[5:4] == 2'b11) begin
-                vref_range[2] <= (max_vref_code[2] - min_vref_code[2]);
-            end
-
             // Gets the best clk_sampling.
             // Gets the best Vref value according to "clk_sampling".
-            if((vref_code_filled[1:0] == 2'b11) && (vref_range[0] >= vref_range[1]) && (vref_range[0] >= vref_range[2])) begin
-                mb_if.phy_rx_valvref_ctrl       <= (min_vref_code[0] + max_vref_code[0])>>1;
-                ltsm_if.successful_clk_sampling <= 1'b0;
+            if(vref_code_filled[0] == 1'b1 && (vref_range[0] >= vref_range[1]) && (vref_range[0] >= vref_range[2])) begin
+                mb_if.phy_rx_valvref_ctrl       <= ({1'b0, min_vref_code[0]} + {1'b0, max_vref_code[0]})>>1;
+                // ltsm_if.successful_clk_sampling <= 2'b0;
+                clk_sampling                    <= 2'd0;
                 ltsm_if.valvref_fail_flag       <= 1'b0;
             end
-            else if((vref_code_filled[3:2] == 2'b11) && (vref_range[1] > vref_range[2])) begin
-                mb_if.phy_rx_valvref_ctrl       <= (min_vref_code[1] + max_vref_code[1])>>1;
-                ltsm_if.successful_clk_sampling <= 2'd1;
+            else if(vref_code_filled[1] == 1'b1 && (vref_range[1] >= vref_range[2])) begin
+                mb_if.phy_rx_valvref_ctrl       <= ({1'b0, min_vref_code[1]} + {1'b0, max_vref_code[1]})>>1;
+                // ltsm_if.successful_clk_sampling <= 2'd1;
+                clk_sampling                    <= 2'd1;
                 ltsm_if.valvref_fail_flag       <= 1'b0;
             end
-            else if(vref_code_filled[5:4] == 2'b11) begin
-                mb_if.phy_rx_valvref_ctrl     <= (min_vref_code[2] + max_vref_code[2])>>1;
-                ltsm_if.successful_clk_sampling <= 2'd2;
+            else if(vref_code_filled[2] == 1'b1) begin
+                mb_if.phy_rx_valvref_ctrl       <= ({1'b0, min_vref_code[2]} + {1'b0, max_vref_code[2]})>>1;
+                // ltsm_if.successful_clk_sampling <= 2'd2;
+                clk_sampling                    <= 2'd2;
                 ltsm_if.valvref_fail_flag       <= 1'b0;
             end
             else begin
-                ltsm_if.successful_clk_sampling <= 2'd0;
+                mb_if.phy_rx_valvref_ctrl       <=   '0;
+                // ltsm_if.successful_clk_sampling <= 2'd0;
+                clk_sampling                    <= 2'd0;
                 ltsm_if.valvref_fail_flag       <= 1'b1; // To report if the Valid Vref calibration failed.
             end
         end
     end
 
+
+    reg is_in_valid_region; // To know if we were inside a connected success zone.
     //=======================================
     // VALVREF_LOG_RESULT: Log the Vref Code:
     //=======================================
-    reg [VREF_CODE_WIDTH-1:0] min_vref_code [2:0];
-    reg [VREF_CODE_WIDTH-1:0] max_vref_code [2:0];
-    reg [5:0] vref_code_filled; // To represent each "vref_code" register to know if it filled with correct data or not.
-    // VALID RESULT LOG:
-    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin
+    // VALID RESULT LOG: 
+    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin : VALVREF_LOG_RESULT_PROC
         if(!clk_rst_if.rst_n) begin
-            min_vref_code[0] <= 'd0        ;
-            min_vref_code[1] <= 'd0        ;
-            min_vref_code[2] <= 'd0        ;
-            max_vref_code[0] <= 'd0        ;
-            max_vref_code[1] <= 'd0        ;
-            max_vref_code[2] <= 'd0        ;
-            vref_code_filled <= 6'b00_00_00;
+            for(integer i=0; i<3; i=i+1) begin
+                min_vref_code[i] <= '0  ;
+                max_vref_code[i] <= '0  ;
+            end
+            vref_code_filled   <= 3'b000;
+            is_in_valid_region <= 1'b0  ;
+            temp_min_vref      <=  '0   ;
         end
-        else if(current_state == VALVREF_LOG_RESULT && (!d2c_if.d2c_val_err)) begin
-            case (clk_sampling)
-                2'b00: begin
-                    if(!vref_code_filled[0]) begin
-                        vref_code_filled[0] <= 1'b1;
-                        min_vref_code[0]    <= mb_if.phy_rx_valvref_ctrl; // Minimum Vref.
-                    end
-                    else begin
-                        vref_code_filled[1] <= 1'b1;
-                        max_vref_code[0]    <= mb_if.phy_rx_valvref_ctrl; // Maximum Vref.
-                    end
+
+        else if(current_state == VALVREF_START_REQ) begin
+            for(integer i=0; i<3; i=i+1) begin
+                min_vref_code[i] <= '0  ;
+                max_vref_code[i] <= '0  ;
+            end
+            vref_code_filled   <= 3'b000;
+            is_in_valid_region <= 1'd0  ;
+            temp_min_vref      <=  '0   ;
+        end
+
+        else if(current_state == VALVREF_LOG_RESULT) begin
+
+            // ----------------------------------------------------
+            // If the result was success (No error)
+            // ----------------------------------------------------
+            if (!d2c_if.d2c_val_err) begin 
+
+                // Solve the problem of not stable Vref (Discontinuous Eye or Holes in the Eye Diagram).
+                // 1. If we start a new connected Vref valid region (of the Eye Diagram). New Vref zone:
+                if (!is_in_valid_region || mb_if.phy_rx_valvref_ctrl == MIN_VAL_VREF_CODE) begin
+                    is_in_valid_region <= 1'b1; // start new zone.
+                    temp_min_vref      <= mb_if.phy_rx_valvref_ctrl; // Save the start of the new valid Vref range.
+
+                    case (clk_sampling)
+                        2'b00: begin
+                            if (!vref_code_filled[0]) begin     // The 1st success point at all.
+                                vref_code_filled[0] <= 1'b1; // We consider the min Vref and the max Vref are filled with the same value.
+                                min_vref_code[0]    <= mb_if.phy_rx_valvref_ctrl;
+                                max_vref_code[0]    <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        2'b01: begin
+                            if (!vref_code_filled[1]) begin
+                                vref_code_filled[1] <= 1'b1;
+                                min_vref_code[1]    <= mb_if.phy_rx_valvref_ctrl;
+                                max_vref_code[1]    <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        2'b10: begin
+                            if (!vref_code_filled[2]) begin
+                                vref_code_filled[2] <= 1'b1;
+                                min_vref_code[2]    <= mb_if.phy_rx_valvref_ctrl;
+                                max_vref_code[2]    <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        default: ;
+                    endcase
                 end
-                2'b01: begin
-                    if(!vref_code_filled[1]) begin
-                        vref_code_filled[1] <= 1'b1;
-                        min_vref_code[1]    <= mb_if.phy_rx_valvref_ctrl; // Minimum Vref.
-                    end
-                    else begin
-                        vref_code_filled[2] <= 1'b1;
-                        max_vref_code[1]    <= mb_if.phy_rx_valvref_ctrl; // Maximum Vref.
-                    end
+                
+                // 2. If we continue within a current success zone (update if the current range is larger than the previous best range)
+                else begin
+                    case (clk_sampling)
+                        2'b00: begin
+                            if ((temp_vref_range) > (vref_range[0])) begin
+                                min_vref_code[0] <= temp_min_vref;
+                                max_vref_code[0] <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        2'b01: begin
+                            if ((temp_vref_range) > (vref_range[1])) begin
+                                min_vref_code[1] <= temp_min_vref;
+                                max_vref_code[1] <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        2'b10: begin
+                            if ((temp_vref_range) > (vref_range[2])) begin
+                                min_vref_code[2] <= temp_min_vref;
+                                max_vref_code[2] <= mb_if.phy_rx_valvref_ctrl;
+                            end
+                        end
+                        default: ;
+                    endcase
                 end
-                2'b10: begin
-                    if(!vref_code_filled[2]) begin
-                        vref_code_filled[2] <= 1'b1;
-                        min_vref_code[2]    <= mb_if.phy_rx_valvref_ctrl; // Minimum Vref.
-                    end
-                    else begin
-                        vref_code_filled[3] <= 1'b1;
-                        max_vref_code[2]    <= mb_if.phy_rx_valvref_ctrl; // Maximum Vref.
-                    end
-                end
-            endcase
+            end
+            
+            // ----------------------------------------------------------------------
+            //  The result was "Fail" (Discontinuous Eye or Holes in the Eye Diagram)
+            // ----------------------------------------------------------------------
+            else begin 
+                is_in_valid_region <= 1'b0; // Break the current contnuous zone (to star storing new region later if there was a success).
+            end
         end
     end
+
 
 endmodule
