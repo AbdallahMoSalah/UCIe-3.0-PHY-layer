@@ -1,8 +1,8 @@
     
 
 interface ltsm_if #(
-    parameter MAX_VAL_VREF_CODE, // for Reference Rx Valid Lane Vref control.
-    parameter MAX_DATA_VREF_CODE // for Reference Rx Data Lanes Vref control.
+    parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control.
+    parameter MAX_DATA_VREF_CODE = 'D127  // for Reference Rx Data Lanes Vref control.
     ) (
     input logic lclk, 
     input logic rst_n
@@ -30,8 +30,9 @@ interface ltsm_if #(
     logic dtc2_fail_flag          ; // For MBTRAIN.DATATRAINCENTER2 FSM state: To report if 
     logic linkspeed_fail_flag     ; // For MBTRAIN.LINKSPEED        FSM state: To report if 
 
-    logic [1:0] successful_clk_sampling; // To know if the clock needs to take a shift (to righ or to left). Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    // logic [1:0] successful_clk_sampling; // To know if the clock needs to take a shift (to righ or to left). Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
     logic       trainerror_req, trainerror_en, trainerror_done;
+    
     // ltsm enable and done signals for the MBTRAIN states and the sub-states
     logic       repairmb_done      , repairmb_en      ;
     logic       valvref_done       , valvref_en       ;
@@ -242,9 +243,22 @@ interface ltsm_if #(
    
 
 
+    ////////////////////////////////////////////////////////
+    // For Testbench only                                 //
+    ////////////////////////////////////////////////////////
+    logic [15:0] tb_aggr_err     ; // Aggregate error for current comparison.
+    logic [15:0] tb_perlane_err  ; // Per-lane  error for current comparison.
+    logic        tb_val_err      ; // valid error for current comparison.
+    logic        tb_clk_err      ; // clock error for current comparison.
+    logic        tb_wait_timeout ; // Used to test the timeout condition by waiting for some time before setting mb_tx_pattern_count_done to 1. 
+    logic        tb_wrong_sb_msg_en; // To test the case when the SB Rx receives wrong message.
+    msg_no_e     tb_wrong_sb_msg ; // To choose the SB Rx wrong Message (if "tb_wrong_sb_msg_en" = 1).
+    logic [15:0] tb_rx_msginfo   ; // To control in case the SB Rx receives wrong value.
+    logic [63:0] tb_rx_data_field;
 
-    
-    // for any module has a sequential logic.
+    //=============================================//
+    // for any module has a sequential logic.      //
+    //=============================================//
     modport clk_rst_mp(
         input  lclk ,
         input  rst_n
@@ -545,16 +559,16 @@ interface ltsm_if #(
     //=======================================================================================//
     modport ltsm2sb_mp(
         // For SB TX:
-    output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
-    output tx_sb_msg      , // Tell the Sideband the message that it should to send. 
-    output tx_msginfo     , // MsgInfo field of the SB message. 
-    output tx_data_field  , // Data field of the SB message.
+        output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        output tx_sb_msg      , // Tell the Sideband the message that it should to send. 
+        output tx_msginfo     , // MsgInfo field of the SB message. 
+        output tx_data_field  , // Data field of the SB message.
     
-    // For SB RX:
-    input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
-    input rx_sb_msg      , // Get the Received SB msg.
-    input rx_msginfo     , // MsgInfo field of the SB message received.
-    input rx_data_field    // Data field of the SB message.
+        // For SB RX:
+        input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+        input rx_sb_msg      , // Get the Received SB msg.
+        input rx_msginfo     , // MsgInfo field of the SB message received.
+        input rx_data_field    // Data field of the SB message.
     );
     
     
@@ -720,6 +734,8 @@ interface ltsm_if #(
         input log1_internal_error_valid        // To tell the RF to apply the change on log1_internal_error       field.
     );
 
+
+
 // ============================================================================================================================================================================================================================================== //
 //                                                                                                                                                                                                                                                //
 //         ===========                                   ======                                                                                                                                                                                   //
@@ -808,8 +824,8 @@ interface ltsm_if #(
         input  valvref_en             , // Enable the VALVREF FSM.
         output valvref_done           , // To Know if the VALVREF FSM is done.
         output valvref_fail_flag      , // To report if the Valid Vref calibration failed.
-        output successful_clk_sampling, // To know if the clock needs to take a shift (to righ or to left).
-        output trainerror_req            // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)). 
+        // output successful_clk_sampling, // To know if the clock needs to take a shift (to righ or to left).
+        output trainerror_req           // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)). 
     );
 
     //=======================================================================================//
