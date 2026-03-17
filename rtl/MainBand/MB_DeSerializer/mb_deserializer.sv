@@ -19,7 +19,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
 
         if (des_counter == 6'd31) begin
          deser_data_out <= {in_des_data, deser_data_out_temp[31:1]};
-            des_counter    <= 0;
+        des_counter    <= 0;
         end
     end
 end
