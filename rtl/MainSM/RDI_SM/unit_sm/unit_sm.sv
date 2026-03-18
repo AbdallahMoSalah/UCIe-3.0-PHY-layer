@@ -21,6 +21,7 @@ module unit_sm(
             //============================Reset State==================================
             //=========================================================================
             Reset: begin
+            //=========================================================================    
                 case (scs)
                     IDLE: begin
                             if (pl_state_req == NOP)
@@ -30,7 +31,7 @@ module unit_sm(
                             if (lp_linkerro) begin
                                 cs <= LinkError;
                                 scs <= IDLE;
-                            end else if (pl_state_req == Active) begin//needed to be fixed 
+                            end else if (pl_state_req == Active) begin       //needed to be fixed 
                                 cs <= Active;
                                 scs <= IDLE;
                             end else if (pl_state_req == LinkReset) begin
