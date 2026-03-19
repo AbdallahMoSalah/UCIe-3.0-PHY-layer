@@ -25,7 +25,7 @@ module ltsm_tb_attachments #(
     // ===================================================================== //  
     //For SB clk:
     reg sb_clk;
-    initial begin 
+    initial begin  
       sb_clk = 0;
       forever #(SB_CLK_PERIOD/2) sb_clk = ~sb_clk;
     end
