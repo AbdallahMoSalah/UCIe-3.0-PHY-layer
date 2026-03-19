@@ -171,7 +171,7 @@ interface ltsm_if #(
     //=====================================//
     // Sideband Control Signals:           //
     //=====================================//
-    import UCIe_pkg::msg_no_e;
+    import UCIe_pkg::msg_no_e; 
     
     // For SB TX:
     logic        tx_sb_msg_valid; // Tell the SB that the selected message is valid.
@@ -903,5 +903,37 @@ interface ltsm_if #(
 
 
     
+    //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
+    //=========================.
+    // MBTRAIN.DATAVREF:       |
+    //=======================================================================================//
+    // Control Signals from the LTSM to the LTSM direction:                                  //
+    // LTSM -> LTSM                                                                          //
+    //=======================================================================================//
+    modport datavref2ltsm_mp (
+        input  datavref_en            , // Enable the DATAVREF FSM.
+        output datavref_done          , // To Know if the DATAVREF FSM is done.
+        output datavref_fail_flag     , // To report if the Data Vref calibration failed.
+        // output successful_clk_sampling, // To know if the clock needs to take a shift (to right or to left).
+        output trainerror_req           // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)). 
+    );
+
+    //=======================================================================================//
+    // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
+    // LTSM -> MB                                                                            //
+    //=======================================================================================//
+    modport datavref2mb_mp (
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+
+        output phy_rx_datavref_ctrl  // Tell ADC the Rx Data Lane Vref level to operate in.
+    );
 
 endinterface
