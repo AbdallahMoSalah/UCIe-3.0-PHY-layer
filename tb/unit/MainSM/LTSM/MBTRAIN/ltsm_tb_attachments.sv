@@ -2,32 +2,32 @@
 `timescale 1ns/1ps
 
 module ltsm_tb_attachments #(
-    parameter real    SB_CLK_PERIOD        = 1.25       , // That means SB clk period = 1.25ns (800MHz). It's represented in 'ns' unit.
-    parameter integer TIMEOUT_CYCLES       = 'D8_000_000, // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles).
-    parameter integer ANALOG_SETTLE_CYCLES = 'D10         // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
+        parameter real    SB_CLK_PERIOD        = 1.25       , // That means SB clk period = 1.25ns (800MHz). It's represented in 'ns' unit.
+        parameter integer TIMEOUT_CYCLES       = 'D8_000_000, // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles).
+        parameter integer ANALOG_SETTLE_CYCLES = 'D10         // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
     ) (
         ltsm_if intf
     );
     //  The Signals here can be accessed usnig "Hierarchical Reference" (XMR (Cross-Module Reference)).
 
     ltsm_if d2c_mux_out_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // The d2c_mux collection interface.
-    ltsm_if d2c_mux_in1_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module RX_D2C_PT 
-    ltsm_if d2c_mux_in2_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module TX_D2C_PT 
+    ltsm_if d2c_mux_in1_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module RX_D2C_PT
+    ltsm_if d2c_mux_in2_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module TX_D2C_PT
 
-    
+
     // ===================================================================== //
-    //   __      ____      ____      ____      ____      ____      ____      // 
-    //     |____|    |____|    |____|    |____|    |____|    |____|    |__   // 
+    //   __      ____      ____      ____      ____      ____      ____      //
+    //     |____|    |____|    |____|    |____|    |____|    |____|    |__   //
     //                                                                       //
     //                          SB Clock Generation.                         //
-    //      ____      ____      ____      ____      ____      ____      __   // 
-    //   __|    |____|    |____|    |____|    |____|    |____|    |____|     // 
-    // ===================================================================== //  
+    //      ____      ____      ____      ____      ____      ____      __   //
+    //   __|    |____|    |____|    |____|    |____|    |____|    |____|     //
+    // ===================================================================== //
     //For SB clk:
     reg sb_clk;
-    initial begin  
-      sb_clk = 0;
-      forever #(SB_CLK_PERIOD/2) sb_clk = ~sb_clk;
+    initial begin
+        sb_clk = 0;
+        forever #(SB_CLK_PERIOD/2) sb_clk = ~sb_clk;
     end
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
@@ -38,35 +38,35 @@ module ltsm_tb_attachments #(
     reg       rx_sb_msg_valid_reg  ; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
     reg       tx_sb_msg_valid_pulse; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
     integer   sb_msg_waiting_time  ; // A counter to track the waiting time for the SB message to be received, used for testing the timeout condition.
-    reg       activate_sb_tx_rx    ; 
+    reg       activate_sb_tx_rx    ;
     always @(posedge sb_clk or negedge intf.rst_n) begin
-        if(!intf.rst_n) begin 
+        if(!intf.rst_n) begin
             // Reset the SB TX signals.
             rx_sb_msg_valid_reg  <= 1'b0   ;
             d2c_mux_out_if.rx_sb_msg_valid <= 1'b0   ;
             sb_msg_waiting_time  <= 0      ;
-            d2c_mux_out_if.rx_sb_msg       <= NOTHING; 
+            d2c_mux_out_if.rx_sb_msg       <= NOTHING;
             activate_sb_tx_rx    <= 1'b0   ;
         end
         else begin
             d2c_mux_out_if.rx_sb_msg_valid <= rx_sb_msg_valid_reg;
-            
-            
+
+
             if(intf.tb_wait_timeout == 1'b0) begin
                 if(tx_sb_msg_valid_pulse == 1'b1) begin
                     activate_sb_tx_rx <= 1;
                 end
-                
+
                 if(activate_sb_tx_rx == 1'b1) begin
                     sb_msg_waiting_time <= sb_msg_waiting_time + 1; // Increment the waiting time for the SB message to be received.
-                    
+
                     // Wait till the SB MSG Receives the partner MSG:
                     if(sb_msg_waiting_time == 127) begin
                         rx_sb_msg_valid_reg  <=  1'b1                  ; // Set the valid signal in "rx_sb_msg_valid_reg" to 1 to indicate that the SB message is now valid; also, store the previous value.
                         d2c_mux_out_if.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en)? intf.tb_wrong_sb_msg : d2c_mux_out_if.tx_sb_msg; // Capture the received SB message.
                         d2c_mux_out_if.rx_msginfo      <=  intf.tb_rx_msginfo   ; // Capture the received MsgInfo field of the SB message (that is coming from the testbench).
                         d2c_mux_out_if.rx_data_field   <=  intf.tb_rx_data_field; // Capture the received Data field of the SB message (that is coming from the testbench).
-                    end 
+                    end
                     // Set the "rx_sb_msg_valid" signal activated for some times (using SB clk) (ex: 1 cycles):
                     else if(sb_msg_waiting_time == (127 + 1) ) begin
                         rx_sb_msg_valid_reg <= 1'b0;
@@ -74,7 +74,7 @@ module ltsm_tb_attachments #(
                         activate_sb_tx_rx   <= 0;
                     end
                 end
-                
+
             end else begin
                 rx_sb_msg_valid_reg <= 1'b0; // Clear the valid signal if the tx_sb_msg_valid is not active.
             end
@@ -118,7 +118,7 @@ module ltsm_tb_attachments #(
     integer burst_counter, idle_counter, iter_counter; // Counters to track the number of "Burst", "Idle", and "Iteration" count in the MB.
 
     assign d2c_mux_out_if.mb_tx_pattern_count_done = (iter_counter == d2c_mux_out_if.mb_tx_iter_count && (intf.tb_wait_timeout == 0))? 1 : 0; // pattern count is done if (iteration completed) and (we don't want to test timeout)
-    
+
     always @(posedge intf.lclk or negedge intf.rst_n) begin
         if(!intf.rst_n) begin
             // Reset all the control signals to MB to their default values.
@@ -134,7 +134,7 @@ module ltsm_tb_attachments #(
             d2c_mux_out_if.mb_rx_perlane_err  <= 0;
             d2c_mux_out_if.mb_rx_val_err      <= 0;
             d2c_mux_out_if.mb_rx_clk_err      <= 0;
-            
+
         end
         // Here we can add any sequential behavior of the MB control signals if needed for the test scenarios.
         else begin
@@ -157,7 +157,7 @@ module ltsm_tb_attachments #(
                 idle_counter  <= 0;
                 iter_counter  <= 0;
             end
-            
+
             // Get the receiver result:
             if(d2c_mux_out_if.mb_tx_pattern_count_done == 1'b1) begin
                 d2c_mux_out_if.mb_rx_compare_done <= 1                  ; // Indicate that the comparison is done after the pattern count is done.
@@ -182,14 +182,14 @@ module ltsm_tb_attachments #(
         if(!intf.rst_n) begin
             timeout_8ms_counter      <= 0;
             intf.timeout_8ms_occured <= 0;
-        end 
+        end
         else begin
             timeout_8ms_counter      <= (intf.timeout_timer_en)? timeout_8ms_counter + 1 : 0;
             intf.timeout_8ms_occured <= (timeout_8ms_counter < TIMEOUT_CYCLES)? 0 : 1; // Set timeout_8ms to 1 if the TIMEOUT counter reaches the defined TIMEOUT_CYCLES, otherwise keep it at 0.
         end
     end
 
-    
+
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------         (timeout_8ms_counter module)         ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
@@ -198,20 +198,20 @@ module ltsm_tb_attachments #(
         if(!intf.rst_n) begin
             analog_settle_counter        <= 0;
             intf.analog_settle_time_done <= 0;
-        end 
+        end
         else begin
             analog_settle_counter        <= (intf.analog_settle_timer_en)? analog_settle_counter + 1 : 0;
             intf.analog_settle_time_done <= (analog_settle_counter < ANALOG_SETTLE_CYCLES)? 0 : 1; // Set timeout_8ms to 1 if the TIMEOUT counter reaches the defined TIMEOUT_CYCLES, otherwise keep it at 0.
         end
     end
 
-    
+
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------               (D2C PT modules)               ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     RX_D2C_PT  RX_D2C_PT_inst (
         .clk_rst(intf.clk_rst_mp),
-        
+
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
@@ -221,7 +221,7 @@ module ltsm_tb_attachments #(
         // Control Signals for MB:             //
         //=====================================//
         .mb_if(d2c_mux_in1_if.d2c2mb_mp),
-        
+
         //=====================================//
         // Control Signals for SB:             //
         //=====================================//
@@ -230,7 +230,7 @@ module ltsm_tb_attachments #(
         //=====================================//
         // Register File (RF) Control Signals: //
         //=====================================//
-            
+
         // Training Setup 4 (Offset 1050h)
         // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
         .rf_if(intf.state_rf_offset_1050_mp)
@@ -240,19 +240,19 @@ module ltsm_tb_attachments #(
     // |  -------------------------               (d2c_mux module)               ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     always @(*) begin
-        case({intf.tx_pt_en, intf.rx_pt_en}) 
-            2'b00: begin            
+        case({intf.tx_pt_en, intf.rx_pt_en})
+            2'b00: begin
                 //=======================================================================================//
                 // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
                 // LTSM -> MB                                                                            //
                 //=======================================================================================//
-                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
                 // Clock Sampling and Shapes Details Group:
                 d2c_mux_out_if.mb_tx_clk_shape                = intf.mb_tx_clk_shape               ; // 0: Differential clocking, 1: Quadrature clocking.
                 d2c_mux_out_if.mb_tx_continuous_or_strobe_clk = intf.mb_tx_continuous_or_strobe_clk; // 0: continuous mode clock, 1: strobe mode clock.
                 d2c_mux_out_if.mb_tx_clk_sampling_en          = intf.mb_tx_clk_sampling_en         ; // Enable changing Clock sampling/PI phase control state.
                 d2c_mux_out_if.mb_tx_clk_sampling             = intf.mb_tx_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-            
+
                 // Tx Pattern Generator Setup Group:
                 d2c_mux_out_if.mb_tx_pattern_en               = intf.mb_tx_pattern_en              ; // 1: Send pattern immediately, 0: Don't send pattern.
                 d2c_mux_out_if.mb_tx_pattern_setup            = intf.mb_tx_pattern_setup           ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -270,7 +270,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_tx_iter_count               = intf.mb_tx_iter_count              ; // Iterations: Indicates the iteration count of bursts followed by idle.
                 // input  mb_tx_pattern_count_done      ; // Asserted (=1) once MB completes the iter_count.
 
-                // Receiver Comparison Setup & Errors         
+                // Receiver Comparison Setup & Errors
                 d2c_mux_out_if.mb_rx_compare_en               = intf.mb_rx_compare_en              ; // 1: Enable the Rx comparison circuit, 0: Disable.
                 d2c_mux_out_if.mb_rx_max_err_thresh_aggr      = intf.mb_rx_max_err_thresh_aggr     ; // Max error Threshold in aggregate comparison.
                 d2c_mux_out_if.mb_rx_max_err_thresh_perlane   = intf.mb_rx_max_err_thresh_perlane  ; // Max error Threshold in per Lane comparison.
@@ -295,7 +295,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_rx_clk_lane_sel             = intf.mb_rx_clk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
                 d2c_mux_out_if.mb_rx_data_lane_sel            = intf.mb_rx_data_lane_sel           ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
                 d2c_mux_out_if.mb_rx_val_lane_sel             = intf.mb_rx_val_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-                d2c_mux_out_if.mb_rx_trk_lane_sel             = intf.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+                d2c_mux_out_if.mb_rx_trk_lane_sel             = intf.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
                 // PHY Level Control & Analog Interface
                 d2c_mux_out_if.phy_negotiated_speed           = intf.phy_negotiated_speed          ; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
@@ -313,17 +313,17 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
                 // input  phy_rx_clk_drift_cal_valid    ; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
 
-            
+
                 //=======================================================================================//
                 // Control Signals from the LTSM states to the SB direction: (LTSM prespective)          //
                 // LTSM -> SB                                                                            //
                 //=======================================================================================//
                 // For SB TX:
                 d2c_mux_out_if.tx_sb_msg_valid = intf.tx_sb_msg_valid; // Tell the SB that the selected message is valid.
-                d2c_mux_out_if.tx_sb_msg       = intf.tx_sb_msg      ; // Tell the Sideband the message that it should to send. 
-                d2c_mux_out_if.tx_msginfo      = intf.tx_msginfo     ; // MsgInfo field of the SB message. 
+                d2c_mux_out_if.tx_sb_msg       = intf.tx_sb_msg      ; // Tell the Sideband the message that it should to send.
+                d2c_mux_out_if.tx_msginfo      = intf.tx_msginfo     ; // MsgInfo field of the SB message.
                 d2c_mux_out_if.tx_data_field   = intf.tx_data_field  ; // Data field of the SB message.
-            
+
                 // For SB RX:
                 // input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
                 // input rx_sb_msg      , // Get the Received SB msg.
@@ -336,13 +336,13 @@ module ltsm_tb_attachments #(
                 // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
                 // LTSM -> MB                                                                            //
                 //=======================================================================================//
-                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
                 // Clock Sampling and Shapes Details Group:
                 d2c_mux_out_if.mb_tx_clk_shape                = d2c_mux_in1_if.mb_tx_clk_shape               ; // 0: Differential clocking, 1: Quadrature clocking.
                 d2c_mux_out_if.mb_tx_continuous_or_strobe_clk = d2c_mux_in1_if.mb_tx_continuous_or_strobe_clk; // 0: continuous mode clock, 1: strobe mode clock.
                 d2c_mux_out_if.mb_tx_clk_sampling_en          = d2c_mux_in1_if.mb_tx_clk_sampling_en         ; // Enable changing Clock sampling/PI phase control state.
                 d2c_mux_out_if.mb_tx_clk_sampling             = d2c_mux_in1_if.mb_tx_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-            
+
                 // Tx Pattern Generator Setup Group:
                 d2c_mux_out_if.mb_tx_pattern_en               = d2c_mux_in1_if.mb_tx_pattern_en              ; // 1: Send pattern immediately, 0: Don't send pattern.
                 d2c_mux_out_if.mb_tx_pattern_setup            = d2c_mux_in1_if.mb_tx_pattern_setup           ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -360,7 +360,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_tx_iter_count               = d2c_mux_in1_if.mb_tx_iter_count              ; // Iterations: Indicates the iteration count of bursts followed by idle.
                 // input  mb_tx_pattern_count_done      ; // Asserted (=1) once MB completes the iter_count.
 
-                // Receiver Comparison Setup & Errors         
+                // Receiver Comparison Setup & Errors
                 d2c_mux_out_if.mb_rx_compare_en               = d2c_mux_in1_if.mb_rx_compare_en              ; // 1: Enable the Rx comparison circuit, 0: Disable.
                 d2c_mux_out_if.mb_rx_max_err_thresh_aggr      = d2c_mux_in1_if.mb_rx_max_err_thresh_aggr     ; // Max error Threshold in aggregate comparison.
                 d2c_mux_out_if.mb_rx_max_err_thresh_perlane   = d2c_mux_in1_if.mb_rx_max_err_thresh_perlane  ; // Max error Threshold in per Lane comparison.
@@ -385,7 +385,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_rx_clk_lane_sel             = d2c_mux_in1_if.mb_rx_clk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
                 d2c_mux_out_if.mb_rx_data_lane_sel            = d2c_mux_in1_if.mb_rx_data_lane_sel           ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
                 d2c_mux_out_if.mb_rx_val_lane_sel             = d2c_mux_in1_if.mb_rx_val_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-                d2c_mux_out_if.mb_rx_trk_lane_sel             = d2c_mux_in1_if.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+                d2c_mux_out_if.mb_rx_trk_lane_sel             = d2c_mux_in1_if.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
                 // PHY Level Control & Analog Interface
                 d2c_mux_out_if.phy_negotiated_speed           = d2c_mux_in1_if.phy_negotiated_speed          ; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
@@ -403,17 +403,17 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
                 // input  phy_rx_clk_drift_cal_valid    ; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
 
-            
+
                 //=======================================================================================//
                 // Control Signals from the LTSM states to the SB direction: (LTSM prespective)          //
                 // LTSM -> SB                                                                            //
                 //=======================================================================================//
                 // For SB TX:
                 d2c_mux_out_if.tx_sb_msg_valid                = d2c_mux_in1_if.tx_sb_msg_valid               ; // Tell the SB that the selected message is valid.
-                d2c_mux_out_if.tx_sb_msg                      = d2c_mux_in1_if.tx_sb_msg                     ; // Tell the Sideband the message that it should to send. 
-                d2c_mux_out_if.tx_msginfo                     = d2c_mux_in1_if.tx_msginfo                    ; // MsgInfo field of the SB message. 
+                d2c_mux_out_if.tx_sb_msg                      = d2c_mux_in1_if.tx_sb_msg                     ; // Tell the Sideband the message that it should to send.
+                d2c_mux_out_if.tx_msginfo                     = d2c_mux_in1_if.tx_msginfo                    ; // MsgInfo field of the SB message.
                 d2c_mux_out_if.tx_data_field                  = d2c_mux_in1_if.tx_data_field                 ; // Data field of the SB message.
-            
+
                 // For SB RX:
                 // input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
                 // input rx_sb_msg      , // Get the Received SB msg.
@@ -425,13 +425,13 @@ module ltsm_tb_attachments #(
                 // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
                 // LTSM -> MB                                                                            //
                 //=======================================================================================//
-                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//  
+                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
                 // Clock Sampling and Shapes Details Group:
                 d2c_mux_out_if.mb_tx_clk_shape                = d2c_mux_in2_if.mb_tx_clk_shape               ; // 0: Differential clocking, 1: Quadrature clocking.
                 d2c_mux_out_if.mb_tx_continuous_or_strobe_clk = d2c_mux_in2_if.mb_tx_continuous_or_strobe_clk; // 0: continuous mode clock, 1: strobe mode clock.
                 d2c_mux_out_if.mb_tx_clk_sampling_en          = d2c_mux_in2_if.mb_tx_clk_sampling_en         ; // Enable changing Clock sampling/PI phase control state.
                 d2c_mux_out_if.mb_tx_clk_sampling             = d2c_mux_in2_if.mb_tx_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-            
+
                 // Tx Pattern Generator Setup Group:
                 d2c_mux_out_if.mb_tx_pattern_en               = d2c_mux_in2_if.mb_tx_pattern_en              ; // 1: Send pattern immediately, 0: Don't send pattern.
                 d2c_mux_out_if.mb_tx_pattern_setup            = d2c_mux_in2_if.mb_tx_pattern_setup           ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -449,7 +449,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_tx_iter_count               = d2c_mux_in2_if.mb_tx_iter_count              ; // Iterations: Indicates the iteration count of bursts followed by idle.
                 // input  mb_tx_pattern_count_done      ; // Asserted (=1) once MB completes the iter_count.
 
-                // Receiver Comparison Setup & Errors         
+                // Receiver Comparison Setup & Errors
                 d2c_mux_out_if.mb_rx_compare_en               = d2c_mux_in2_if.mb_rx_compare_en              ; // 1: Enable the Rx comparison circuit, 0: Disable.
                 d2c_mux_out_if.mb_rx_max_err_thresh_aggr      = d2c_mux_in2_if.mb_rx_max_err_thresh_aggr     ; // Max error Threshold in aggregate comparison.
                 d2c_mux_out_if.mb_rx_max_err_thresh_perlane   = d2c_mux_in2_if.mb_rx_max_err_thresh_perlane  ; // Max error Threshold in per Lane comparison.
@@ -474,7 +474,7 @@ module ltsm_tb_attachments #(
                 d2c_mux_out_if.mb_rx_clk_lane_sel             = d2c_mux_in2_if.mb_rx_clk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
                 d2c_mux_out_if.mb_rx_data_lane_sel            = d2c_mux_in2_if.mb_rx_data_lane_sel           ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
                 d2c_mux_out_if.mb_rx_val_lane_sel             = d2c_mux_in2_if.mb_rx_val_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-                d2c_mux_out_if.mb_rx_trk_lane_sel             = d2c_mux_in2_if.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).  
+                d2c_mux_out_if.mb_rx_trk_lane_sel             = d2c_mux_in2_if.mb_rx_trk_lane_sel            ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
                 // PHY Level Control & Analog Interface
                 d2c_mux_out_if.phy_negotiated_speed           = d2c_mux_in2_if.phy_negotiated_speed          ; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
@@ -492,17 +492,17 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
                 // input  phy_rx_clk_drift_cal_valid    ; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
 
-            
+
                 //=======================================================================================//
                 // Control Signals from the LTSM states to the SB direction: (LTSM prespective)          //
                 // LTSM -> SB                                                                            //
                 //=======================================================================================//
                 // For SB TX:
                 d2c_mux_out_if.tx_sb_msg_valid                = d2c_mux_in2_if.tx_sb_msg_valid               ; // Tell the SB that the selected message is valid.
-                d2c_mux_out_if.tx_sb_msg                      = d2c_mux_in2_if.tx_sb_msg                     ; // Tell the Sideband the message that it should to send. 
-                d2c_mux_out_if.tx_msginfo                     = d2c_mux_in2_if.tx_msginfo                    ; // MsgInfo field of the SB message. 
+                d2c_mux_out_if.tx_sb_msg                      = d2c_mux_in2_if.tx_sb_msg                     ; // Tell the Sideband the message that it should to send.
+                d2c_mux_out_if.tx_msginfo                     = d2c_mux_in2_if.tx_msginfo                    ; // MsgInfo field of the SB message.
                 d2c_mux_out_if.tx_data_field                  = d2c_mux_in2_if.tx_data_field                 ; // Data field of the SB message.
-            
+
                 // For SB RX:
                 // input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
                 // input rx_sb_msg      , // Get the Received SB msg.
@@ -512,7 +512,7 @@ module ltsm_tb_attachments #(
         endcase
 
         // These signals in comming from the MB and SB and pathing through the d2c_mux module.
-        // For the LTSM, these signals are inputs so, they path directly to LTSM FSMs.  
+        // For the LTSM, these signals are inputs so, they path directly to LTSM FSMs.
         intf.mb_tx_pattern_count_done   = d2c_mux_out_if.mb_tx_pattern_count_done  ; // Asserted (=1) once MB completes the iter_count.
 
         intf.mb_rx_aggr_err                       = d2c_mux_out_if.mb_rx_aggr_err            ; // The total calculated Aggregate Errors on Rx.
@@ -531,37 +531,37 @@ module ltsm_tb_attachments #(
         intf.rx_msginfo                           = d2c_mux_out_if.rx_msginfo                ; // MsgInfo field of the SB message received.
         intf.rx_data_field                        = d2c_mux_out_if.rx_data_field             ; // Data field of the SB message.
 
-        
-        d2c_mux_in1_if.mb_tx_pattern_count_done   = d2c_mux_out_if.mb_tx_pattern_count_done  ; 
-        d2c_mux_in1_if.mb_rx_aggr_err             = d2c_mux_out_if.mb_rx_aggr_err            ; 
-        d2c_mux_in1_if.mb_rx_perlane_err          = d2c_mux_out_if.mb_rx_perlane_err         ; 
-        d2c_mux_in1_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ; 
-        d2c_mux_in1_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ; 
-        d2c_mux_in1_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ; 
-        d2c_mux_in1_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ; 
-        d2c_mux_in1_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ; 
-        d2c_mux_in1_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state; 
-        d2c_mux_in1_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid; 
+
+        d2c_mux_in1_if.mb_tx_pattern_count_done   = d2c_mux_out_if.mb_tx_pattern_count_done  ;
+        d2c_mux_in1_if.mb_rx_aggr_err             = d2c_mux_out_if.mb_rx_aggr_err            ;
+        d2c_mux_in1_if.mb_rx_perlane_err          = d2c_mux_out_if.mb_rx_perlane_err         ;
+        d2c_mux_in1_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ;
+        d2c_mux_in1_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ;
+        d2c_mux_in1_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
+        d2c_mux_in1_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ;
+        d2c_mux_in1_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
+        d2c_mux_in1_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
+        d2c_mux_in1_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
         d2c_mux_in1_if.rx_sb_msg_valid            = d2c_mux_out_if.rx_sb_msg_valid           ;
         d2c_mux_in1_if.rx_sb_msg                  = d2c_mux_out_if.rx_sb_msg                 ;
         d2c_mux_in1_if.rx_msginfo                 = d2c_mux_out_if.rx_msginfo                ;
         d2c_mux_in1_if.rx_data_field              = d2c_mux_out_if.rx_data_field             ;
 
 
-        d2c_mux_in2_if.mb_tx_pattern_count_done   = d2c_mux_out_if.mb_tx_pattern_count_done  ; 
-        d2c_mux_in2_if.mb_rx_aggr_err             = d2c_mux_out_if.mb_rx_aggr_err            ; 
-        d2c_mux_in2_if.mb_rx_perlane_err          = d2c_mux_out_if.mb_rx_perlane_err         ; 
-        d2c_mux_in2_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ; 
-        d2c_mux_in2_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ; 
-        d2c_mux_in2_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ; 
-        d2c_mux_in2_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ; 
-        d2c_mux_in2_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ; 
-        d2c_mux_in2_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state; 
+        d2c_mux_in2_if.mb_tx_pattern_count_done   = d2c_mux_out_if.mb_tx_pattern_count_done  ;
+        d2c_mux_in2_if.mb_rx_aggr_err             = d2c_mux_out_if.mb_rx_aggr_err            ;
+        d2c_mux_in2_if.mb_rx_perlane_err          = d2c_mux_out_if.mb_rx_perlane_err         ;
+        d2c_mux_in2_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ;
+        d2c_mux_in2_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ;
+        d2c_mux_in2_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
+        d2c_mux_in2_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ;
+        d2c_mux_in2_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
+        d2c_mux_in2_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
         d2c_mux_in2_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
         d2c_mux_in1_if.rx_sb_msg_valid            = d2c_mux_out_if.rx_sb_msg_valid           ;
         d2c_mux_in1_if.rx_sb_msg                  = d2c_mux_out_if.rx_sb_msg                 ;
         d2c_mux_in1_if.rx_msginfo                 = d2c_mux_out_if.rx_msginfo                ;
-        d2c_mux_in1_if.rx_data_field              = d2c_mux_out_if.rx_data_field             ; 
+        d2c_mux_in1_if.rx_data_field              = d2c_mux_out_if.rx_data_field             ;
     end
 
 endmodule
