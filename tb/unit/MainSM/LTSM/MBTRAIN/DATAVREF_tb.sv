@@ -93,8 +93,10 @@ module DATAVREF_tb ();
             input [15:0] task_perlane_err  = 16'b0 , // Dummy argument to align with VALVREF_tb interface.
             input [VREF_CODE_WIDTH-1:0] task_vref_code_min [15:0] = '{default: VREF_CODE_WIDTH'(50)},
             input [VREF_CODE_WIDTH-1:0] task_vref_code_max [15:0] = '{default: VREF_CODE_WIDTH'(100)},
-            input [15:0] task_assume_holes_after_quarter_eye_start = 16'b0
+            input [15:0] task_assume_holes_after_quarter_eye_start = 16'b0,
+            input [2:0]  task_mb_rx_data_lane_mask = 3'b011
         );
+        intf.mb_rx_data_lane_mask = task_mb_rx_data_lane_mask;
         intf.tb_aggr_err     = task_aggr_err    ;
         // intf.tb_perlane_err is driven dynamically in the combinatorial always block, unlike VALVREF.
         // intf.tb_val_err      = task_val_err     ;
@@ -137,9 +139,10 @@ module DATAVREF_tb ();
     task reset();
         rst_n                   = 0;
         intf.tb_aggr_err        = 0;
-        intf.tb_perlane_err     = 0;
-        intf.tb_val_err         = 0;
-        intf.tb_clk_err         = 0;
+        intf.tb_perlane_err       = 0;
+        intf.tb_val_err           = 0;
+        intf.tb_clk_err           = 0;
+        intf.mb_rx_data_lane_mask = 3'b011;
 
         intf.tb_wait_timeout    = 0; // Set wait_timeout to 0 to indicate that we are not testing the timeout condition at the beginning.
         intf.tb_wrong_sb_msg_en = 0;
@@ -190,14 +193,28 @@ module DATAVREF_tb ();
                     logic [VREF_CODE_WIDTH-1:0] hole_pos [15:0];
                     logic [VREF_CODE_WIDTH-1:0] expected_best_center [15:0];
 
+                    logic [15:0] active_lanes;
                     any_lane_failed = 1'b0;
                     global_vref_fail_flag = 1'b0;
+                    case(intf.mb_rx_data_lane_mask)
+                        3'b000:  active_lanes = 16'h0000;
+                        3'b001:  active_lanes = 16'h00FF;
+                        3'b010:  active_lanes = 16'hFF00;
+                        3'b011:  active_lanes = 16'hFFFF;
+                        3'b100:  active_lanes = 16'h000F;
+                        3'b101:  active_lanes = 16'h00F0;
+                        default: active_lanes = 16'h0000;
+                    endcase
 
                     for(int k=0; k<16; k++) begin
                         hole_pos[k] = (assume_holes_after_quarter_eye_start[k])? current_task_vref_min[k] + (current_task_vref_max[k] - current_task_vref_min[k])/4 : (current_task_vref_min[k]-1);
                         expected_best_center[k] = ({1'b0, hole_pos[k] + 1} + {1'b0, current_task_vref_max[k]}) / 2;
-                        vref_fail_flag[k] = (assume_holes_after_quarter_eye_start[k] && current_task_vref_min[k] == current_task_vref_max[k]);
-                        if (vref_fail_flag[k]) global_vref_fail_flag = 1'b1;
+                        if (active_lanes[k]) begin
+                            vref_fail_flag[k] = (assume_holes_after_quarter_eye_start[k] && current_task_vref_min[k] == current_task_vref_max[k]);
+                            if (vref_fail_flag[k]) global_vref_fail_flag = 1'b1;
+                        end else begin
+                            vref_fail_flag[k] = 1'b0;
+                        end
                     end
 
                     if (intf.datavref_fail_flag != global_vref_fail_flag) begin
@@ -207,14 +224,16 @@ module DATAVREF_tb ();
                     end
 
                     for(int k=0; k<16; k++) begin
-                        if ((!intf.datavref_fail_flag && !vref_fail_flag[k] && intf.phy_rx_datavref_ctrl[k] != expected_best_center[k])) begin
-                            any_lane_failed = 1'b1;
-                            repeat(5) $display("\t\t ************************** ERROR **************************");
-                            $display("error datavref_fail_flag = %0d, lane[%0d], intf.phy_rx_datavref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
-                                intf.datavref_fail_flag, k,
-                                intf.phy_rx_datavref_ctrl[k],
-                                expected_best_center[k],
-                                assume_holes_after_quarter_eye_start[k]);
+                        if (active_lanes[k]) begin
+                            if ((!intf.datavref_fail_flag && !vref_fail_flag[k] && intf.phy_rx_datavref_ctrl[k] != expected_best_center[k])) begin
+                                any_lane_failed = 1'b1;
+                                repeat(5) $display("\t\t ************************** ERROR **************************");
+                                $display("error datavref_fail_flag = %0d, lane[%0d], intf.phy_rx_datavref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
+                                    intf.datavref_fail_flag, k,
+                                    intf.phy_rx_datavref_ctrl[k],
+                                    expected_best_center[k],
+                                    assume_holes_after_quarter_eye_start[k]);
+                            end
                         end
                     end
                     if (any_lane_failed) begin
@@ -484,10 +503,21 @@ module DATAVREF_tb ();
 
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
-        // The test scenario 18:50 or (18:500 but it will take some minutes)): Check Holes Scenario.  //
+        // The test scenario 18:100 or (18:1000 but it will take some minutes)): Check Holes Scenario.  //
         /////////////////////////////////////////////////////////////////////////////////////////////////
         for(int i = 18; i <= 1000; i++) begin
+            logic [2:0] rand_mask;
+
             $display("\n=========>  Test Scenario (%0d): Holes Scenario. <=========", test_scenario_no++);
+
+            rand_mask = 3'($urandom_range(0, 5));
+            // rand_mask = 3'b000; // No lanes active
+            // rand_mask = 3'b001; // 0 to 7
+            // rand_mask = 3'b010; // 8 to 15
+            // rand_mask = 3'b011; // 0 to 15
+            // rand_mask = 3'b100; // 0 to 3
+            // rand_mask = 3'b101; // 4 to 7
+
 
             // holes_arr = 16'hFFFF;
             holes_arr = 16'($urandom_range(0, 16'hFFFF));
@@ -505,7 +535,8 @@ module DATAVREF_tb ();
                 .task_perlane_err  (16'($random())),
                 .task_vref_code_min(vref_min_arr),
                 .task_vref_code_max(vref_max_arr),
-                .task_assume_holes_after_quarter_eye_start(holes_arr)
+                .task_assume_holes_after_quarter_eye_start(holes_arr),
+                .task_mb_rx_data_lane_mask(rand_mask)
             );
             start_test();
         end

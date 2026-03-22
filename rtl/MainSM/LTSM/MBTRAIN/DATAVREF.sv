@@ -275,7 +275,28 @@ module DATAVREF #(
             end
         endcase
     end
-
+    // ==================================================
+    // ==================================================
+    // MB Lane Control
+    // To convert the "mb_rx_data_lane_mask" from 3 bits to 16 bits, we use "negotiated_data_lanes".
+    // 000b:  None (Degrade not possible)
+    // 001b: Logical Lanes 0 to 7
+    // 010b: Logical Lanes 8 to 15
+    // 011b: Logical Lanes 0 to 15
+    // 100b: Logical Lanes 0 to 3
+    // 101b: Logical Lanes 4 to 7
+    logic [15:0] negotiated_data_lanes;
+    always @(*) begin
+        case(ltsm_if.mb_rx_data_lane_mask)
+            3'b000:  negotiated_data_lanes = 16'h0000;
+            3'b001:  negotiated_data_lanes = 16'h00FF;
+            3'b010:  negotiated_data_lanes = 16'hFF00;
+            3'b011:  negotiated_data_lanes = 16'hFFFF;
+            3'b100:  negotiated_data_lanes = 16'h000F;
+            3'b101:  negotiated_data_lanes = 16'h00F0;
+            default: negotiated_data_lanes = 16'h0000;
+        endcase
+    end
 
     genvar lane;
     generate
@@ -299,7 +320,6 @@ module DATAVREF #(
             ltsm_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
-                // lane_fail_flag[j] <= 1'b0;
             end
         end
         else if(current_state == DATAVREF_START_REQ) begin
@@ -307,7 +327,6 @@ module DATAVREF #(
             ltsm_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
-                // lane_fail_flag[j] <= 1'b0;
             end
         end
         // Change the Vref value:
@@ -321,14 +340,14 @@ module DATAVREF #(
             for(j=0; j<16; j=j+1) begin
                 if(vref_code_filled[j] == 1'b1) begin
                     best_vref_code[j] <= ({1'b0, min_vref_code[j]} + {1'b0, max_vref_code[j]}) >> 1;
-                    // lane_fail_flag[j] <= 1'b0;
                 end
                 else begin
                     best_vref_code[j] <= '0;
-                    // lane_fail_flag[j] <= 1'b1; // Calibration failed for this lane
                 end
             end
-            ltsm_if.datavref_fail_flag <= ~( &vref_code_filled ); // Fail if any lane is not filled
+
+            // Fail if any lane (of the negotiated lanes) is not filled
+            ltsm_if.datavref_fail_flag <= ~( &(vref_code_filled|(~negotiated_data_lanes)) );
         end
     end
 
@@ -364,7 +383,7 @@ module DATAVREF #(
                         is_in_valid_region[i] <= 1'b1; // start new zone.
                         temp_min_vref[i]      <= current_vref_code;
 
-                        if (!vref_code_filled[i]) begin
+                        if (!vref_code_filled[i] && negotiated_data_lanes[i]) begin
                             vref_code_filled[i] <= 1'b1;
                             min_vref_code[i]    <= current_vref_code;
                             max_vref_code[i]    <= current_vref_code;
