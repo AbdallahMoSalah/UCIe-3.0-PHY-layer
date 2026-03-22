@@ -1,3 +1,7 @@
+# RTL packages and Interfaces
+rtl/common/UCIe_pkg.sv
+rtl/common/ltsm_if.sv
+
 # DUT
 rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT.sv
 
