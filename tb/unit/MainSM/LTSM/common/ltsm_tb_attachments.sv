@@ -6,13 +6,13 @@ module ltsm_tb_attachments #(
         parameter integer TIMEOUT_CYCLES       = 'D8_000_000, // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles).
         parameter integer ANALOG_SETTLE_CYCLES = 'D10         // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
     ) (
-        ltsm_if intf
+        internal_ltsm_if intf
     );
     //  The Signals here can be accessed usnig "Hierarchical Reference" (XMR (Cross-Module Reference)).
 
-    ltsm_if d2c_mux_out_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // The d2c_mux collection interface.
-    ltsm_if d2c_mux_in1_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module RX_D2C_PT
-    ltsm_if d2c_mux_in2_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module TX_D2C_PT
+    internal_ltsm_if d2c_mux_out_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // The d2c_mux collection interface.
+    internal_ltsm_if d2c_mux_in1_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module RX_D2C_PT
+    internal_ltsm_if d2c_mux_in2_if (.lclk(intf.lclk), .rst_n(intf.rst_n)); // It's from the module TX_D2C_PT
 
 
     // ===================================================================== //
@@ -101,7 +101,8 @@ module ltsm_tb_attachments #(
                 tx_sb_msg_valid_pulse_counter <= tx_sb_msg_valid_pulse_counter + 1'b1;
             end
             else if(d2c_mux_out_if.tx_sb_msg_valid == 1'b1) begin
-                tx_sb_msg_valid_pulse <= 1'b0;
+                tx_sb_msg_valid_pulse         <= 1'b0;
+                tx_sb_msg_valid_pulse_counter <=  '0; // Reset so next assertion starts fresh
             end
             else begin
                 tx_sb_msg_valid_pulse_counter <=  '0;
@@ -209,31 +210,20 @@ module ltsm_tb_attachments #(
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------               (D2C PT modules)               ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
-    RX_D2C_PT  RX_D2C_PT_inst (
-        .clk_rst(intf.clk_rst_mp),
 
+    assign d2c_mux_in1_if.cfg_train4_max_err_thresh_perlane = intf.cfg_train4_max_err_thresh_perlane;
+    assign d2c_mux_in1_if.cfg_train4_max_err_thresh_aggr    = intf.cfg_train4_max_err_thresh_aggr;
+
+    RX_D2C_PT  RX_D2C_PT_inst (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        .d2c_if(intf.d2c2ltsm_mp),
+        .substate_if(intf.d2c2substate_mp),
 
         //=====================================//
-        // Control Signals for MB:             //
+        // Control Signals for the MB and SB:  //
         //=====================================//
-        .mb_if(d2c_mux_in1_if.d2c2mb_mp),
-
-        //=====================================//
-        // Control Signals for SB:             //
-        //=====================================//
-        .sb_if(d2c_mux_in1_if.ltsm2sb_mp),
-
-        //=====================================//
-        // Register File (RF) Control Signals: //
-        //=====================================//
-
-        // Training Setup 4 (Offset 1050h)
-        // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
-        .rf_if(intf.state_rf_offset_1050_mp)
+        .mux_if(d2c_mux_in1_if.d2c2mux_mp)
     );
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
