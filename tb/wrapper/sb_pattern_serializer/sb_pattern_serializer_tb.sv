@@ -136,7 +136,7 @@ initial begin
     mapper_valid = 0;
 
     start_pat_req = 0;
-    pattern_mode = 0;
+    pattern_mode = 1;
     send_4_iter  = 0;
 
     iter_count   = 0;
@@ -186,6 +186,7 @@ initial begin
 // Stop pattern immediately
 ////////////////////////////////////////////////////////////
 
+    repeat(2) @(posedge clk_parallel);
     pattern_mode = 0;
     start_pat_req = 0;
     send_4_iter = 0;
@@ -200,6 +201,7 @@ initial begin
 
     mapper_data  = $random;
     mapper_valid = 1;
+    @(posedge clk_parallel);
     while(!mapper_ready)
         @(posedge clk_parallel);
     
