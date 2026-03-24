@@ -26,5 +26,13 @@ output reg [15:0] o_per_lane_error ,
 output reg o_error_done 
 
 );
+reg [15:0] error_counter ;
+
+
+
+
+
+
+
 
 endmodule
