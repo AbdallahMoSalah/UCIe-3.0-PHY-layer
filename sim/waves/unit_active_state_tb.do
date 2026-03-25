@@ -19,8 +19,8 @@ add wave -noupdate -color blue -itemcolor blue /unit_active_state_tb/dut/next_st
 add wave -noupdate -color blue -itemcolor blue /unit_active_state_tb/dut/cs
 add wave -noupdate -color blue -itemcolor blue /unit_active_state_tb/dut/flow
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {53975 ps} 0}
-quietly wave cursor active 1
+WaveRestoreCursors {{Cursor 1} {99313 ps} 0} {{Cursor 2} {19160 ps} 0}
+quietly wave cursor active 2
 configure wave -namecolwidth 227
 configure wave -valuecolwidth 221
 configure wave -justifyvalue left
@@ -33,6 +33,6 @@ configure wave -gridoffset 0
 configure wave -gridperiod 1
 configure wave -griddelta 40
 configure wave -timeline 0
-configure wave -timelineunits ps
+configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {936281 ps}
+WaveRestoreZoom {0 ps} {99313 ps}

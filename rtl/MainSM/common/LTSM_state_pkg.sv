@@ -10,5 +10,4 @@ package LTSM_state_pkg;
                                 TRAINERROR,
                                 L1,
                                 L2 } LTSM_state_e;
-    
 endpackage

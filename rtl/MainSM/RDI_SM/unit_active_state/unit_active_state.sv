@@ -349,7 +349,7 @@ module unit_active_state(
                 l1_send_req: begin
                     massage_send<=NOP;
                     // Check if L1 Request was received while initiating L1 from adapter side
-                    if ((massage_recieve==RDI_L1_REQ)&&flow6)begin
+                    if ((massage_recieve==RDI_L1_REQ)&&(flow==flow6))begin
                         cs<=l1_receive_resp;
                     end
                     // Check if PM NAK response was received, meaning entry is aborted
@@ -358,7 +358,7 @@ module unit_active_state(
                         next_state<=Active_PMNAK;
                     end
                     // Check if we are responding to a received L1 Request
-                    if (flow7)begin
+                    if (flow==flow7)begin
                         massage_send<=RDI_L1_RSP;
                         cs<=l1_send_resp;
                     end
@@ -367,12 +367,12 @@ module unit_active_state(
                 // Wait for L1 Response or finalize L1 transition depending on flow source
                 l1_receive_resp: begin
                     // Check if L1 Response was received for adapter-initiated L1
-                    if ((massage_recieve==RDI_L1_RSP)&&flow6)begin
+                    if ((massage_recieve==RDI_L1_RSP)&&(flow==flow6))begin
                         cs<=l1_send_resp;
                         massage_send<=RDI_L1_RSP;
                     end
                     // Check if L1 Response was received for peer-initiated L1
-                    if ((massage_recieve==RDI_L1_RSP)&&flow7)begin 
+                    if ((massage_recieve==RDI_L1_RSP)&&(flow==flow7))begin 
                         cs<=l1;
                         next_state<=L1;
                     end
@@ -382,12 +382,12 @@ module unit_active_state(
                 l1_send_resp: begin
                     massage_send<=NOP;
                     // If Adapter initiated, transition directly to L1 
-                    if (flow6)begin
+                    if (flow==flow6)begin
                     cs<=l1;
                     next_state<=L1;
                     end
                     // If peer initiated, transition to wait for final reception response
-                    if (flow7)begin
+                    if (flow==flow7)begin
                         cs<=l1_receive_resp;
                     end
                 end
@@ -407,7 +407,7 @@ module unit_active_state(
                 l2_send_req: begin
                     massage_send<=NOP;
                     // Check if L2 Request was received while initiating L2 from adapter side
-                    if ((massage_recieve==RDI_L2_REQ)&&flow9)begin
+                    if ((massage_recieve==RDI_L2_REQ)&&(flow==flow9))begin
                         cs<=l2_receive_resp;
                     end
                     // Check if PM NAK response was received, meaning entry is aborted
@@ -416,7 +416,7 @@ module unit_active_state(
                         next_state<=Active_PMNAK;
                     end
                     // Check if we are responding to a received L2 Request
-                    if (flow8)begin
+                    if (flow==flow8)begin
                         massage_send<=RDI_L2_RSP;
                         cs<=l2_send_resp;
                     end
@@ -425,12 +425,12 @@ module unit_active_state(
                 // Wait for L2 Response or finalize L2 transition depending on flow source
                 l2_receive_resp: begin
                     // Check if L2 Response was received for adapter-initiated L2
-                    if ((massage_recieve==RDI_L2_RSP)&&flow9)begin
+                    if ((massage_recieve==RDI_L2_RSP)&&(flow==flow9))begin
                         cs<=l2_send_resp;
                         massage_send<=RDI_L2_RSP;
                     end
                     // Check if L2 Response was received for peer-initiated L2
-                    if ((massage_recieve==RDI_L2_RSP)&&flow8)begin 
+                    if ((massage_recieve==RDI_L2_RSP)&&(flow==flow8))begin 
                         cs<=l2;
                         next_state<=L2;
                     end
@@ -440,12 +440,12 @@ module unit_active_state(
                 l2_send_resp: begin
                     massage_send<=NOP;
                     // If Adapter initiated, transition directly to L2 
-                    if (flow9)begin
+                    if (flow==flow9)begin
                     cs<=l2;
                     next_state<=L2;
                     end
                     // If peer initiated, transition to wait for final reception response
-                    if (flow8)begin
+                    if (flow==flow8)begin
                         cs<=l2_receive_resp;
                     end
                 end
