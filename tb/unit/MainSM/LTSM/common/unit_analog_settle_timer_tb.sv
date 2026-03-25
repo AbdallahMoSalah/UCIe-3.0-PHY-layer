@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module analog_settle_timer_tb;
+module unit_analog_settle_timer_tb;
     logic lclk;
     logic rst_n;
     logic timer_en;
@@ -27,10 +27,10 @@ module analog_settle_timer_tb;
 
     task check_errors;
         if (error_count > 0) begin
-            $display("FAILED: %0d errors found in analog_settle_timer_tb", error_count);
+            $display("FAILED: %0d errors found in unit_analog_settle_timer_tb", error_count);
             $stop;
         end else begin
-            $display("PASSED: analog_settle_timer_tb completed successfully.");
+            $display("PASSED: unit_analog_settle_timer_tb completed successfully.");
         end
     endtask
 
@@ -136,3 +136,4 @@ module analog_settle_timer_tb;
         $stop;
     end
 endmodule
+

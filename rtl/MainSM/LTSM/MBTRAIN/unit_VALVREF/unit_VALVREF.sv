@@ -1,5 +1,5 @@
 
-module VALVREF #(
+module unit_VALVREF #(
         parameter MAX_VAL_VREF_CODE   = 7'D127,
         parameter MIN_VAL_VREF_CODE   = 7'D10
     ) (

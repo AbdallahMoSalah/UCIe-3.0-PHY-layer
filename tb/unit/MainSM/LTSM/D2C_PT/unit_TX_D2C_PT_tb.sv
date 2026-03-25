@@ -1,7 +1,7 @@
 
 `timescale 1ps / 1ps
 
-module TX_D2C_PT_tb ();
+module unit_TX_D2C_PT_tb ();
     import UCIe_pkg::*;
 
     parameter LCLK_PERIOD    = 1*1000 ; // lclk = 1ns (1GHz), waveform x1000
@@ -19,22 +19,22 @@ module TX_D2C_PT_tb ();
 
     // FSM State Mirroring for Monitoring
     typedef enum reg [3:0] {
-        TX_PT_IDLE         = TX_D2C_PT_inst.TX_PT_IDLE        , // (S0)
-        TX_PT_START_REQ    = TX_D2C_PT_inst.TX_PT_START_REQ   , // (S1)
-        TX_PT_START_RESP   = TX_D2C_PT_inst.TX_PT_START_RESP  , // (S2)
-        TX_PT_CLR_ERR_REQ  = TX_D2C_PT_inst.TX_PT_CLR_ERR_REQ , // (S3)
-        TX_PT_CLR_ERR_RESP = TX_D2C_PT_inst.TX_PT_CLR_ERR_RESP, // (S4)
-        TX_PT_PATTERN_GEN  = TX_D2C_PT_inst.TX_PT_PATTERN_GEN , // (S5)
-        TX_PT_RESULTS_REQ  = TX_D2C_PT_inst.TX_PT_RESULTS_REQ  , // (S6)
-        TX_PT_RESULTS_RESP = TX_D2C_PT_inst.TX_PT_RESULTS_RESP , // (S7)
-        TX_PT_END_REQ      = TX_D2C_PT_inst.TX_PT_END_REQ     , // (S8)
-        TX_PT_END_RESP     = TX_D2C_PT_inst.TX_PT_END_RESP    , // (S9)
-        TX_PT_DONE         = TX_D2C_PT_inst.TX_PT_DONE        , // (S10)
-        TO_TRAINERROR      = TX_D2C_PT_inst.TO_TRAINERROR       // (S11)
+        TX_PT_IDLE         = unit_TX_D2C_PT_inst.TX_PT_IDLE        , // (S0)
+        TX_PT_START_REQ    = unit_TX_D2C_PT_inst.TX_PT_START_REQ   , // (S1)
+        TX_PT_START_RESP   = unit_TX_D2C_PT_inst.TX_PT_START_RESP  , // (S2)
+        TX_PT_CLR_ERR_REQ  = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_REQ , // (S3)
+        TX_PT_CLR_ERR_RESP = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_RESP, // (S4)
+        TX_PT_PATTERN_GEN  = unit_TX_D2C_PT_inst.TX_PT_PATTERN_GEN , // (S5)
+        TX_PT_RESULTS_REQ  = unit_TX_D2C_PT_inst.TX_PT_RESULTS_REQ  , // (S6)
+        TX_PT_RESULTS_RESP = unit_TX_D2C_PT_inst.TX_PT_RESULTS_RESP , // (S7)
+        TX_PT_END_REQ      = unit_TX_D2C_PT_inst.TX_PT_END_REQ     , // (S8)
+        TX_PT_END_RESP     = unit_TX_D2C_PT_inst.TX_PT_END_RESP    , // (S9)
+        TX_PT_DONE         = unit_TX_D2C_PT_inst.TX_PT_DONE        , // (S10)
+        TO_TRAINERROR      = unit_TX_D2C_PT_inst.TO_TRAINERROR       // (S11)
     } fsm_state_t;
 
     fsm_state_t state_monitor;
-    assign state_monitor = fsm_state_t'(TX_D2C_PT_inst.current_state);
+    assign state_monitor = fsm_state_t'(unit_TX_D2C_PT_inst.current_state);
 
     // Sideband message Names from UCIe_pkg:
     import UCIe_pkg::Start_Tx_Init_D_to_C_point_test_req;
@@ -49,7 +49,7 @@ module TX_D2C_PT_tb ();
     import UCIe_pkg::NOTHING;
 
     // DUT Instantiation
-    TX_D2C_PT TX_D2C_PT_inst (
+    unit_TX_D2C_PT unit_TX_D2C_PT_inst (
         .d2c_if(intf.d2c2substate_mp),
         .mux_if(intf.d2c2mux_mp)
     );
@@ -384,3 +384,6 @@ module TX_D2C_PT_tb ();
     end
 
 endmodule
+
+
+

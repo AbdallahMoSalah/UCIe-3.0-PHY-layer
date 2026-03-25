@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module pulse_gen_tx_tb;
+module unit_pulse_gen_tx_tb;
     logic lclk;
     logic rst_n;
     logic pulse_in;
@@ -9,7 +9,7 @@ module pulse_gen_tx_tb;
     localparam WIDTH = 8;
     localparam CLK_PERIOD = 10;
 
-    pulse_gen_tx #(
+    unit_pulse_gen_tx #(
         .WIDTH(WIDTH)
     ) dut (
         .lclk(lclk),
@@ -25,10 +25,10 @@ module pulse_gen_tx_tb;
 
     task check_errors;
         if (error_count > 0) begin
-            $display("FAILED: %0d errors found in pulse_gen_tx_tb", error_count);
+            $display("FAILED: %0d errors found in unit_pulse_gen_tx_tb", error_count);
             $stop;
         end else begin
-            $display("PASSED: pulse_gen_tx_tb completed successfully.");
+            $display("PASSED: unit_pulse_gen_tx_tb completed successfully.");
         end
     endtask
 
@@ -119,3 +119,4 @@ module pulse_gen_tx_tb;
     end
 
 endmodule
+

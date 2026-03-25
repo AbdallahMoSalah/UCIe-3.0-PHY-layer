@@ -1,36 +1,35 @@
 `timescale 1ps/1ps
-module VALVREF_tb ();
+module unit_DATAVREF_tb ();
     import UCIe_pkg::*;
     parameter LCLK_PERIOD          = 1*1000 ; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
     parameter TIMEOUT_CYCLES       = 700_000; // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles). Here i will use 700_000 cycles to run the simulation faster.
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
-    parameter MIN_VAL_VREF_CODE    = 7'D10 ;
-    parameter MAX_VAL_VREF_CODE    = 7'D127;
-    parameter VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE);
+    parameter MIN_DATA_VREF_CODE    = 7'D10 ;
+    parameter MAX_DATA_VREF_CODE    = 7'D127;
+    parameter VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
     // LTSM signals.
     reg  lclk         ;
     reg  rst_n        ;
     internal_ltsm_if intf (.lclk(lclk), .rst_n(rst_n));
 
-
     // States names
     typedef enum reg [3:0] {
-        VALVREF_IDLE          = VALVREF_inst.VALVREF_IDLE         , // (S0)
-        VALVREF_START_REQ     = VALVREF_inst.VALVREF_START_REQ    , // (S1)
-        VALVREF_START_RESP    = VALVREF_inst.VALVREF_START_RESP   , // (S2)
-        VALVREF_SET_VREF_CODE = VALVREF_inst.VALVREF_SET_VREF_CODE, // (S3)
-        VALVREF_RX_D2C_PT     = VALVREF_inst.VALVREF_RX_D2C_PT    , // (S4)
-        VALVREF_LOG_RESULT    = VALVREF_inst.VALVREF_LOG_RESULT   , // (S5)
-        VALVREF_CALC_APPLY    = VALVREF_inst.VALVREF_CALC_APPLY   , // (S6)
-        VALVREF_END_REQ       = VALVREF_inst.VALVREF_END_REQ      , // (S7)
-        VALVREF_END_RESP      = VALVREF_inst.VALVREF_END_RESP     , // (S8)
-        TO_DATAVREF           = VALVREF_inst.TO_DATAVREF          , // (S9)
-        TO_TRAINERROR         = VALVREF_inst.TO_TRAINERROR        , // (S10)
+        DATAVREF_IDLE          = unit_DATAVREF_inst.DATAVREF_IDLE         , // (S0)
+        DATAVREF_START_REQ     = unit_DATAVREF_inst.DATAVREF_START_REQ    , // (S1)
+        DATAVREF_START_RESP    = unit_DATAVREF_inst.DATAVREF_START_RESP   , // (S2)
+        DATAVREF_SET_VREF_CODE = unit_DATAVREF_inst.DATAVREF_SET_VREF_CODE, // (S3)
+        DATAVREF_RX_D2C_PT     = unit_DATAVREF_inst.DATAVREF_RX_D2C_PT    , // (S4)
+        DATAVREF_LOG_RESULT    = unit_DATAVREF_inst.DATAVREF_LOG_RESULT   , // (S5)
+        DATAVREF_CALC_APPLY    = unit_DATAVREF_inst.DATAVREF_CALC_APPLY   , // (S6)
+        DATAVREF_END_REQ       = unit_DATAVREF_inst.DATAVREF_END_REQ      , // (S7)
+        DATAVREF_END_RESP      = unit_DATAVREF_inst.DATAVREF_END_RESP     , // (S8)
+        TO_SPEEDIDLE           = unit_DATAVREF_inst.TO_SPEEDIDLE          , // (S9)
+        TO_TRAINERROR          = unit_DATAVREF_inst.TO_TRAINERROR         , // (S10)
         Continue_Repeating_The_Last_3_States = 'hF
     } fsm_state_t;
     fsm_state_t current_state, monitor_current_state;
 
-    assign current_state  = fsm_state_t'(VALVREF_inst.current_state);
+    assign current_state  = fsm_state_t'(unit_DATAVREF_inst.current_state);
 
 
     // ===================================================================== //
@@ -48,14 +47,17 @@ module VALVREF_tb ();
     end
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
-    // |  -------------------------       (Instance of the VALVREF module)       ---------------------------  |
+    // |  -------------------------       (Instance of the DATAVREF module)       ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
-    VALVREF #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
-    ) VALVREF_inst (
-        .d2c_if(intf),
-        .valvref_if(intf)
+    unit_DATAVREF #(
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+    ) unit_DATAVREF_inst (
+        // General DATAVREF signals.
+        .datavref_if(intf),
+
+        // Control Signals For (Rx init D to C point test)
+        .d2c_if(intf)
     );
 
 
@@ -73,49 +75,53 @@ module VALVREF_tb ();
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
 
     // Some signals to store the and move the signals for the next always block.
-    reg [VREF_CODE_WIDTH-1:0] current_task_vref_min    ;
-    reg [VREF_CODE_WIDTH-1:0] current_task_vref_max    ;
-    reg assume_holes_after_quarter_eye_start;
+    reg [VREF_CODE_WIDTH-1:0] current_task_vref_min [15:0];
+    reg [VREF_CODE_WIDTH-1:0] current_task_vref_max [15:0];
+    reg [15:0] assume_holes_after_quarter_eye_start;
 
     task assume_errors (
             input [15:0] task_aggr_err     = 16'b0 , // The aggregate error to be assumed for the test scenario.
-            input [15:0] task_perlane_err  = 16'b0 , // The per-lane error to be assumed for the test scenario.
-            // input        task_val_err      = 1'b0  , // The valid lane error to be assumed for the test scenario.
-            // input        task_clk_err      = 1'b0  , // The clock lane error to be assumed for the test scenario.
-            input [VREF_CODE_WIDTH-1:0] task_vref_code_min  = VREF_CODE_WIDTH'(50 ),
-            input [VREF_CODE_WIDTH-1:0] task_vref_code_max  = VREF_CODE_WIDTH'(100),
-            input task_assume_holes_after_quarter_eye_start = 0
+            input [15:0] task_perlane_err  = 16'b0 , // Dummy argument to align with VALVREF_tb interface.
+            input [VREF_CODE_WIDTH-1:0] task_vref_code_min [15:0] = '{default: VREF_CODE_WIDTH'(50)},
+            input [VREF_CODE_WIDTH-1:0] task_vref_code_max [15:0] = '{default: VREF_CODE_WIDTH'(100)},
+            input [15:0] task_assume_holes_after_quarter_eye_start = 16'b0,
+            input [2:0]  task_mb_rx_data_lane_mask = 3'b011
         );
+        intf.mb_rx_data_lane_mask = task_mb_rx_data_lane_mask;
         intf.tb_aggr_err     = task_aggr_err    ;
-        intf.tb_perlane_err  = task_perlane_err ;
+        // intf.tb_perlane_err is driven dynamically in the combinatorial always block, unlike VALVREF.
         // intf.tb_val_err      = task_val_err     ;
         // intf.tb_clk_err      = task_clk_err     ;
-        current_task_vref_min     = task_vref_code_min;
-        current_task_vref_max     = task_vref_code_max;
-
-        assume_holes_after_quarter_eye_start = task_assume_holes_after_quarter_eye_start;
+        for(int i=0; i<16; i++) begin
+            current_task_vref_min[i] = task_vref_code_min[i];
+            current_task_vref_max[i] = task_vref_code_max[i];
+            assume_holes_after_quarter_eye_start[i] = task_assume_holes_after_quarter_eye_start[i];
+        end
     endtask
 
     always @(*) begin
-        if(intf.phy_rx_valvref_ctrl >= current_task_vref_min && intf.phy_rx_valvref_ctrl <= current_task_vref_max) begin
+        for(int j=0; j<16; j++) begin
+            if(intf.phy_rx_datavref_ctrl[j] >= current_task_vref_min[j] && intf.phy_rx_datavref_ctrl[j] <= current_task_vref_max[j]) begin
 
-            // =============================================================================================== //
-            // Adding a deliberate hole (hole) in the eye to force the RTL to test all pathways.               //
-            // For simplicity: Consider the hole be added after the (1/4) of the correct Vref range.           //
-            // =============================================================================================== //
-            if ((intf.phy_rx_valvref_ctrl == current_task_vref_min + (current_task_vref_max - current_task_vref_min)/4 ) &&
-                    assume_holes_after_quarter_eye_start == 1 ) begin
-                intf.tb_val_err = 1'b1;  // A deliberate mistake in the middle!
+                // =============================================================================================== //
+                // Adding a deliberate hole (hole) in the eye to force the RTL to test all pathways.               //
+                // For simplicity: Consider the hole be added after the (1/4) of the correct Vref range.           //
+                // =============================================================================================== //
+                if ((intf.phy_rx_datavref_ctrl[j] == current_task_vref_min[j] + (current_task_vref_max[j] - current_task_vref_min[j])/4 ) &&
+                        assume_holes_after_quarter_eye_start[j] == 1)begin
+                    intf.tb_perlane_err[j] = 1'b1;  // A deliberate mistake in the middle!
+                end
+                // =============================================================================================== //
+
+                else begin
+                    intf.tb_perlane_err[j] = 1'b0; // The right point that is inside the Eye Diagram.
+                end
             end
-            // =============================================================================================== //
-
-            else begin // (Inside Eye Diagram)
-                intf.tb_val_err = 1'b0; // The right point that is inside the Eye Diagram.
+            else begin
+                intf.tb_perlane_err[j] = 1'b1; // Vref value is outside the right bound
             end
         end
-        else begin
-            intf.tb_val_err = 1'b1; // The points at too low Vref or too high Vref.
-        end
+        intf.tb_val_err = 0; // Not used primarily in DATAVREF
     end
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
@@ -124,9 +130,10 @@ module VALVREF_tb ();
     task reset();
         rst_n                   = 0;
         intf.tb_aggr_err        = 0;
-        intf.tb_perlane_err     = 0;
-        intf.tb_val_err         = 0;
-        intf.tb_clk_err         = 0;
+        intf.tb_perlane_err       = 0;
+        intf.tb_val_err           = 0;
+        intf.tb_clk_err           = 0;
+        intf.mb_rx_data_lane_mask = 3'b011;
 
         intf.tb_wait_timeout    = 0; // Set wait_timeout to 0 to indicate that we are not testing the timeout condition at the beginning.
         intf.tb_wrong_sb_msg_en = 0;
@@ -163,42 +170,68 @@ module VALVREF_tb ();
                 // ================= //
                 // Start the test... //
                 // ================= //
-                intf.valvref_en = 1'b1;
+                intf.datavref_en = 1'b1;
                 lclk_counter_run_flag = 1; // Start counting the lclk cycles from the moment we trigger the test.
-                wait(intf.valvref_done || intf.trainerror_req); #1step; // Wait until the test is done or a timeout/error occurs.
+                wait(intf.datavref_done || intf.trainerror_req); #1step; // Wait until the test is done or a timeout/error occurs.
 
                 // ================= //
-                // End the test.     //
-                // Get the results.  //
-                // ================= //
-                intf.valvref_en = 1'b0;
+                intf.datavref_en = 1'b0;
                 test_timeout_8ms_occured = (intf.trainerror_req);
                 if(intf.trainerror_req != 1'b1) begin
-                    // =========================================================================
-                    // Calculating the expected center based on the presence of the hole
-                    // Since the hole is in the first quarter, the RTL will choose the larger area, which is the remaining 3/4.
-                    // =========================================================================
-                    logic [VREF_CODE_WIDTH-1:0] hole_pos;
-                    logic [VREF_CODE_WIDTH-1:0] expected_best_center;
-                    logic                       vref_fail_flag;
-                    hole_pos               = (assume_holes_after_quarter_eye_start)? current_task_vref_min + (current_task_vref_max - current_task_vref_min)/4 : (current_task_vref_min-1);
-                    expected_best_center   = ({1'b0, hole_pos + 1} + {1'b0, current_task_vref_max}) / 2;
-                    vref_fail_flag         = (assume_holes_after_quarter_eye_start && current_task_vref_min == current_task_vref_max);
+                    logic                       any_lane_failed;
+                    logic                       global_vref_fail_flag;
+                    logic [15:0]                vref_fail_flag;
+                    logic [VREF_CODE_WIDTH-1:0] hole_pos [15:0];
+                    logic [VREF_CODE_WIDTH-1:0] expected_best_center [15:0];
 
-                    if (( VALVREF_inst.valvref_fail_flag !=  vref_fail_flag) ||
-                            (!VALVREF_inst.valvref_fail_flag && !vref_fail_flag && intf.phy_rx_valvref_ctrl != expected_best_center)) begin
+                    logic [15:0] active_lanes;
+                    any_lane_failed = 1'b0;
+                    global_vref_fail_flag = 1'b0;
+                    case(intf.mb_rx_data_lane_mask)
+                        3'b000:  active_lanes = 16'h0000;
+                        3'b001:  active_lanes = 16'h00FF;
+                        3'b010:  active_lanes = 16'hFF00;
+                        3'b011:  active_lanes = 16'hFFFF;
+                        3'b100:  active_lanes = 16'h000F;
+                        3'b101:  active_lanes = 16'h00F0;
+                        default: active_lanes = 16'h0000;
+                    endcase
 
+                    for(int k=0; k<16; k++) begin
+                        hole_pos[k] = (assume_holes_after_quarter_eye_start[k])? current_task_vref_min[k] + (current_task_vref_max[k] - current_task_vref_min[k])/4 : (current_task_vref_min[k]-1);
+                        expected_best_center[k] = ({1'b0, hole_pos[k] + 1} + {1'b0, current_task_vref_max[k]}) / 2;
+                        if (active_lanes[k]) begin
+                            vref_fail_flag[k] = (assume_holes_after_quarter_eye_start[k] && current_task_vref_min[k] == current_task_vref_max[k]);
+                            if (vref_fail_flag[k]) global_vref_fail_flag = 1'b1;
+                        end else begin
+                            vref_fail_flag[k] = 1'b0;
+                        end
+                    end
+
+                    if (intf.datavref_fail_flag != global_vref_fail_flag) begin
+                        any_lane_failed = 1'b1;
                         repeat(5) $display("\t\t ************************** ERROR **************************");
-                        $display("error valvref_fail_flag = %0d, vref_fail_flag = %0b, intf.phy_rx_valvref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
-                            VALVREF_inst.valvref_fail_flag,
-                            vref_fail_flag,
-                            intf.phy_rx_valvref_ctrl,
-                            expected_best_center,
-                            assume_holes_after_quarter_eye_start);
+                        $display("error datavref_fail_flag = %0d, expected global flag = %0d", intf.datavref_fail_flag, global_vref_fail_flag);
+                    end
+
+                    for(int k=0; k<16; k++) begin
+                        if (active_lanes[k]) begin
+                            if ((!intf.datavref_fail_flag && !vref_fail_flag[k] && intf.phy_rx_datavref_ctrl[k] != expected_best_center[k])) begin
+                                any_lane_failed = 1'b1;
+                                repeat(5) $display("\t\t ************************** ERROR **************************");
+                                $display("error datavref_fail_flag = %0d, lane[%0d], intf.phy_rx_datavref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
+                                    intf.datavref_fail_flag, k,
+                                    intf.phy_rx_datavref_ctrl[k],
+                                    expected_best_center[k],
+                                    assume_holes_after_quarter_eye_start[k]);
+                            end
+                        end
+                    end
+                    if (any_lane_failed) begin
                         $stop;
                     end
 
-                    wait(current_state == VALVREF_IDLE); #1step; // To keep the $monitor system function (that is used in the main initial block) print the final state of the FSM first, before the next $display content.
+                    wait(current_state == DATAVREF_IDLE); #1step; // To keep the $monitor system function (that is used in the main initial block) print the final state of the FSM first, before the next $display content.
                 end
                 else begin
                     wait(current_state == TO_TRAINERROR); #1step;
@@ -277,30 +310,31 @@ module VALVREF_tb ();
             end
 
             begin : check_fsm_transitions
-                wait(current_state == VALVREF_IDLE);          // Wait for the FSM to be in the IDLE state before starting the test.
+                wait(current_state == DATAVREF_IDLE);          // Wait for the FSM to be in the IDLE state before starting the test.
                 entered_states[0] = 1;                        // Mark that we have entered the IDLE.
-                wait(current_state == VALVREF_START_REQ);     // Wait for the FSM to transition to the START_REQ state.
+                wait(current_state == DATAVREF_START_REQ);     // Wait for the FSM to transition to the START_REQ state.
                 entered_states[1] = 1;                        // Mark that we have entered the START_REQ state.
-                wait(current_state == VALVREF_START_RESP);    // Wait for the FSM to transition to the START_RESP state.
+                wait(current_state == DATAVREF_START_RESP);    // Wait for the FSM to transition to the START_RESP state.
                 entered_states[2] = 1;                        // Mark that we have entered the START_RESP state.
-                repeat((MAX_VAL_VREF_CODE - MIN_VAL_VREF_CODE) + 1) begin
-                    wait(current_state == VALVREF_SET_VREF_CODE); // Wait for the FSM to transition to the SET_VREF_CODE state.
+                // We do not sweep phase anymore, so instead of 3*(128-10), it's 1*(128-10) for phase 0 since min/max is 10/127 that's 118 cycles.
+                repeat(MAX_DATA_VREF_CODE - MIN_DATA_VREF_CODE + 1) begin
+                    wait(current_state == DATAVREF_SET_VREF_CODE); // Wait for the FSM to transition to the SET_VREF_CODE state.
                     entered_states[3] = 1;                        // Mark that we have entered the SET_VREF_CODE state.
-                    wait(current_state == VALVREF_RX_D2C_PT);     // Wait for the FSM to transition to the RX_D2C_PT state.
+                    wait(current_state == DATAVREF_RX_D2C_PT);     // Wait for the FSM to transition to the RX_D2C_PT state.
                     entered_states[4] = 1;                        // Mark that we have entered the RX_D2C_PT state.
-                    wait(current_state == VALVREF_LOG_RESULT);    // Wait for the FSM to transition to the LOG_RESULT state.
+                    wait(current_state == DATAVREF_LOG_RESULT);    // Wait for the FSM to transition to the LOG_RESULT state.
                     entered_states[5] = 1;                        // Mark that we have entered the LOG_RESULT state.
                 end
-                wait(current_state == VALVREF_CALC_APPLY);    // Wait for the FSM to transition to the CALC_APPLY state.
+                wait(current_state == DATAVREF_CALC_APPLY);    // Wait for the FSM to transition to the CALC_APPLY state.
                 entered_states[6] = 1;                        // Mark that we have entered the CALC_APPLY state.
-                wait(current_state == VALVREF_END_REQ);       // Wait for the FSM to transition to the END_REQ state.
+                wait(current_state == DATAVREF_END_REQ);       // Wait for the FSM to transition to the END_REQ state.
                 entered_states[7] = 1;                        // Mark that we have entered the END_REQ state.
-                wait(current_state == VALVREF_END_RESP);      // Wait for the FSM to transition to the END_RESP state.
+                wait(current_state == DATAVREF_END_RESP);      // Wait for the FSM to transition to the END_RESP state.
                 entered_states[8] = 1;                        // Mark that we have entered the END_RESP state.
-                wait(current_state == TO_DATAVREF);           // Wait for the FSM to transition to the TO_DATAVREF state.
-                entered_states[9] = 1;                        // Mark that we have entered the TO_DATAVREF state.
-                wait(current_state == VALVREF_IDLE);          // Wait for the FSM to transition back to the VALVREF_IDLE state.
-                entered_states[10] = 1;                       // Mark that we have entered the VALVREF_IDLE state again.
+                wait(current_state == TO_SPEEDIDLE);           // Wait for the FSM to transition to the TO_SPEEDIDLE state.
+                entered_states[9] = 1;                        // Mark that we have entered the TO_SPEEDIDLE state.
+                wait(current_state == DATAVREF_IDLE);          // Wait for the FSM to transition back to the DATAVREF_IDLE state.
+                entered_states[10] = 1;                       // Mark that we have entered the DATAVREF_IDLE state again.
             end
         join
 
@@ -340,6 +374,11 @@ module VALVREF_tb ();
     integer random_clocks=0; // A random number of clock cycles to be used in the test scenarios that do not require specific timing for SB message reception or timeout.
     logic   first_loop;
     integer temporary_var = 0;
+
+    logic [VREF_CODE_WIDTH-1:0] vref_min_arr [15:0];
+    logic [VREF_CODE_WIDTH-1:0] vref_max_arr [15:0];
+    logic [15:0] holes_arr;
+
     always @(posedge lclk or negedge rst_n) begin
         if(!lclk) begin
             first_loop = 1;
@@ -367,15 +406,18 @@ module VALVREF_tb ();
         // The test scenario (1, 2, 3) : Happy Scenario.                       //
         /////////////////////////////////////////////////////////////////////////
         for(int i = 0; i < 3; i++) begin
+            for(int j=0; j<16; j++) begin
+                vref_min_arr[j] = 7'd50;
+                vref_max_arr[j] = 7'd100;
+            end
+            holes_arr = 16'h0000;
             $display("\n=========>  Test Scenario (%0d): Happy Scenario. <=========", test_scenario_no++);
             assume_errors (
-                .task_aggr_err     (16'h0009), // The aggregate error to be assumed for the test scenario.
-                .task_perlane_err  (16'h0008), // The per-lane error to be assumed for the test scenario.
-                // .task_val_err      (1'b0    ), // The valid lane error to be assumed for the test scenario.
-                // .task_clk_err      (1'b0    )  // The clock lane error to be assumed for the test scenario.
-                .task_vref_code_min(7'd50   ),
-                .task_vref_code_max(7'd100  ),
-                .task_assume_holes_after_quarter_eye_start(0)
+                .task_aggr_err     (16'h0009),
+                .task_perlane_err  (16'h0008), // Aligning with VALVREF
+                .task_vref_code_min(vref_min_arr),
+                .task_vref_code_max(vref_max_arr),
+                .task_assume_holes_after_quarter_eye_start(holes_arr)
             );
             start_test();
         end
@@ -406,29 +448,32 @@ module VALVREF_tb ();
         $display("\n=========>  Test Scenario (%0d): Receive {TRAINERROR Entry req} SB Msg. <=========", test_scenario_no++);
         $display(  "=========>                   (timeout doesn't occur)                    <=========");
 
-        // Start the test with the previous configurations (assumed errors).
+        for(int j=0; j<16; j++) begin
+            vref_min_arr[j] = MIN_DATA_VREF_CODE;
+            vref_max_arr[j] = MAX_DATA_VREF_CODE;
+        end
+        holes_arr = 16'h0000;
         assume_errors (
-            .task_aggr_err     (16'h0009), // The aggregate error to be assumed for the test scenario.
-            .task_perlane_err  (16'h0008), // The per-lane error to be assumed for the test scenario.
-            // .task_val_err      (1'b0    ), // The valid lane error to be assumed for the test scenario.
-            // .task_clk_err      (1'b0    )  // The clock lane error to be assumed for the test scenario.
-            .task_vref_code_min(MIN_VAL_VREF_CODE),
-            .task_vref_code_max(MAX_VAL_VREF_CODE)
+            .task_aggr_err     (16'h0009),
+            .task_perlane_err  (16'h0008), // Aligning with VALVREF
+            .task_vref_code_min(vref_min_arr),
+            .task_vref_code_max(vref_max_arr),
+            .task_assume_holes_after_quarter_eye_start(holes_arr)
         );
         start_test(
-            .receive_wrong_sb_msg_after(400_000             ),
+            .receive_wrong_sb_msg_after(500_000             ),
             .wrong_sb_msg              (TRAINERROR_Entry_req)
         );
         reset(); // because the applied Test Scenario was directed to TO_TRAINERROR state, we need to reset the system before starting a new test scenario.
 
 
         /////////////////////////////////////////////////////////////////////////
-        // The test scenario (8:30) : Receive Wrong SB Msg.                    //
+        // The test scenario (8:17) : Receive Wrong SB Msg.                    //
         // Here we are testing receiving Wrong Msg on SB                       //
         /////////////////////////////////////////////////////////////////////////
 
         // Start the test with the previous configurations.
-        for (int i = 8; i < 31; i++) begin
+        for (int i = 8; i < 18; i++) begin
             $display("\n=========>  Test Scenario (%0d): Receive Wrong SB Msg.  <=========", test_scenario_no++);
             $display(  "=========>             (timeout 8ms occurs)             <=========");
             while (random_msg === msg_no_e'(8'hXX) || random_msg === TRAINERROR_Entry_req) begin
@@ -438,7 +483,7 @@ module VALVREF_tb ();
             // Determine a random number of clock cycles to wait before sending the wrong SB message, to simulate receiving the wrong SB message at any moment during the test execution.
             // After passing these clocks, the testbench will send the wrong SB message to the RX_D2C_PT instance by setting the "receive_wrong_sb_msg" signal to 1 and assigning the "random_msg" to "wrong_sb_msg_value", then it will set the "receive_wrong_sb_msg" signal back to 0 after one cycle to clear it.
             // The random value is between 0 and 500000 clocks because the fsm applies all fsm states successfully in around 500000 clocks of lclk.
-            random_clocks = $urandom_range(0, 500000);
+            random_clocks = $urandom_range(0, 400000);
 
             start_test(
                 .receive_wrong_sb_msg_after(random_clocks), // Randomize the time of receiving the wrong SB message to be at any moment.
@@ -448,24 +493,41 @@ module VALVREF_tb ();
         end
 
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-        // The test scenario 31:10000 or (31:10000 but it will take some minutes)): Check Holes Scenario. //
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-        // for(int i = 18; i <= 1000; i++) begin
-        for(int i = 31; i <= 10; i++) begin
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        // The test scenario 18:100 or (18:1000 but it will take some minutes)): Check Holes Scenario.  //
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        for(int i = 18; i <= 100; i++) begin
+            logic [2:0] rand_mask;
+
             $display("\n=========>  Test Scenario (%0d): Holes Scenario. <=========", test_scenario_no++);
-            temporary_var = 0;
-            while(temporary_var < MIN_VAL_VREF_CODE) begin
-                temporary_var = VREF_CODE_WIDTH'($random());
+
+            rand_mask = 3'($urandom_range(0, 5));
+            // rand_mask = 3'b000; // No lanes active
+            // rand_mask = 3'b001; // 0 to 7
+            // rand_mask = 3'b010; // 8 to 15
+            // rand_mask = 3'b011; // 0 to 15
+            // rand_mask = 3'b100; // 0 to 3
+            // rand_mask = 3'b101; // 4 to 7
+
+
+            // holes_arr = 16'hFFFF;
+            holes_arr = 16'($urandom_range(0, 16'hFFFF));
+            for(int j=0; j<16; j++) begin
+                temporary_var = 0;
+                while(temporary_var < MIN_DATA_VREF_CODE) begin
+                    temporary_var = VREF_CODE_WIDTH'($urandom_range(MIN_DATA_VREF_CODE, MAX_DATA_VREF_CODE-5));
+                end
+                vref_min_arr[j] = VREF_CODE_WIDTH'(temporary_var);
+                vref_max_arr[j] = VREF_CODE_WIDTH'($urandom_range(temporary_var, MAX_DATA_VREF_CODE));
             end
+
             assume_errors (
-                .task_aggr_err     (16'($random())), // The aggregate error to be assumed for the test scenario.
-                .task_perlane_err  (16'($random())), // The per-lane error to be assumed for the test scenario.
-                // .task_val_err      (1'b0    ), // The valid lane error to be assumed for the test scenario.
-                // .task_clk_err      (1'b0    )  // The clock lane error to be assumed for the test scenario.
-                .task_vref_code_min(VREF_CODE_WIDTH'(temporary_var)),
-                .task_vref_code_max(VREF_CODE_WIDTH'($urandom_range(temporary_var, MAX_VAL_VREF_CODE)) ),
-                .task_assume_holes_after_quarter_eye_start(1)
+                .task_aggr_err     (16'($random())),
+                .task_perlane_err  (16'($random())),
+                .task_vref_code_min(vref_min_arr),
+                .task_vref_code_max(vref_max_arr),
+                .task_assume_holes_after_quarter_eye_start(holes_arr),
+                .task_mb_rx_data_lane_mask(rand_mask)
             );
             start_test();
         end
@@ -483,6 +545,6 @@ module VALVREF_tb ();
         $stop;
     end
 
-
-
 endmodule
+
+

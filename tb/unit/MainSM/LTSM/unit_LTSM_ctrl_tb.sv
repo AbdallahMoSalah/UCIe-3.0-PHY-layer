@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module ltsm_ctrl_tb;
+module unit_LTSM_ctrl_tb;
     logic lclk;
     logic rst_n;
     logic [3:0] state_req;
@@ -25,7 +25,7 @@ module ltsm_ctrl_tb;
     assign mbtrain_en = itf.mbtrain_en;
     assign itf.mbtrain_done = mbtrain_done;
 
-    ltsm_ctrl dut (
+    unit_LTSM_ctrl dut (
         .itf(itf.ltsm_ctrl2states_mp)
     );
 
@@ -176,11 +176,13 @@ module ltsm_ctrl_tb;
         check_state_and_outputs(TRAINERROR, 0);
 
         if (error_count > 0) begin
-            $display("FAILED: %0d errors found in ltsm_ctrl_tb", error_count);
+            $display("FAILED: %0d errors found in unit_LTSM_ctrl_tb", error_count);
             $stop;
         end else begin
-            $display("PASSED: ltsm_ctrl_tb completed successfully.");
+            $display("PASSED: unit_LTSM_ctrl_tb completed successfully.");
         end
         $finish;
     end
 endmodule
+
+

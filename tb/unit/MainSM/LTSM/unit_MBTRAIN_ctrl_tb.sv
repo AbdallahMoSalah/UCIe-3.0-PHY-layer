@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module MBTRAIN_tb;
+module unit_MBTRAIN_ctrl_tb;
     logic lclk;
     logic rst_n;
     logic mbtrain_en;
@@ -13,7 +13,7 @@ module MBTRAIN_tb;
     assign mbtrain_done = itf.mbtrain_done;
     assign trainerror_req = itf.trainerror_req;
 
-    MBTRAIN dut (
+    unit_MBTRAIN_ctrl dut (
         .itf(itf.mbtrain_mp)
     );
 
@@ -162,12 +162,14 @@ module MBTRAIN_tb;
         end
 
         if (error_count > 0) begin
-            $display("FAILED: %0d errors found in MBTRAIN_tb", error_count);
+            $display("FAILED: %0d errors found in unit_MBTRAIN_ctrl_tb", error_count);
             $stop;
         end else begin
-            $display("PASSED: MBTRAIN_tb completed successfully.");
+            $display("PASSED: unit_MBTRAIN_ctrl_tb completed successfully.");
         end
         
         $finish;
     end
 endmodule
+
+

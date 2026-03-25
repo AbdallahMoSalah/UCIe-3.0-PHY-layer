@@ -217,7 +217,7 @@ module ltsm_tb_attachments #(
     assign d2c_mux_in1_if.cfg_train4_max_err_thresh_perlane = intf.cfg_train4_max_err_thresh_perlane;
     assign d2c_mux_in1_if.cfg_train4_max_err_thresh_aggr    = intf.cfg_train4_max_err_thresh_aggr;
 
-    RX_D2C_PT  RX_D2C_PT_inst (
+    unit_RX_D2C_PT unit_RX_D2C_PT_inst (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
@@ -229,7 +229,7 @@ module ltsm_tb_attachments #(
         .mux_if(d2c_mux_in1_if.d2c2mux_mp)
     );
 
-    TX_D2C_PT  TX_D2C_PT_inst (
+    unit_TX_D2C_PT unit_TX_D2C_PT_inst (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
@@ -654,3 +654,4 @@ module ltsm_tb_attachments #(
     end
 
 endmodule
+

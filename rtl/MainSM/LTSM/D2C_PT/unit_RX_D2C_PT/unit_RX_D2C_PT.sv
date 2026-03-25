@@ -1,5 +1,5 @@
 
-module RX_D2C_PT  #() (
+module unit_RX_D2C_PT  #() (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//

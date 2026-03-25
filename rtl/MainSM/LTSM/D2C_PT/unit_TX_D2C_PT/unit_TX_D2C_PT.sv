@@ -1,5 +1,5 @@
 
-module TX_D2C_PT  #() (
+module unit_TX_D2C_PT  #() (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//

@@ -1,5 +1,5 @@
 
-module pulse_gen_rx #(
+module unit_pulse_gen_rx #(
         parameter NUM_STAGES = 2,    // Number of Flip Flop Stages.
         parameter BUS_WIDTH  = 64+16 // Width of synchronized bus.
     ) (

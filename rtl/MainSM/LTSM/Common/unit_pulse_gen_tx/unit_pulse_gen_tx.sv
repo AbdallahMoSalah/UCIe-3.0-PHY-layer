@@ -1,4 +1,4 @@
-module pulse_gen_tx #(
+module unit_pulse_gen_tx #(
     parameter WIDTH = 8
 )(
     input  logic lclk,
@@ -33,3 +33,4 @@ module pulse_gen_tx #(
         end
     end
 endmodule
+

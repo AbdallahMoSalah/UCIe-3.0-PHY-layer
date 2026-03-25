@@ -1,4 +1,4 @@
-module MBTRAIN (
+module unit_MBTRAIN_ctrl (
         internal_ltsm_if.mbtrain_mp itf
     );
     // for current `mbtrain` sub-state
@@ -219,4 +219,5 @@ module MBTRAIN (
         end
     end
 endmodule
+
 

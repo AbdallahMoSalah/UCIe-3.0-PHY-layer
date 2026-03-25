@@ -1,5 +1,5 @@
 `timescale 1ps/1ps
-module DATAVREF #(
+module unit_DATAVREF #(
         parameter MAX_DATA_VREF_CODE  = 7'D127,
         parameter MIN_DATA_VREF_CODE  = 7'D10
     ) (

@@ -1,4 +1,4 @@
-module ltsm_ctrl (
+module unit_LTSM_ctrl (
         internal_ltsm_if.ltsm_ctrl2states_mp itf
     );
 

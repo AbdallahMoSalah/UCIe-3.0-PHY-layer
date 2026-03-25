@@ -1,5 +1,5 @@
 `timescale 1ps/1ps
-module RX_D2C_PT_tb ();
+module unit_RX_D2C_PT_tb ();
     import UCIe_pkg::*;
 
     parameter LCLK_PERIOD    = 1*1000 ; // lclk = 1ns (1GHz), waveform x1000
@@ -23,27 +23,27 @@ module RX_D2C_PT_tb ();
     //   States names (mirror RTL localparams exactly)                        //
     // ===================================================================== //
     typedef enum reg [3:0] {
-        RX_PT_IDLE            = RX_D2C_PT_inst.RX_PT_IDLE           ,
-        RX_PT_START_REQ       = RX_D2C_PT_inst.RX_PT_START_REQ      ,
-        RX_PT_START_RESP      = RX_D2C_PT_inst.RX_PT_START_RESP     ,
-        RX_PT_CLR_ERR_REQ     = RX_D2C_PT_inst.RX_PT_CLR_ERR_REQ   ,
-        RX_PT_CLR_ERR_RESP    = RX_D2C_PT_inst.RX_PT_CLR_ERR_RESP  ,
-        RX_PT_PATTERN_GEN     = RX_D2C_PT_inst.RX_PT_PATTERN_GEN   ,
-        RX_PT_COUNT_DONE_REQ  = RX_D2C_PT_inst.RX_PT_COUNT_DONE_REQ,
-        RX_PT_COUNT_DONE_RESP = RX_D2C_PT_inst.RX_PT_COUNT_DONE_RESP,
-        RX_PT_END_REQ         = RX_D2C_PT_inst.RX_PT_END_REQ        ,
-        RX_PT_END_RESP        = RX_D2C_PT_inst.RX_PT_END_RESP       ,
-        RX_PT_DONE            = RX_D2C_PT_inst.RX_PT_DONE           ,
-        TO_TRAINERROR         = RX_D2C_PT_inst.TO_TRAINERROR
+        RX_PT_IDLE            = unit_RX_D2C_PT_inst.RX_PT_IDLE           ,
+        RX_PT_START_REQ       = unit_RX_D2C_PT_inst.RX_PT_START_REQ      ,
+        RX_PT_START_RESP      = unit_RX_D2C_PT_inst.RX_PT_START_RESP     ,
+        RX_PT_CLR_ERR_REQ     = unit_RX_D2C_PT_inst.RX_PT_CLR_ERR_REQ   ,
+        RX_PT_CLR_ERR_RESP    = unit_RX_D2C_PT_inst.RX_PT_CLR_ERR_RESP  ,
+        RX_PT_PATTERN_GEN     = unit_RX_D2C_PT_inst.RX_PT_PATTERN_GEN   ,
+        RX_PT_COUNT_DONE_REQ  = unit_RX_D2C_PT_inst.RX_PT_COUNT_DONE_REQ,
+        RX_PT_COUNT_DONE_RESP = unit_RX_D2C_PT_inst.RX_PT_COUNT_DONE_RESP,
+        RX_PT_END_REQ         = unit_RX_D2C_PT_inst.RX_PT_END_REQ        ,
+        RX_PT_END_RESP        = unit_RX_D2C_PT_inst.RX_PT_END_RESP       ,
+        RX_PT_DONE            = unit_RX_D2C_PT_inst.RX_PT_DONE           ,
+        TO_TRAINERROR         = unit_RX_D2C_PT_inst.TO_TRAINERROR
     } fsm_state_t;
 
     fsm_state_t current_state;
-    assign current_state = fsm_state_t'(RX_D2C_PT_inst.current_state);
+    assign current_state = fsm_state_t'(unit_RX_D2C_PT_inst.current_state);
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------      (Instance of the RX_D2C_PT module)      ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
-    RX_D2C_PT RX_D2C_PT_inst (
+    unit_RX_D2C_PT unit_RX_D2C_PT_inst (
         .substate_if(intf.d2c2substate_mp),
         .mux_if     (intf.d2c2mux_mp    )
     );
@@ -226,9 +226,9 @@ module RX_D2C_PT_tb ();
                 $display("%10t ps: rx_pt_en pulsed.", $realtime());
 
                 // Wait for done or error
-                wait(intf.test_d2c_done || RX_D2C_PT_inst.current_state == TO_TRAINERROR);
+                wait(intf.test_d2c_done || unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR);
                 
-                if (RX_D2C_PT_inst.current_state == TO_TRAINERROR) begin
+                if (unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR) begin
                     if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
                          $display("%10t ps: Test passed: Error state reached as expected.", $realtime());
                          success_count++;
@@ -375,3 +375,5 @@ module RX_D2C_PT_tb ();
     end
 
 endmodule
+
+
