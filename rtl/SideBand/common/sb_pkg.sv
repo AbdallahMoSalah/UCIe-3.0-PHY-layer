@@ -31,20 +31,20 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
   } sb_opcode_e;
 
   typedef enum logic [2:0] {  //srcid enum
-    STACK0 = 3'b000,
-    ADAPTER = 3'b001,
-    PHY = 3'b010,
-    MNGT_PORT_src = 3'b011,
-    STACK1 = 3'b100
+    STACK0        = 3'b000,
+    ADAPTER       = 3'b001,
+    PHY           = 3'b010,
+    MNGT_PORT_SRC = 3'b011,
+    STACK1        = 3'b100
   } sb_srcid_e;
 
   typedef enum logic [2:0] {  //dstid enum
-    LOCAL_ADAPTER = 3'b001,
-    LOCAL_PHY = 3'b010,
-    REMOTE_ADAPTER = 3'b101,
-    REMOTE_PHY = 3'b110,
+    LOCAL_ADAPTER     = 3'b001,
+    LOCAL_PHY         = 3'b010,
+    REMOTE_ADAPTER    = 3'b101,
+    REMOTE_PHY        = 3'b110,
     REMOTE_REG_ACCESS = 3'b100,
-    MNGT_PORT_dst = 3'b111
+    MNGT_PORT_DST     = 3'b111
   } sb_dstid_e;
 
 /*   typedef enum logic [3:0] {  //RDI message number enum
@@ -67,24 +67,24 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
   } sb_rdi_msg_no_e;
  */
   typedef enum logic [7:0] {
-    SBINIT_OFFRESET_DOMAIN = 8'h91,
+    SBINIT_OFFRESET_DOMAIN    = 8'h91,
     RX_TEST_SWEEP_DONE_RESULT = 8'h81,
-    SBINIT_REQ_DOMAIN      = 8'h95,
-    SBINIT_RESP_DOMAIN     = 8'h9A,
-    MBINIT_REQ_DOMAIN      = 8'hA5,
-    MBINIT_RESP_DOMAIN     = 8'hAA,
-    MBTRAIN_REQ_DOMAIN     = 8'hB5,
-    MBTRAIN_RESP_DOMAIN    = 8'hBA,
-    RECAL_REQ_DOMAIN       = 8'hD5,
-    RECAL_RESP_DOMAIN      = 8'hDA,
-    PHYRETRAIN_REQ_DOMAIN  = 8'hC5,
-    PHYRETRAIN_RESP_DOMAIN = 8'hCA,
-    TRAINERROR_REQ_DOMAIN  = 8'hE5,
-    TRAINERROR_RESP_DOMAIN = 8'hEA,
-    RDI_REQ_DOMAIN         = 8'h01,
-    RDI_RESP_DOMAIN        = 8'h02,
-    TEST_REQ_DOMAIN        = 8'h85,
-    TEST_RESP_DOMAIN       = 8'h8A
+    SBINIT_REQ_DOMAIN         = 8'h95,
+    SBINIT_RESP_DOMAIN        = 8'h9A,
+    MBINIT_REQ_DOMAIN         = 8'hA5,
+    MBINIT_RESP_DOMAIN        = 8'hAA,
+    MBTRAIN_REQ_DOMAIN        = 8'hB5,
+    MBTRAIN_RESP_DOMAIN       = 8'hBA,
+    RECAL_REQ_DOMAIN          = 8'hD5,
+    RECAL_RESP_DOMAIN         = 8'hDA,
+    PHYRETRAIN_REQ_DOMAIN     = 8'hC5,
+    PHYRETRAIN_RESP_DOMAIN    = 8'hCA,
+    TRAINERROR_REQ_DOMAIN     = 8'hE5,
+    TRAINERROR_RESP_DOMAIN    = 8'hEA,
+    RDI_REQ_DOMAIN            = 8'h01,
+    RDI_RESP_DOMAIN           = 8'h02,
+    TEST_REQ_DOMAIN           = 8'h85,
+    TEST_RESP_DOMAIN          = 8'h8A
   } msg_code_e;
 
 
