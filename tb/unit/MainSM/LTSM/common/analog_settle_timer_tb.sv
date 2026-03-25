@@ -21,7 +21,7 @@ module analog_settle_timer_tb;
     );
 
     // Clock generation
-    always #(CLK_PERIOD/2) lclk = ~lclk;
+    initial forever #(CLK_PERIOD/2) lclk = ~lclk;
 
     int error_count = 0;
 
@@ -31,6 +31,23 @@ module analog_settle_timer_tb;
             $stop;
         end else begin
             $display("PASSED: analog_settle_timer_tb completed successfully.");
+        end
+    endtask
+
+    task wait_and_check_done(input string test_name);
+        for (int i = 0; i < SETTLE_DELAY; i++) begin
+            @(posedge lclk);
+            #1; // Sample after posedge
+            if (timer_done !== 1'b0) begin
+                $display("ERROR @%0t: timer_done asserted too early at cycle %0d in %s", $time, i, test_name);
+                error_count++;
+            end
+        end
+        @(posedge lclk);
+        #1;
+        if (timer_done !== 1'b1) begin
+            $display("ERROR @%0t: timer_done NOT asserted at cycle %0d in %s", $time, SETTLE_DELAY, test_name);
+            error_count++;
         end
     endtask
 
@@ -46,21 +63,8 @@ module analog_settle_timer_tb;
         $display("---------------------------------------------------------");
         $display("Test 1: Full delay exactly %0d cycles", SETTLE_DELAY);
         timer_en = 1;
-        for (int i = 0; i < SETTLE_DELAY; i++) begin
-            @(posedge lclk);
-            #1; // Sample after posedge
-            if (timer_done !== 1'b0) begin
-                $display("ERROR @%0t: timer_done asserted too early at cycle %0d", $time, i);
-                error_count++;
-            end
-        end
-        @(posedge lclk);
-        #1;
-        if (timer_done !== 1'b1) begin
-            $display("ERROR @%0t: timer_done NOT asserted at cycle %0d", $time, SETTLE_DELAY);
-            error_count++;
-        end
-        
+        wait_and_check_done("Test 1");
+
         // Ensure it stays 1 as long as timer_en is 1
         @(posedge lclk);
         #1;
@@ -102,20 +106,7 @@ module analog_settle_timer_tb;
 
         // Re-enable immediately to ensure counter was reset
         timer_en = 1;
-        for (int i = 0; i < SETTLE_DELAY; i++) begin
-            @(posedge lclk);
-            #1;
-            if (timer_done !== 1'b0) begin
-                $display("ERROR @%0t: timer_done asserted too early after reset at cycle %0d", $time, i);
-                error_count++;
-            end
-        end
-        @(posedge lclk);
-        #1;
-        if (timer_done !== 1'b1) begin
-            $display("ERROR @%0t: timer_done NOT asserted at cycle %0d in Test 2", $time, SETTLE_DELAY);
-            error_count++;
-        end
+        wait_and_check_done("Test 2");
 
         timer_en = 0;
         @(posedge lclk);
@@ -128,32 +119,20 @@ module analog_settle_timer_tb;
         rst_n = 0; // async reset
         #1;
         if (timer_done !== 1'b0) begin
-             $display("ERROR @%0t: timer_done did not drop asynchronously with rst_n", $time);
-             error_count++;
+            $display("ERROR @%0t: timer_done did not drop asynchronously with rst_n", $time);
+            error_count++;
         end
         repeat(3) @(negedge lclk);
         rst_n = 1;
         // The NEXT posedge is cycle 0!
         // timer_en is still 1, it should count again from 0
-        for (int i = 0; i < SETTLE_DELAY; i++) begin
-            @(posedge lclk);
-            #1;
-            if (timer_done !== 1'b0) begin
-                $display("ERROR @%0t: timer_done asserted too early after async reset", $time);
-                error_count++;
-            end
-        end
-        @(posedge lclk);
-        #1;
-        if (timer_done !== 1'b1) begin
-            $display("ERROR @%0t: timer_done NOT asserted after async reset recovery", $time);
-            error_count++;
-        end
+        wait_and_check_done("Test 3");
         timer_en = 0;
 
         repeat(5) @(posedge lclk);
 
         check_errors();
-        $finish;
+        // $finish;
+        $stop;
     end
 endmodule
