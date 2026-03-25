@@ -145,28 +145,27 @@ end
 // ser_valid
 ////////////////////////////////////////////////////////////
 
-always_ff @(posedge clk or negedge rst_n) begin
+always_comb begin
     if(!rst_n)
-        ser_valid <= 0;
+        ser_valid = 0;
 
     else begin
         case(state)
 
             MAPPER:
-                ser_valid <= mapper_valid;
+                ser_valid = mapper_valid;
 
             IDLE:
-                ser_valid <= 0;
+                ser_valid = 0;
 
             SEND_PATTERN:
-                ser_valid <= start_pat_req;
+                ser_valid = start_pat_req;
 
             COUNT_4:
-                if((iter_cnt == 3) && ser_valid && ser_ready)
-                    ser_valid <= 0;
+                ser_valid = (iter_cnt < 4);
 
             DONE_HOLD:
-                ser_valid <= 0;
+                ser_valid = 0;
 
         endcase
     end
@@ -176,22 +175,22 @@ end
 // ser_data
 ////////////////////////////////////////////////////////////
 
-always_ff @(posedge clk or negedge rst_n) begin
+always_comb begin
     if(!rst_n)
-        ser_data <= '0;
+        ser_data = '0;
 
     else begin
         case(state)
 
             MAPPER:
-                ser_data <= mapper_data;
+                ser_data = mapper_data;
 
             SEND_PATTERN,
             COUNT_4:
-                ser_data <= CLOCK_PATTERN;
+                ser_data = CLOCK_PATTERN;
 
             default:
-                ser_data <= '0;
+                ser_data = '0;
 
         endcase
     end
