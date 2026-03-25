@@ -29,3 +29,5 @@ docs/SM/RDI_SM/.~lock.SM.docx#
 docs/SM/RDI_SM/.$RDI SM.drawio.bkp
 docs/SM/RDI_SM/.$RDI SM.drawio.dtmp
 Agent
+vish_stacktrace.vstf
+rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv.bak

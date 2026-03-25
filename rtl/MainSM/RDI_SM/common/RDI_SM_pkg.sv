@@ -7,6 +7,7 @@ package RDI_SM_pkg;
                                 LinkReset, 
                                 Disabled, 
                                 LinkError,
-                                Nop
+                                Nop,
+                                Active_PMNAK
                                 } RDI_state;
 endpackage

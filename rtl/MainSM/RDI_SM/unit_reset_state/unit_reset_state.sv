@@ -29,7 +29,7 @@ module unit_reset_state (
     always @(posedge lclk) begin
         case (cs)
             idle: begin
-                Massage_Send<=NOTHING;
+                Massage_Send<=NOP;
                 next_state<=Reset;
                 Active_handshake_strt<=0;
                 if (lp_linkerror) begin 
@@ -55,18 +55,18 @@ module unit_reset_state (
             end
 //===========================================================
             le_req: begin   
-                Massage_Send<=NOTHING;             
+                Massage_Send<=NOP;             
                 if (Massage_Recieve == RDI_LINK_ERROR_RSP)begin
                     cs <= linkerror;
                     next_state<=LinkError;
-                    Massage_Send<=NOTHING;
+                    Massage_Send<=NOP;
                 end
             end
 //===========================================================
             le_resp: begin
                 cs <= linkerror;
                 next_state<=LinkError;
-                Massage_Send<=NOTHING;
+                Massage_Send<=NOP;
             end
 //===========================================================
             // linkerror: Main LinkError resting state. Exits to idle upon disable.
@@ -78,7 +78,7 @@ module unit_reset_state (
             end
 //===========================================================
             d_req: begin
-                Massage_Send<=NOTHING;
+                Massage_Send<=NOP;
                 if (Massage_Recieve == RDI_DISABLE_RSP)begin
                     cs <= disabled;
                     next_state<=Disabled;
@@ -86,7 +86,7 @@ module unit_reset_state (
             end
 //===========================================================
             d_resp: begin
-                Massage_Send<=NOTHING;
+                Massage_Send<=NOP;
                 next_state<=Disabled;
                 cs <= disabled;
             end
@@ -108,7 +108,7 @@ module unit_reset_state (
             end
 //===========================================================
             lr_resp: begin
-                Massage_Send<=NOTHING;
+                Massage_Send<=NOP;
                 next_state<=LinkReset;
                 cs <= linkreset;
             end
