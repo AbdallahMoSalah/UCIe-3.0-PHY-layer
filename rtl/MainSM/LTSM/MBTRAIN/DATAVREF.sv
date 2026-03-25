@@ -3,26 +3,20 @@ module DATAVREF #(
         parameter MAX_DATA_VREF_CODE  = 7'D127,
         parameter MIN_DATA_VREF_CODE  = 7'D10
     ) (
-        // lclk and rst
-        ltsm_if.clk_rst_mp clk_rst_if,
+        // ======================= //
+        // General signals.        //
+        // ======================= //
+        internal_ltsm_if.datavref_mp datavref_if,
 
-        // Timers.
-        ltsm_if.state_timerout_8ms_mp        timeout_8ms_if        ,
-        ltsm_if.state_analog_settle_timer_mp analog_settle_timer_if,
-
-        // Control Signals For (Rx init D to C point test)
-        ltsm_if.ltsm2d2c_mp d2c_if,
-
-        // ltsm & MB & SB signals
-        ltsm_if.datavref2ltsm_mp ltsm_if,
-        ltsm_if.datavref2mb_mp   mb_if  ,
-        ltsm_if.ltsm2sb_mp       sb_if
-
+        // ======================= //
+        // D2C signals.            //
+        // ======================= //
+        internal_ltsm_if.substate2d2c_mp d2c_if
     );
     // For analog Voltage control.
     localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
 
-    // To get the used SB messages for: (sb_if.tx_sb_msg, sb_it.rx_sb_msg)
+    // To get the used SB messages for: (datavref_if.tx_sb_msg, sb_it.rx_sb_msg)
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_DATAVREF_start_req ; // Msg Number: d39
     import UCIe_pkg::MBTRAIN_DATAVREF_start_resp; // Msg Number: d40
@@ -70,8 +64,8 @@ module DATAVREF #(
 
 
     // Current State Logic of the FSM:
-    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin
-        if (!clk_rst_if.rst_n) begin
+    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin
+        if (!datavref_if.rst_n) begin
             current_state  <= DATAVREF_IDLE;
             previous_state <= DATAVREF_IDLE;
         end else begin
@@ -82,29 +76,29 @@ module DATAVREF #(
 
     // Next State Logic of the FSM:
     always @(*) begin
-        if (timeout_8ms_if.timeout_8ms_occured | (sb_if.rx_sb_msg == TRAINERROR_Entry_req && sb_if.rx_sb_msg_valid == 1'b1)) begin
+        if (datavref_if.timeout_8ms_occured | (datavref_if.rx_sb_msg == TRAINERROR_Entry_req && datavref_if.rx_sb_msg_valid == 1'b1)) begin
             // (S10)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
         end else begin
             case (current_state)
                 // (S0) IDLE state: Wait for the trigger to start DATAVREF FSM.
                 DATAVREF_IDLE: begin
-                    if (ltsm_if.datavref_en) next_state = DATAVREF_START_REQ;
+                    if (datavref_if.datavref_en) next_state = DATAVREF_START_REQ;
                     else next_state = DATAVREF_IDLE;
                 end
                 // (S1) Send & Receive SB Message: {MBTRAIN.DATAVREF start req}
                 DATAVREF_START_REQ: begin
-                    if (sb_if.rx_sb_msg == MBTRAIN_DATAVREF_start_req && sb_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_START_RESP;
+                    if (datavref_if.rx_sb_msg == MBTRAIN_DATAVREF_start_req && datavref_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_START_RESP;
                     else next_state = DATAVREF_START_REQ;
                 end
                 // (S2) Send & Receive SB Message: {MBTRAIN.DATAVREF start resp}.
                 DATAVREF_START_RESP: begin
-                    if (sb_if.rx_sb_msg == MBTRAIN_DATAVREF_start_resp && sb_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_SET_VREF_CODE;
+                    if (datavref_if.rx_sb_msg == MBTRAIN_DATAVREF_start_resp && datavref_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_SET_VREF_CODE;
                     else next_state = DATAVREF_START_RESP;
                 end
                 // (S3) Drive Vref (current_vref_code) to PHY MB Receiver Data Lanes.
                 DATAVREF_SET_VREF_CODE: begin
-                    if (analog_settle_timer_if.analog_settle_time_done) next_state = DATAVREF_RX_D2C_PT;
+                    if (datavref_if.analog_settle_time_done) next_state = DATAVREF_RX_D2C_PT;
                     else next_state = DATAVREF_SET_VREF_CODE;
                 end
                 // (S4) Implement the test (Rx Init Data to Clock Point Test).
@@ -123,17 +117,17 @@ module DATAVREF #(
                 end
                 // (S7) Send & Receive SB Message: {MBTRAIN.DATAVREF end req}.
                 DATAVREF_END_REQ: begin
-                    if (sb_if.rx_sb_msg == MBTRAIN_DATAVREF_end_req && sb_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_END_RESP;
+                    if (datavref_if.rx_sb_msg == MBTRAIN_DATAVREF_end_req && datavref_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_END_RESP;
                     else next_state = DATAVREF_END_REQ;
                 end
                 // (S8) Send & Receive SB Message: {MBTRAIN.DATAVREF end resp}.
                 DATAVREF_END_RESP: begin
-                    if (sb_if.rx_sb_msg == MBTRAIN_DATAVREF_end_resp && sb_if.rx_sb_msg_valid == 1'b1) next_state = TO_SPEEDIDLE;
+                    if (datavref_if.rx_sb_msg == MBTRAIN_DATAVREF_end_resp && datavref_if.rx_sb_msg_valid == 1'b1) next_state = TO_SPEEDIDLE;
                     else next_state = DATAVREF_END_RESP;
                 end
                 // (S9) Next sub-state.
                 TO_SPEEDIDLE: begin
-                    next_state = (ltsm_if.datavref_en)? TO_SPEEDIDLE : DATAVREF_IDLE; // Stay here till "ltsm_if.datavref_en" is cleared.
+                    next_state = (datavref_if.datavref_en)? TO_SPEEDIDLE : DATAVREF_IDLE; // Stay here till "datavref_if.datavref_en" is cleared.
                 end
                 // (S10) TRAINERROR state:
                 TO_TRAINERROR: begin
@@ -156,14 +150,14 @@ module DATAVREF #(
         //==========================
         // LTSM -> LTSM signals:
         //==========================
-        ltsm_if.datavref_done  = 1'b0;
-        ltsm_if.trainerror_req = 1'b0;
+        datavref_if.datavref_done  = 1'b0;
+        datavref_if.trainerror_req = 1'b0;
 
         //==========================
         // Timers:
         //==========================
-        timeout_8ms_if.timeout_timer_en               = 1;
-        analog_settle_timer_if.analog_settle_timer_en = 0;
+        datavref_if.timeout_timer_en       = 1;
+        datavref_if.analog_settle_timer_en = 0;
 
         //=================================================
         // Control Signals For (Rx init D to C point test):
@@ -195,48 +189,48 @@ module DATAVREF #(
         // // MB signals:
         // //=========================
         // Lane Behavior Control
-        mb_if.mb_tx_clk_lane_sel  = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
-        mb_if.mb_tx_data_lane_sel = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
-        mb_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
-        mb_if.mb_tx_trk_lane_sel  = 2'b10; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
-        mb_if.mb_rx_clk_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
-        mb_if.mb_rx_data_lane_sel = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
-        mb_if.mb_rx_val_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-        mb_if.mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+        datavref_if.mb_tx_clk_lane_sel  = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        datavref_if.mb_tx_data_lane_sel = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        datavref_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        datavref_if.mb_tx_trk_lane_sel  = 2'b10; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        datavref_if.mb_rx_clk_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        datavref_if.mb_rx_data_lane_sel = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        datavref_if.mb_rx_val_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        datavref_if.mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
 
         //============================
         // SB signals:
         //============================
         // For SB TX:
-        sb_if.tx_sb_msg_valid = 1'h0   ; // Tell the SB that the selected message is valid.
-        sb_if.tx_sb_msg       = NOTHING; // Tell the Sideband the message that it should to send.
-        sb_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
-        sb_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+        datavref_if.tx_sb_msg_valid = 1'h0   ; // Tell the SB that the selected message is valid.
+        datavref_if.tx_sb_msg       = NOTHING; // Tell the Sideband the message that it should to send.
+        datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
+        datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
 
 
         case (current_state)
             // (S0) IDLE state
             DATAVREF_IDLE: begin
-                timeout_8ms_if.timeout_timer_en = 0;
+                datavref_if.timeout_timer_en = 0;
             end
             // (S1) Send & Receive SB Message: {MBTRAIN.DATAVREF start req}
             DATAVREF_START_REQ: begin
-                sb_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
-                sb_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_req; // Tell the Sideband the message that it should to send.
-                sb_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
-                sb_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_req; // Tell the Sideband the message that it should to send.
+                datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
+                datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S2) Send & Receive SB Message: {MBTRAIN.DATAVREF start resp}.
             DATAVREF_START_RESP: begin
-                sb_if.tx_sb_msg_valid = (!data_incoherence)         ; // Tell the SB that the selected message is valid.
-                sb_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_resp; // Tell the Sideband the message that it should to send.
-                sb_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
-                sb_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+                datavref_if.tx_sb_msg_valid = (!data_incoherence)         ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_resp; // Tell the Sideband the message that it should to send.
+                datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
+                datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S3) Drive Vref
             DATAVREF_SET_VREF_CODE: begin
-                analog_settle_timer_if.analog_settle_timer_en = 1;
+                datavref_if.analog_settle_timer_en = 1;
             end
             // (S4) Implement the test (Rx Init Data to Clock Point Test).
             DATAVREF_RX_D2C_PT: begin
@@ -250,26 +244,26 @@ module DATAVREF #(
             end
             // (S7) Send & Receive SB Message: {MBTRAIN.DATAVREF end req}
             DATAVREF_END_REQ: begin
-                sb_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
-                sb_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_req; // Tell the Sideband the message that it should to send.
-                sb_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
-                sb_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_req; // Tell the Sideband the message that it should to send.
+                datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
+                datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S8) Send & Receive SB Message: {MBTRAIN.DATAVREF end resp}.
             DATAVREF_END_RESP: begin
-                sb_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
-                sb_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_resp; // Tell the Sideband the message that it should to send.
-                sb_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
-                sb_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_resp; // Tell the Sideband the message that it should to send.
+                datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
+                datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S9) Next Sub-state
             TO_SPEEDIDLE: begin
-                ltsm_if.datavref_done = 1'b1;
+                datavref_if.datavref_done = 1'b1;
             end
             // (S10) TRAINERROR state:
             TO_TRAINERROR: begin
-                ltsm_if.datavref_done  = 1'b1;
-                ltsm_if.trainerror_req = 1'b1;
+                datavref_if.datavref_done  = 1'b1;
+                datavref_if.trainerror_req = 1'b1;
             end
             default: begin
             end
@@ -287,7 +281,7 @@ module DATAVREF #(
     // 101b: Logical Lanes 4 to 7
     logic [15:0] negotiated_data_lanes;
     always @(*) begin
-        case(ltsm_if.mb_rx_data_lane_mask)
+        case(datavref_if.mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
             3'b001:  negotiated_data_lanes = 16'h00FF;
             3'b010:  negotiated_data_lanes = 16'hFF00;
@@ -305,7 +299,7 @@ module DATAVREF #(
             assign temp_vref_range[lane] = (current_vref_code - temp_min_vref[lane]);
 
             // Drive the sweeping current_vref_code during early active states, otherwise output the permanent best_vref_code.
-            assign mb_if.phy_rx_datavref_ctrl[lane] = (current_state == DATAVREF_START_REQ     ||
+            assign datavref_if.phy_rx_datavref_ctrl[lane] = (current_state == DATAVREF_START_REQ     ||
                     current_state == DATAVREF_START_RESP    ||
                     current_state == DATAVREF_SET_VREF_CODE ||
                     current_state == DATAVREF_RX_D2C_PT     ||
@@ -313,18 +307,18 @@ module DATAVREF #(
         end
     endgenerate
 
-    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin : DATAVREF_CALC_APPLY_PROC
+    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_CALC_APPLY_PROC
         integer j;
-        if(!clk_rst_if.rst_n) begin
+        if(!datavref_if.rst_n) begin
             current_vref_code         <= MIN_DATA_VREF_CODE;
-            ltsm_if.datavref_fail_flag <= 1'b0;
+            datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
         end
         else if(current_state == DATAVREF_START_REQ) begin
             current_vref_code         <= MIN_DATA_VREF_CODE;
-            ltsm_if.datavref_fail_flag <= 1'b0;
+            datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
@@ -347,16 +341,16 @@ module DATAVREF #(
             end
 
             // Fail if any lane (of the negotiated lanes) is not filled
-            ltsm_if.datavref_fail_flag <= ~( &(vref_code_filled|(~negotiated_data_lanes)) );
+            datavref_if.datavref_fail_flag <= ~( &(vref_code_filled|(~negotiated_data_lanes)) );
         end
     end
 
     //=======================================
     // DATAVREF_LOG_RESULT: Log the Vref Code
     //=======================================
-    always @(posedge clk_rst_if.lclk or negedge clk_rst_if.rst_n) begin : DATAVREF_LOG_RESULT_PROC
+    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_LOG_RESULT_PROC
         integer i;
-        if(!clk_rst_if.rst_n) begin
+        if(!datavref_if.rst_n) begin
             for(i=0; i<16; i=i+1) begin
                 min_vref_code[i]      <= '0;
                 max_vref_code[i]      <= '0;

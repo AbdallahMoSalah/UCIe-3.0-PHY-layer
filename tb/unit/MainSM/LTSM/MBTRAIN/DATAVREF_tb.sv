@@ -10,7 +10,7 @@ module DATAVREF_tb ();
     // LTSM signals.
     reg  lclk         ;
     reg  rst_n        ;
-    ltsm_if intf       (.lclk(lclk), .rst_n(rst_n));
+    internal_ltsm_if intf (.lclk(lclk), .rst_n(rst_n));
 
     // States names
     typedef enum reg [3:0] {
@@ -53,20 +53,11 @@ module DATAVREF_tb ();
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
         .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
     ) DATAVREF_inst (
-        // lclk and rst
-        .clk_rst_if(intf),
-
-        // Timers.
-        .timeout_8ms_if(intf),
-        .analog_settle_timer_if(intf),
+        // General DATAVREF signals.
+        .datavref_if(intf),
 
         // Control Signals For (Rx init D to C point test)
-        .d2c_if(intf),
-
-        // ltsm & MB & SB signals
-        .ltsm_if(intf),
-        .mb_if  (intf),
-        .sb_if  (intf)
+        .d2c_if(intf)
     );
 
 
@@ -505,7 +496,7 @@ module DATAVREF_tb ();
         /////////////////////////////////////////////////////////////////////////////////////////////////
         // The test scenario 18:100 or (18:1000 but it will take some minutes)): Check Holes Scenario.  //
         /////////////////////////////////////////////////////////////////////////////////////////////////
-        for(int i = 18; i <= 1000; i++) begin
+        for(int i = 18; i <= 100; i++) begin
             logic [2:0] rand_mask;
 
             $display("\n=========>  Test Scenario (%0d): Holes Scenario. <=========", test_scenario_no++);

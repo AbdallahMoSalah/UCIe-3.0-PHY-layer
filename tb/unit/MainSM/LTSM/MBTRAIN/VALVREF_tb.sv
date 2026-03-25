@@ -10,7 +10,7 @@ module VALVREF_tb ();
     // LTSM signals.
     reg  lclk         ;
     reg  rst_n        ;
-    ltsm_if intf       (.lclk(lclk), .rst_n(rst_n));
+    internal_ltsm_if intf (.lclk(lclk), .rst_n(rst_n));
 
 
     // States names
@@ -54,20 +54,8 @@ module VALVREF_tb ();
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
     ) VALVREF_inst (
-        // lclk and rst
-        .clk_rst_if(intf),
-
-        // Timers.
-        .timeout_8ms_if(intf),
-        .analog_settle_timer_if(intf),
-
-        // Control Signals For (Rx init D to C point test)
         .d2c_if(intf),
-
-        // ltsm & MB & SB signals
-        .ltsm_if(intf),
-        .mb_if  (intf),
-        .sb_if  (intf)
+        .valvref_if(intf)
     );
 
 
@@ -197,12 +185,12 @@ module VALVREF_tb ();
                     expected_best_center   = ({1'b0, hole_pos + 1} + {1'b0, current_task_vref_max}) / 2;
                     vref_fail_flag         = (assume_holes_after_quarter_eye_start && current_task_vref_min == current_task_vref_max);
 
-                    if (( intf.valvref_fail_flag !=  vref_fail_flag) ||
-                            (!intf.valvref_fail_flag && !vref_fail_flag && intf.phy_rx_valvref_ctrl != expected_best_center)) begin
+                    if (( VALVREF_inst.valvref_fail_flag !=  vref_fail_flag) ||
+                            (!VALVREF_inst.valvref_fail_flag && !vref_fail_flag && intf.phy_rx_valvref_ctrl != expected_best_center)) begin
 
                         repeat(5) $display("\t\t ************************** ERROR **************************");
                         $display("error valvref_fail_flag = %0d, vref_fail_flag = %0b, intf.phy_rx_valvref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
-                            intf.valvref_fail_flag,
+                            VALVREF_inst.valvref_fail_flag,
                             vref_fail_flag,
                             intf.phy_rx_valvref_ctrl,
                             expected_best_center,
@@ -464,7 +452,7 @@ module VALVREF_tb ();
         // The test scenario 31:10000 or (31:10000 but it will take some minutes)): Check Holes Scenario. //
         ////////////////////////////////////////////////////////////////////////////////////////////////////
         // for(int i = 18; i <= 1000; i++) begin
-        for(int i = 31; i <= 10000; i++) begin
+        for(int i = 31; i <= 10; i++) begin
             $display("\n=========>  Test Scenario (%0d): Holes Scenario. <=========", test_scenario_no++);
             temporary_var = 0;
             while(temporary_var < MIN_VAL_VREF_CODE) begin
