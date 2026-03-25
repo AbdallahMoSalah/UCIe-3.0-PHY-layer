@@ -63,14 +63,16 @@ file mkdir $coverage_dir
 file mkdir $coverage_cfg_dir
 file mkdir $logs_dir
 
+
+quit -sim
 # ------------------------------------------------------------
 # Clean Work Library
 # ------------------------------------------------------------
 
-if {[file exists $work_dir]} {
-    catch {vdel -lib work -all}
-    file delete -force $work_dir
-}
+#if {[file exists $work_dir]} {
+#    catch {vdel -lib work -all}
+#    file delete -force $work_dir
+#}
 
 vlib $work_dir
 vmap work $work_dir
@@ -158,6 +160,7 @@ if {[catch {
         return
     }
 }
+
 
 # ------------------------------------------------------------
 # Debug Mode: Load Waveform
