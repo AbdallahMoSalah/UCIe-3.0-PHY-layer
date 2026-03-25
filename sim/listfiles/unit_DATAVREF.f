@@ -1,6 +1,7 @@
 # Common files needed for the testbench
 rtl/common/UCIe_pkg.sv
-rtl/common/ltsm_if.sv
+rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
+rtl/MainSM/LTSM/common/internal_ltsm_if.sv
 rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT.sv
 rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT.sv
 
@@ -8,7 +9,7 @@ rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT.sv
 rtl/MainSM/LTSM/MBTRAIN/DATAVREF.sv
 
 # Some logic files for the Testbench
-tb/unit/MainSM/LTSM/MBTRAIN/ltsm_tb_attachments.sv
+tb/unit/MainSM/LTSM/common/ltsm_tb_attachments.sv
 
 # Testbench
 tb/unit/MainSM/LTSM/MBTRAIN/DATAVREF_tb.sv
