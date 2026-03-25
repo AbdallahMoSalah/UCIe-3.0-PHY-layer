@@ -14,11 +14,6 @@ interface internal_ltsm_if #(
     localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
     localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
 
-    // ==========================================
-    // Not arranged signals yet:
-    // ==========================================
-    logic pulse_in, pulse_out;
-
     // current and previous states.
     import ltsm_state_n_pkg::state_n_e         ; state_n_e          state_n[3:0]            ; // for RF (to log the last 4 states names)
     import ltsm_state_n_pkg::ltsm_ctrl_state_e ; ltsm_ctrl_state_e  current_ltsm_state      ; // for RF (to know the current state)
@@ -68,6 +63,9 @@ interface internal_ltsm_if #(
     //=====================================//
     logic timeout_timer_en      , timeout_8ms_occured    ;
     logic analog_settle_timer_en, analog_settle_time_done;
+
+
+
 
     //=====================================//
     // Control Signals From RDI:           //
@@ -160,6 +158,7 @@ interface internal_ltsm_if #(
     // Control Signals For (Rx init D to C point test) //
     // Control Signals For (Tx init D to C point test) //
     //=================================================//
+    logic substate_timeout_8ms_occured;
     logic        rx_pt_en;
     logic        tx_pt_en;
     logic        test_d2c_done;
@@ -222,9 +221,9 @@ interface internal_ltsm_if #(
     // input wire         cfg_lane_reversal, //Lane Reversal within Module: Indicates if Lanes within a module are reversed. (0: not reversed; 1: reversed)
     // ...
 
-    // Training Setup 3 (Offset 1030h)
-    logic [15:0]  cfg_train3_lane_mask ; // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
-    logic cfg_current_rx_lane_map_valid; // To tell the RF to apply the change on cfg_current_rx_lane_map field.
+    // // Training Setup 3 (Offset 1030h)
+    // logic [15:0]  cfg_train3_lane_mask ; // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    // logic cfg_current_rx_lane_map_valid; // To tell the RF to apply the change on cfg_current_rx_lane_map field.
 
 
     // Training Setup 4 (Offset 1050h)
@@ -232,9 +231,9 @@ interface internal_ltsm_if #(
     logic [11:0]  cfg_train4_max_err_thresh_perlane; // Max error Threshold in per-Lane comparison for error counting.
     logic [15:0]  cfg_train4_max_err_thresh_aggr   ; // Max error Threshold in aggregate comparison for error counting.
 
-    // Current Lane Map Module 0 (Offset 1060h)
-    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
-    logic [15:0]  cfg_current_rx_lane_map; // 1b indicates the corresponding Rx physical Lane is operational.
+    // // Current Lane Map Module 0 (Offset 1060h)
+    // // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    // logic [15:0]  cfg_current_rx_lane_map; // 1b indicates the corresponding Rx physical Lane is operational.
 
     // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
     logic  [7:0]   log0_state_n        ; // Captures the current Link training state machine (LTSM) status.
@@ -555,10 +554,10 @@ interface internal_ltsm_if #(
         // Note cfg_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
     );
 
-    // Training Setup 3 (Offset 1030h)
-    modport state_rf_offset_1030_mp (
-        input  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
-    );
+    // // Training Setup 3 (Offset 1030h)
+    // modport state_rf_offset_1030_mp (
+    //     input  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    // );
 
     // Training Setup 4 (Offset 1050h)
     // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
@@ -567,12 +566,12 @@ interface internal_ltsm_if #(
         input  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
     );
 
-    // Current Lane Map Module 0 (Offset 1060h)
-    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
-    modport state_rf_offset_1060_mp (
-        output cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
-        output cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
-    );
+    // // Current Lane Map Module 0 (Offset 1060h)
+    // // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    // modport state_rf_offset_1060_mp (
+    //     output cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
+    //     output cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
+    // );
 
     // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
     modport state_rf_offset_1080_mp (
@@ -627,10 +626,10 @@ interface internal_ltsm_if #(
         output  cfg_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
     );
 
-    // Training Setup 3 (Offset 1030h)
-    modport mux_rf_offset_1030_mp (
-        output  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
-    );
+    // // Training Setup 3 (Offset 1030h)
+    // modport mux_rf_offset_1030_mp (
+    //     output  cfg_train3_lane_mask // Masks specific Rx lanes during comparison (16-bits for x16 Standard Package).
+    // );
 
     // Training Setup 4 (Offset 1050h)
     // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
@@ -639,12 +638,12 @@ interface internal_ltsm_if #(
         output  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
     );
 
-    // Current Lane Map Module 0 (Offset 1060h)
-    // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
-    modport mux_rf_offset_1060_mp (
-        input cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
-        input cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
-    );
+    // // Current Lane Map Module 0 (Offset 1060h)
+    // // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
+    // modport mux_rf_offset_1060_mp (
+    //     input cfg_current_rx_lane_map      , // 1b indicates the corresponding Rx physical Lane is operational.
+    //     input cfg_current_rx_lane_map_valid  // To tell the RF to apply the change
+    // );
 
     // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
     modport mux_rf_offset_1080_mp (
@@ -714,13 +713,14 @@ interface internal_ltsm_if #(
     //  >======<  // Control Signals For (Tx init D to C point test) //  >======<  //
     //  >======<  //=================================================//  >======<  //
     //  >======<  /////////////////////////////////////////////////////  >======<  //
-
     // It's LTSM sub-states prespective (Not the test FSM prespective).
     modport substate2d2c_mp(
+        // timeout handling.
+        output substate_timeout_8ms_occured,
+
         output rx_pt_en           , // To enable Rx init Data to Clock Point Test
         output tx_pt_en           , // To enable Tx init Data to Clock Point Test
         input  test_d2c_done      , // To identecate the enabled test (Rx/Tx init Data)
-        output timeout_8ms_occured, // To identecate the timeout error.
 
         // Clock sampling.
         output d2c_clk_sampling    ,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
@@ -749,10 +749,12 @@ interface internal_ltsm_if #(
 
     // It's the test (Rx/Tx D-to-C point test FSM) prespective (Not the main LTSM states prespective)
     modport d2c2substate_mp(
+        // timeout handling.
+        input  substate_timeout_8ms_occured,
+
         input  rx_pt_en,
         input  tx_pt_en,
         output test_d2c_done,
-        input  timeout_8ms_occured,
 
         // Clock sampling.
         input  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
@@ -788,7 +790,6 @@ interface internal_ltsm_if #(
         // Clock and Reset Signals:            //
         //=====================================//
         input  lclk , input  rst_n,
-
 
         //=====================================//
         // Control Signals for MB:             //
@@ -935,6 +936,56 @@ interface internal_ltsm_if #(
     // LTSM -> LTSM                                                                          //
     //=======================================================================================//
 
+    modport  datavref_mp (
+        // ======================= //
+        // Clock and Reset.        //
+        // ======================= //
+        input  lclk, input  rst_n,
+
+        // ======================= //
+        // Timers signals.         //
+        // ======================= //
+        output timeout_timer_en      , input  timeout_8ms_occured    ,
+        output analog_settle_timer_en, input  analog_settle_time_done,
+
+        // ======================= //
+        // LTSM general signals.   //
+        // ======================= //
+        input  datavref_en            , output datavref_done          ,
+        output datavref_fail_flag     , // To report if the Data Vref calibration failed.
+        output trainerror_req         , // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)).
+        input  mb_rx_data_lane_mask   , // Describes the Functional Rx Lanes (Active Lanes) in 3-bit. as in table 4-9 in UCIe_reference
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+
+        output phy_rx_datavref_ctrl, // Tell ADC the Rx Data Lane Vref level to operate in.
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
+        // For SB TX:
+        output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        output tx_sb_msg      , // Tell the Sideband the message that it should to send.
+        output tx_msginfo     , // MsgInfo field of the SB message.
+        output tx_data_field  , // Data field of the SB message.
+
+        // For SB RX:
+        input rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+        input rx_sb_msg      , // Get the Received SB msg.
+        input rx_msginfo     , // MsgInfo field of the SB message received.
+        input rx_data_field    // Data field of the SB message.
+    );
 
 
 
@@ -972,7 +1023,7 @@ interface internal_ltsm_if #(
 
     modport ltsm_ctrl2states_mp (
         input  lclk               , input rst_n,
-        input  state_req          , input mbtrain_speedidle_req,
+        input  state_req          , input mbtrain_speedidle_req, input timeout_8ms_occured,
         output current_ltsm_state ,
 
         // MBTRAIN handshake
@@ -1010,12 +1061,5 @@ interface internal_ltsm_if #(
     );
 
 
-
-    modport pulse_gen_mp (
-        input  lclk,
-        input  rst_n,
-        input  pulse_in,
-        output pulse_out
-    );
 
 endinterface
