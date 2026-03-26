@@ -1,4 +1,4 @@
-module DEMAPPER (
+module sb_demapper (
     input  logic         clk,
     input  logic         rst_n,
     

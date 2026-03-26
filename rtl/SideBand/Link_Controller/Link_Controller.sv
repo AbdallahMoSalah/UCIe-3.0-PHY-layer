@@ -64,7 +64,7 @@ sb_mapper u_sb_mapper(
     .msg_vld_send   ( msg_vld_send   )
 );
 
-DEMAPPER u_DEMAPPER(
+sb_demapper u_DEMAPPER(
     .clk            ( clk            ),
     .rst_n          ( rst_n          ),
     .msg_rcvd       ( msg_rcvd       ),

@@ -5,7 +5,7 @@ module sb_demapper_tb;
     bit clk;
     sb_demapper_if sb_demapperif(clk);
 
-    DEMAPPER dut(
+    sb_demapper dut(
         .clk(sb_demapperif.clk),
         .rst_n(sb_demapperif.rst_n),
         .msg_word_rcvd(sb_demapperif.msg_word_rcvd),
