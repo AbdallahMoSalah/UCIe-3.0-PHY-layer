@@ -93,11 +93,13 @@ package sb_mapper_tb_pkg;
 
         virtual sb_mapper_if vif;
 
-        sb_mapper_in_trans in_q[$];
-        sb_mapper_chunk  out_q[$];
+        mailbox #(sb_mapper_in_trans) in_mbx;
+        mailbox #(sb_mapper_chunk)    out_mbx;
 
         function new(virtual sb_mapper_if vif);
             this.vif = vif;
+            this.in_mbx = new();
+            this.out_mbx = new();
         endfunction
 
 
@@ -116,7 +118,7 @@ package sb_mapper_tb_pkg;
                     pkt = new();
                     pkt.data = vif.msg_word_send;
 
-                    in_q.push_back(pkt);
+                    in_mbx.put(pkt);
 
                 end
 
@@ -126,7 +128,7 @@ package sb_mapper_tb_pkg;
                     ch = new();
                     ch.data = vif.msg_send;
 
-                    out_q.push_back(ch);
+                    out_mbx.put(ch);
 
                 end
 
@@ -141,11 +143,12 @@ package sb_mapper_tb_pkg;
 
         sb_mapper_monitor mon;
 
-        bit [63:0] expected_q[$];
+        mailbox #(bit [63:0]) expected_mbx;
         int pass,fail;
 
         function new(sb_mapper_monitor mon);
             this.mon = mon;
+            this.expected_mbx = new();
         endfunction
 
         function bit is_128bit(bit [127:0] pkt);
@@ -180,16 +183,14 @@ package sb_mapper_tb_pkg;
 
             forever begin
 
-                wait(mon.in_q.size() > 0);
-
-                pkt = mon.in_q.pop_front();
+                mon.in_mbx.get(pkt);
 
                 // header
-                expected_q.push_back(pkt.data[63:0]);
+                expected_mbx.put(pkt.data[63:0]);
 
                 // payload
                 if(is_128bit(pkt.data))
-                    expected_q.push_back(pkt.data[127:64]);
+                    expected_mbx.put(pkt.data[127:64]);
 
             end
 
@@ -204,12 +205,8 @@ package sb_mapper_tb_pkg;
 
             forever begin
 
-                wait(expected_q.size() > 0);
-                wait(mon.out_q.size() > 0);
-
-                ch = mon.out_q.pop_front();
-
-                exp = expected_q.pop_front();
+                expected_mbx.get(exp);
+                mon.out_mbx.get(ch);
 
                 if(ch.data !== exp) begin
                     $display("sb_mapper mismatch exp=%h got=%h",exp,ch.data);
