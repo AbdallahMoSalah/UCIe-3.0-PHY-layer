@@ -236,11 +236,13 @@ package rdi_aggregator_tb_pkg;
 
         virtual rdi_aggregator_if vif;
 
-        rdi_aggregator_in_trans in_q[$];
-        rdi_aggregator_out_trans  out_q[$];
+        mailbox #(rdi_aggregator_in_trans) in_mbx;
+        mailbox #(rdi_aggregator_out_trans)  out_mbx;
 
         function new(virtual rdi_aggregator_if vif);
             this.vif = vif;
+            this.in_mbx = new();
+            this.out_mbx = new();
         endfunction
 
 
@@ -259,7 +261,7 @@ package rdi_aggregator_tb_pkg;
                     pkt = new();
                     pkt.data = vif.lp_cfg;
 
-                    in_q.push_back(pkt); // target 
+                    in_mbx.put(pkt); // target 
 
                 end
 
@@ -269,7 +271,7 @@ package rdi_aggregator_tb_pkg;
                     wd = new();
                     wd.data = vif.lp_msg;
 
-                    out_q.push_back(wd); // target 
+                    out_mbx.put(wd); // target 
 
                 end
 
@@ -284,40 +286,41 @@ package rdi_aggregator_tb_pkg;
 
         rdi_aggregator_monitor mon;
 
-        rdi_aggregator_out_trans expected_q[$];
+        mailbox #(rdi_aggregator_out_trans) expected_mbx;
         int pass,fail;
 
         int num_chunks;
 
         function new(rdi_aggregator_monitor mon);
             this.mon = mon;
+            this.expected_mbx = new();
         endfunction
 
 
         task run();
 
-            rdi_aggregator_in_trans pkt = new();
+            rdi_aggregator_in_trans pkt;
             bit [127:0] data;
-            rdi_aggregator_out_trans inter_pkt = new();
+            rdi_aggregator_out_trans inter_pkt;
             int i = 0;
             forever begin
                 data = '0;
                 i = 0;
 
-                wait(mon.in_q.size() > 4);
-
-                pkt = mon.in_q.pop_front();
+                mon.in_mbx.get(pkt);
 
                 num_chunks = get_chunks(pkt.data[4:0]);
                 
                 for(; i < num_chunks - 1; i++) begin
                     data[32*i +: 32] = pkt.data;
-                    pkt = mon.in_q.pop_front();
+                    mon.in_mbx.get(pkt);
                 end
                 data[32*i +: 32] = pkt.data;
+                
+                inter_pkt = new();
                 inter_pkt.data = sb_packet_t'(data);
 
-                expected_q.push_back(inter_pkt);
+                expected_mbx.put(inter_pkt);
            
             end
 
@@ -332,12 +335,8 @@ package rdi_aggregator_tb_pkg;
 
             forever begin
 
-                wait(expected_q.size() > 0);
-                wait(mon.out_q.size() > 0);
-
-                wd = mon.out_q.pop_front();
-
-                exp = expected_q.pop_front();
+                expected_mbx.get(exp);
+                mon.out_mbx.get(wd);
 
                 if(wd.data !== exp.data) begin
                     $display("rdi_aggregator mismatch exp=%h got=%h",exp.data,wd.data);
