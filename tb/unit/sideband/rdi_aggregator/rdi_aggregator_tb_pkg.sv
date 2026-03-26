@@ -44,32 +44,39 @@ package rdi_aggregator_tb_pkg;
         rand bit in_valid = 0;
 
         sb_srcid_e prev_srcid = ADAPTER;
+        sb_packet_t prev_data_drive = '0;
 
 
         constraint opcode_c {
-            data_drive.header.opcode inside {
-                SB_32_MEM_READ               ,
-                SB_32_MEM_WRITE              ,
-                SB_32_DMS_REG_READ           ,
-                SB_32_DMS_REG_WRITE          ,
-                SB_32_CFG_READ               ,
-                SB_32_CFG_WRITE              ,
-                SB_64_MEM_READ               ,
-                SB_64_MEM_WRITE              ,
-                SB_64_DMS_REG_READ           ,
-                SB_64_DMS_REG_WRITE          ,
-                SB_64_CFG_READ               ,
-                SB_64_CFG_WRITE              ,
-                SB_COMPLETION_WITHOUT_DATA   ,
-                SB_COMPLETION_WITH_32_DATA   ,
-                SB_MSG_WITHOUT_DATA          ,
-                SB_MNGT_PORT_MSG_WITHOUT_DATA,
-                SB_MNGT_PORT_MSG_WITH_DATA   ,
-                SB_COMPLETION_WITH_64_DATA   ,
-                SB_MSG_WITH_64_DATA          ,
-                SB_PRIORITY_MSG1             ,
-                SB_PRIORITY_MSG2             
-            };
+            if((reverse_chunk_counter == 0) && (in_valid)){
+                data_drive.header.opcode inside {
+                    SB_32_MEM_READ               ,
+                    SB_32_MEM_WRITE              ,
+                    SB_32_DMS_REG_READ           ,
+                    SB_32_DMS_REG_WRITE          ,
+                    SB_32_CFG_READ               ,
+                    SB_32_CFG_WRITE              ,
+                    SB_64_MEM_READ               ,
+                    SB_64_MEM_WRITE              ,
+                    SB_64_DMS_REG_READ           ,
+                    SB_64_DMS_REG_WRITE          ,
+                    SB_64_CFG_READ               ,
+                    SB_64_CFG_WRITE              ,
+                    SB_COMPLETION_WITHOUT_DATA   ,
+                    SB_COMPLETION_WITH_32_DATA   ,
+                    SB_MSG_WITHOUT_DATA          ,
+                    SB_MNGT_PORT_MSG_WITHOUT_DATA,
+                    SB_MNGT_PORT_MSG_WITH_DATA   ,
+                    SB_COMPLETION_WITH_64_DATA   ,
+                    SB_MSG_WITH_64_DATA          ,
+                    SB_PRIORITY_MSG1             ,
+                    SB_PRIORITY_MSG2             
+                };
+            }
+            else {
+                data_drive.header.opcode == prev_data_drive.header.opcode;
+            }
+            
         }
 
         constraint srcid_c {
@@ -82,24 +89,69 @@ package rdi_aggregator_tb_pkg;
                 };
             }
             else {
-                data_drive.header.srcid == prev_srcid;
+                data_drive.header.srcid == prev_data_drive.header.srcid;
+            }
+            
+        }
+
+        constraint msgcode_c {
+            if(!((reverse_chunk_counter == 0) && (in_valid))){
+                data_drive.header.msgcode == prev_data_drive.header.msgcode;
+            }
+        }
+
+
+        constraint MsgSubcode_c {
+            if(!((reverse_chunk_counter == 0) && (in_valid))){
+                data_drive.header.MsgSubcode == prev_data_drive.header.MsgSubcode;
+            }
+            
+        }
+
+        constraint MsgInfo_c {
+            if(!((reverse_chunk_counter == 0) && (in_valid))){
+                data_drive.header.MsgInfo == prev_data_drive.header.MsgInfo;
             }
             
         }
 
         constraint dstid_c {
-            if(data_drive.header.srcid == ADAPTER || data_drive.header.srcid == MNGT_PORT_SRC) {
-                data_drive.header.dstid inside { 
-                    LOCAL_PHY        ,
-                    REMOTE_ADAPTER   ,
-                    REMOTE_PHY       ,
-                    REMOTE_REG_ACCESS,
-                    MNGT_PORT_DST    
-                };
+
+            if((reverse_chunk_counter == 0) && (in_valid)){
+                if(data_drive.header.srcid == ADAPTER || data_drive.header.srcid == MNGT_PORT_SRC) {
+                    data_drive.header.dstid inside { 
+                        LOCAL_PHY        ,
+                        REMOTE_ADAPTER   ,
+                        REMOTE_PHY       ,
+                        REMOTE_REG_ACCESS,
+                        MNGT_PORT_DST    
+                    };
+                }
+                else {
+                    data_drive.header.dstid == LOCAL_PHY;
+                }
             }
             else {
-                data_drive.header.dstid == LOCAL_PHY;
+                data_drive.header.dstid == prev_data_drive.header.dstid;
             }
+            
+            
+        }
+
+        constraint payload_c {
+
+            if((reverse_chunk_counter == 0) && (in_valid)){
+                if(get_chunks(data_drive.header.opcode) == 2){
+                    data_drive.payload == 64'b0;
+                }
+                else if(get_chunks(data_drive.header.opcode) == 3){
+                    data_drive.payload[63:32] == 32'b0;
+                }
+            }
+            else {
+                data_drive.payload == prev_data_drive.payload;
+            }
+            
             
         }
 
@@ -109,7 +161,7 @@ package rdi_aggregator_tb_pkg;
             data_drive.header.rsvd2 == '0;
         }
         constraint parity_c {
-            data_drive.header.cp == (^data_drive.header[62:0]);
+            data_drive.header.cp == (^data_drive.header[61:0]);
             data_drive.header.dp == (^data_drive.payload);
         }
 
@@ -133,7 +185,7 @@ package rdi_aggregator_tb_pkg;
                 chunk_counter++;
             end
 
-            prev_srcid = data_drive.header.srcid;
+            prev_data_drive = data_drive;
             
         endfunction
 

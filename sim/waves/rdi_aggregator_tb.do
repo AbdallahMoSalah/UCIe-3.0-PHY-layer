@@ -7,12 +7,12 @@ add wave -noupdate /rdi_aggregator_tb/dut/lp_cfg_vld
 add wave -noupdate /rdi_aggregator_tb/dut/lp_msg
 add wave -noupdate /rdi_aggregator_tb/dut/lp_msg_vld
 add wave -noupdate /rdi_aggregator_tb/dut/state
+add wave -noupdate /rdi_aggregator_tb/dut/next_state
 add wave -noupdate /rdi_aggregator_tb/dut/packet_reg
-add wave -noupdate /rdi_aggregator_tb/dut/opcode
 add wave -noupdate /rdi_aggregator_tb/dut/chunk_cnt
 add wave -noupdate /rdi_aggregator_tb/dut/expected_chunks
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {55 ns} 0}
+WaveRestoreCursors {{Cursor 1} {195 ns} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 196
@@ -28,4 +28,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {99915 ns} {100021 ns}
+WaveRestoreZoom {145 ns} {251 ns}
