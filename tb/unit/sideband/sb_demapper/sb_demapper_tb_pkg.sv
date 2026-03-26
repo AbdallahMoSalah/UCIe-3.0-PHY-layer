@@ -70,11 +70,13 @@ package sb_demapper_tb_pkg;
 
         virtual sb_demapper_if vif;
 
-        sb_demapper_in_trans in_q[$];
-        sb_demapper_word  out_q[$];
+        mailbox #(sb_demapper_in_trans) in_mbx;
+        mailbox #(sb_demapper_word)   out_mbx;
 
         function new(virtual sb_demapper_if vif);
             this.vif = vif;
+            this.in_mbx = new();
+            this.out_mbx = new();
         endfunction
 
 
@@ -93,7 +95,7 @@ package sb_demapper_tb_pkg;
                     pkt = new();
                     pkt.data = vif.msg_rcvd;
 
-                    in_q.push_back(pkt); // target 
+                    in_mbx.put(pkt); // target 
 
                 end
 
@@ -104,7 +106,7 @@ package sb_demapper_tb_pkg;
                     wd = new();
                     wd.data = vif.msg_word_rcvd;
 
-                    out_q.push_back(wd); // target 
+                    out_mbx.put(wd); // target 
 
                 end
 
@@ -119,11 +121,12 @@ package sb_demapper_tb_pkg;
 
         sb_demapper_monitor mon;
 
-        sb_demapper_word expected_q[$];
+        mailbox #(sb_demapper_word) expected_mbx;
         int pass,fail;
 
         function new(sb_demapper_monitor mon);
             this.mon = mon;
+            this.expected_mbx = new();
         endfunction
 
         function bit is_128bit(bit [63:0] pkt);
@@ -159,25 +162,21 @@ package sb_demapper_tb_pkg;
             sb_demapper_word inter_pkt;
             forever begin
 
-                wait(mon.in_q.size() > 0);
-
-                pkt = mon.in_q.pop_front();
+                mon.in_mbx.get(pkt);
 
                 // 64 bit header only
                 
                 if(!is_128bit(pkt.data)) begin
                     inter_pkt = new();
                     inter_pkt.data = {64'b0,pkt.data};
-                    expected_q.push_back(inter_pkt);
+                    expected_mbx.put(inter_pkt);
                 end
                 // header + payload for 128 bit messages
                 else begin                    
-                    wait(mon.in_q.size() > 0);
-
-                    pkt1 = mon.in_q.pop_front();
+                    mon.in_mbx.get(pkt1);
                     inter_pkt = new();
                     inter_pkt.data = {pkt1.data,pkt.data};
-                    expected_q.push_back(inter_pkt); // push header with payload
+                    expected_mbx.put(inter_pkt); // push header with payload
                 end
            
             end
@@ -193,12 +192,8 @@ package sb_demapper_tb_pkg;
 
             forever begin
 
-                wait(expected_q.size() > 0);
-                wait(mon.out_q.size() > 0);
-
-                wd = mon.out_q.pop_front();
-
-                exp = expected_q.pop_front();
+                expected_mbx.get(exp);
+                mon.out_mbx.get(wd);
 
                 if(wd.data !== exp.data) begin
                     $display("sb_demapper mismatch exp=%h got=%h",exp.data,wd.data);
