@@ -8,7 +8,7 @@ module rdi_aggregator
     input  logic [31:0] lp_cfg,
     input  logic        lp_cfg_vld,
 
-    output sb_packet_t lp_msg,
+    output sb_packet_t   lp_msg,
     output logic         lp_msg_vld
 );
 
