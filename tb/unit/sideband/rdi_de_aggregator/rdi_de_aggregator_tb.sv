@@ -11,6 +11,8 @@ module rdi_de_aggregator_tb;
         .pl_msg(rdi_de_aggregatorif.pl_msg),
         .pl_msg_vld(rdi_de_aggregatorif.pl_msg_vld),
         .pl_msg_ready(rdi_de_aggregatorif.pl_msg_ready),
+        .traffic_req(rdi_de_aggregatorif.traffic_req),
+        .traffic_ready(rdi_de_aggregatorif.traffic_ready),
         .pl_cfg(rdi_de_aggregatorif.pl_cfg),
         .pl_cfg_vld(rdi_de_aggregatorif.pl_cfg_vld)
     );

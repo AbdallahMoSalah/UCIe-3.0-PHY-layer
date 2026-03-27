@@ -11,6 +11,8 @@ module rdi_de_aggregator
     output logic        pl_msg_ready,
 
     // Interface with Link/PHY layer
+    output logic        traffic_req,
+    input  logic        traffic_ready,
     output logic [31:0] pl_cfg,
     output logic        pl_cfg_vld
 );
@@ -18,6 +20,7 @@ module rdi_de_aggregator
 
     typedef enum logic [1:0] {
         IDLE,
+        WAIT_READY,
         OUTPUT_STATE
     } state_t;
 
@@ -104,14 +107,20 @@ module rdi_de_aggregator
 
             IDLE: begin
                 if(pl_msg_vld) begin
-                    next_state = OUTPUT_STATE;
+                    next_state = WAIT_READY;
                 end
             end 
+
+            WAIT_READY: begin
+                if(traffic_ready) begin
+                    next_state = OUTPUT_STATE;
+                end
+            end
 
             OUTPUT_STATE: begin
                 if(chunk_cnt == expected_chunks) begin
                     if(pl_msg_vld) begin
-                        next_state = OUTPUT_STATE;
+                        next_state = WAIT_READY;
                     end
                     else begin
                         next_state = IDLE;
@@ -124,6 +133,7 @@ module rdi_de_aggregator
     end
 
     assign pl_msg_ready = (state == IDLE) || (state == OUTPUT_STATE && chunk_cnt == expected_chunks);
+    assign traffic_req  = (state == WAIT_READY);
 
 
     ////////////////////////////////////////
@@ -151,16 +161,25 @@ module rdi_de_aggregator
                 if(pl_msg_vld) begin
                     msg_reg         <= pl_msg;
                     expected_chunks <= next_expected_chunks;
-                    chunk_cnt       <= 1;
-                    pl_cfg_vld      <= 1'b1;
-                    pl_cfg          <= in_msg_flat[31:0];
                 end
-                else begin
-                    pl_cfg_vld      <= 0;
-                    chunk_cnt       <= 0;
-                end
+                pl_cfg_vld <= 0;
+                chunk_cnt  <= 0;
             end
 
+            ///////////////////////////////////////
+            WAIT_READY:
+            ///////////////////////////////////////
+            begin
+                if (traffic_ready) begin
+                    chunk_cnt  <= 1;
+                    pl_cfg_vld <= 1'b1;
+                    // Send out the first chunk
+                    pl_cfg     <= msg_reg[31:0]; 
+                end
+                else begin
+                    pl_cfg_vld <= 0;
+                end
+            end
 
             ///////////////////////////////////////
             OUTPUT_STATE:
@@ -169,17 +188,12 @@ module rdi_de_aggregator
                 if(chunk_cnt == expected_chunks) begin
                     // Last chunk was already sent out in the previous cycle
                     if(pl_msg_vld) begin
-                        // Back to back consecutive packets
+                        // Back to back consecutive packets: buffer and wait for ready
                         msg_reg         <= pl_msg;
                         expected_chunks <= next_expected_chunks;
-                        chunk_cnt       <= 1;
-                        pl_cfg_vld      <= 1'b1;
-                        pl_cfg          <= in_msg_flat[31:0];
                     end
-                    else begin
-                        pl_cfg_vld      <= 0;
-                        chunk_cnt       <= 0;
-                    end
+                    pl_cfg_vld <= 0;
+                    chunk_cnt  <= 0;
                 end
                 else begin
                     pl_cfg_vld <= 1'b1;

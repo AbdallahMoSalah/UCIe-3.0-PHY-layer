@@ -149,18 +149,35 @@ package rdi_de_aggregator_tb_pkg;
             pkt = new();
             vif.pl_msg_vld = 0;
             vif.pl_msg = '0;
+            vif.traffic_ready = 0;
 
-            forever begin
-
-                @(negedge vif.clk);
-
-                if(vif.pl_msg_ready || !vif.pl_msg_vld) begin
-                    assert(pkt.randomize());
-                    vif.pl_msg_vld = pkt.in_valid;
-                    vif.pl_msg = pkt.data_drive;
+            fork
+                // Thread 1: Stimulus Generation
+                forever begin
+                    @(negedge vif.clk);
+                    if(vif.pl_msg_ready || !vif.pl_msg_vld) begin
+                        assert(pkt.randomize());
+                        vif.pl_msg_vld = pkt.in_valid;
+                        vif.pl_msg = pkt.data_drive;
+                    end
                 end
 
-            end
+                // Thread 2: traffic_ready handshake responder
+                forever begin
+                    @(negedge vif.clk);
+                    // Drive traffic_ready randomly mostly when traffic_req is asserted
+                    if (vif.traffic_req) begin
+                        // Wait random 0-5 cycles to test back-pressure, then pulse ready
+                        int delay = $urandom_range(0, 3);
+                        repeat(delay) @(negedge vif.clk);
+                        vif.traffic_ready = 1'b1;
+                        @(negedge vif.clk);
+                        vif.traffic_ready = 1'b0;
+                    end else begin
+                        vif.traffic_ready = 1'b0;
+                    end
+                end
+            join
 
         endtask
 
