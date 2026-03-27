@@ -39,7 +39,7 @@ module CLK_PATTERN_GEN_TX_tb;
         clk_pattern_en = 0;
         @(negedge i_clk);
         i_rst_n = 1;clk_pattern_en = 1;
-        repeat(3000) @(negedge i_clk);
+        repeat(3500) @(negedge i_clk);
         $display("done");
         @(negedge i_clk);
 
