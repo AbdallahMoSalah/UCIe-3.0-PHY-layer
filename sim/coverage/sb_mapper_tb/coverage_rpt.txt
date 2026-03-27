@@ -1,0 +1,944 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /sb_mapper_tb/sb_mapperif
+=== Design Unit: work.sb_mapper_if
+=================================================================================
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        396       395         1    99.74%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_mapper_tb/sb_mapperif --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                              Msg_word_send[127-0]           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                                      mapper_ready           1           1                              100.00 
+                                    msg_send[63-0]           1           1                              100.00 
+                                         msg_vld_s           1           1                              100.00 
+                                             rst_n           0           1                               50.00 
+                                         ser_ready           1           1                              100.00 
+                                      word_valid_s           1           1                              100.00 
+
+Total Node Count     =        198 
+Toggled Node Count   =        197 
+Untoggled Node Count =          1 
+
+Toggle Coverage      =      99.74% (395 of 396 bins)
+
+=================================================================================
+=== Instance: /sb_mapper_tb/dut
+=== Design Unit: work.sb_MAPPER
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        27        27         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /sb_mapper_tb/dut
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/Link_Controller/sb_MAPPER.sv
+------------------------------------CASE Branch------------------------------------
+    49                                      1718     Count coming in to CASE
+    51              1                        104                 SB_32_MEM_WRITE,
+    52              1                         70                 SB_32_DMS_REG_WRITE,
+    53              1                        100                 SB_32_CFG_WRITE,
+    54              1                         96                 SB_64_MEM_WRITE,
+    55              1                         86                 SB_64_DMS_REG_WRITE,
+    56              1                         92                 SB_64_CFG_WRITE,
+    57              1                         85                 SB_COMPLETION_WITH_32_DATA,
+    58              1                         94                 SB_COMPLETION_WITH_64_DATA,
+    59              1                         92                 SB_MSG_WITH_64_DATA,
+    60              1                         87                 SB_MNGT_PORT_MSG_WITH_DATA:
+    63              1                        812                 default:
+Branch totals: 11 hits of 11 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    84                                      5139     Count coming in to IF
+    84              1                          2             if (!rst_n) begin
+    88              1                       5137             else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    93                                      5137     Count coming in to IF
+    93              1                        945                 if (arb_fire && is_128bit) begin
+                                            4192     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    109                                    11320     Count coming in to CASE
+    112             1                       8274                 IDLE: begin
+    117             1                       3044                 SEND_SECOND_HALF: begin
+                                               2     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    113                                     8274     Count coming in to IF
+    113             1                       2135                     if (arb_fire && is_128bit)
+                                            6139     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    118                                     3044     Count coming in to IF
+    118             1                       2466                     if (ser_ready)
+                                             578     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    137                                     9478     Count coming in to CASE
+    142             1                       6831                 IDLE: begin
+    156             1                       2645                 SEND_SECOND_HALF: begin
+                                               2     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    146                                     6831     Count coming in to IF
+    146             1                       2361                     if (word_valid_s && ser_ready) begin
+                                            4470     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       6         6         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /sb_mapper_tb/dut --
+
+  File rtl/SideBand/Link_Controller/sb_MAPPER.sv
+----------------Focused Condition View-------------------
+Line       93 Item    1  (arb_fire && is_128bit)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+  Input Term   Covered  Reason for no coverage   Hint
+ -----------  --------  -----------------------  --------------
+    arb_fire         Y
+   is_128bit         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  arb_fire_0            -                             
+  Row   2:          1  arb_fire_1            is_128bit                     
+  Row   3:          1  is_128bit_0           arb_fire                      
+  Row   4:          1  is_128bit_1           arb_fire                      
+
+----------------Focused Condition View-------------------
+Line       113 Item    1  (arb_fire && is_128bit)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+  Input Term   Covered  Reason for no coverage   Hint
+ -----------  --------  -----------------------  --------------
+    arb_fire         Y
+   is_128bit         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  arb_fire_0            -                             
+  Row   2:          1  arb_fire_1            is_128bit                     
+  Row   3:          1  is_128bit_0           arb_fire                      
+  Row   4:          1  is_128bit_1           arb_fire                      
+
+----------------Focused Condition View-------------------
+Line       146 Item    1  (word_valid_s && ser_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+    Input Term   Covered  Reason for no coverage   Hint
+   -----------  --------  -----------------------  --------------
+  word_valid_s         Y
+     ser_ready         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  word_valid_s_0        -                             
+  Row   2:          1  word_valid_s_1        ser_ready                     
+  Row   3:          1  ser_ready_0           word_valid_s                  
+  Row   4:          1  ser_ready_1           word_valid_s                  
+
+
+Expression Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Expressions                      2         2         0   100.00%
+
+================================Expression Details================================
+
+Expression Coverage for instance /sb_mapper_tb/dut --
+
+  File rtl/SideBand/Link_Controller/sb_MAPPER.sv
+----------------Focused Expression View-----------------
+Line       76 Item    1  (word_valid_s && mapper_ready)
+Expression totals: 2 of 2 input terms covered = 100.00%
+
+    Input Term   Covered  Reason for no coverage   Hint
+   -----------  --------  -----------------------  --------------
+  word_valid_s         Y
+  mapper_ready         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  word_valid_s_0        -                             
+  Row   2:          1  word_valid_s_1        mapper_ready                  
+  Row   3:          1  mapper_ready_0        word_valid_s                  
+  Row   4:          1  mapper_ready_1        word_valid_s                  
+
+
+FSM Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    FSM States                       2         2         0   100.00%
+    FSM Transitions                  2         2         0   100.00%
+
+================================FSM Details================================
+
+FSM Coverage for instance /sb_mapper_tb/dut --
+
+FSM_ID: current_state
+    Current State Object : current_state
+    ----------------------
+    State Value MapInfo :
+    ---------------------
+Line          State Name               Value
+----          ----------               -----
+ 112                IDLE                   0
+ 117    SEND_SECOND_HALF                   1
+    Covered States :
+    ----------------
+                   State           Hit_count
+                   -----           ---------
+                    IDLE                3616          
+        SEND_SECOND_HALF                1523          
+    Covered Transitions :
+    ---------------------
+Line            Trans_ID           Hit_count          Transition          
+----            --------           ---------          ----------          
+ 114                   0                 945          IDLE -> SEND_SECOND_HALF          
+ 119                   1                 944          SEND_SECOND_HALF -> IDLE          
+
+
+    Summary                       Bins      Hits    Misses  Coverage
+    -------                       ----      ----    ------  --------
+        FSM States                   2         2         0   100.00%
+        FSM Transitions              2         2         0   100.00%
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      23        23         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_mapper_tb/dut --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/SideBand/Link_Controller/sb_MAPPER.sv
+    1                                                module sb_MAPPER (
+    2                                                
+    3                                                    input  logic         clk,
+    4                                                    input  logic         rst_n,
+    5                                                
+    6                                                    // From TX Arbiter
+    7                                                    input  logic [127:0] Msg_word_send,
+    8                                                    input  logic         word_valid_s,
+    9                                                
+    10                                                   // From SerDes
+    11                                                   input  logic         ser_ready,
+    12                                               
+    13                                                   // Backpressure to Arbiter
+    14                                                   output logic         mapper_ready,
+    15                                               
+    16                                                   // To SerDes
+    17                                                   output logic [63:0]  msg_send,
+    18                                                   output logic         msg_vld_s
+    19                                               );
+    20                                                   import sb_pkg::*;
+    21                                                   // ---------------------------------------------------------
+    22                                                   // Internal Registers
+    23                                                   // ---------------------------------------------------------
+    24                                               
+    25                                                   logic [63:0] second_half_reg;
+    26                                               
+    27                                                   typedef enum logic [1:0] {
+    28                                                       IDLE,
+    29                                                       SEND_SECOND_HALF
+    30                                                   } state_t;
+    31                                               
+    32                                                   state_t current_state, next_state;
+    33                                               
+    34                                                   // ---------------------------------------------------------
+    35                                                   // Opcode Decode
+    36                                                   // ---------------------------------------------------------
+    37                                               
+    38                                                   sb_opcode_e opcode;
+    39                                                   logic       is_128bit;
+    40                                               
+    41              1                       1718         assign opcode = sb_opcode_e'(Msg_word_send[4:0]);
+    42                                               
+    43                                                   // ---------------------------------------------------------
+    44                                                   // Determine Message Length
+    45                                                   // ---------------------------------------------------------
+    46                                               
+    47              1                       1718         always_comb begin
+    48                                               
+    49                                                       case (opcode)
+    50                                               
+    51                                                           SB_32_MEM_WRITE,
+    52                                                           SB_32_DMS_REG_WRITE,
+    53                                                           SB_32_CFG_WRITE,
+    54                                                           SB_64_MEM_WRITE,
+    55                                                           SB_64_DMS_REG_WRITE,
+    56                                                           SB_64_CFG_WRITE,
+    57                                                           SB_COMPLETION_WITH_32_DATA,
+    58                                                           SB_COMPLETION_WITH_64_DATA,
+    59                                                           SB_MSG_WITH_64_DATA,
+    60                                                           SB_MNGT_PORT_MSG_WITH_DATA:
+    61              1                        906                     is_128bit = 1'b1;
+    62                                               
+    63                                                           default:
+    64              1                        812                     is_128bit = 1'b0;
+    65                                               
+    66                                                       endcase
+    67                                               
+    68                                                   end
+    69                                               
+    70                                                   // ---------------------------------------------------------
+    71                                                   // Handshake Fire Signals
+    72                                                   // ---------------------------------------------------------
+    73                                               
+    74                                                   logic arb_fire;
+    75                                               
+    76              1                      11249         assign arb_fire = word_valid_s && mapper_ready;
+    77                                               
+    78                                                   // ---------------------------------------------------------
+    79                                                   // FSM State Register
+    80                                                   // ---------------------------------------------------------
+    81                                               
+    82              1                       5139         always_ff @(posedge clk or negedge rst_n) begin
+    83                                               
+    84                                                       if (!rst_n) begin
+    85              1                          2                 current_state   <= IDLE;
+    86              1                          2                 second_half_reg <= '0;
+    87                                                       end
+    88                                                       else begin
+    89                                               
+    90              1                       5137                 current_state <= next_state;
+    91                                               
+    92                                                           // latch second half
+    93                                                           if (arb_fire && is_128bit) begin
+    94              1                        945                     second_half_reg <= Msg_word_send[127:64];
+    95                                                           end
+    96                                               
+    97                                                       end
+    98                                               
+    99                                                   end
+    100                                              
+    101                                                  // ---------------------------------------------------------
+    102                                                  // FSM Next State Logic
+    103                                                  // ---------------------------------------------------------
+    104                                              
+    105             1                      11320         always_comb begin
+    106                                              
+    107             1                      11320             next_state = current_state;
+    108                                              
+    109                                                      case (current_state)
+    110                                              
+    111                                              
+    112                                                          IDLE: begin
+    113                                                              if (arb_fire && is_128bit)
+    114             1                       2135                         next_state = SEND_SECOND_HALF;
+    115                                                          end
+    116                                              
+    117                                                          SEND_SECOND_HALF: begin
+    118                                                              if (ser_ready)
+    119             1                       2466                         next_state = IDLE;
+    120                                                          end
+    121                                              
+    122                                                      endcase
+    123                                              
+    124                                                  end
+    125                                              
+    126                                                  // ---------------------------------------------------------
+    127                                                  // Output Logic
+    128                                                  // ---------------------------------------------------------
+    129                                              
+    130             1                       9478         always_comb begin
+    131                                              
+    132                                                      // defaults
+    133                                                      
+    134             1                       9478             msg_vld_s    = 1'b0;
+    135             1                       9478             mapper_ready = 1'b0;
+    136                                              
+    137                                                      case (current_state)
+    138                                              
+    139                                                          //--------------------------------
+    140                                                          // IDLE
+    141                                                          //--------------------------------
+    142                                                          IDLE: begin
+    143                                              
+    144             1                       6831                     mapper_ready = ser_ready;
+    145                                              
+    146                                                              if (word_valid_s && ser_ready) begin
+    147             1                       2361                         msg_send  = Msg_word_send[63:0];
+    148             1                       2361                         msg_vld_s = 1'b1;
+    149                                                              end
+    150                                              
+    151                                                          end
+    152                                              
+    153                                                          //--------------------------------
+    154                                                          // SEND_SECOND_HALF
+    155                                                          //--------------------------------
+    156                                                          SEND_SECOND_HALF: begin
+    157                                              
+    158             1                       2645                     mapper_ready = 1'b0;
+    159                                              
+    160             1                       2645                     msg_send  = second_half_reg;
+    161             1                       2645                     msg_vld_s = 1'b1;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        553       550         3    99.45%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_mapper_tb/dut --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                              Msg_word_send[0-127]           1           1                              100.00 
+                                          arb_fire           1           1                              100.00 
+                                               clk           1           1                              100.00 
+                                     current_state               ENUM type       Value       Count 
+                                                                      IDLE           1      100.00 
+                                                          SEND_SECOND_HALF           1      100.00 
+                                         is_128bit           1           1                              100.00 
+                                      mapper_ready           1           1                              100.00 
+                                    msg_send[63-0]           1           1                              100.00 
+                                         msg_vld_s           1           1                              100.00 
+                                        next_state               ENUM type       Value       Count 
+                                                                      IDLE           1      100.00 
+                                                          SEND_SECOND_HALF           1      100.00 
+                                            opcode               ENUM type       Value       Count 
+                                                            SB_32_MEM_READ          84      100.00 
+                                                           SB_32_MEM_WRITE         104      100.00 
+                                                        SB_32_DMS_REG_READ          85      100.00 
+                                                       SB_32_DMS_REG_WRITE          70      100.00 
+                                                            SB_32_CFG_READ          84      100.00 
+                                                           SB_32_CFG_WRITE         100      100.00 
+                                                            SB_64_MEM_READ          82      100.00 
+                                                           SB_64_MEM_WRITE          96      100.00 
+                                                        SB_64_DMS_REG_READ          95      100.00 
+                                                       SB_64_DMS_REG_WRITE          86      100.00 
+                                                            SB_64_CFG_READ          86      100.00 
+                                                           SB_64_CFG_WRITE          92      100.00 
+                                                   SB_COMPLETION_WITHOUT_DATA 
+                                                                                   94      100.00 
+                                                   SB_COMPLETION_WITH_32_DATA 
+                                                                                   85      100.00 
+                                                       SB_MSG_WITHOUT_DATA         101      100.00 
+                                                   SB_MNGT_PORT_MSG_WITHOUT_DATA 
+                                                                                  100      100.00 
+                                                   SB_MNGT_PORT_MSG_WITH_DATA 
+                                                                                   87      100.00 
+                                                   SB_COMPLETION_WITH_64_DATA 
+                                                                                   94      100.00 
+                                                       SB_MSG_WITH_64_DATA          92      100.00 
+                                                          SB_PRIORITY_MSG1           0        0.00 
+                                                          SB_PRIORITY_MSG2           0        0.00 
+                                             rst_n           0           1                               50.00 
+                             second_half_reg[63-0]           1           1                              100.00 
+                                         ser_ready           1           1                              100.00 
+                                      word_valid_s           1           1                              100.00 
+
+Total Node Count     =        289 
+Toggled Node Count   =        286 
+Untoggled Node Count =          3 
+
+Toggle Coverage      =      99.45% (550 of 553 bins)
+
+=================================================================================
+=== Instance: /sb_mapper_tb
+=== Design Unit: work.sb_mapper_tb
+=================================================================================
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      26        26         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_mapper_tb --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_MAPPER/sb_mapper_tb.sv
+    1                                                module sb_mapper_tb;
+    2                                                
+    3                                                    import sb_mapper_tb_pkg::*;
+    4                                                
+    5                                                    bit clk;
+    6                                                    sb_mapper_if sb_mapperif(clk);
+    7                                                
+    8                                                    sb_MAPPER dut(
+    9                                                        .clk(sb_mapperif.clk),
+    10                                                       .rst_n(sb_mapperif.rst_n),
+    11                                                       .Msg_word_send(sb_mapperif.Msg_word_send),
+    12                                                       .word_valid_s(sb_mapperif.word_valid_s),
+    13                                                       .ser_ready(sb_mapperif.ser_ready),
+    14                                                       .mapper_ready(sb_mapperif.mapper_ready),
+    15                                                       .msg_send(sb_mapperif.msg_send),
+    16                                                       .msg_vld_s(sb_mapperif.msg_vld_s)
+    17                                                   );
+    18                                               
+    19                                               
+    20                                                   sb_mapper_driver     drv;
+    21                                                   sb_mapper_monitor    mon;
+    22                                                   sb_mapper_scoreboard scb;
+    23                                               
+    24                                               
+    25                                                   // clock
+    26              1                      20004         always #5 clk = ~clk;
+    26              2                      20003     
+    27                                               
+    28                                               
+    29                                                   initial begin
+    30                                               
+    31              1                          1             drv = new(sb_mapperif);
+    32              1                          1             mon = new(sb_mapperif);
+    33              1                          1             scb = new(mon);
+    34                                                       
+    35                                               
+    36                                                       begin
+    37                                                           // 2. Reset Sequence
+    38              1                          1                 sb_mapperif.Msg_word_send = 128'b0;
+    39              1                          1                 sb_mapperif.word_valid_s  = 1'b0;
+    40              1                          1                 sb_mapperif.rst_n         = 1'b0;
+    41                                               
+    42                                                           // Wait for 2 negative edges, then release reset
+    43              1                          2                 repeat(2) @(posedge clk);
+    43              2                          2     
+    44              1                          1                 sb_mapperif.rst_n = 1'b1;
+    45              1                          1                 $display("\nSystem Reset De-asserted. Starting Test...\n");
+    46                                               
+    47                                                       end
+    48                                                       fork
+    49              1                          1                 drv.run();
+    50              1                          1                 mon.run();
+    51              1                          1                 scb.run();
+    52              1                          1                 scb.check();
+    53                                                        
+    54                                                       join_none
+    55              1                      10000             repeat(10000)begin
+    56              1                      10000                 @(posedge clk);
+    57                                                       end
+    58                                               
+    59                                                       // 4. Final Summary Report (???? ????? ?????? ????????)
+    60              1                          1             $display("\n==================================================");
+    61              1                          1             $display("            VERIFICATION SUMMARY REPORT             ");
+    62              1                          1             $display("==================================================");
+    63              1                          1             $display(" Total Packets Injected : %0d", (scb.pass + scb.fail));
+    64              1                          1             $display(" Packets Passed         : %0d", scb.pass);
+    65              1                          1             $display(" Packets Failed         : %0d", scb.fail);
+    66              1                          1             $display("==================================================\n");
+    67                                               
+    68              1                          1             $stop;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                          2         2         0   100.00%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /sb_mapper_tb --
+
+                                              Node      1H->0L      0L->1H                          "Coverage"
+                                              ---------------------------------------------------------------
+                                               clk           1           1                              100.00 
+
+Total Node Count     =          1 
+Toggled Node Count   =          1 
+Untoggled Node Count =          0 
+
+Toggle Coverage      =     100.00% (2 of 2 bins)
+
+=================================================================================
+=== Instance: /sb_mapper_tb_pkg
+=== Design Unit: work.sb_mapper_tb_pkg
+=================================================================================
+
+Assertion Coverage:
+    Assertions                       1         1         0   100.00%
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/sb_mapper_tb_pkg/sb_mapper_driver/run/#ublk#86545207#51/immed__56
+                     tb/unit/sideband/sb_MAPPER/sb_mapper_tb_pkg.sv(56)
+                                                        0          1
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        21        20         1    95.23%
+
+================================Branch Details================================
+
+Branch Coverage for instance /sb_mapper_tb_pkg
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_MAPPER/sb_mapper_tb_pkg.sv
+------------------------------------IF Branch------------------------------------
+    62                                     10000     Count coming in to IF
+    62              1                       1825                     if(pkt.in_valid && vif.mapper_ready) begin
+                                            8175     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    95                                      9999     Count coming in to IF
+    95              1                       1808                     if(vif.word_valid_s && vif.mapper_ready) begin
+                                            8191     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    106                                     9999     Count coming in to IF
+    106             1                       2752                     if(vif.msg_vld_s && vif.ser_ready) begin
+                                            7247     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------CASE Branch------------------------------------
+    139                                     1808     Count coming in to CASE
+    140             1                        114                     SB_32_MEM_WRITE,
+    141             1                         74                     SB_32_DMS_REG_WRITE,
+    142             1                        114                     SB_32_CFG_WRITE,
+    143             1                         91                     SB_64_MEM_WRITE,
+    144             1                         90                     SB_64_DMS_REG_WRITE,
+    145             1                         99                     SB_64_CFG_WRITE,
+    146             1                         81                     SB_COMPLETION_WITH_32_DATA,
+    147             1                         94                     SB_COMPLETION_WITH_64_DATA,
+    148             1                         84                     SB_MSG_WITH_64_DATA,
+    149             1                        103                     SB_MNGT_PORT_MSG_WITH_DATA:
+    152             1                        864                     default:
+Branch totals: 11 hits of 11 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    173                                     1808     Count coming in to IF
+    173             1                        944                     if(is_128bit(pkt.data))
+                                             864     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    196                                     2752     Count coming in to IF
+    196             1                    ***0***                     if(ch.data !== exp) begin
+    200             1                       2752                     else begin
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       7         6         1    85.71%
+
+================================Condition Details================================
+
+Condition Coverage for instance /sb_mapper_tb_pkg --
+
+  File tb/unit/sideband/sb_MAPPER/sb_mapper_tb_pkg.sv
+----------------Focused Condition View-------------------
+Line       62 Item    1  (pkt.in_valid && this.vif.mapper_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+           pkt.in_valid         Y
+  this.vif.mapper_ready         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  pkt.in_valid_0           -                             
+  Row   2:          1  pkt.in_valid_1           this.vif.mapper_ready         
+  Row   3:          1  this.vif.mapper_ready_0  pkt.in_valid                  
+  Row   4:          1  this.vif.mapper_ready_1  pkt.in_valid                  
+
+----------------Focused Condition View-------------------
+Line       95 Item    1  (this.vif.word_valid_s && this.vif.mapper_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  this.vif.word_valid_s         Y
+  this.vif.mapper_ready         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  this.vif.word_valid_s_0  -                             
+  Row   2:          1  this.vif.word_valid_s_1  this.vif.mapper_ready         
+  Row   3:          1  this.vif.mapper_ready_0  this.vif.word_valid_s         
+  Row   4:          1  this.vif.mapper_ready_1  this.vif.word_valid_s         
+
+----------------Focused Condition View-------------------
+Line       106 Item    1  (this.vif.msg_vld_s && this.vif.ser_ready)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+          Input Term   Covered  Reason for no coverage   Hint
+         -----------  --------  -----------------------  --------------
+  this.vif.msg_vld_s         Y
+  this.vif.ser_ready         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  this.vif.msg_vld_s_0  -                             
+  Row   2:          1  this.vif.msg_vld_s_1  this.vif.ser_ready            
+  Row   3:          1  this.vif.ser_ready_0  this.vif.msg_vld_s            
+  Row   4:          1  this.vif.ser_ready_1  this.vif.msg_vld_s            
+
+----------------Focused Condition View-------------------
+Line       196 Item    1  (ch.data !== exp)
+Condition totals: 0 of 1 input term covered = 0.00%
+
+         Input Term   Covered  Reason for no coverage   Hint
+        -----------  --------  -----------------------  --------------
+  (ch.data !== exp)         N  '_1' not hit             Hit '_1'
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (ch.data !== exp)_0   -                             
+  Row   2:    ***0***  (ch.data !== exp)_1   -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      33        31         2    93.93%
+
+================================Statement Details================================
+
+Statement Coverage for instance /sb_mapper_tb_pkg --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/sideband/sb_MAPPER/sb_mapper_tb_pkg.sv
+    1                                                package sb_mapper_tb_pkg;
+    2                                                
+    3                                                    import sb_pkg::*;
+    4                                                
+    5                                                    class sb_mapper_in_trans;
+    6                                                
+    7                                                        rand bit [127:0] data;
+    8                                                        rand bit in_valid;
+    9                                                        rand bit in_ready;
+    10                                                       
+    11                                               
+    12                                                       constraint opcode_c {
+    13                                                           data[4:0] inside {
+    14                                                               // Valid 64-bit opcodes
+    15                                                               5'b00000, 5'b00010, 5'b00100, 5'b01000, 5'b01010, 5'b01100, 5'b10000, 5'b10010, 5'b10111,
+    16                                                               // Valid 128-bit opcodes
+    17                                                               5'b00001, 5'b00011, 5'b00101, 5'b01001, 5'b01011, 5'b01101, 5'b10001, 5'b11001, 5'b11000, 5'b11011
+    18                                                           };
+    19                                                       }
+    20                                               
+    21                                                       constraint valid_dist {
+    22                                                           in_valid dist {1 := 60, 0 := 40};
+    23                                                       }
+    24                                               
+    25                                               
+    26                                                       constraint ready_dist {
+    27                                                           in_ready dist {0 := 60, 1 := 40};
+    28                                                       }
+    29                                               
+    30                                               
+    31                                                   endclass
+    32                                               
+    33                                                   class sb_mapper_chunk;
+    34                                               
+    35                                                       bit [63:0] data;
+    36                                               
+    37                                                   endclass
+    38                                                   class sb_mapper_driver;
+    39                                               
+    40                                                       virtual sb_mapper_if vif;
+    41                                               
+    42                                                       function new(virtual sb_mapper_if vif);
+    43              1                          1                 this.vif = vif;
+    44                                                       endfunction
+    45                                               
+    46                                               
+    47                                                       task run();
+    48                                               
+    49                                                           sb_mapper_in_trans pkt;
+    50                                               
+    51              1                          1                 forever begin
+    52                                               
+    53              1                      10001                     @(negedge vif.clk);
+    54                                               
+    55              1                      10000                     pkt = new();
+    56                                                               assert(pkt.randomize());
+    57                                               
+    58                                                               // random valid & ready
+    59              1                      10000                     vif.word_valid_s = pkt.in_valid;
+    60              1                      10000                     vif.ser_ready = pkt.in_ready;
+    61                                               
+    62                                                               if(pkt.in_valid && vif.mapper_ready) begin
+    63              1                       1825                         vif.Msg_word_send = pkt.data;
+    64                                                               end
+    65                                               
+    66                                                           end
+    67                                               
+    68                                                       endtask
+    69                                               
+    70                                                   endclass
+    71                                               
+    72                                               
+    73                                                   class sb_mapper_monitor;
+    74                                               
+    75                                                       virtual sb_mapper_if vif;
+    76                                               
+    77                                                       sb_mapper_in_trans in_q[$];
+    78                                                       sb_mapper_chunk  out_q[$];
+    79                                               
+    80                                                       function new(virtual sb_mapper_if vif);
+    81              1                          1                 this.vif = vif;
+    82                                                       endfunction
+    83                                               
+    84                                               
+    85                                                       task run();
+    86                                               
+    87                                                           sb_mapper_in_trans pkt;
+    88                                                           sb_mapper_chunk  ch;
+    89                                               
+    90              1                          1                 forever begin
+    91                                               
+    92              1                      10000                     @(posedge vif.clk);
+    93                                               
+    94                                                               // input handshake
+    95                                                               if(vif.word_valid_s && vif.mapper_ready) begin
+    96                                               
+    97              1                       1808                         pkt = new();
+    98              1                       1808                         pkt.data = vif.Msg_word_send;
+    99                                               
+    100             1                       1808                         in_q.push_back(pkt);
+    101                                              
+    102                                                              end
+    103                                              
+    104                                              
+    105                                                              // output handshake
+    106                                                              if(vif.msg_vld_s && vif.ser_ready) begin
+    107                                              
+    108             1                       2752                         ch = new();
+    109             1                       2752                         ch.data = vif.msg_send;
+    110                                              
+    111             1                       2752                         out_q.push_back(ch);
+    112                                              
+    113                                                              end
+    114                                              
+    115                                                          end
+    116                                              
+    117                                                      endtask
+    118                                              
+    119                                                  endclass
+    120                                              
+    121                                              
+    122                                                  class sb_mapper_scoreboard;
+    123                                              
+    124                                                      sb_mapper_monitor mon;
+    125                                              
+    126                                                      bit [63:0] expected_q[$];
+    127                                                      int pass,fail;
+    128                                              
+    129                                                      function new(sb_mapper_monitor mon);
+    130             1                          1                 this.mon = mon;
+    131                                                      endfunction
+    132                                              
+    133                                                      function bit is_128bit(bit [127:0] pkt);
+    134                                              
+    135                                                          bit [4:0] opcode;
+    136                                              
+    137             1                       1808                 opcode = pkt[4:0];
+    138                                              
+    139                                                          case(opcode)
+    140                                                              SB_32_MEM_WRITE,
+    141                                                              SB_32_DMS_REG_WRITE,
+    142                                                              SB_32_CFG_WRITE,
+    143                                                              SB_64_MEM_WRITE,
+    144                                                              SB_64_DMS_REG_WRITE,
+    145                                                              SB_64_CFG_WRITE,
+    146                                                              SB_COMPLETION_WITH_32_DATA,
+    147                                                              SB_COMPLETION_WITH_64_DATA,
+    148                                                              SB_MSG_WITH_64_DATA,
+    149                                                              SB_MNGT_PORT_MSG_WITH_DATA:
+    150             1                        944                         return 1;
+    151                                              
+    152                                                              default:
+    153             1                        864                         return 0;
+    154                                                          endcase
+    155                                              
+    156                                                      endfunction
+    157                                              
+    158                                              
+    159                                                      task run();
+    160                                              
+    161                                                          sb_mapper_in_trans pkt;
+    162                                              
+    163             1                          1                 forever begin
+    164                                              
+    165             1                       1809                     wait(mon.in_q.size() > 0);
+    166                                              
+    167             1                       1808                     pkt = mon.in_q.pop_front();
+    168                                              
+    169                                                              // header
+    170             1                       1808                     expected_q.push_back(pkt.data[63:0]);
+    171                                              
+    172                                                              // payload
+    173                                                              if(is_128bit(pkt.data))
+    174             1                        944                         expected_q.push_back(pkt.data[127:64]);
+    175                                              
+    176                                                          end
+    177                                              
+    178                                                      endtask
+    179                                              
+    180                                              
+    181                                              
+    182                                                      task check();
+    183                                              
+    184                                                          sb_mapper_chunk ch;
+    185                                                          bit [63:0] exp;
+    186                                              
+    187             1                          1                 forever begin
+    188                                              
+    189             1                       2753                     wait(expected_q.size() > 0);
+    190             1                       2752                     wait(mon.out_q.size() > 0);
+    191                                              
+    192             1                       2752                     ch = mon.out_q.pop_front();
+    193                                              
+    194             1                       2752                     exp = expected_q.pop_front();
+    195                                              
+    196                                                              if(ch.data !== exp) begin
+    197             1                    ***0***                         $display("sb_mapper mismatch exp=%h got=%h",exp,ch.data);
+    198             1                    ***0***                         fail++;
+    199                                                              end
+    200                                                              else begin
+    201             1                       2752                         pass++;
+
+
+
+ASSERTION RESULTS:
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass 
+                                                  Count        Count
+--------------------------------------------------------------------
+/sb_mapper_tb_pkg/sb_mapper_driver/run/#ublk#86545207#51/immed__56
+                     tb/unit/sideband/sb_MAPPER/sb_mapper_tb_pkg.sv(56)
+                                                        0          1
+
+Total Coverage By Instance (filtered view): 98.42%
+

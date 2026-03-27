@@ -51,14 +51,17 @@ module unit_awak_handshake_tb();
         @(negedge lclk);
         lp_awak_req <= 1;
     endtask
+
     task automatic dereq_awake();
         @(negedge lclk);
         lp_awak_req <= 0;
     endtask
+
     task automatic finish_ungate();
         @(negedge lclk);
         ungating_done <= 1;
     endtask
+    
     task automatic reset_ungate();
         @(negedge lclk);
         ungating_done <= 0;

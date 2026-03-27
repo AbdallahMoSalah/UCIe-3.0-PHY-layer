@@ -16,7 +16,7 @@ module VALID_TX (
 localparam VALID_8B = 8'b11110000;
 localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
-localparam MAX_COUNT = 32;
+localparam MAX_COUNT = 33;
 
 localparam [1:0]
     IDLE          = 2'b00,

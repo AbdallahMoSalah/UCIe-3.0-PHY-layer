@@ -22,7 +22,7 @@ package sb_serializer_tb_pkg;
         state_t Prev_state;
         state_t state;
 
-        logic [DATA_WIDTH-1:0] Prev_tx_parallel_data;
+        logic [DATA_WIDTH-1:0] Prev_tx_parallel_data = '0;
         logic Prev_tx_data_valid = 0;
         logic Prev_tx_ready = 1;
 
@@ -47,21 +47,22 @@ package sb_serializer_tb_pkg;
 
 
         constraint data_send_constraint{
-            if(tx_ready == 0 ){
+            if(tx_ready == 1 && Prev_tx_data_valid == 1){
+                
+            }
+            else {
                 tx_parallel_data == Prev_tx_parallel_data;
             }
         }
 
         constraint vld_send_constraint{
-            if(tx_ready == 0  && Prev_tx_ready == 0 && Prev_tx_data_valid == 1){
+            if(tx_ready == 0 && Prev_tx_data_valid == 1){
                 tx_data_valid == 1;
             }
-            else if(tx_ready == 0  && Prev_tx_ready == 0 && Prev_tx_data_valid == 0){
-                tx_data_valid dist { 0 :/ 100, 1 :/ 5};
-            }
             else {
-                tx_data_valid dist { 1 :/ 70, 0 :/ 30};
+                tx_data_valid dist { 0 :/ 90, 1 :/ 10};
             }
+
         }   
 
         covergroup cvr_gp;

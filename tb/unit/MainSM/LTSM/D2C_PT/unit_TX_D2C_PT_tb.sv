@@ -1,0 +1,389 @@
+
+`timescale 1ps / 1ps
+
+module unit_TX_D2C_PT_tb ();
+    import UCIe_pkg::*;
+
+    parameter LCLK_PERIOD    = 1*1000 ; // lclk = 1ns (1GHz), waveform x1000
+    parameter TIMEOUT_LIMIT  = 100_000; // cycles for shortened timeout
+
+    // Core clocks and resets
+    reg lclk ;
+    reg rst_n;
+
+    // Interface Instantiation
+    internal_ltsm_if intf (
+        .lclk(lclk ),
+        .rst_n(rst_n)
+    );
+
+    // FSM State Mirroring for Monitoring
+    typedef enum reg [3:0] {
+        TX_PT_IDLE         = unit_TX_D2C_PT_inst.TX_PT_IDLE        , // (S0)
+        TX_PT_START_REQ    = unit_TX_D2C_PT_inst.TX_PT_START_REQ   , // (S1)
+        TX_PT_START_RESP   = unit_TX_D2C_PT_inst.TX_PT_START_RESP  , // (S2)
+        TX_PT_CLR_ERR_REQ  = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_REQ , // (S3)
+        TX_PT_CLR_ERR_RESP = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_RESP, // (S4)
+        TX_PT_PATTERN_GEN  = unit_TX_D2C_PT_inst.TX_PT_PATTERN_GEN , // (S5)
+        TX_PT_RESULTS_REQ  = unit_TX_D2C_PT_inst.TX_PT_RESULTS_REQ  , // (S6)
+        TX_PT_RESULTS_RESP = unit_TX_D2C_PT_inst.TX_PT_RESULTS_RESP , // (S7)
+        TX_PT_END_REQ      = unit_TX_D2C_PT_inst.TX_PT_END_REQ     , // (S8)
+        TX_PT_END_RESP     = unit_TX_D2C_PT_inst.TX_PT_END_RESP    , // (S9)
+        TX_PT_DONE         = unit_TX_D2C_PT_inst.TX_PT_DONE        , // (S10)
+        TO_TRAINERROR      = unit_TX_D2C_PT_inst.TO_TRAINERROR       // (S11)
+    } fsm_state_t;
+
+    fsm_state_t state_monitor;
+    assign state_monitor = fsm_state_t'(unit_TX_D2C_PT_inst.current_state);
+
+    // Sideband message Names from UCIe_pkg:
+    import UCIe_pkg::Start_Tx_Init_D_to_C_point_test_req;
+    import UCIe_pkg::Start_Tx_Init_D_to_C_point_test_resp;
+    import UCIe_pkg::LFSR_clear_error_req;
+    import UCIe_pkg::LFSR_clear_error_resp;
+    import UCIe_pkg::Tx_Init_D_to_C_results_req;
+    import UCIe_pkg::Tx_Init_D_to_C_results_resp;
+    import UCIe_pkg::End_Tx_Init_D_to_C_point_test_req;
+    import UCIe_pkg::End_Tx_Init_D_to_C_point_test_resp;
+    import UCIe_pkg::TRAINERROR_Entry_req;
+    import UCIe_pkg::NOTHING;
+
+    // DUT Instantiation
+    unit_TX_D2C_PT unit_TX_D2C_PT_inst (
+        .d2c_if(intf.d2c2substate_mp),
+        .mux_if(intf.d2c2mux_mp)
+    );
+
+    // -------------------------------------------------------------------------
+    // Clock Generation
+    // -------------------------------------------------------------------------
+    initial begin
+        lclk = 0;
+        forever #(LCLK_PERIOD/2) lclk = ~lclk;
+    end
+
+    // SB Clock Simulation (Internal logic)
+    reg sb_clk;
+    parameter SB_CLK_PERIOD = 1.25*1000;
+    initial begin
+        sb_clk = 0;
+        forever #(SB_CLK_PERIOD/2) sb_clk = ~sb_clk;
+    end
+
+    // -------------------------------------------------------------------------
+    // Internal SB Responder (Echo Model)
+    // -------------------------------------------------------------------------
+    integer sb_wait_cnt = 0;
+    msg_no_e resp_msg; // Declare resp_msg
+    msg_no_e last_tx_msg = NOTHING;
+
+    always @(posedge sb_clk or negedge rst_n) begin
+        if (!rst_n) begin
+            intf.rx_sb_msg_valid <= 0;
+            intf.rx_sb_msg       <= msg_no_e'(0);
+            sb_wait_cnt          <= 0;
+            last_tx_msg          <= NOTHING;
+        end else if (intf.tx_sb_msg != last_tx_msg) begin
+            // Whenever the FSM changes the message, reset the responder counter
+            sb_wait_cnt          <= 0;
+            intf.rx_sb_msg_valid <= 0;
+            last_tx_msg          <= intf.tx_sb_msg;
+        end else if (intf.tb_wait_timeout) begin
+            intf.rx_sb_msg_valid <= 0;
+        end else if (intf.tx_sb_msg_valid && sb_wait_cnt < 64) begin
+            sb_wait_cnt <= sb_wait_cnt + 1;
+        end else if (intf.tx_sb_msg_valid && sb_wait_cnt == 64) begin
+            intf.rx_sb_msg_valid <= 1;
+            // Symmetric Handshake Echo Responder
+            case (intf.tx_sb_msg)
+                Start_Tx_Init_D_to_C_point_test_req:  resp_msg = Start_Tx_Init_D_to_C_point_test_req;
+                Start_Tx_Init_D_to_C_point_test_resp: resp_msg = Start_Tx_Init_D_to_C_point_test_resp;
+                LFSR_clear_error_req:                 resp_msg = LFSR_clear_error_req;
+                LFSR_clear_error_resp:                resp_msg = LFSR_clear_error_resp;
+                Tx_Init_D_to_C_results_req:           resp_msg = Tx_Init_D_to_C_results_req;
+                Tx_Init_D_to_C_results_resp:          resp_msg = Tx_Init_D_to_C_results_resp;
+                End_Tx_Init_D_to_C_point_test_req:    resp_msg = End_Tx_Init_D_to_C_point_test_req;
+                End_Tx_Init_D_to_C_point_test_resp:   resp_msg = End_Tx_Init_D_to_C_point_test_resp;
+                default:                              resp_msg = NOTHING;
+            endcase
+            intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? msg_no_e'(intf.tb_wrong_sb_msg) : resp_msg;
+            intf.rx_msginfo      <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_req) ? intf.tb_rx_msginfo : intf.tx_msginfo;
+            intf.rx_data_field   <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_req) ? intf.tb_rx_data_field : intf.tx_data_field;
+            sb_wait_cnt          <= sb_wait_cnt + 1;
+        end else if (sb_wait_cnt > 64) begin
+            intf.rx_sb_msg_valid <= 0;
+            if (!intf.tx_sb_msg_valid) sb_wait_cnt <= 0;
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // Internal MB Behavioral Model
+    // -------------------------------------------------------------------------
+    integer burst_cnt = 0, idle_cnt = 0, iter_cnt = 0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            burst_cnt <= 0;
+            idle_cnt  <= 0;
+            iter_cnt  <= 0;
+            intf.mb_tx_pattern_count_done <= 0;
+            intf.mb_rx_compare_done       <= 0;
+            intf.mb_rx_aggr_err           <= 0;
+            intf.mb_rx_perlane_err        <= 0;
+            intf.mb_rx_val_err            <= 0;
+            intf.mb_rx_clk_err            <= 0;
+        end else if (intf.mb_tx_pattern_en) begin
+            if (iter_cnt < intf.mb_tx_iter_count) begin
+                if (burst_cnt < intf.mb_tx_burst_count) begin
+                    burst_cnt <= burst_cnt + 1;
+                end else if (idle_cnt < intf.mb_tx_idle_count) begin
+                    idle_cnt <= idle_cnt + 1;
+                end else begin
+                    iter_cnt  <= iter_cnt + 1;
+                    burst_cnt <= 0;
+                    idle_cnt  <= 0;
+                end
+            end else begin
+                intf.mb_tx_pattern_count_done <= 1;
+                intf.mb_rx_compare_done       <= 1;
+                intf.mb_rx_aggr_err           <= intf.tb_aggr_err;
+                intf.mb_rx_perlane_err        <= intf.tb_perlane_err;
+                intf.mb_rx_val_err            <= intf.tb_val_err;
+                intf.mb_rx_clk_err            <= intf.tb_clk_err;
+            end
+        end else begin
+            intf.mb_tx_pattern_count_done <= 0;
+            intf.mb_rx_compare_done       <= 0;
+            burst_cnt <= 0;
+            idle_cnt  <= 0;
+            iter_cnt  <= 0;
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // Timeout Counter
+    // -------------------------------------------------------------------------
+    integer timeout_cnt = 0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            timeout_cnt <= 0;
+            intf.substate_timeout_8ms_occured <= 0;
+        end else if (state_monitor != TX_PT_IDLE && state_monitor != TX_PT_DONE) begin
+            timeout_cnt <= timeout_cnt + 1;
+            if (timeout_cnt >= TIMEOUT_LIMIT) intf.substate_timeout_8ms_occured <= 1;
+        end else begin
+            timeout_cnt <= 0;
+            intf.substate_timeout_8ms_occured <= 0;
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // Test Control Tasks
+    // -------------------------------------------------------------------------
+    integer success_count         = 0; // A counter to track the number of successful tests.
+    integer fail_count            = 0; // A counter to track the number of failed tests.
+    integer test_scenario_no      = 1;
+
+    task reset();
+        rst_n = 0;
+        intf.tx_pt_en = 0;
+        intf.tb_wait_timeout = 0;
+        intf.tb_wrong_sb_msg_en = 0;
+        intf.tb_wrong_sb_msg = NOTHING;
+        intf.tb_aggr_err = 0;
+        intf.tb_perlane_err = 0;
+        intf.tb_val_err = 0;
+        intf.tb_clk_err = 0;
+        intf.tb_rx_msginfo = 0;
+        intf.tb_rx_data_field = 0;
+        repeat(5) @(posedge lclk);
+        rst_n = 1;
+        repeat(1) @(posedge lclk);
+        $display("%12t ps: Reset released.", $time);
+    endtask
+
+    task start_test();
+        $display("%12t ps: Triggering tx_pt_en.", $time);
+        @(posedge lclk);
+        intf.tx_pt_en = 1;
+        @(posedge lclk);
+        intf.tx_pt_en = 0;
+        
+        wait(intf.test_d2c_done || intf.d2c_timeout_or_error);
+        if (intf.test_d2c_done) begin
+            if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
+                repeat(5) $display("\t\t ************************** ERROR **************************");
+                $display("%12t ps: ERROR: Test completed but expected error/timeout. <================================= [Error]", $time);
+                fail_count++;
+                $stop;
+            end else begin
+                $display("%12t ps: Test completed successfully.", $time);
+                success_count++;
+            end
+        end else begin
+            if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
+                $display("%12t ps: Test transitioned to TO_TRAINERROR as expected.", $time);
+                success_count++;
+            end else begin
+                repeat(5) $display("\t\t ************************** ERROR **************************");
+                $display("%12t ps: ERROR: Test transitioned to TO_TRAINERROR unexpectedly. <================================= [Error]", $time);
+                fail_count++;
+                $stop;
+            end
+        end
+        $display("________________________________(Success count = %0d, Fail count = %0d)________________________________\n", success_count, fail_count);
+    endtask
+
+    task set_d2c_configuration(
+        input [1:0]  task_clk_sampling,
+        input [2:0]  task_pattern_setup,
+        input [1:0]  task_data_pattern_sel,
+        input [1:0]  task_val_pattern_sel,
+        input        task_lfsr_en,
+        input        task_pattern_mode,
+        input [15:0] task_burst_count,
+        input [15:0] task_idle_count,
+        input [15:0] task_iter_count,
+        input [1:0]  task_compare_setup
+    );
+        intf.d2c_clk_sampling     = task_clk_sampling;
+        intf.d2c_pattern_setup    = task_pattern_setup;
+        intf.d2c_data_pattern_sel = task_data_pattern_sel;
+        intf.d2c_val_pattern_sel  = task_val_pattern_sel;
+        intf.d2c_lfsr_en          = task_lfsr_en;
+        intf.d2c_pattern_mode     = task_pattern_mode;
+        intf.d2c_burst_count      = task_burst_count;
+        intf.d2c_idle_count       = task_idle_count;
+        intf.d2c_iter_count       = task_iter_count;
+        intf.d2c_compare_setup    = task_compare_setup;
+    endtask
+
+    // -------------------------------------------------------------------------
+    // Main Test Sequence
+    // -------------------------------------------------------------------------
+    initial begin
+        $display("\n========================================");
+        $display("  TX_D2C_PT Self-Contained Testbench");
+        $display("========================================\n");
+        
+        // Scenario 1: Basic Happy Path
+        $display("\n=========>  Test Scenario (%0d): Happy Path (Continuous Mode). <=========", test_scenario_no++);
+        reset();
+        set_d2c_configuration(
+            .task_clk_sampling    (2'b00 ),
+            .task_pattern_setup   (3'b001),
+            .task_data_pattern_sel(2'b00 ),
+            .task_val_pattern_sel (2'b00 ),
+            .task_lfsr_en         (1'b1  ),
+            .task_pattern_mode    (1'b0  ),
+            .task_burst_count     (16'd100),
+            .task_idle_count      (16'd0 ),
+            .task_iter_count      (16'd1 ),
+            .task_compare_setup   (2'b00 )
+        );
+        start_test();
+
+        // Scenario 2: Timeout Test
+        $display("\n=========>  Test Scenario (%0d): Timeout Test (SB suppressed). <=========", test_scenario_no++);
+        reset();
+        intf.tb_wait_timeout = 1;
+        start_test();
+
+        // Scenario 3: Partner Error Injection
+        $display("\n=========>  Test Scenario (%0d): Partner Error Injection. <=========", test_scenario_no++);
+        reset();
+        intf.tb_wrong_sb_msg_en = 1;
+        intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req;
+        start_test();
+
+        // Scenario 4: Results Transfer Verification
+        $display("\n=========>  Test Scenario (%0d): Results Transfer (Aggregate Error). <=========", test_scenario_no++);
+        reset();
+        intf.tb_aggr_err = 16'hAAAA;
+        intf.tb_rx_msginfo = 16'h0010; // partner_aggr_err = 1
+        intf.tb_rx_data_field = 64'hBBBB;
+        set_d2c_configuration(
+            .task_clk_sampling    (2'b00 ),
+            .task_pattern_setup   (3'b011),
+            .task_data_pattern_sel(2'b00 ),
+            .task_val_pattern_sel (2'b00 ),
+            .task_lfsr_en         (1'b1  ),
+            .task_pattern_mode    (1'b1  ),
+            .task_burst_count     (16'd10),
+            .task_idle_count      (16'd5 ),
+            .task_iter_count      (16'd2 ),
+            .task_compare_setup   (2'b01 )
+        );
+        start_test();
+        if (intf.d2c_aggr_err == 16'h0001) $display("  MATCH: Aggregate error bit received correctly.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Aggregate error mismatch!"); fail_count++; $stop; end
+        
+        if (intf.d2c_perlane_err == 16'hBBBB) $display("  MATCH: Per-lane error field received correctly.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane error mismatch!"); fail_count++; $stop; end
+
+        // Randomized Logic (100 iterations)
+        $display("\nStarting 100 Randomized Iterations...");
+        for (int i = 0; i < 100; i++) begin
+            $display("\n=========>  Test Scenario (%0d): Randomized Test. <=========", test_scenario_no++);
+            reset();
+            intf.tb_wait_timeout    = ($urandom_range(0, 9) == 0); // 10%
+            intf.tb_wrong_sb_msg_en = ($urandom_range(0, 9) == 0); // 10%
+            intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req;
+            
+            set_d2c_configuration(
+                .task_clk_sampling    ($urandom_range(0, 2)),
+                .task_pattern_setup   ($urandom_range(0, 7)),
+                .task_data_pattern_sel($urandom_range(0, 2)),
+                .task_val_pattern_sel ($urandom_range(0, 2)),
+                .task_lfsr_en         ($urandom_range(0, 1)),
+                .task_pattern_mode    ($urandom_range(0, 1)),
+                .task_burst_count     ($urandom_range(1, 100)),
+                .task_idle_count      ($urandom_range(0, 100)),
+                .task_iter_count      ($urandom_range(1, 10)),
+                .task_compare_setup   ($urandom_range(0, 3))
+            );
+            
+            intf.tb_aggr_err    = $urandom();
+            intf.tb_perlane_err = $urandom();
+            intf.tb_val_err     = $urandom_range(0,1);
+            intf.tb_clk_err     = $urandom_range(0,1);
+            
+            // Randomize partner results for SB echo
+            intf.tb_rx_msginfo    = $urandom();
+            intf.tb_rx_data_field = $urandom();
+
+            start_test();
+        end
+
+        if(fail_count == 0) begin
+            $display("\n        ============================================       ");
+            $display("      ==============                    ==============     ");
+            $display("    ================  Congratulations!  ================   ");
+            $display("  ==================  The tests passed  ================== ");
+            $display("    ================    Successfully    ================   ");
+            $display("      ==============                    ==============     ");
+            $display("        ============================================       \n\n"); 
+        end else begin
+            $display("\n        ============================================       ");
+            $display("      ==============                    ==============     ");
+            $display("    ================       FAILED       ================   ");
+            $display("  ==================  Tests had errors  ================== ");
+            $display("    ================    Check Log       ================   ");
+            $display("      ==============                    ==============     ");
+            $display("        ============================================       \n\n");
+        end
+
+        $display("\n========================================");
+        $display("  Simulation Done!");
+        $display("========================================\n");
+        $stop;
+    end
+
+    // FSM State Monitor display
+    always @(state_monitor) begin
+        $display("%12t ps: FSM State = %s", $time, state_monitor.name());
+    end
+
+endmodule
+
+
+
