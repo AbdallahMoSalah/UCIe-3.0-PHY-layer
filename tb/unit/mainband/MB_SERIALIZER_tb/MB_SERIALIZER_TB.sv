@@ -55,11 +55,8 @@ initial begin
     // KEEP Ser_en HIGH for a few i_clk cycles
     @(posedge i_clk);
     Ser_en = 1;
-    repeat (3) @(posedge i_clk);
+    @(posedge i_clk);
     Ser_en = 0;
-
-    // WAIT a few PLL_clk cycles
-    repeat (5) @(posedge PLL_clk);
 
     // CHECK LSB FIRST
     for (i = 0; i < DATA_WIDTH; i = i + 1) begin
