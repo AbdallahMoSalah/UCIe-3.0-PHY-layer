@@ -29,7 +29,7 @@ package UCIe_pkg;
     RDI_RETRAIN_RSP,
     RDI_DISABLE_REQ,
     RDI_DISABLE_RSP,
-    NOP
+    NOP,
     RDI_PMNAK_RSP,
     
 

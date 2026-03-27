@@ -328,7 +328,7 @@ module RX_D2C_PT  #() (
                 tx_sb_msg_valid      = (~data_incoherence); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
                 tx_sb_msg            = MSG_START_REQ;
                 tx_msginfo           = (d2c_compare_setup == 1)? {4'b0, cfg_train4_max_err_thresh_aggr} :    // Send aggregate comparison mode,
-                                        (d2c_compare_setup == 0)? cfg_train4_max_err_thresh_perlane      : 0; // Send Per-lane comparison mode, otherwise 0.
+                                       (d2c_compare_setup == 0)? cfg_train4_max_err_thresh_perlane      : 0; // Send Per-lane comparison mode, otherwise 0.
                 tx_data_field[63:60] = 4'b0;                     // Reserved for future use. Just set it to 0 for now.
                 tx_data_field[59]    = (d2c_compare_setup != 0); // Comparison Mode (0: Per Lane; 1: Aggregate)
                 tx_data_field[58:43] = d2c_iter_count          ; // Iteration Count Setting.

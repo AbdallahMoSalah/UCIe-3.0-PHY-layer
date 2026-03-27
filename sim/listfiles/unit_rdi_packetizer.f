@@ -5,7 +5,7 @@
 
 # Packages (لو فيه)
 rtl/SideBand/common/sb_pkg.sv
-rtl/SideBand/common/rdi_codec_pkg.sv
+rtl/SideBand/common/msg_codec_pkg.sv
 tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb_pkg.sv
 
 # DUT
