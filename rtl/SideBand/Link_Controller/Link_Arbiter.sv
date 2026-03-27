@@ -15,19 +15,21 @@ module Link_Arbiter (
     output logic         word_vld_send
 );
 
-logic sel_link;
-logic sel_Adapter;
+    sb_priority_arbiter #(
+        .DATA_WIDTH(128)
+    ) u_sb_priority_arbiter (
+        .hp_msg   (Link_msg_send),
+        .hp_vld   (Link_vld_send),
+        .hp_ready (Link_ready),
 
-assign sel_link    = Link_vld_send;
-assign sel_Adapter = !Link_vld_send && Adapter_vld_send;
+        .lp_msg   (Adapter_msg_send),
+        .lp_vld   (Adapter_vld_send),
+        .lp_ready (Adapter_ready),
 
-// output mux
-assign msg_word_send = sel_link ? Link_msg_send : Adapter_msg_send;
-assign word_vld_send  = sel_link | sel_Adapter;
-
-// backpressure
-assign Link_ready    = mapper_ready && sel_link;
-assign Adapter_ready = mapper_ready && sel_Adapter;
+        .out_msg  (msg_word_send),
+        .out_vld  (word_vld_send),
+        .out_ready(mapper_ready)
+    );
 
 endmodule
 

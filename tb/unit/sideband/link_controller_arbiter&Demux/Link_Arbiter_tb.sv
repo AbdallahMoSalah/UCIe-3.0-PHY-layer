@@ -33,18 +33,18 @@ Link_Arbiter_tb_class obj = new();
 //////////////////////////////////////////////////
 
 Link_Arbiter dut (
-    .LINK_msg(LINK_msg),
-    .LINK_vld(LINK_vld),
-    .LINK_ready(LINK_ready),
+    .Link_msg_send(LINK_msg),
+    .Link_vld_send(LINK_vld),
+    .Link_ready(LINK_ready),
 
-    .adapter_msg(adapter_msg),
-    .adapter_not_empty(adapter_not_empty),
-    .adapter_rd_en(adapter_rd_en),
+    .Adapter_msg_send(adapter_msg),
+    .Adapter_vld_send(adapter_not_empty),
+    .Adapter_ready(adapter_rd_en),
 
     .mapper_ready(mapper_ready),
 
     .msg_word_send(msg_word_send),
-    .valid_s(valid_s)
+    .word_vld_send(valid_s)
 );
 
 //////////////////////////////////////////////////
@@ -108,18 +108,12 @@ LINK_vld = 0;
 adapter_msg = 128'hCAFEBABE_CAFEBABE_CAFEBABE_CAFEBABE;
 adapter_not_empty = 1;
 
-/*    repeat (1000) begin
-
+    repeat (1000) begin
         assert(obj.randomize());
-
         obj.build_expected();
-
         drive();
-
         check();
-
     end
-*/
     #20;
     $display("PASS = %0d", pass_count);
     $display("FAIL = %0d", fail_count);
