@@ -8,11 +8,11 @@ module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_d
     logic [6:0]counter_toggle;
     logic [4:0]counter_zero;
     logic [7:0] counter_main;
+phase_delay #(5) pd (.in_signal(o_clk_p),.delayed_signal(o_clk_n));
 
     always @(*) begin
         if (!i_rst_n) begin
             o_clk_p = 0;
-            o_clk_n = 1;
             track = 0;
             counter_toggle = 0;
             counter_main = 0;
@@ -24,13 +24,13 @@ module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_d
                 if (counter_toggle < TOGGLE) begin
                     o_clk_p = i_clk;
                     track = i_clk;
-                    o_clk_n = ~i_clk;
+
                 counter_toggle = counter_toggle +1; 
                 end
                 else if (counter_toggle == TOGGLE && counter_zero < ZERO-1) begin
                     o_clk_p = 0;
                     track = 0;
-                    o_clk_n = 0;
+
                     counter_zero = counter_zero + 1;
                 end
                     else if (counter_zero == ZERO-1 && counter_main < MAIN-1) begin
@@ -44,7 +44,7 @@ module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,o_clk_p,o_clk_n,track,o_d
                     end
             else begin
                 o_clk_p = 0;
-                o_clk_n = 0;
+
                 track = 0;
             end
         end
