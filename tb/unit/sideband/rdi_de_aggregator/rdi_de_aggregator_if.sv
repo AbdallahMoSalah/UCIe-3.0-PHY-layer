@@ -8,5 +8,7 @@ interface rdi_de_aggregator_if(input bit clk);
 
     logic [31:0]  pl_cfg; 
     logic         pl_cfg_vld; 
+    logic         traffic_req;
+    logic         traffic_ready;
 
 endinterface

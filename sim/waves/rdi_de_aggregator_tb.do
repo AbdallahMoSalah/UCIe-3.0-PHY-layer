@@ -5,6 +5,8 @@ add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/rst_n
 add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/pl_msg
 add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/pl_msg_vld
 add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/pl_msg_ready
+add wave -noupdate /rdi_de_aggregator_tb/dut/traffic_req
+add wave -noupdate /rdi_de_aggregator_tb/dut/traffic_ready
 add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/pl_cfg
 add wave -noupdate /rdi_de_aggregator_tb/rdi_de_aggregatorif/pl_cfg_vld
 add wave -noupdate /rdi_de_aggregator_tb/dut/state
@@ -17,7 +19,7 @@ add wave -noupdate /rdi_de_aggregator_tb/dut/expected_chunks
 add wave -noupdate /rdi_de_aggregator_tb/dut/in_opcode
 add wave -noupdate /rdi_de_aggregator_tb/dut/next_expected_chunks
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {664 ns} 0}
+WaveRestoreCursors {{Cursor 1} {675 ns} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 224
@@ -33,4 +35,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {788 ns} {887 ns}
+WaveRestoreZoom {654 ns} {704 ns}

@@ -53,8 +53,8 @@ module rdi_rx_arbiter_tb;
             out_ready = i[0];
 
             // Setup expected outputs
-            exp_out_msg    = 128'h0;
-            exp_out_vld    = 1'b0;
+            exp_out_msg    = req_msg;
+            exp_out_vld    = req_vld;
             exp_comp_ready = 1'b0;
             exp_req_ready  = 1'b0;
 
@@ -64,7 +64,6 @@ module rdi_rx_arbiter_tb;
                 exp_comp_ready = out_ready;
             end
             else if (req_vld && !no_crd) begin
-                exp_out_msg    = req_msg;
                 exp_out_vld    = 1'b1;
                 exp_req_ready  = out_ready;
             end

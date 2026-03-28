@@ -20,24 +20,20 @@ module rdi_rx_arbiter
 );
 
     always_comb begin
-        // Default values
-        out_msg    = '0;
-        out_vld    = 1'b0;
-        comp_ready = 1'b0;
-        req_ready  = 1'b0;
-
+    
         // Priority 1: Completion FIFO
         if (comp_vld) begin
             out_msg    = comp_msg;
             out_vld    = 1'b1;
-            comp_ready = out_ready;
         end
         // Priority 2: Request FIFO (Only if credits are available)
-        else if (req_vld && !no_crd) begin
+        else begin
+            out_vld    = req_vld;
             out_msg    = req_msg;
-            out_vld    = 1'b1;
-            req_ready  = out_ready;
         end
+        comp_ready = out_ready && comp_vld;
+        req_ready  = out_ready && req_vld && !comp_vld && !no_crd;
+
     end
 
 endmodule
