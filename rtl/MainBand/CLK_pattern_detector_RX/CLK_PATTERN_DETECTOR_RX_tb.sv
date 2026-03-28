@@ -1,93 +1,121 @@
 module CLK_PATTERN_DETECTOR_RX_tb;
 
-    // Parameters matching RTL
-    parameter MAIN   = 128;
-    parameter TOGGLE = 16;
-    parameter ZERO   = 8;
+  // -------------------------
+  // Easy parameters to change
+  // -------------------------
+  localparam int TOGGLE_CYCLES = 16;    // toggle clk_p for 16 cycles
+  localparam int ZERO_CYCLES   = 8;     // then keep clk_p=0 for 8 cycles
+  localparam int REPEAT_TIMES  = 128;   // repeat the whole pattern 128 times
 
+  localparam time CLK_PERIOD   = 10ns;  // i_clk period
+  localparam time PHASE_DELAY  = 5ns;   // clk_n delayed from clk_p by 5ns
 
-    // Inputs
-    logic i_clk;
-    logic i_rst_n;
-    logic clk_detector_en;
-    logic clk_p;
-    logic clk_n;
-    logic track;
+  // -------------------------
+  // Signals
+  // -------------------------
+  logic i_clk;
+  logic i_rst_n;
+  logic clk_detector_en;
 
-    // Outputs
-    logic clk_check_done;
-    logic clk_pattern_error;
+  logic clk_p;
+  logic clk_n;
+  logic track;
 
-    // Instantiate UUT (Unit Under Test)
-    CLK_PATTERN_DETECTOR_RX uut (.*);
+  logic clk_check_done;
+  logic clk_pattern_error;
 
-    // Clock Generation
-    initial begin
-        i_clk = 0;
-        uut.clk_p_d = 0;
-    forever begin
-        #5 i_clk = ~i_clk;
-        uut.clk_p_d = i_clk;
-    end 
-    end 
+  // -------------------------
+  // DUT (Device Under Test)
+  // -------------------------
+  CLK_PATTERN_DETECTOR_RX dut (
+    .i_clk(i_clk),
+    .i_rst_n(i_rst_n),
+    .clk_detector_en(clk_detector_en),
+    .clk_p(clk_p),
+    .clk_n(clk_n),
+    .track(track),
+    .clk_check_done(clk_check_done),
+    .clk_pattern_error(clk_pattern_error)
+  );
 
-    // Stimulus Task: Simulate one full Pattern (Toggle + Zero)
-    task automatic drive_pattern();
-        // Toggle Phase
-        // The RTL compares inputs to clk_p_d 
-        for (int i = 0; i < TOGGLE; i++) begin
-            clk_p = uut.clk_p_d; 
-            clk_n = ~uut.clk_p_d;
-            track = uut.clk_p_d;
-            @(negedge i_clk);
-        end
+  // -------------------------
+  // 1) Make i_clk toggle forever
+  // -------------------------
+  initial begin
+    i_clk = 1'b0;
+    forever #(CLK_PERIOD/2) i_clk = ~i_clk;
+  end
 
-        // Zero Phase
-        for (int i = 0; i < ZERO; i++) begin
-            clk_p = 0;
-            clk_n = 0;
-            track = 0;
-            @(negedge i_clk);
-        end
-    endtask
+  // -------------------------
+  // 2) Make clk_n = clk_p delayed (phase shift)
+  // -------------------------
+  assign #(PHASE_DELAY) clk_n = clk_p;
 
-    // Main Test Sequence
-    initial begin
-        // Initialize
-        i_rst_n = 0;
-        clk_detector_en = 0;
-        clk_p = 0;
-        clk_n = 0;
-        track = 0;
+  // -------------------------
+  // 3) Main stimulus
+  // -------------------------
+  initial begin
+    int rep;  // counts how many times we repeated the pattern
+    int i;    // simple loop counter
 
-        // Reset
+    // Start with everything low
+    i_rst_n         = 1'b0;
+    clk_detector_en = 1'b0;
+    clk_p           = 1'b0;
+    track           = 1'b0;
+
+    // Hold reset for a few clock cycles
+    repeat (3) @(posedge i_clk);
+    i_rst_n = 1'b1;  // release reset
+
+    // Enable the detector
+    @(posedge i_clk);
+    clk_detector_en = 1'b1;
+
+    // Repeat the full pattern up to 128 times (stop early if done)
+    for (rep = 0; rep < REPEAT_TIMES; rep++) begin
+      if (clk_check_done) break;
+
+      // -------------------------
+      // Part A: Toggle for 16 cycles
+      // clk_p will behave like i_clk for 16 cycles
+      // -------------------------
+      for (i = 0; i < TOGGLE_CYCLES; i++) begin
+        if (clk_check_done) break;
+
+        @(posedge i_clk);
+        clk_p <= 1'b1;
+        track <= 1'b1;
+
         @(negedge i_clk);
-        i_rst_n = 1;
-        $display("Starting Pattern Detection Test...");
-        clk_detector_en = 1;
+        clk_p <= 1'b0;
+        track <= 1'b0;
+      end
 
-        // Loop through MAIN number of patterns
-        for (int m = 0; m < MAIN; m++) begin
-            drive_pattern();
-        end
+      // -------------------------
+      // Part B: Hold zero for 8 cycles
+      // clk_p stays 0 for 8 cycles
+      // -------------------------
+      clk_p <= 1'b0;
+      track <= 1'b0;
 
-        // Wait for done signal
-        wait(clk_check_done || clk_pattern_error);
-
-        if (clk_pattern_error) begin
-            $display("TEST FAILED: Pattern error detected at time %t", $time);
-        end else if (clk_check_done) begin
-            $display("TEST PASSED: Pattern detection completed successfully at time %t", $time);
-        end
-
-        @(negedge i_clk);
-       $stop;
+      for (i = 0; i < ZERO_CYCLES; i++) begin
+        if (clk_check_done) break;
+        @(posedge i_clk);
+      end
     end
 
-    // Monitor
-    initial begin
-        $monitor("Time: %t | Main: %d | Toggle: %d | Zero: %d | Error: %b | Done: %b", 
-                 $time, uut.counter_main, uut.counter_toggle, uut.counter_zero, clk_pattern_error, clk_check_done);
-    end
+    // After we finish, keep clocks low
+    clk_p <= 1'b0;
+    track <= 1'b0;
+
+    // Disable detector (optional)
+    @(posedge i_clk);
+    clk_detector_en = 1'b0;
+
+    // Wait a little, then finish simulation
+    repeat (5) @(posedge i_clk);
+    $stop;
+  end
 
 endmodule
