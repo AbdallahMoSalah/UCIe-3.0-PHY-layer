@@ -10,15 +10,15 @@ module sb_pattern_detector
     input  logic                     pattern_mode,
 
     // from deserializer
-    input  logic [DATA_WIDTH-1:0]    packet_data,
-    input  logic                     packet_done,
+    input  logic [DATA_WIDTH-1:0]    des_data_rcvd,
+    input  logic                     des_vld_rcvd,
 
     // to LTSM
-    output logic                     pattern_detected,
+    output logic                     det_pat_rcvd,
 
     // to demapper
-    output logic [DATA_WIDTH-1:0]    data_out,
-    output logic                     data_valid
+    output logic [DATA_WIDTH-1:0]    msg_rcvd,
+    output logic                     msg_vld_rcvd
 );
 
 ////////////////////////////////////////////////////////////
@@ -27,7 +27,7 @@ module sb_pattern_detector
 localparam logic [63:0] CLOCK_PATTERN = 64'h5555_5555_5555_5555;
 logic is_pattern;
 
-assign is_pattern = (packet_data == CLOCK_PATTERN);
+assign is_pattern = (des_data_rcvd == CLOCK_PATTERN);
 
 ////////////////////////////////////////////////////////////
 // Pattern counter
@@ -39,17 +39,17 @@ always_ff @(posedge clk or negedge rst_n) begin
 
     if(!rst_n) begin
         pattern_cnt <= 0;
-        pattern_detected <= 0;
+        det_pat_rcvd <= 0;
     end
 
     else if(pattern_mode) begin
 
-        if(packet_done) begin
+        if(des_vld_rcvd) begin
 
             if(is_pattern) begin
 
                 if(pattern_cnt == 1) begin
-                    pattern_detected <= 1;
+                    det_pat_rcvd <= 1;
                 end
                 else begin
                     pattern_cnt <= pattern_cnt + 1;
@@ -58,7 +58,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
             else begin
                 pattern_cnt <= 0;
-                pattern_detected <= 0;
+                det_pat_rcvd <= 0;
             end
 
         end
@@ -67,7 +67,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 
     else begin
         pattern_cnt <= 0;
-        pattern_detected <= 0;
+        det_pat_rcvd <= 0;
     end
 
 end
@@ -78,14 +78,14 @@ end
 
 always_comb begin
 
-    data_out   = '0;
-    data_valid = 0;
+    msg_rcvd   = '0;
+    msg_vld_rcvd = 0;
 
-    if(!pattern_mode && packet_done) begin
+    if(!pattern_mode && des_vld_rcvd) begin
 
         if(!is_pattern) begin
-            data_out   = packet_data;
-            data_valid = 1;
+            msg_rcvd   = des_data_rcvd;
+            msg_vld_rcvd = 1;
         end
 
     end

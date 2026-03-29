@@ -113,5 +113,4 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
 
   } sb_packet_t;
 
-
 endpackage
