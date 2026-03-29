@@ -2,53 +2,78 @@
 
 module MB_DESERIALIZER_TB;
 
-reg        i_clk;
-reg        i_rst_n;
-reg        in_des_data;
-wire [31:0] deser_data_out;
+/* ---------------- Signals ---------------- */
+reg MB_clk;
+reg pll_clk;
+reg i_ckp;
+reg i_ckn;
+reg i_rst_n;
+reg ser_valid;
+reg ser_data_in;
 
-integer i;
-reg [31:0] test_data;
+wire [31:0] par_data_out;
+wire        de_ser_done;
 
+/* ---------------- DUT ---------------- */
 MB_DESERIALIZER DUT (
-    .i_clk          (i_clk),
-    .i_rst_n        (i_rst_n),
-    .in_des_data    (in_des_data),
-    .deser_data_out (deser_data_out)
+    .MB_clk(MB_clk),
+    .pll_clk(pll_clk),
+    .i_ckp(i_ckp),
+    .i_ckn(i_ckn),
+    .i_rst_n(i_rst_n),
+    .ser_valid(ser_valid),
+    .ser_data_in(ser_data_in),
+    .par_data_out(par_data_out),
+    .de_ser_done(de_ser_done)
 );
-initial begin
-    $monitor("TIME=%0t | in_bit=%b | deser_out=%h",
-              $time, in_des_data, deser_data_out);
-end
-initial i_clk = 0;
-always #5 i_clk = ~i_clk;
+
+/* ---------------- Clock Generation ---------------- */
+always #5  MB_clk  = ~MB_clk;   // 100 MHz
+always #7  pll_clk = ~pll_clk;
+always #3  i_ckp   = ~i_ckp;
+always #3  i_ckn   = ~i_ckn;
+
+/* ---------------- Stimulus ---------------- */
+integer i;
+reg [31:0] test_data = 32'hA5A5F0F0;
 
 initial begin
-    $display("===== DESERIALIZER TEST START =====");
+    // init
+    MB_clk = 0;
+    pll_clk = 0;
+    i_ckp = 0;
+    i_ckn = 1;
+    i_rst_n = 0;
+    ser_valid = 0;
+    ser_data_in = 0;
 
-    i_rst_n     = 0;
-    in_des_data = 0;
-    test_data   = 32'hA5F00F3C;
-    repeat(4) @(posedge i_clk);
+    // reset
+    #20;
     i_rst_n = 1;
 
-    $display("Sending Data = %h", test_data);
-
-    for (i = 0; i < 32; i = i + 1) begin
-        in_des_data = test_data[i];
-        @(posedge i_clk);
+    // send serial data (MSB first)
+    for (i = 31; i >= 0; i = i - 1) begin
+        ser_data_in = test_data[i];
+        #6; // aligned with i_ckp تقريبًا
     end
 
-    repeat(2) @(posedge i_clk);
+    // trigger save
+    #10;
+    ser_valid = 1;
+    #10;
+    ser_valid = 0;
 
-    $display("Received = %h", deser_data_out);
+    // wait result
+    #50;
 
-    if (deser_data_out == test_data)
-        $display("PASS: Data Correct");
+    $display("Expected = %h", test_data);
+    $display("Output   = %h", par_data_out);
+
+    if (par_data_out == test_data)
+        $display("PASS ✅");
     else
-        $display("FAIL: Expected %h | Got %h", test_data, deser_data_out);
+        $display("FAIL ❌");
 
-    $display("===== TEST FINISHED =====");
     #20;
     $stop;
 end
