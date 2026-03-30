@@ -1,11 +1,11 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -expand -group {Clock & Reset} /unit_MBTRAIN_ctrl_tb/lclk
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_MBTRAIN_ctrl_tb/lclk
 add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_MBTRAIN_ctrl_tb/rst_n
-add wave -noupdate -expand -group {MBTRAIN Operations} -color Gold -itemcolor Gold /unit_MBTRAIN_ctrl_tb/mbtrain_en
-add wave -noupdate -expand -group {MBTRAIN Operations} -color Cyan -itemcolor Cyan /unit_MBTRAIN_ctrl_tb/mbtrain_done
-add wave -noupdate -expand -group {MBTRAIN Operations} -color Orange -itemcolor Orange /unit_MBTRAIN_ctrl_tb/mbtrain_fail
-add wave -noupdate -expand -group {Internal State} -color Magenta -itemcolor Magenta /unit_MBTRAIN_ctrl_tb/dut/current_state
+add wave -noupdate -expand -group {MB Interface} -color Pink -itemcolor Pink /unit_MBTRAIN_ctrl_tb/mbtrain_en
+add wave -noupdate -expand -group {MB Interface} -color Pink -itemcolor Pink /unit_MBTRAIN_ctrl_tb/mbtrain_done
+add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_MBTRAIN_ctrl_tb/mbtrain_fail
+add wave -noupdate -expand -group {FSM States} -color Magenta -itemcolor Magenta /unit_MBTRAIN_ctrl_tb/dut/current_state
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 quietly wave cursor active 0
