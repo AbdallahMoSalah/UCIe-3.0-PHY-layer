@@ -158,23 +158,21 @@ package Link_Controller_tb_pkg;
             tx_transaction pkt;
             pkt = new();
             forever begin
-                @(negedge vif.clk);
-                pkt.mapper_ready = (vif.mapper_ready === 1'b1) ? 1'b1 : 1'b0;
-                assert(pkt.randomize());
-
+                @(posedge vif.clk);
+                pkt.mapper_ready = vif.mapper_ready;
                 assert(pkt.randomize());
 
                 if ($time < 540) begin
-                    vif.Link_vld_send = 0;
-                    vif.Adapter_vld_send = 0;
+                    vif.Link_vld_send <= 0;
+                    vif.Adapter_vld_send <= 0;
                 end else begin
-                    vif.Link_vld_send = pkt.Link_vld_send;
-                    vif.Adapter_vld_send = pkt.Adapter_vld_send;
+                    vif.Link_vld_send <= pkt.Link_vld_send;
+                    vif.Adapter_vld_send <= pkt.Adapter_vld_send;
                 end
                 
-                vif.Link_msg_send = pkt.Link_msg_send;
-                vif.Adapter_msg_send = pkt.Adapter_msg_send;
-                vif.ser_ready = pkt.ser_ready;
+                vif.Link_msg_send <= pkt.Link_msg_send;
+                vif.Adapter_msg_send <= pkt.Adapter_msg_send;
+                vif.ser_ready <= pkt.ser_ready;
             end
         endtask
     endclass
@@ -240,6 +238,7 @@ package Link_Controller_tb_pkg;
                     tx_in.pattern_mode = vif.pattern_mode;
                     tx_in.start_pat_req = vif.start_pat_req;
                     tx_in.send_4_iter = vif.send_4_iter;
+                    tx_in.mapper_ready = vif.mapper_ready;
                     tx_in_mbx.put(tx_in);
                 end
 
@@ -331,7 +330,7 @@ package Link_Controller_tb_pkg;
                     end
 
                 end else begin
-                    if ((pkt.Link_vld_send || pkt.Adapter_vld_send) && pkt.ser_ready) begin
+                    if ((pkt.Link_vld_send || pkt.Adapter_vld_send) && pkt.mapper_ready) begin
                         winner = pkt.Link_vld_send ? pkt.Link_msg_send : pkt.Adapter_msg_send;
                         
                         // Cycle 1: LSB (Header)

@@ -8,7 +8,7 @@ initial begin
     clk = 0;
     forever #5 clk = ~clk;  
 end
-
+assign vif.mapper_ready = dut.u_sb_mapper.mapper_ready;
 // Interface Instantiation
 Link_controller_if vif(clk);
 
@@ -69,12 +69,7 @@ initial begin
     mon = new(vif);
     sb = new(mon);
 
-    fork
-        tx_drv.run();
-        rx_drv.run();
-        mon.run();
-        sb.run();
-    join_none
+    
     
     // ----------------------------------------------------
     // Reset Phase
@@ -84,6 +79,15 @@ initial begin
     vif.pattern_mode = 0;
     vif.start_pat_req = 0;
     vif.send_4_iter = 0;
+    vif.ser_ready = 1;
+    vif.Link_msg_send = 0;
+    vif.Link_vld_send = 0;
+    vif.Adapter_msg_send = 0;
+    vif.Adapter_vld_send = 0;
+    vif.des_data_rcvd = 0;
+    vif.des_vld_rcvd = 0;
+    
+    
     #20;
     vif.rst_n = 1;
 
@@ -102,12 +106,17 @@ initial begin
     
     #500;
     vif.pattern_mode = 0; // Ensure it goes back to 0
-
+    fork
+        tx_drv.run();
+        rx_drv.run();
+        mon.run();
+        sb.run();
+    join_none
     // ----------------------------------------------------
     // Random Tests Simulation
     // ----------------------------------------------------
     $display("[%0t] Running Random Transactions...", $time);
-    #1000;
+    repeat(1000) @(posedge clk);
     
     $display("==================================================");
     $display("====== Link_Controller Testbench Finished ========");
@@ -115,7 +124,7 @@ initial begin
     $display("====== Mismatches (TX: %0d / RX: %0d)     ========", sb.tx_fail, sb.rx_fail);
     $display("==================================================");
     
-    $finish;
+    $stop;
 end  
 
 endmodule
