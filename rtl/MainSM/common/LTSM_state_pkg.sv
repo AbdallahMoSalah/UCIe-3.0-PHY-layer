@@ -9,5 +9,6 @@ package LTSM_state_pkg;
                                 PHYRETRAIN,
                                 TRAINERROR,
                                 L1,
-                                L2 } LTSM_state_e;
+                                L2,
+                                NO_OP } LTSM_state_e;
 endpackage

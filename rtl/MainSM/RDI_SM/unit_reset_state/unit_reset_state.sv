@@ -21,6 +21,7 @@ module unit_reset_state (
     output logic Active_handshake_strt,      // Start signal for Active handshake sequence
     output reset_state cs_reg,               // Current state of this FSM
     output msg_no_e Massage_Send             // Outgoing message to be sent appropriately
+    output logic L2_exit
 );
 
     reset_state cs=idle;
@@ -42,7 +43,7 @@ module unit_reset_state (
                     Massage_Send<=RDI_LINK_ERROR_RSP;
                     cs<= le_resp;
                 end
-                else if (lp_state_req == Active)
+                else if ((lp_state_req == Active)||state_sts!=RESET)
                     cs<= training;    
                 else if (Massage_Recieve== RDI_DISABLE_REQ) begin
                     Massage_Send<=RDI_DISABLE_RSP;
@@ -51,6 +52,11 @@ module unit_reset_state (
                 else if (Massage_Recieve== RDI_LINK_RESET_REQ) begin
                     Massage_Send<=RDI_LINK_RESET_RSP;
                     cs<= lr_resp;
+                end
+                else if(state_sts==LINKINIT)begin
+                    cs<=INPP;
+                    L2_exit<=1;
+
                 end
             end
 //===========================================================
@@ -148,10 +154,11 @@ module unit_reset_state (
             end
 //===========================================================
             active_hs: begin
-                Active_handshake_strt<=0;
                 if (Active_handshake_done)begin
                     cs <= active;
+                    Active_handshake_strt<=0;
                     next_state<=Active;
+                    L2_exit<=0;
                 end
             end
 //===========================================================

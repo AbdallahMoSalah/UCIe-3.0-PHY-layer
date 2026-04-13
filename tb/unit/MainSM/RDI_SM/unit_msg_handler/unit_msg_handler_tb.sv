@@ -8,7 +8,7 @@ module unit_msg_handler_tb();
   logic Active_resp_s;
   logic Active_req_s;
   logic valid_r;
-  msg_no_e Link_Mgmt_Msg_Recieved;
+msg_no_e Link_Mgmt_Msg_Recieved;
   msg_no_e Massage_send;
 
   // Outputs

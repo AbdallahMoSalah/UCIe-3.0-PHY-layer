@@ -48,7 +48,7 @@ module unit_active_handshake (
         case (state)
             IDLE: begin
                 if (Active_handshake_strt) begin
-                    if (~req_r) begin
+                    if (~req_r || L2_exit) begin
                         // Normal start: send our request
                         state <= SEND_REQ;
                     end else begin
@@ -74,17 +74,12 @@ module unit_active_handshake (
                     flow  <= flow0;
                 end
 
-                if (Active_resp_r && (flow == flow2)) begin
+                if (Active_resp_r && ((flow == flow2) || (flow == flow1))) begin
                     // Received response in flow2 scenario -> we are done
                     state <= DONE;
                 end
 
-                if (Active_resp_r && (flow == flow1)) begin
-                    // Received request while in flow1 -> done
-                    state <= DONE;
-                end
-
-                if (req_r && (flow != flow0)) begin
+                if (req_r && (flow != flow0)&&Active_handshake_done) begin
                     // Conflicting req received -> need to send response
                     state <= SEND_RESP;
                     flow  <= flow1;
