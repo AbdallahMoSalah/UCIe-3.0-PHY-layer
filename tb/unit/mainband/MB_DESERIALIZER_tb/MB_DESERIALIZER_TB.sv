@@ -31,7 +31,7 @@ MB_DESERIALIZER DUT (
 always #5  MB_clk  = ~MB_clk;   // 100 MHz
 always #7  pll_clk = ~pll_clk;
 always #3  i_ckp   = ~i_ckp;
-always #3  i_ckn   = ~i_ckn;
+
 
 /* ---------------- Stimulus ---------------- */
 integer i;

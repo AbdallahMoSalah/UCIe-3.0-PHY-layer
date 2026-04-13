@@ -14,6 +14,7 @@ module MB_DESERIALIZER (
 /* Internal Registers                                 */
 /* -------------------------------------------------- */
 reg [31:0] shift_reg;
+
 reg [31:0] save_data;
 reg        save_data_valid;
 reg        deassert_save_data_valid;
@@ -22,7 +23,7 @@ reg        deassert_save_data_valid;
 /* Serial to Parallel                                 */
 /* -------------------------------------------------- */
 
-always @(posedge i_ckp or posedge i_ckn or negedge i_rst_n) begin
+always @(posedge i_ckp or negedge i_ckp or negedge i_rst_n) begin 
     if (!i_rst_n)
         shift_reg <= 0;
     else
