@@ -15,13 +15,13 @@ module unit_LTSM_ctrl_tb;
     assign itf.state_req = state_req;
     // state_status is now assigned in the TB based on current_ltsm_state
     assign state_status = 4'(itf.current_ltsm_state);
-    
+
     // In the real system, timeout_timer_en is driven by substates.
     // In this TB, we just monitor if the state matches what we expect for verification.
-    assign timeout_timer_en = itf.timeout_timer_en; 
-    
+    assign timeout_timer_en = itf.timeout_timer_en;
+
     assign itf.timeout_8ms_occured = timeout_8ms_occured;
-    
+
     assign mbtrain_en = itf.mbtrain_en;
     assign itf.mbtrain_done = mbtrain_done;
 
@@ -90,19 +90,19 @@ module unit_LTSM_ctrl_tb;
 
         #20;
         rst_n = 1;
-        
+
         // In RESET state
         @(posedge lclk); #1;
         if (state_status !== RESET) begin
-             $display("ERROR @%0t: Expected RESET state, got %0d", $time, state_status);
-             error_count++;
+            $display("ERROR @%0t: Expected RESET state, got %0d", $time, state_status);
+            error_count++;
         end
         reset_done = 1;
-        
+
         // RESET -> SBINIT
         check_state_and_outputs(SBINIT, 0);
         reset_done = 0;
-        mbinit_done = 1; 
+        mbinit_done = 1;
 
         // SBINIT -> MBINIT
         check_state_and_outputs(MBINIT, 0);
@@ -150,11 +150,11 @@ module unit_LTSM_ctrl_tb;
 
         $display("---------------------------------------------------------");
         $display("Test 2: Global timeout handling");
-        
+
         timeout_8ms_occured = 1;
         check_state_and_outputs(TRAINERROR, 0);
         timeout_8ms_occured = 0;
-        
+
         $display("---------------------------------------------------------");
         $display("Test 3: MBTRAIN Failure");
         // Reset to return to proper state
@@ -163,11 +163,11 @@ module unit_LTSM_ctrl_tb;
         mbinit_done = 1; @(posedge lclk); mbinit_done = 0;
         mbtrain_done = 1; @(posedge lclk); mbtrain_done = 0;
         check_state_and_outputs(MBTRAIN, 1);
-        
+
         itf.trainerror_req = 1;
         check_state_and_outputs(TRAINERROR, 0);
         itf.trainerror_req = 0;
-        
+
         $display("---------------------------------------------------------");
         $display("Test 4: Direct Request to TRAINERROR");
         rst_n = 0; #20; rst_n = 1;
@@ -176,12 +176,13 @@ module unit_LTSM_ctrl_tb;
         check_state_and_outputs(TRAINERROR, 0);
 
         if (error_count > 0) begin
-            $display("FAILED: %0d errors found in unit_LTSM_ctrl_tb", error_count);
+            $display("\nFAILED: %0d errors found in unit_LTSM_ctrl_tb\n\n", error_count);
             $stop;
         end else begin
-            $display("PASSED: unit_LTSM_ctrl_tb completed successfully.");
+            $display("\nPASSED: unit_LTSM_ctrl_tb completed successfully.\n\n");
         end
-        $finish;
+        // $finish;
+        $stop;
     end
 endmodule
 

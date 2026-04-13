@@ -1,11 +1,11 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -expand -group {Clock & Reset} /unit_unit_pulse_gen_tx_tb/lclk
-add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_unit_pulse_gen_tx_tb/rst_n
-add wave -noupdate -expand -group {Pulse Control} -color Yellow -itemcolor Yellow /unit_unit_pulse_gen_tx_tb/pulse_in
-add wave -noupdate -expand -group {Pulse Control} -color Magenta -itemcolor Magenta /unit_unit_pulse_gen_tx_tb/pulse_out
-add wave -noupdate -expand -group {Pulse Control} -color Cyan -itemcolor Cyan /unit_unit_pulse_gen_tx_tb/dut/active
-add wave -noupdate -expand -group {Internal} -color Cyan -itemcolor Cyan -radix unsigned /unit_unit_pulse_gen_tx_tb/dut/counter
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_pulse_gen_tx_tb/lclk
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_pulse_gen_tx_tb/rst_n
+add wave -noupdate -expand -group {Control & Data} /unit_pulse_gen_tx_tb/pulse_in
+add wave -noupdate -expand -group {Control & Data} /unit_pulse_gen_tx_tb/pulse_out
+add wave -noupdate -expand -group {Control & Data} /unit_pulse_gen_tx_tb/dut/active
+add wave -noupdate -expand -group {Timers & Counters} -color Yellow -itemcolor Yellow -radix unsigned /unit_pulse_gen_tx_tb/dut/counter
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 quietly wave cursor active 0

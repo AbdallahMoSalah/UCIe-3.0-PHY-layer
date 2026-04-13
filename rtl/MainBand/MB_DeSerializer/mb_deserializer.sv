@@ -1,52 +1,74 @@
 module MB_DESERIALIZER (
-    input  wire        mb_clk,
-    input  wire         i_clkp,
-    input  wire         i_clkn,
-    input  wire        PLL_clk,
-    input  wire        i_rst_n,
-    input  wire        deser_en,
-    input  wire        in_des_data,
-    output reg [31:0]  deser_data_out ,
-    output reg         deser_done 
+    input        MB_clk,
+    input        pll_clk,
+    input        i_ckp,
+    input        i_ckn,
+    input        i_rst_n,
+    input        ser_valid,
+    input        ser_data_in,
+    output reg [31:0] par_data_out,
+    output reg        de_ser_done
 );
 
-reg [5:0]  des_counter;
-reg [31:0] deser_data_out_reg;
-reg [31:0] data_save_reg;
-reg        deser_en_reg;
-reg        data_valid_reg;
+/* -------------------------------------------------- */
+/* Internal Registers                                 */
+/* -------------------------------------------------- */
+reg [31:0] shift_reg;
+reg [31:0] save_data;
+reg        save_data_valid;
+reg        deassert_save_data_valid;
 
-always @(posedge i_clkp or posedge i_clkn or negedge i_rst_n) begin
-    if(!i_rst_n) begin
-        deser_data_out_reg <= 0;
+/* -------------------------------------------------- */
+/* Serial to Parallel                                 */
+/* -------------------------------------------------- */
+
+always @(posedge i_ckp or posedge i_ckn or negedge i_rst_n) begin
+    if (!i_rst_n)
+        shift_reg <= 0;
+    else
+        shift_reg <= {shift_reg[30:0], ser_data_in};
 end
-else begin
-        deser_data_out_reg <= {deser_data_out_reg[30:0], in_des_data};
-    end
-end
 
-
-always @(posedge PLL_clk or negedge i_rst_n) begin
+/* -------------------------------------------------- */
+/* Save data after deserializing                      */
+/* -------------------------------------------------- */
+always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        
-    end
-end
-
-
-always @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
-        des_counter         <= 0;
-        deser_data_out_temp <= 0;
-        deser_data_out      <= 0;
+        save_data       <= 0;
+        save_data_valid <= 0;
     end else begin
-       deser_data_out_temp <= {in_des_data, deser_data_out_temp[31:1]};
-        des_counter         <= des_counter + 1;
-
-        if (des_counter == 6'd31) begin
-         deser_data_out <= {in_des_data, deser_data_out_temp[31:1]};
-        des_counter    <= 0;
+        if (ser_valid) begin
+            save_data       <= shift_reg;
+            save_data_valid <= 1;
+        end else if (deassert_save_data_valid) begin
+            save_data_valid <= 0;
         end
     end
 end
 
-endmodule 
+/* -------------------------------------------------- */
+/* Sync to MB_clk domain                              */
+/* -------------------------------------------------- */
+always @(posedge MB_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        par_data_out <= 0;
+        de_ser_done  <= 0;
+    end else begin
+        de_ser_done <= 0; // ✅ default 0 زي الـ reference
+        if (save_data_valid) begin
+            par_data_out <= save_data;
+            de_ser_done  <= 1;
+        end
+    end
+end
+
+/* -------------------------------------------------- */
+/* Deassert valid after one cycle                     */
+/* -------------------------------------------------- */
+always @(posedge de_ser_done) begin
+    deassert_save_data_valid = 1;
+    @(posedge pll_clk);
+    deassert_save_data_valid = 0;
+end
+
+endmodule

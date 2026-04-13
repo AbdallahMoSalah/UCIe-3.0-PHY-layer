@@ -1,10 +1,10 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -expand -group {Clock & Reset} /unit_unit_analog_settle_timer_tb/lclk
-add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_unit_analog_settle_timer_tb/rst_n
-add wave -noupdate -expand -group {Timer Core} -color Gold -itemcolor Gold /unit_unit_analog_settle_timer_tb/timer_en
-add wave -noupdate -expand -group {Timer Core} -color Magenta -itemcolor Magenta /unit_unit_analog_settle_timer_tb/timer_done
-add wave -noupdate -expand -group {Timer Core} -color Cyan -itemcolor Cyan -radix unsigned /unit_unit_analog_settle_timer_tb/dut/counter
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_analog_settle_timer_tb/lclk
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_analog_settle_timer_tb/rst_n
+add wave -noupdate -expand -group {Timers & Counters} -color Yellow -itemcolor Yellow /unit_analog_settle_timer_tb/timer_en
+add wave -noupdate -expand -group {Timers & Counters} -color Yellow -itemcolor Yellow /unit_analog_settle_timer_tb/timer_done
+add wave -noupdate -expand -group {Timers & Counters} -color Yellow -itemcolor Yellow -radix unsigned /unit_analog_settle_timer_tb/dut/counter
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 quietly wave cursor active 0
