@@ -58,9 +58,9 @@ end
 assign rising_ser_en_pll = ser_en_pll_sync2 & ~ser_en_pll_dl;
 
 // ======================================================
-// Serializer logic (LSB first) & Counter
+// Serializer logic (DDR: Shift 2 bits LSB first)
 // ======================================================
-wire load_condition = (rising_ser_en_pll || ser_counter == DATA_WIDTH-1);
+wire load_condition = (rising_ser_en_pll || ser_counter == (DATA_WIDTH/2)-1);
 
 always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
@@ -68,19 +68,46 @@ always @(posedge PLL_clk or negedge i_rst_n) begin
         ser_counter <= 8'd0;
     end else begin
         if (load_condition) begin
-            data_reg    <= load_reg;      // ✅ load
+            data_reg    <= {2'b00, load_reg[DATA_WIDTH-1:2]}; // ✅ load and shift
             ser_counter <= 8'd0;          // reset counter
         end else begin
-            data_reg    <= {1'b0, data_reg[DATA_WIDTH-1:1]}; // ✅ logical shift right
+            data_reg    <= {2'b00, data_reg[DATA_WIDTH-1:2]}; // ✅ logical shift right 2 bits
             ser_counter <= ser_counter + 1'b1;
         end
     end
 end 
 
 // ======================================================
-// Serialized output (LSB first)
+// Serialized output (DDR: MUX pos and neg)
 // ======================================================
-// Drive 0 when loading/resetting, otherwise drive bit 0
-assign SER_out = load_condition ? 1'b0 : data_reg[0]; 
+reg SER_pos_reg;
+reg SER_neg_prep;
+reg SER_neg_reg;
+
+always @(posedge PLL_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        SER_pos_reg  <= 1'b0;
+        SER_neg_prep <= 1'b0;
+    end else begin
+        if (load_condition) begin
+            SER_pos_reg  <= load_reg[0];
+            SER_neg_prep <= load_reg[1];
+        end else begin
+            SER_pos_reg  <= data_reg[0];
+            SER_neg_prep <= data_reg[1];
+        end
+    end
+end
+
+always @(negedge PLL_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        SER_neg_reg <= 1'b0;
+    end else begin
+        SER_neg_reg <= SER_neg_prep;
+    end
+end
+
+// Select pos register when PLL_clk is High, neg register when PLL_clk is Low
+assign SER_out = PLL_clk ? SER_pos_reg : SER_neg_reg;
 
 endmodule

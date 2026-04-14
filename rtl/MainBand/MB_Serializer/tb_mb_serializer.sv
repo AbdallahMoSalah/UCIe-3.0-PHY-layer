@@ -36,11 +36,11 @@ module tb_mb_serializer;
     end
 
     // mb_clk is the slow parallel data clock.
-    // For DATA_WIDTH = 32, its frequency is typically 1/32 of PLL_clk.
-    // Toggles every 32ns -> 64ns period (~15.625 MHz)
+    // For DATA_WIDTH = 32, its frequency is typically 1/16 of PLL_clk for DDR.
+    // Toggles every 16ns -> 32ns period
     initial begin
         mb_clk = 0;
-        forever #(DATA_WIDTH) mb_clk = ~mb_clk;
+        forever #(DATA_WIDTH / 2) mb_clk = ~mb_clk;
     end
 
     // ======================================================
@@ -98,7 +98,7 @@ module tb_mb_serializer;
         // ------------------------------------------------------
         // End simulation
         // ------------------------------------------------------
-        #100;
+        #400;
         $display("Simulation finished successfully.");
         $finish;
     end
