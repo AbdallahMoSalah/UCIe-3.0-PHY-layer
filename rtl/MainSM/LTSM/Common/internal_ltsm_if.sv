@@ -137,6 +137,7 @@ interface internal_ltsm_if #(
     logic        mb_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
     // PHY Level Control & Analog Interface
+    logic        phy_tx_selfcal_en         ; // Enable Tx Self Calibration. It's Used in TXSELFCAL FSM.
     logic [2:0]  phy_negotiated_speed      ; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 2h: 12 GT/s; ... ; or 7h: 64 GT/s)
     logic        phy_rx_clock_lock_en      ; // Allow analog Rx circuit to Lock the coming clock.
     logic        phy_rx_track_lock_en      ; // Allow analog Rx circuit to Lock the coming Track.
@@ -1051,10 +1052,60 @@ interface internal_ltsm_if #(
     );
     //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
 
+    //=========================.
+    // MBTRAIN.TXSELFCAL:      |
+    //=======================================================================================//
+    // Control Signals from the LTSM substate prespective:                                   //
+    // LTSM -> LTSM                                                                          //
+    //=======================================================================================//
+    modport  txselfcal_mp (
+        // ======================= //
+        // Clock and Reset.        //
+        // ======================= //
+        input  lclk, input  rst_n,
 
+        // ======================= //
+        // Timers signals.         //
+        // ======================= //
+        output timeout_timer_en      , input  timeout_8ms_occured    ,
+        output analog_settle_timer_en, input  analog_settle_time_done,
 
+        // ======================= //
+        // LTSM general signals.   //
+        // ======================= //
+        input  txselfcal_en          , output txselfcal_done        ,
+        output trainerror_req        , // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)).
 
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel  , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
+        output phy_tx_selfcal_en   , // Enable Tx Self Calibration (To adjust the MB Tx analog circuits).
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
+        // For SB TX:
+        output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        output tx_sb_msg      , // Tell the Sideband the message that it should to send.
+        output tx_msginfo     , // MsgInfo field of the SB message.
+        output tx_data_field  , // Data field of the SB message.
+
+        // For SB RX:
+        input rx_sb_msg_valid, // Indicates that the sideband message is valid.
+        input rx_sb_msg      , // Get the Received SB msg.
+        input rx_msginfo     , // MsgInfo field of the SB message received.
+        input rx_data_field    // Data field of the SB message.
+    );
 
     modport datavref2ltsm_mp (
         input  datavref_en            , // Enable the DATAVREF FSM.
