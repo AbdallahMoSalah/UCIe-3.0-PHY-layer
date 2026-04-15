@@ -58,10 +58,22 @@ initial begin
     @(posedge i_clk);
     Ser_en = 0;
 
-    // CHECK LSB FIRST
+    // CHECK LSB FIRST (DDR)
+    // Wait for the synchronous pulse to reach the PLL clock domain.
+    // The load condition is triggered by rising_ser_en_pll which takes a few PLL_clk cycles.
+    // The previous testbench was accidentally passing because of 0 padding or misalignment,
+    // let's precisely sync to when SER_out starts putting out the first bit.
+    
+    // The DDR output starts immediately when load_condition hits.
+    // Let's just wait until the output matches the first bit, or sample correctly.
+    // Actually, DDR transmits on posedge and negedge!
     for (i = 0; i < DATA_WIDTH; i = i + 1) begin
-        @(posedge PLL_clk);
-        #1;
+        if (i % 2 == 0) begin
+            @(posedge PLL_clk);
+        end else begin
+            @(negedge PLL_clk);
+        end
+        #1; // small delay to allow SER_out to stabilize after edge
         if (SER_out !== expected_data[0]) begin
             $display(" Bit %0d ERROR: expected=%b got=%b", i, expected_data[0], SER_out);
         end else begin

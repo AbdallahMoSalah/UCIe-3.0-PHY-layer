@@ -6,6 +6,7 @@ module CLK_PATTERN_GEN_TX_tb;
     logic i_clk;
     logic i_rst_n;
     logic clk_pattern_en;
+    logic clk_embedded_en;
 
     logic o_clk_p;
     logic o_clk_n;
@@ -19,6 +20,7 @@ module CLK_PATTERN_GEN_TX_tb;
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
         .clk_pattern_en(clk_pattern_en),
+        .clk_embedded_en(clk_embedded_en),
         .o_clk_p(o_clk_p),
         .o_clk_n(o_clk_n),
         .track(track),
@@ -37,12 +39,20 @@ module CLK_PATTERN_GEN_TX_tb;
     initial begin
         i_rst_n = 0;
         clk_pattern_en = 0;
+        clk_embedded_en = 0;
         @(negedge i_clk);
         i_rst_n = 1;clk_pattern_en = 1;
         repeat(3500) @(negedge i_clk);
         $display("done");
         @(negedge i_clk);
-
+        i_rst_n = 0;
+        clk_pattern_en = 0;
+        clk_embedded_en = 0;
+        @(negedge i_clk);
+        i_rst_n = 1;clk_embedded_en = 1;
+        repeat(6000) @(negedge i_clk);
+        $display("done");
+        @(negedge i_clk);
         $stop;
     end
 
