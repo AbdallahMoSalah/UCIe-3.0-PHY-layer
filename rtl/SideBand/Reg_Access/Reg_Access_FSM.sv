@@ -9,6 +9,7 @@ module Reg_Access_FSM
 (
     input  logic         clk,
     input  logic         rst_n,
+    input  logic         phy_in_reset,   // NEW: Indicates PHY is in Link/Soft Reset
 
     // -----------------------------------------------------------------------
     // Handshake with Top Level / RDI_CONTROL
@@ -46,7 +47,7 @@ typedef enum logic [1:0] {
     IDLE     = 2'b00,
     DECODE   = 2'b01,
     EXECUTE  = 2'b10,
-    GENERATE = 2'b11
+    GEN = 2'b11
 } state_t;
 
 state_t current_state, next_state;
@@ -69,7 +70,7 @@ end
 // Error detection (Added Poison 'ep' flag)
 // ---------------------------------------------------------------------------
 always_comb begin
-    error = parity_err || false_msg || ep;
+    error = parity_err || false_msg || ep || phy_in_reset;
 end
 
 // ---------------------------------------------------------------------------
@@ -97,9 +98,9 @@ always_comb begin
         end
 
         DECODE: begin
-            // Fast-Forward on error to generate UR response
+            // Fast-Forward on error to GEN UR response
             if (error)
-                next_state = GENERATE;
+                next_state = GEN;
             else
                 next_state = EXECUTE;
         end
@@ -108,10 +109,10 @@ always_comb begin
             // [Fix]: If it's a WRITE (!is_read), exit immediately.
             // If it's a READ, wait for rdata_vld.
             if (!is_read || rdata_vld)
-                next_state = GENERATE;
+                next_state = GEN;
         end
 
-        GENERATE: begin
+        GEN: begin
             // Handshake with completion_gen: wait until it's ready
             if (completion_rdy)
                 next_state = IDLE;
@@ -144,7 +145,7 @@ always_comb begin
             wr_en = !is_read;
         end
 
-        GENERATE: begin
+        GEN: begin
             completion_start = 1'b1;
             // 3'b000 = SC (Success), 3'b001 = UR (Unsupported Request/Error)
             status = error ? 3'b001 : 3'b000; 
