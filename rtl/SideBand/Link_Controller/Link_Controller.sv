@@ -52,12 +52,12 @@ logic         msg_vld_rcvd;
 sb_priority_arbiter #(
     .DATA_WIDTH(128)
 ) u_Link_Arbiter (
-    .hp_msg            ( Link_msg_send     ),
-    .hp_vld            ( Link_vld_send     ),
-    .hp_ready          ( Link_ready        ),
-    .lp_msg            ( Adapter_msg_send  ),
-    .lp_vld            ( Adapter_vld_send  ),
-    .lp_ready          ( Adapter_ready     ),
+    .hip_msg           ( Link_msg_send     ),
+    .hip_vld           ( Link_vld_send     ),
+    .hip_ready         ( Link_ready        ),
+    .lop_msg           ( Adapter_msg_send  ),
+    .lop_vld           ( Adapter_vld_send  ),
+    .lop_ready         ( Adapter_ready     ),
     .out_msg           ( msg_word_send     ),
     .out_vld           ( word_vld_send     ),
     .out_ready         ( mapper_ready      )
