@@ -1106,6 +1106,22 @@ interface internal_ltsm_if #(
         input rx_msginfo     , // MsgInfo field of the SB message received.
         input rx_data_field    // Data field of the SB message.
     );
+    //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
+
+    //=========================.
+    // MBTRAIN.RXCLKCAL:      |
+    //=======================================================================================//
+    // Control Signals from the LTSM substate prespective:                                   //
+    // LTSM -> LTSM                                                                          //
+    //=======================================================================================//
+    modport  rxclkcal_mp ();
+
+
+
+
+
+
+
 
     modport datavref2ltsm_mp (
         input  datavref_en            , // Enable the DATAVREF FSM.

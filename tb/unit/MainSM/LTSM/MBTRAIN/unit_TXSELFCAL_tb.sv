@@ -184,7 +184,7 @@ module unit_TXSELFCAL_tb ();
         // Scenario 2: Timeout Analog Settle
         $display("\n=========>  Test Scenario (%0d): Analog Settle Timeout <=========", test_scenario_no++);
         reset();
-        start_test(.abort_mb_or_sb_after(15)); // Should timeout before completing because ANALOG_SETTLE_CYCLES=10 plus some extra overhead? Wait, the timeout is forced by tb_wait_timeout, so the ltsm_tb_attachments will stop sending responses. Actually the analog settle won't freeze when tb_wait_timeout=1, but the SB response will freeze. Wait, start_test logic uses abort_mb_or_sb_after to freeze MB/SB handshake. So S2 or S3 will timeout. Let's just set it to 25 to ensure we are in a handshake state.
+        start_test(.abort_mb_or_sb_after(15));
 
         // Scenario 3: Receive TRAINERROR
         $display("\n=========>  Test Scenario (%0d): Receive TRAINERROR SB Msg <=========", test_scenario_no++);
