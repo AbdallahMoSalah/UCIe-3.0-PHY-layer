@@ -157,7 +157,7 @@ module MB_PATTERN_COMPARATOR_TB;
         end
 
         #100;
-        $finish;
+        $stop;
     end
 
 endmodule
