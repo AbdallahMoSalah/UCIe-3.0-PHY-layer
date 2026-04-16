@@ -1,22 +1,24 @@
 `timescale 1ns/1ps
 
-module MB_DESERIALIZER (
-    input        MB_clk,
-    input        pll_clk,
-    input        i_ckp,
-    input        i_ckn,
-    input        i_rst_n,
-    input        ser_valid,
-    input        ser_data_in,
-    output reg [31:0] par_data_out,
-    output reg        de_ser_done
+module MB_DESERIALIZER #(
+    parameter DATA_WIDTH = 32
+)(
+    input  wire                   MB_clk,
+    input  wire                   pll_clk,
+    input  wire                   i_ckp,
+    input  wire                   i_ckn,
+    input  wire                   i_rst_n,
+    input  wire                   ser_valid,
+    input  wire                   ser_data_in,
+    output reg  [DATA_WIDTH-1:0]  par_data_out,
+    output reg                    de_ser_done
 );
 
 /* -------------------------------------------------- */
 /* Internal Registers                                 */
 /* -------------------------------------------------- */
-reg [31:0] shift_reg;
-reg [31:0] save_data;
+reg [DATA_WIDTH-1:0] shift_reg;
+reg [DATA_WIDTH-1:0] save_data;
 
 // Handshake registers for CDC (pll_clk -> MB_clk)
 reg save_data_toggle;
@@ -29,9 +31,9 @@ reg sync3_toggle;
 /* -------------------------------------------------- */
 always @(posedge pll_clk or negedge pll_clk or negedge i_rst_n) begin 
     if (!i_rst_n)
-        shift_reg <= 32'd0;
+        shift_reg <= {DATA_WIDTH{1'b0}};
     else
-        shift_reg <= {ser_data_in, shift_reg[31:1]}; // LSB first
+        shift_reg <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]}; // LSB first
 end
 
 /* -------------------------------------------------- */
@@ -39,7 +41,7 @@ end
 /* -------------------------------------------------- */
 always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        save_data        <= 32'd0;
+        save_data        <= {DATA_WIDTH{1'b0}};
         save_data_toggle <= 1'b0;
     end else begin
         if (ser_valid) begin
@@ -64,14 +66,14 @@ always @(posedge MB_clk or negedge i_rst_n) begin
     end
 end
 
-wire valid_pulse = (sync2_toggle != sync3_toggle);
+assign valid_pulse = (sync2_toggle != sync3_toggle);
 
 /* -------------------------------------------------- */
 /* Load Output in MB_clk domain                       */
 /* -------------------------------------------------- */
 always @(posedge MB_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        par_data_out <= 32'd0;
+        par_data_out <= {DATA_WIDTH{1'b0}};
         de_ser_done  <= 1'b0;
     end else begin
         de_ser_done <= 1'b0; // Default off (pulse for 1 cycle)

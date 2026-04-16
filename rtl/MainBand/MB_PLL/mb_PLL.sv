@@ -15,11 +15,11 @@ module MB_PLL (
     // =========================
     always @(*) begin
         case (speed_sel)
-            2'b00: period = 250;    // 4 GHz
-            2'b01: period = 125;    // 8 GHz
-            2'b10: period = 83.3;   // 12 GHz
+            2'b00: period = 500;    // 2 GHz
+            2'b01: period = 250;    // 4 GHz
+            2'b10: period = 125;    // 8 GHz
             2'b11: period = 62.5;   // 16 GHz
-            default: period = 250;
+            default: period = 500;
         endcase
     end
 
@@ -40,11 +40,11 @@ module MB_PLL (
         else begin
             // Update local period based on speed
             case (speed_sel)
-                2'b00: local_period = 250;
-                2'b01: local_period = 125;
-                2'b10: local_period = 83.3;
+                2'b00: local_period = 500;
+                2'b01: local_period = 250;
+                2'b10: local_period = 125;
                 2'b11: local_period = 62.5;
-                default: local_period = 250;
+                default: local_period = 500;
             endcase
 
             // Toggle clock every half period

@@ -2,6 +2,8 @@
 
 module MB_DESERIALIZER_TB;
 
+parameter DATA_WIDTH = 32;
+
 /* ---------------- Signals ---------------- */
 reg MB_clk;
 reg pll_clk;
@@ -11,11 +13,13 @@ reg i_rst_n;
 reg ser_valid;
 reg ser_data_in;
 
-wire [31:0] par_data_out;
+wire [DATA_WIDTH-1:0] par_data_out;
 wire        de_ser_done;
 
 /* ---------------- DUT ---------------- */
-MB_DESERIALIZER DUT (
+MB_DESERIALIZER #(
+    .DATA_WIDTH(DATA_WIDTH)
+) DUT (
     .MB_clk(MB_clk),
     .pll_clk(pll_clk),
     .i_ckp(i_ckp),
@@ -30,12 +34,12 @@ MB_DESERIALIZER DUT (
 /* ---------------- Clock Generation ---------------- */
 initial begin
     MB_clk = 0;
-    forever #16 MB_clk = ~MB_clk; // 32ns period
+    forever #8 MB_clk = ~MB_clk; // 16ns period
 end
 
 initial begin
     pll_clk = 0;
-    forever #1 pll_clk = ~pll_clk; // 2ns period
+    forever #0.25 pll_clk = ~pll_clk; // 0.5ns period (2GHz)
 end
 
 // maintain i_ckp for compilation backwards compatibility
@@ -47,7 +51,7 @@ end
 
 /* ---------------- Stimulus ---------------- */
 integer i;
-reg [31:0] test_data = 32'hA5A5F0F0;
+reg [DATA_WIDTH-1:0] test_data = 32'hA5A5F0F0;
 
 initial begin
     // init
@@ -67,9 +71,9 @@ initial begin
     #0.5;
 
     // send serial data (LSB first to match standard)
-    for (i = 0; i < 32; i = i + 1) begin
+    for (i = 0; i < DATA_WIDTH; i = i + 1) begin
         ser_data_in = test_data[i];
-        #1; // Duration of DDR bit
+        #0.25; // Duration of DDR bit (half period of pll_clk)
     end
 
     // The shift register now holds the 32 bits

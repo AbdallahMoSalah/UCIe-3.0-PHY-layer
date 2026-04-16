@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+`timescale 1ns/1ps 
 
 module MB_SERIALIZER #(
     parameter DATA_WIDTH = 32
@@ -19,48 +19,51 @@ reg [DATA_WIDTH-1:0] data_reg;
 reg [DATA_WIDTH-1:0] load_reg;
 
 // CDC Synchronizer registers for PLL_clk domain
-reg ser_en_pll_sync1;
-reg ser_en_pll_sync2;
-reg ser_en_pll_dl;
+reg sync1_toggle;
+reg sync2_toggle;
+reg sync3_toggle;
 
 wire rising_ser_en_pll;
 
 // ======================================================
 // Latch input data when Ser_en goes high (mb_clk domain)
 // ======================================================
+reg load_toggle_mb;
 // Note: Normally we want in_data to be stable when Ser_en goes high
 always @(posedge mb_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         load_reg <= {DATA_WIDTH{1'b0}};
+        load_toggle_mb <= 1'b0;
     end else begin
         if (Ser_en) begin
-            load_reg <= in_data;
+            load_reg  <= in_data;        // Load with mb_clk
+            load_toggle_mb <= ~load_toggle_mb; // Signal to start serialization
         end
     end
 end
-
 // ======================================================
 // CDC: Synchronize Ser_en into PLL_clk domain
 // ======================================================
 always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        ser_en_pll_sync1 <= 1'b0;
-        ser_en_pll_sync2 <= 1'b0;
-        ser_en_pll_dl    <= 1'b0;
+        sync1_toggle <= 1'b0;
+        sync2_toggle <= 1'b0;
+        sync3_toggle <= 1'b0;
     end else begin
-        ser_en_pll_sync1 <= Ser_en;           // 1st sync flop
-        ser_en_pll_sync2 <= ser_en_pll_sync1; // 2nd sync flop
-        ser_en_pll_dl    <= ser_en_pll_sync2; // Delay for edge detection
+        sync1_toggle <= load_toggle_mb;       // 1st sync flop from mb_clk domain
+        sync2_toggle <= sync1_toggle;         // 2nd sync flop
+        sync3_toggle <= sync2_toggle;         // 3rd flop for edge detection
     end
 end
 
-// Pulse strictly localized to 1 cycle of PLL_clk
-assign rising_ser_en_pll = ser_en_pll_sync2 & ~ser_en_pll_dl;
+// Pulse strictly localized to 1 cycle of PLL_clk on any toggle
+assign rising_ser_en_pll = (sync2_toggle != sync3_toggle);
 
 // ======================================================
 // Serializer logic (DDR: Shift 2 bits LSB first)
 // ======================================================
-wire load_condition = (rising_ser_en_pll || ser_counter == (DATA_WIDTH/2)-1);
+wire logic load_condition = (rising_ser_en_pll );
+
 
 always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
@@ -68,13 +71,16 @@ always @(posedge PLL_clk or negedge i_rst_n) begin
         ser_counter <= 8'd0;
     end else begin
         if (load_condition) begin
-            data_reg    <= {2'b00, load_reg[DATA_WIDTH-1:2]}; // ✅ load and shift
+            data_reg    <= {2'b00, load_reg[DATA_WIDTH-1:2]}; // ✅ load direct from in_data and shift
             ser_counter <= 8'd0;          // reset counter
-        end else begin
+        end else if (ser_counter < (DATA_WIDTH/2)-1) begin
             data_reg    <= {2'b00, data_reg[DATA_WIDTH-1:2]}; // ✅ logical shift right 2 bits
             ser_counter <= ser_counter + 1'b1;
+        end else begin
+            ser_counter <= 8'd0;
         end
     end
+   
 end 
 
 // ======================================================
