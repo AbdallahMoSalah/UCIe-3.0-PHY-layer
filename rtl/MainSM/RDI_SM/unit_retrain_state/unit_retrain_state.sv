@@ -224,8 +224,8 @@ module unit_retrain_state (
                 // -------------------------------------------------------------
                 nop_rcvd: begin
                     if (lp_state_req == Active) begin
-                        cs         <= active;
-                        next_state <= Active;
+                        cs         <= active_hs;
+                        Active_handshake_strt <= 1'b1;
                     end
                 end
 

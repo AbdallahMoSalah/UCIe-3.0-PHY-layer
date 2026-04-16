@@ -17,13 +17,28 @@ module unit_reset_state (
     input LTSM_state_e state_sts,            // Link training state machine status
     input RDI_state lp_state_req,            // State requested by the local/remote layer
     input msg_no_e Massage_Recieve,          // Incoming RDI message decoded by SideBand
+    
+    output LTSM_state_e state_req,
     output RDI_state next_state,             // Next state computed by the FSM
     output logic Active_handshake_strt,      // Start signal for Active handshake sequence
-    output reset_state cs_reg,               // Current state of this FSM
     output msg_no_e Massage_Send             // Outgoing message to be sent appropriately
-    output logic L2_exit
 );
-
+    typedef enum logic[3:0] {idle,
+                             le_req, 
+                             le_resp, 
+                             linkerror, 
+                             d_req, 
+                             d_resp, 
+                             disabled, 
+                             lr_req, 
+                             lr_resp, 
+                             linkreset, 
+                             NOP_rcvd, 
+                             training, 
+                             INPP, 
+                             active_hs, 
+                             active,
+                             state_disable } reset_state;
     reset_state cs=idle;
 
     // FSM State transitions and outputs
@@ -33,6 +48,7 @@ module unit_reset_state (
                 Massage_Send<=NOP;
                 next_state<=Reset;
                 Active_handshake_strt<=0;
+                state_req<=RESET;
                 if (lp_linkerror) begin 
                     Massage_Send<=RDI_LINK_ERROR_REQ;
                     cs<=le_req;
@@ -55,7 +71,6 @@ module unit_reset_state (
                 end
                 else if(state_sts==LINKINIT)begin
                     cs<=INPP;
-                    L2_exit<=1;
 
                 end
             end
@@ -64,6 +79,7 @@ module unit_reset_state (
                 Massage_Send<=NOP;             
                 if (Massage_Recieve == RDI_LINK_ERROR_RSP)begin
                     cs <= linkerror;
+                    state_req<=LINKERROR;
                     next_state<=LinkError;
                     Massage_Send<=NOP;
                 end
@@ -71,6 +87,7 @@ module unit_reset_state (
 //===========================================================
             le_resp: begin
                 cs <= linkerror;
+                state_req<=LINKERROR;
                 next_state<=LinkError;
                 Massage_Send<=NOP;
             end

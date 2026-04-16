@@ -17,7 +17,8 @@ module unit_active_state(
     input RDI_state lp_state_req,       // Requested state from Adapter
     input logic rst_n,                  // Asynchronous active-low reset
     input logic timeout_1us,            // 1us timeout for L1/L2 entry
-    
+    input logic pl_error,
+
     output RDI_state next_state,        // Next main state to transition to
     output logic stall_req,             // Request to stall the interface pipeline
     output logic start_1us_timer,       // Start 1us timer for L1/L2 entry
@@ -94,7 +95,7 @@ module unit_active_state(
                         massage_send<=RDI_LINK_ERROR_REQ;
                     end 
                     // Check if Adapter requested Retrain state
-                    else if (lp_state_req==Retrain)begin
+                    else if (lp_state_req==Retrain || pl_error)begin
                         flow<=flow0;
                         cs<=stall_handshake;
                         stall_req<=1'b1;
