@@ -49,16 +49,18 @@ logic         msg_vld_rcvd;
 
 
 
-Link_Arbiter u_Link_Arbiter (
-    .Link_msg_send     ( Link_msg_send     ),
-    .Link_vld_send     ( Link_vld_send     ),
-    .Link_ready        ( Link_ready        ),
-    .Adapter_msg_send  ( Adapter_msg_send  ),
-    .Adapter_vld_send  ( Adapter_vld_send  ),
-    .Adapter_ready     ( Adapter_ready     ),
-    .mapper_ready      ( mapper_ready      ),
-    .msg_word_send     ( msg_word_send     ),
-    .word_vld_send     ( word_vld_send     )
+sb_priority_arbiter #(
+    .DATA_WIDTH(128)
+) u_Link_Arbiter (
+    .hp_msg            ( Link_msg_send     ),
+    .hp_vld            ( Link_vld_send     ),
+    .hp_ready          ( Link_ready        ),
+    .lp_msg            ( Adapter_msg_send  ),
+    .lp_vld            ( Adapter_vld_send  ),
+    .lp_ready          ( Adapter_ready     ),
+    .out_msg           ( msg_word_send     ),
+    .out_vld           ( word_vld_send     ),
+    .out_ready         ( mapper_ready      )
 );
 
 LINK_Demux u_LINK_Demux(
