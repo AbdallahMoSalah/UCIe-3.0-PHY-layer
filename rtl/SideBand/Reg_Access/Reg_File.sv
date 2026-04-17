@@ -61,6 +61,7 @@ module Reg_File (
     // -----------------------------------------------------------------------
     input  logic [24:0]  rf_addr,    // 25-bit: {space[24], RL[23:20], offset[19:0]}
     input  logic [7:0]   rf_be,      // Byte enables (LSB = byte 0)
+    input  logic         rf_is_64b_access, // 64-bit access or 32-bit access
     input  logic [63:0]  rf_wdata,   // Write data (up to 64 bits)
     input  logic         rd_en,      // Read  strobe (1-cycle pulse)
     input  logic         wr_en,      // Write strobe (1-cycle pulse)
@@ -203,6 +204,8 @@ module Reg_File (
 
     output logic [15:0] idle_count_out,
     output logic [15:0] iterations_out,
+    output logic [15:0] current_lane_map_module_0_enable_out,
+    
     // =======================================================================
     //  Convenience taps
     // =======================================================================
@@ -266,26 +269,53 @@ localparam logic [31:0] REG_LOC_0_HIGH_VAL   = 32'h0000_0000;
 //  HWInit register – UCIe Link Capability (00Ch)
 //  Sampled once at reset; afterwards behaves as RO.
 //  Spec §9.x Table:
-//    [0]    Raw Format Support       = RO constant (0 = not supported here)
-//    [20]   APMW (Adv Pkg Mod Width) = HWInit from hw_apmw_i
-//    [22]   SPMW (Std Pkg Mod Width) = HWInit from hw_spmw_i
-//    [25]   UCIe Rev 1.1 Support     = RO constant (0 = not supported here)
+//    [0]    Raw Format Support
+//    [3:1]  Max Link Width
+//    [7:4]  Max Link Speed
+//    [9]    Multi-Protocol Capability
+//    [10]   Advanced Package
+//    [11]   68B Flit Format Streaming
+//    [12]   256B End Header Flit Format for Streaming
+//    [13]   256B Start Header Flit Format for Streaming
+//    [14]   Latency-Optimized 256B Flit Format without Optional Bytes
+//    [15]   Latency-Optimized 256B Flit Format with Optional Bytes
+//    [16]   Enhanced Multi-protocol Capable
+//    [17]   Standard Start Header Flit for PCIe Protocol
+//    [18]   Latency-Optimized Flit with Optional Bytes for PCIe Protocol
+//    [19]   Runtime Link Testing Parity Feature Error Signaling
+//    [20]   Advanced Package Module Width
+//    [22]   Standard Package Module Width
+//    [23]   Sideband Performant Mode Operation (PMO)
+//    [24]   Priority Sideband Packet Transfer (PSPT)
+//    [25]   L2 Sideband Power Down (L2SPD)
 //    others = RsvdZ
 // ---------------------------------------------------------------------------
-logic [31:0] ucie_link_cap_r;   // Latched at reset from HW inputs
+logic [31:0] ucie_link_cap_ff;   // Latched at reset from HW inputs
+logic [31:0] ucie_link_cap_r;
+always_comb begin
+    ucie_link_cap_r = ucie_link_cap_ff;
+end
 assign phy_max_link_speed_cap_out = ucie_link_cap_r[7:4];
 
 // ---------------------------------------------------------------------------
 //  RW registers
 // ---------------------------------------------------------------------------
 //  UCIe Link Control (010h)
-//    [0]  Raw Format Enable          = RW (default 0)
-//    [11] Speed Degrade Enable       = RW (default 1, per spec reset value)
-//    [12] Width Degrade Enable       = RW (default 1)
-//    [17] Sideband Mailbox Mech En   = RW (default 0)
+//    [5:2] Target Link Width
+//    [9:6] Target Link Speed
+//    [10]  Start UCIe Link Training
+//    [11]  Retrain UCIe Link
+//    [21]  Sideband Performant Mode Operation (PMO)
+//    [22]  Priority Sideband Packet Transfer (PSPT)
+//    [23]  L2 Sideband Power Down (L2SPD)
 //    others = RsvdZ
+logic [31:0] ucie_link_ctrl_ff;
 logic [31:0] ucie_link_ctrl_r;
 
+always_comb begin
+    ucie_link_ctrl_r = ucie_link_ctrl_ff;
+    ucie_link_ctrl_r[31:24] = 8'b11111111;   // Reserved
+end
 assign phy_target_link_width_ctrl_out = ucie_link_ctrl_r[5:2];
 assign phy_target_link_speed_ctrl_out = ucie_link_ctrl_r[9:6];
 assign phy_start_ucie_link_training_ctrl_out = ucie_link_ctrl_r[10];
@@ -293,24 +323,6 @@ assign phy_retrain_ucie_link_ctrl_out = ucie_link_ctrl_r[11];
 assign phy_pmo_ctrl_out = ucie_link_ctrl_r[21];
 assign phy_pspt_ctrl_out = ucie_link_ctrl_r[22];
 assign phy_l2spd_ctrl_out = ucie_link_ctrl_r[23];
-
-//  Link Event Notif Ctrl (018h) – RW, 2-byte
-logic [15:0] link_event_notif_ctrl_r;
-always_comb begin
-    link_event_notif_ctrl_r [1:0]   = link_event_notif_ctrl_ff[1:0];
-    link_event_notif_ctrl_r [10:2]  = 7'b1111111;
-    link_event_notif_ctrl_r [15:11] = link_event_notification_interrupt_number_i;
-end
-
-logic [15:0] link_event_notif_ctrl_ff;
-
-//  Error Notif Ctrl (01Ah) – RW, 2-byte
-logic [15:0] error_notif_ctrl_r;
-always_comb begin
-    error_notif_ctrl_r = error_notif_ctrl_ff;
-    error_notif_ctrl_r[10:6] = 5'b11111;
-end
-logic [15:0] error_notif_ctrl_ff;
 
 // ---------------------------------------------------------------------------
 //  UCIe Link Status (014h) – MIXED: RO [12] + RW1C [18:17] + RW1CS [21:19]
@@ -324,8 +336,8 @@ logic [15:0] error_notif_ctrl_ff;
 //   – ucie_link_status_r holds the RW1C and RW1CS bits only.
 //   – bit[12] is not stored in a flop; it's injected at read time from live HW.
 // ---------------------------------------------------------------------------
-logic [31:0]  ucie_link_status_r;
-
+logic [31:0] ucie_link_status_r;
+logic [31:0] ucie_link_status_ff;
 always_comb begin
     ucie_link_status_r        = '0;
     ucie_link_status_r[0]     = adapter_raw_format_enabled_status_i;
@@ -336,9 +348,7 @@ always_comb begin
     ucie_link_status_r[14:11] = phy_link_speed_enabled_status_i;
     ucie_link_status_r[15]    = phy_link_status_status_i;
     ucie_link_status_r[16]    = phy_link_training_retraining_status_i;
-    ucie_link_status_r[17]    = ucie_link_status_ff[17];
-    ucie_link_status_r[18]    = ucie_link_status_ff[18];
-    ucie_link_status_r[21:19] = ucie_link_status_ff[21:19];
+    ucie_link_status_r[21:17] = ucie_link_status_ff[21:17];
     ucie_link_status_r[25:22] = adapter_flit_format_status_i;
     ucie_link_status_r[26]    = phy_sideband_performant_mode_operation_status_i;
     ucie_link_status_r[27]    = phy_priority_sideband_packet_transfer_status_i;
@@ -346,13 +356,27 @@ always_comb begin
 end
 assign phy_link_width_enabled_status_out = ucie_link_status_r[10:7];
 assign phy_link_speed_enabled_status_out = ucie_link_status_r[14:11];
-// ucie_link_status_r layout mirrors the register:
-//   bit position 17 → index 17 of the stored FF
-//   bit position 18 → index 18
-//   bits [21:19]    → index [21:19]
-// (Stored as a 32-bit word aligned to register bit positions for clarity)
-logic [31:0] ucie_link_status_ff;
-// Only bits [21:17] have FFs; the rest are RsvdZ or live RO.
+
+//  Link Event Notif Ctrl (018h) – RW, 2-byte
+logic [15:0] link_event_notif_ctrl_r;
+logic [15:0] link_event_notif_ctrl_ff;
+always_comb begin
+    link_event_notif_ctrl_r [1:0]   = link_event_notif_ctrl_ff[1:0];
+    link_event_notif_ctrl_r [10:2]  = 7'b1111111;
+    link_event_notif_ctrl_r [15:11] = link_event_notification_interrupt_number_i;
+end
+
+
+
+//  Error Notif Ctrl (01Ah) – RW, 2-byte
+logic [15:0] error_notif_ctrl_r;
+logic [15:0] error_notif_ctrl_ff;
+always_comb begin
+    error_notif_ctrl_r = error_notif_ctrl_ff;
+    error_notif_ctrl_r[10:6] = 5'b11111;
+end
+
+
 
 // ===========================================================================
 //  ─── MMIO SPACE ──────────────────────────────────────────────────────────
@@ -365,42 +389,30 @@ logic [31:0] ucie_link_status_ff;
 //    [15]  Package Type (1=Std,0=Adv)  = HWInit from hw_pkg_type_i
 //    others = RsvdZ or constant-0 (RO)
 // ---------------------------------------------------------------------------
+logic [31:0] phy_cap_ff;
 logic [31:0] phy_cap_r;
 
-// ---------------------------------------------------------------------------
-//  RO (combinatorial) – PHY Status (1008h)  [UCIe §9.5.24]
-//    [3]     Rx Termination Status
-//    [4]     Tx EQ Status
-//    [5]     Clock Mode (0=Strobe, 1=Free-running)
-//    [6]     Clock Phase (0=Differential, 1=Quadrature)
-//    [7]     Lane Reversal within Module
-//    [12]    Link Status
-//    [26:19] Link State (LTSM encoding §9.5.34)
-//    others  = RsvdZ
-// ---------------------------------------------------------------------------
-logic [31:0] phy_status;
 always_comb begin
-    phy_status        = 32'hFF_FF_FF_FF;
-    phy_status[3]     = phy_rx_term_status_i;
-    phy_status[4]     = phy_tx_eq_status_i;
-    phy_status[5]     = phy_clk_mode_status_i;
-    phy_status[6]     = phy_clk_phase_status_i;
-    phy_status[7]     = phy_lane_rev_status_i;
-    phy_status[13:8]  = phy_iq_correction_param_status_i;
-    phy_status[17:14] = phy_eq_preset_setting_status_i;
-    phy_status[18]    = phy_tarr_status_i;
+    phy_cap_r = phy_cap_ff;
 end
+
 
 // ---------------------------------------------------------------------------
 //  RW + RO mixed – PHY Control (1004h)  [UCIe §9.5.2]
-//    [0]  Physical Layer Initialization Abort  RW
-//    [22] PHY Reset (Software-triggered)       RW
-//    [24] Direct PHY Control Enable            RW
-//    others = RsvdZ
+//    [3]  Rx Termination Enable
+//    [4]  Tx EQ Enable
+//    [5]  Rx Clock Mode Select
+//    [6]  Rx Clock Phase Select
+//    [8]  Force x8 Width Mode in a UCIe-S x16 Module
+//    [9]  Force I/Q Correction Enable
+//    [15:10] Force I/Q Correction Parameter
+//    [16] Force Tx EQ Preset
+//    [20:17] Force Tx EQ Preset Setting
+//    [21] Tx Adjustment for Runtime Recalibration (TARR)
 //
 //  RW + RO mixed – PHY Initialization and Debug (100Ch)
-//    [0]  Manual Link Training Start           RW
-//    [7]  Link Training Success                RO (live from HW input)
+//    [2:0] PHY Initialization Done
+//    [5]   Resume Training
 //    others = RsvdZ
 // ---------------------------------------------------------------------------
 logic [31:0] phy_control_r;
@@ -421,6 +433,31 @@ assign phy_iq_correction_param_ctrl_out = phy_control_r[15:10];    // PHY_CONTRO
 assign phy_tx_eq_status_i_preset_ctrl_out = phy_control_r[16];    // PHY_CONTROL[16]: Force Tx EQ Preset
 assign phy_tx_eq_status_i_preset_setting_ctrl_out = phy_control_r[20:17];    // PHY_CONTROL[20:17]: Force Tx EQ Preset Setting
 assign phy_tarr_en_ctrl_out = phy_control_r[21];    // PHY_CONTROL[21]: Tx Adjustment for Runtime Recalibration (TARR)
+
+// ---------------------------------------------------------------------------
+//  RO (combinatorial) – PHY Status (1008h)  [UCIe §9.5.24]
+//    [3]     Rx Termination Status
+//    [4]     Tx EQ Status
+//    [5]     Clock Mode (0=Strobe, 1=Free-running)
+//    [6]     Clock Phase (0=Differential, 1=Quadrature)
+//    [7]     Lane Reversal within Module
+//    [12]    Link Status
+//    [26:19] Link State (LTSM encoding §9.5.34)
+//    others  = RsvdZ
+// ---------------------------------------------------------------------------
+logic [31:0] phy_status_r;
+always_comb begin
+    phy_status_r        = 32'hFF_FF_FF_FF;
+    phy_status_r[3]     = phy_rx_term_status_i;
+    phy_status_r[4]     = phy_tx_eq_status_i;
+    phy_status_r[5]     = phy_clk_mode_status_i;
+    phy_status_r[6]     = phy_clk_phase_status_i;
+    phy_status_r[7]     = phy_lane_rev_status_i;
+    phy_status_r[13:8]  = phy_iq_correction_param_status_i;
+    phy_status_r[17:14] = phy_eq_preset_setting_status_i;
+    phy_status_r[18]    = phy_tarr_status_i;
+end
+
 
 
 // Note: bit[22] and [24] added per spec; kept generic for bits not in spec
@@ -445,30 +482,40 @@ always_comb begin
 end
 
 logic [31:0] training_setup2_r;   // Training Setup 2 (1020h)
+logic [31:0] training_setup2_ff;
+
+always_comb begin
+    training_setup2_r = training_setup2_ff;
+end
+    
 
 assign idle_count_out = training_setup2_r[15:0];
 assign iterations_out = training_setup2_r[31:16];
 
 logic [63:0] training_setup3_r;   // Training Setup 3 (1030h)
+logic [63:0] training_setup3_ff;
+always_comb begin
+    training_setup3_r = training_setup3_ff;
+end
 
 assign lane_mask_ctrl_out = training_setup3_r;
 
 logic [31:0] training_setup4_r;   // Training Setup 4 (1050h)
-
+logic [31:0] training_setup4_ff;
+always_comb begin
+    training_setup4_r = training_setup4_ff;
+end
 assign max_error_threshold_in_per_lane_comparison_out = training_setup4_r[15:4];
 assign max_error_threshold_in_aggregate_comparison_out = training_setup4_r[31:16];
 
 logic [63:0] lane_map_mod0_r;     // Current Lane Map Module 0 (1060h)
-
-
-logic [63:0] rt_test_ctrl_r;      // Runtime Link Test Control (1100h)
-logic [63:0] rt_test_ctrl_ff;      // Runtime Link Test Control (1100h)
+logic [63:0] lane_map_mod0_ff;
 
 always_comb begin
-    rt_test_ctrl_r = rt_test_ctrl_ff;
-    rt_test_ctrl_r[63:36] = 28'b11111111111111111111111111;
-    
+    lane_map_mod0_r = lane_map_mod0_ff;
 end
+assign current_lane_map_module_0_enable_out = lane_map_mod0_r[15:0];
+
 // ---------------------------------------------------------------------------
 //  Error Log 0 (1080h) – all ROS  [UCIe §9.5.34]
 //    [7:0]   State N   – LTSM state at error
@@ -479,16 +526,38 @@ end
 //    [31:24] State N-2
 // ---------------------------------------------------------------------------
 logic [31:0] error_log0_r;
+logic [31:0] error_log0_ff;
+
+always_comb begin
+    error_log0_r = error_log0_ff;
+    error_log0_r [15:10] = 6'b0;
+end
 
 // ---------------------------------------------------------------------------
 //  Error Log 1 (1090h) – MIXED: ROS + RW1CS
 //    [7:0]  State N-3            ROS   – HW shift; cleared only by reset
 //    [8]    State Timeout        RW1CS – HW sets; SW clears writing 1; sticky
-//    [9:10] RsvdZ
-//    [11]   Internal Error       RW1CS – HW sets; SW clears writing 1; sticky
+//    [9]    Sideband Timeout     RW1CS
+//    [10]   RM Link Error        RW1CS
+//    [11]   Internal Error       RW1CS
 //    [31:12] RsvdZ
 // ---------------------------------------------------------------------------
 logic [31:0] error_log1_r;
+logic [31:0] error_log1_ff;
+
+always_comb begin
+    error_log1_r = error_log1_ff;
+    error_log1_r[31:12] = 20'b0;
+end
+
+logic [63:0] rt_test_ctrl_r;      // Runtime Link Test Control (1100h)
+logic [63:0] rt_test_ctrl_ff;      // Runtime Link Test Control (1100h)
+
+always_comb begin
+    rt_test_ctrl_r = rt_test_ctrl_ff;
+    rt_test_ctrl_r[63:36] = 28'b11111111111111111111111111;
+    
+end
 
 // ---------------------------------------------------------------------------
 //  Runtime Link Test Status (1108h) – RO live field --------------------------
@@ -498,51 +567,136 @@ always_comb begin
     rt_test_status_r = '0;
     rt_test_status_r [0] = rt_link_busy_status_i;   
 end
+
+
+// ===========================================================================
+//  Byte-level Write Address Decoders (combinatorial memory mapping)
+// ===========================================================================
+logic       cfg_we   [0:35];
+logic [7:0] cfg_wdat [0:35];
+
+always_comb begin
+    for (int i=0; i<=35; i++) begin
+        cfg_we[i]   = 1'b0;
+        cfg_wdat[i] = 8'h0;
+    end
+    if (wr_en && cfg_sel) begin
+        for (int i=0; i<8; i++) begin
+            if ((i < 4 || rf_is_64b_access) && rf_be[i]) begin
+                if ((rf_addr[11:0] + i) <= 35) begin
+                    cfg_we[rf_addr[11:0] + i]   = 1'b1;
+                    cfg_wdat[rf_addr[11:0] + i] = rf_wdata[i*8 +: 8];
+                end
+            end
+        end
+    end
+end
+
+logic       mmio_we  [0:267];
+logic [7:0] mmio_wdat[0:267];
+
+always_comb begin
+    for (int i=0; i<=267; i++) begin
+        mmio_we[i]   = 1'b0;
+        mmio_wdat[i] = 8'h0;
+    end
+    if (wr_en && phy_mmio_sel) begin
+        for (int i=0; i<8; i++) begin
+            if ((i < 4 || rf_is_64b_access) && rf_be[i]) begin
+                if ((rf_addr[12:0] - 13'h1000 + i) <= 267) begin
+                    mmio_we[rf_addr[12:0] - 13'h1000 + i]   = 1'b1;
+                    mmio_wdat[rf_addr[12:0] - 13'h1000 + i] = rf_wdata[i*8 +: 8];
+                end
+            end
+        end
+    end
+end
+
+// ===========================================================================
+//  Byte-level Read Data Mapping (combinatorial memory mapping)
+// ===========================================================================
+logic [7:0] cfg_mem [0:35];
+always_comb begin
+    for (int i=0; i<=35; i++) cfg_mem[i] = 8'h0;
+    
+    {cfg_mem[3], cfg_mem[2], cfg_mem[1], cfg_mem[0]} = PCIE_EXT_CAP_HDR_VAL;
+    {cfg_mem[7], cfg_mem[6], cfg_mem[5], cfg_mem[4]} = DVSEC_HDR1_VAL;
+    {cfg_mem[9], cfg_mem[8]}                         = DVSEC_HDR2_VAL;
+    {cfg_mem[11], cfg_mem[10]}                       = CAP_DESC_VAL;
+    {cfg_mem[15], cfg_mem[14], cfg_mem[13], cfg_mem[12]} = ucie_link_cap_r;
+    {cfg_mem[19], cfg_mem[18], cfg_mem[17], cfg_mem[16]} = ucie_link_ctrl_r;
+    {cfg_mem[23], cfg_mem[22], cfg_mem[21], cfg_mem[20]} = ucie_link_status_r;
+    {cfg_mem[25], cfg_mem[24]}                           = link_event_notif_ctrl_r;
+    {cfg_mem[27], cfg_mem[26]}                           = error_notif_ctrl_r;
+    {cfg_mem[31], cfg_mem[30], cfg_mem[29], cfg_mem[28]} = REG_LOC_0_LOW_VAL;
+    {cfg_mem[35], cfg_mem[34], cfg_mem[33], cfg_mem[32]} = REG_LOC_0_HIGH_VAL;
+end
+
+logic [7:0] mmio_mem [0:267];
+always_comb begin
+    for (int i=0; i<=267; i++) mmio_mem[i] = 8'h0;
+    
+    {mmio_mem[3], mmio_mem[2], mmio_mem[1], mmio_mem[0]}       = phy_cap_r;
+    {mmio_mem[7], mmio_mem[6], mmio_mem[5], mmio_mem[4]}       = phy_control_r;
+    {mmio_mem[11], mmio_mem[10], mmio_mem[9], mmio_mem[8]}     = phy_status_r;
+    {mmio_mem[15], mmio_mem[14], mmio_mem[13], mmio_mem[12]}   = phy_init_debug_r;
+    {mmio_mem[19], mmio_mem[18], mmio_mem[17], mmio_mem[16]}   = training_setup1_r;
+    {mmio_mem[35], mmio_mem[34], mmio_mem[33], mmio_mem[32]}   = training_setup2_r;
+    {mmio_mem[55], mmio_mem[54], mmio_mem[53], mmio_mem[52], mmio_mem[51], mmio_mem[50], mmio_mem[49], mmio_mem[48]} = training_setup3_r;
+    {mmio_mem[83], mmio_mem[82], mmio_mem[81], mmio_mem[80]}   = training_setup4_r;
+    {mmio_mem[103], mmio_mem[102], mmio_mem[101], mmio_mem[100], mmio_mem[99], mmio_mem[98], mmio_mem[97], mmio_mem[96]} = lane_map_mod0_r;
+    {mmio_mem[131], mmio_mem[130], mmio_mem[129], mmio_mem[128]} = error_log0_r;
+    {mmio_mem[147], mmio_mem[146], mmio_mem[145], mmio_mem[144]} = error_log1_r;
+    {mmio_mem[263], mmio_mem[262], mmio_mem[261], mmio_mem[260], mmio_mem[259], mmio_mem[258], mmio_mem[257], mmio_mem[256]} = rt_test_ctrl_r;
+    {mmio_mem[267], mmio_mem[266], mmio_mem[265], mmio_mem[264]} = rt_test_status_r;
+end
+
 // ===========================================================================
 //  Write / HW-set logic (synchronous)
 // ===========================================================================
+
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
 
         // ── Latch HWInit at reset ───────────────────────────────────────
         // UCIe Link Capability (RO after reset)
-        ucie_link_cap_r              <= '0;
-        ucie_link_cap_r[0]           <= adapter_raw_format_support_cap_i;
-        ucie_link_cap_r[3:1]         <= hw_max_link_width_cap_i;
-        ucie_link_cap_r[7:4]         <= hw_max_link_speed_cap_i;
-        ucie_link_cap_r[8]           <= 1'b1;
-        ucie_link_cap_r[9]           <= adapter_multi_protocol_cap_cap_i;
-        ucie_link_cap_r[10]          <= phy_advanced_pkg_cap_i;
-        ucie_link_cap_r[11]          <= adapter_68B_flit_formate_streaming_cap_i;
-        ucie_link_cap_r[12]          <= adapter_256B_end_header_flit_format_streaming_cap_i;
-        ucie_link_cap_r[13]          <= adapter_256B_start_header_flit_format_streaming_cap_i;
-        ucie_link_cap_r[14]          <= adapter_256B_latency_optimized_flit_format_without_optional_bytes_streaming_cap_i;
-        ucie_link_cap_r[15]          <= adapter_256B_latency_optimized_flit_format_with_optional_bytes_streaming_cap_i;
-        ucie_link_cap_r[16]          <= adapter_enhanced_multi_protocol_capable_cap_i;
-        ucie_link_cap_r[17]          <= adapter_standard_start_header_flit_for_pcie_protocol_cap_i;
-        ucie_link_cap_r[18]          <= adapter_latency_optimized_flit_with_optional_bytes_for_pcie_protocol_cap_i;
-        ucie_link_cap_r[19]          <= adapter_runtime_link_testing_parity_feature_error_signaling_cap_i;
-        ucie_link_cap_r[20]          <= hw_apmw_cap_i;
-        ucie_link_cap_r[21]          <= 1'b1;
-        ucie_link_cap_r[22]          <= hw_spmw_cap_i;
-        ucie_link_cap_r[23]          <= phy_sideband_performant_mode_operation_cap_i;
-        ucie_link_cap_r[24]          <= phy_priority_sideband_packet_transfer_cap_i;
-        ucie_link_cap_r[25]          <= phy_l2_sideband_power_down_cap_i;
-        ucio_link_cap_r[31:26]       <= '1;
+        ucie_link_cap_ff              <= '0;
+        ucie_link_cap_ff[0]           <= adapter_raw_format_support_cap_i;
+        ucie_link_cap_ff[3:1]         <= hw_max_link_width_cap_i;
+        ucie_link_cap_ff[7:4]         <= hw_max_link_speed_cap_i;
+        ucie_link_cap_ff[8]           <= 1'b1;
+        ucie_link_cap_ff[9]           <= adapter_multi_protocol_cap_cap_i;
+        ucie_link_cap_ff[10]          <= phy_advanced_pkg_cap_i;
+        ucie_link_cap_ff[11]          <= adapter_68B_flit_formate_streaming_cap_i;
+        ucie_link_cap_ff[12]          <= adapter_256B_end_header_flit_format_streaming_cap_i;
+        ucie_link_cap_ff[13]          <= adapter_256B_start_header_flit_format_streaming_cap_i;
+        ucie_link_cap_ff[14]          <= adapter_256B_latency_optimized_flit_format_without_optional_bytes_streaming_cap_i;
+        ucie_link_cap_ff[15]          <= adapter_256B_latency_optimized_flit_format_with_optional_bytes_streaming_cap_i;
+        ucie_link_cap_ff[16]          <= adapter_enhanced_multi_protocol_capable_cap_i;
+        ucie_link_cap_ff[17]          <= adapter_standard_start_header_flit_for_pcie_protocol_cap_i;
+        ucie_link_cap_ff[18]          <= adapter_latency_optimized_flit_with_optional_bytes_for_pcie_protocol_cap_i;
+        ucie_link_cap_ff[19]          <= adapter_runtime_link_testing_parity_feature_error_signaling_cap_i;
+        ucie_link_cap_ff[20]          <= hw_apmw_cap_i;
+        ucie_link_cap_ff[21]          <= 1'b1;
+        ucie_link_cap_ff[22]          <= hw_spmw_cap_i;
+        ucie_link_cap_ff[23]          <= phy_sideband_performant_mode_operation_cap_i;
+        ucie_link_cap_ff[24]          <= phy_priority_sideband_packet_transfer_cap_i;
+        ucie_link_cap_ff[25]          <= phy_l2_sideband_power_down_cap_i;
+        ucie_link_cap_ff[31:26]       <= 6'b111111;
 
         // PHY Capability (RO after reset)
-        phy_cap_r                    <= 32'hFFFF_FFFF;
-        phy_cap_r[3]                 <= phy_term_link_cap_i;
-        phy_cap_r[4]                 <= phy_tx_eq_status_iualization_support_cap_i;
-        phy_cap_r[9:5]               <= phy_tx_vswing_encodings_cap_i;
-        phy_cap_r[12:11]             <= phy_rx_clk_mode_support_cap_i;
-        phy_cap_r[14:13]             <= phy_rx_clk_phase_support_cap_i;
-        phy_cap_r[15]                <= phy_package_type_cap_i;
-        phy_cap_r[16]                <= phy_tcm_support_cap_i;
-        phy_cap_r[17]                <= phy_tarr_support_cap_i;
+        phy_cap_ff                    <= 32'hFFFF_FFFF;
+        phy_cap_ff[3]                 <= phy_term_link_cap_i;
+        phy_cap_ff[4]                 <= phy_tx_eq_status_iualization_support_cap_i;
+        phy_cap_ff[9:5]               <= phy_tx_vswing_encodings_cap_i;
+        phy_cap_ff[12:11]             <= phy_rx_clk_mode_support_cap_i;
+        phy_cap_ff[14:13]             <= phy_rx_clk_phase_support_cap_i;
+        phy_cap_ff[15]                <= phy_package_type_cap_i;
+        phy_cap_ff[16]                <= phy_tcm_support_cap_i;
+        phy_cap_ff[17]                <= phy_tarr_support_cap_i;
 
         // ── Config Space RW resets ───────────────────────────────────────
-        ucie_link_ctrl_r             <= 32'h0000_1800; // bits[11:12]=1 per spec reset
+        ucie_link_ctrl_ff             <= 32'h0000_1800; // bits[11:12]=1 per spec reset
         ucie_link_status_ff          <= 32'h0000_0000;
         link_event_notif_ctrl_ff      <= 16'h0000;
         error_notif_ctrl_ff           <= 16'h0000;
@@ -551,15 +705,15 @@ always_ff @(posedge clk or negedge rst_n) begin
         phy_control_ff                <= 32'h0000_0000;
         phy_init_debug_ff             <= 32'h0000_0000;
         training_setup1_ff            <= 32'h0000_0000;
-        training_setup2_r            <= 32'h0000_0000;
-        training_setup3_r            <= 64'h0;
-        training_setup4_r            <= 32'h0000_0000;
-        lane_map_mod0_r              <= 64'h0;
+        training_setup2_ff            <= 32'h0000_0000;
+        training_setup3_ff            <= 64'h0;
+        training_setup4_ff            <= 32'h0000_0000;
+        lane_map_mod0_ff              <= 64'h0;
         rt_test_ctrl_ff               <= 64'h0;
 
         // ── MMIO Space ROS / RW1CS resets ────────────────────────────────
-        error_log0_r                 <= 32'h0000_0000;
-        error_log1_r                 <= 32'h0000_0000;
+        error_log0_ff                 <= 32'h0000_0000;
+        error_log1_ff                 <= 32'h0000_0000;
 
     end else begin
 
@@ -575,159 +729,95 @@ always_ff @(posedge clk or negedge rst_n) begin
         if (phy_uci_e_link_uncorrectable_fatal_error_i) ucie_link_status_ff[21] <= 1'b1;
 
         //  Error Log 1 [8],[9],[10],[11] – RW1CS: OR-set from HW events
-        if (phy_state_timeout_i) error_log1_r[8]  <= 1'b1;
-        if (phy_sb_timeout_i)    error_log1_r[9]  <= 1'b1;
-        if (phy_rm_link_err_i)   error_log1_r[10] <= 1'b1;
-        if (phy_internal_err_i)  error_log1_r[11] <= 1'b1;
+        if (phy_state_timeout_i) error_log1_ff[8]  <= 1'b1;
+        if (phy_sb_timeout_i)    error_log1_ff[9]  <= 1'b1;
+        if (phy_rm_link_err_i)   error_log1_ff[10] <= 1'b1;
+        if (phy_internal_err_i)  error_log1_ff[11] <= 1'b1;
 
         // ═══════════════════════════════════════════════════════════════════
-        //  SW write path – Config Space (addr[24]=0, RL=0)
+        //  SW write path – Config Space (addr[24]=0, RL=0) mapped from byte memory
         // ═══════════════════════════════════════════════════════════════════
         if (wr_en && cfg_sel) begin
-            case (rf_addr[11:0])
+            if (cfg_we[16]) ucie_link_ctrl_ff[7:0]   <= cfg_wdat[16];
+            if (cfg_we[17]) ucie_link_ctrl_ff[15:8]  <= cfg_wdat[17];
+            if (cfg_we[18]) ucie_link_ctrl_ff[23:16] <= cfg_wdat[18];
 
-                // 000h PCIe Ext Cap Header    – RO : ignore
-                // 004h DVSEC Header 1         – RO : ignore
-                // 008h DVSEC Header 2         – RO : ignore
-                // 00Ah Capability Descriptor  – RO : ignore
-                // 00Ch UCIe Link Capability   – HWInit (RO after reset) : ignore
+            if (cfg_we[22]) begin // 014h, byte 2 has RW1C bits [21:17]
+                ucie_link_status_ff[17] <= ucie_link_status_ff[17] & ~cfg_wdat[22][1];
+                ucie_link_status_ff[18] <= ucie_link_status_ff[18] & ~cfg_wdat[22][2];
+                ucie_link_status_ff[19] <= ucie_link_status_ff[19] & ~cfg_wdat[22][3];
+                ucie_link_status_ff[20] <= ucie_link_status_ff[20] & ~cfg_wdat[22][4];
+                ucie_link_status_ff[21] <= ucie_link_status_ff[21] & ~cfg_wdat[22][5];
+            end
 
-                12'h010: begin  // UCIe Link Control – RW (4 bytes)
-                    if (rf_be[0]) ucie_link_ctrl_r[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) ucie_link_ctrl_r[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) ucie_link_ctrl_r[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) ucie_link_ctrl_r[31:24] <= rf_wdata[31:24];
-                end
-
-                12'h014: begin  // UCIe Link Status – RW1C + RW1CS (W1C on bits [21:17])
-                    // bit[12] (Link Up) is RO – SW writes to this bit are ignored.
-                    // Bits [21:17] are RW1C/RW1CS: writing 1 clears the bit.
-                    if (rf_be[2]) begin  // byte 2 covers bits [23:16]
-                        // bit[17] and [16] are in byte 2 ([17:16])
-                        ucie_link_status_ff[17] <= ucie_link_status_ff[17] & ~rf_wdata[17];
-                        ucie_link_status_ff[18] <= ucie_link_status_ff[18] & ~rf_wdata[18];
-                    end
-                    if (rf_be[2] | rf_be[3]) begin  // bits[21:19] span bytes 2-3
-                        ucie_link_status_ff[21:19] <=
-                            ucie_link_status_ff[21:19] & ~rf_wdata[21:19];
-                    end
-                end
-
-                12'h018: begin  // Link Event Notif Ctrl – RW (2 bits)
-                    if (rf_be[0]) link_event_notif_ctrl_ff[1:0]  <= rf_wdata[1:0];
-                end
-
-                12'h01A: begin  // Error Notif Ctrl – RW (2 bytes)
-                    if (rf_be[0]) error_notif_ctrl_ff[7:0]  <= rf_wdata[7:0];
-                    if (rf_be[1]) error_notif_ctrl_ff[15:8] <= rf_wdata[15:8];
-                end
-
-                // 01Ch Register Locator 0 Low  – RO : ignore
-                // 020h Register Locator 0 High – RO : ignore
-
-                default: ; // RO / HWInit / unmapped: discard
-            endcase
+            if (cfg_we[24]) link_event_notif_ctrl_ff[1:0] <= cfg_wdat[24][1:0];
+            
+            if (cfg_we[26]) error_notif_ctrl_ff[7:0]  <= cfg_wdat[26];
+            if (cfg_we[27]) error_notif_ctrl_ff[15:8] <= cfg_wdat[27];
         end
 
         // ═══════════════════════════════════════════════════════════════════
-        //  SW write path – MMIO Space (addr[24]=1, RL=0)
+        //  SW write path – MMIO Space (addr[24]=1, RL=0) mapped from byte memory
         // ═══════════════════════════════════════════════════════════════════
         if (wr_en && phy_mmio_sel) begin
-            case (rf_addr[12:0])
+            if (mmio_we[4]) phy_control_ff[7:0]   <= mmio_wdat[4];
+            if (mmio_we[5]) phy_control_ff[15:8]  <= mmio_wdat[5];
+            if (mmio_we[6]) phy_control_ff[23:16] <= mmio_wdat[6];
+            if (mmio_we[7]) phy_control_ff[31:24] <= mmio_wdat[7];
 
-                // 1000h PHY Capability           – HWInit (RO after reset): ignore
-                // 1008h PHY Status               – RO live: ignore
+            if (mmio_we[12]) phy_init_debug_ff[7:0]   <= mmio_wdat[12];
+            if (mmio_we[13]) phy_init_debug_ff[15:8]  <= mmio_wdat[13];
+            if (mmio_we[14]) phy_init_debug_ff[23:16] <= mmio_wdat[14];
+            if (mmio_we[15]) phy_init_debug_ff[31:24] <= mmio_wdat[15];
 
-                13'h1004: begin  // PHY Control – RW
-                    if (rf_be[0]) phy_control_ff[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) phy_control_ff[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) phy_control_ff[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) phy_control_ff[31:24] <= rf_wdata[31:24];
-                end
+            if (mmio_we[16]) training_setup1_ff[7:0]   <= mmio_wdat[16];
+            if (mmio_we[17]) training_setup1_ff[15:8]  <= mmio_wdat[17];
+            if (mmio_we[18]) training_setup1_ff[23:16] <= mmio_wdat[18];
+            if (mmio_we[19]) training_setup1_ff[31:24] <= mmio_wdat[19];
 
-                13'h100C: begin  // PHY Initialization and Debug – RW (bit[7] is RO)
-                    // bit[7] = Link Training Success is RO (from HW); SW write ignored.
-                    if (rf_be[0]) phy_init_debug_ff[6:0]   <= rf_wdata[6:0];   // bit[7] protected
-                    if (rf_be[1]) phy_init_debug_ff[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) phy_init_debug_ff[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) phy_init_debug_ff[31:24] <= rf_wdata[31:24];
-                end
+            if (mmio_we[32]) training_setup2_ff[7:0]   <= mmio_wdat[32];
+            if (mmio_we[33]) training_setup2_ff[15:8]  <= mmio_wdat[33];
+            if (mmio_we[34]) training_setup2_ff[23:16] <= mmio_wdat[34];
+            if (mmio_we[35]) training_setup2_ff[31:24] <= mmio_wdat[35];
 
-                13'h1010: begin  // Training Setup 1 – RW
-                    if (rf_be[0]) training_setup1_ff[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) training_setup1_ff[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) training_setup1_ff[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) training_setup1_ff[31:24] <= rf_wdata[31:24];
-                end
+            if (mmio_we[48]) training_setup3_ff[7:0]   <= mmio_wdat[48];
+            if (mmio_we[49]) training_setup3_ff[15:8]  <= mmio_wdat[49];
+            if (mmio_we[50]) training_setup3_ff[23:16] <= mmio_wdat[50];
+            if (mmio_we[51]) training_setup3_ff[31:24] <= mmio_wdat[51];
+            if (mmio_we[52]) training_setup3_ff[39:32] <= mmio_wdat[52];
+            if (mmio_we[53]) training_setup3_ff[47:40] <= mmio_wdat[53];
+            if (mmio_we[54]) training_setup3_ff[55:48] <= mmio_wdat[54];
+            if (mmio_we[55]) training_setup3_ff[63:56] <= mmio_wdat[55];
 
-                13'h1020: begin  // Training Setup 2 – RW
-                    if (rf_be[0]) training_setup2_r[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) training_setup2_r[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) training_setup2_r[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) training_setup2_r[31:24] <= rf_wdata[31:24];
-                end
+            if (mmio_we[80]) training_setup4_ff[7:0]   <= mmio_wdat[80];
+            if (mmio_we[81]) training_setup4_ff[15:8]  <= mmio_wdat[81];
+            if (mmio_we[82]) training_setup4_ff[23:16] <= mmio_wdat[82];
+            if (mmio_we[83]) training_setup4_ff[31:24] <= mmio_wdat[83];
 
-                13'h1030: begin  // Training Setup 3 – RW
-                    if (rf_be[0]) training_setup3_r[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) training_setup3_r[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) training_setup3_r[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) training_setup3_r[31:24] <= rf_wdata[31:24];
-                    if (rf_be[4]) training_setup3_r[39:32] <= rf_wdata[39:32];
-                    if (rf_be[5]) training_setup3_r[47:40] <= rf_wdata[47:40];
-                    if (rf_be[6]) training_setup3_r[55:48] <= rf_wdata[55:48];
-                    if (rf_be[7]) training_setup3_r[63:56] <= rf_wdata[63:56];
-                end
+            if (mmio_we[96])  lane_map_mod0_ff[7:0]   <= mmio_wdat[96];
+            if (mmio_we[97])  lane_map_mod0_ff[15:8]  <= mmio_wdat[97];
+            if (mmio_we[98])  lane_map_mod0_ff[23:16] <= mmio_wdat[98];
+            if (mmio_we[99])  lane_map_mod0_ff[31:24] <= mmio_wdat[99];
+            if (mmio_we[100]) lane_map_mod0_ff[39:32] <= mmio_wdat[100];
+            if (mmio_we[101]) lane_map_mod0_ff[47:40] <= mmio_wdat[101];
+            if (mmio_we[102]) lane_map_mod0_ff[55:48] <= mmio_wdat[102];
+            if (mmio_we[103]) lane_map_mod0_ff[63:56] <= mmio_wdat[103];
 
-                13'h1050: begin  // Training Setup 4 – RW
-                    if (rf_be[0]) training_setup4_r[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) training_setup4_r[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) training_setup4_r[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) training_setup4_r[31:24] <= rf_wdata[31:24];
-                end
+            if (mmio_we[145]) begin // 1090h byte 1
+                error_log1_ff[8]  <= error_log1_ff[8]  & ~mmio_wdat[145][0];
+                error_log1_ff[9]  <= error_log1_ff[9]  & ~mmio_wdat[145][1];
+                error_log1_ff[10] <= error_log1_ff[10] & ~mmio_wdat[145][2];
+                error_log1_ff[11] <= error_log1_ff[11] & ~mmio_wdat[145][3];
+            end
 
-                13'h1060: begin  // Current Lane Map Module 0 – RW, 64-bit
-                    if (rf_be[0]) lane_map_mod0_r[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) lane_map_mod0_r[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) lane_map_mod0_r[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) lane_map_mod0_r[31:24] <= rf_wdata[31:24];
-                    if (rf_be[4]) lane_map_mod0_r[39:32] <= rf_wdata[39:32];
-                    if (rf_be[5]) lane_map_mod0_r[47:40] <= rf_wdata[47:40];
-                    if (rf_be[6]) lane_map_mod0_r[55:48] <= rf_wdata[55:48];
-                    if (rf_be[7]) lane_map_mod0_r[63:56] <= rf_wdata[63:56];
-                end
-
-                // 1080h Error Log 0 – ROS: SW writes completely ignored
-
-                13'h1090: begin  // Error Log 1 – ROS [7:0] + RW1CS [8] [9] [10] [11]
-                    // bits[7:0]  = ROS: SW writes silently ignored
-                    // bit[8]     = RW1CS: write 1 to clear (if BE covers byte 1)
-                    // bit[9]     = RW1CS: write 1 to clear (if BE covers byte 1)
-                    // bit[10]    = RW1CS: write 1 to clear (if BE covers byte 1)
-                    // bit[11]    = RW1CS: write 1 to clear (if BE covers byte 1)
-                    if (rf_be[1]) begin
-                        error_log1_r[8]  <= error_log1_r[8]  & ~rf_wdata[8];
-                        error_log1_r[9]  <= error_log1_r[9]  & ~rf_wdata[9];
-                        error_log1_r[10] <= error_log1_r[10] & ~rf_wdata[10];
-                        error_log1_r[11] <= error_log1_r[11] & ~rf_wdata[11];
-                    end
-                    // bits[31:12] = RsvdZ: ignore
-                end
-
-                // 1108h Runtime Link Test Status – RO: ignore
-
-                13'h1100: begin  // Runtime Link Test Control – RW, 64-bit
-                    if (rf_be[0]) rt_test_ctrl_ff[7:0]   <= rf_wdata[7:0];
-                    if (rf_be[1]) rt_test_ctrl_ff[15:8]  <= rf_wdata[15:8];
-                    if (rf_be[2]) rt_test_ctrl_ff[23:16] <= rf_wdata[23:16];
-                    if (rf_be[3]) rt_test_ctrl_ff[31:24] <= rf_wdata[31:24];
-                    if (rf_be[4]) rt_test_ctrl_ff[39:32] <= rf_wdata[39:32];
-                    if (rf_be[5]) rt_test_ctrl_ff[47:40] <= rf_wdata[47:40];
-                    if (rf_be[6]) rt_test_ctrl_ff[55:48] <= rf_wdata[55:48];
-                    if (rf_be[7]) rt_test_ctrl_ff[63:56] <= rf_wdata[63:56];
-                end
-
-                default: ; // RO / ROS / HWInit / unmapped: discard
-            endcase
+            if (mmio_we[256]) rt_test_ctrl_ff[7:0]   <= mmio_wdat[256];
+            if (mmio_we[257]) rt_test_ctrl_ff[15:8]  <= mmio_wdat[257];
+            if (mmio_we[258]) rt_test_ctrl_ff[23:16] <= mmio_wdat[258];
+            if (mmio_we[259]) rt_test_ctrl_ff[31:24] <= mmio_wdat[259];
+            if (mmio_we[260]) rt_test_ctrl_ff[39:32] <= mmio_wdat[260];
+            if (mmio_we[261]) rt_test_ctrl_ff[47:40] <= mmio_wdat[261];
+            if (mmio_we[262]) rt_test_ctrl_ff[55:48] <= mmio_wdat[262];
+            if (mmio_we[263]) rt_test_ctrl_ff[63:56] <= mmio_wdat[263];
         end
 
         // ═══════════════════════════════════════════════════════════════════
@@ -735,13 +825,13 @@ always_ff @(posedge clk or negedge rst_n) begin
         //  Shift: N-2 ← N-1 ← N ← new state
         // ═══════════════════════════════════════════════════════════════════
         if (err_capture_en) begin
-            error_log0_r[31:24] <= error_log0_r[23:16]; // State N-2
-            error_log0_r[23:16] <= error_log0_r[7:0];   // State N-1
-            error_log0_r[7:0]   <= err_state_capture;   // State N (current)
-            error_log0_r[8]     <= phy_lane_rev_err_log_i;         // Lane Reversal at error
-            error_log0_r[9]     <= phy_width_degrade_err_log_i;                 // Width Degrade (not modelled)
+            error_log0_ff[31:24] <= error_log0_ff[23:16]; // State N-2
+            error_log0_ff[23:16] <= error_log0_ff[7:0];   // State N-1
+            error_log0_ff[7:0]   <= err_state_capture;   // State N (current)
+            error_log0_ff[8]     <= phy_lane_rev_err_log_i;         // Lane Reversal at error
+            error_log0_ff[9]     <= phy_width_degrade_err_log_i;                 // Width Degrade (not modelled)
             // Error Log 1 [7:0] – State N-3: shift from Error Log 0's old N-2
-            error_log1_r[7:0]   <= error_log0_r[31:24]; // State N-3
+            error_log1_ff[7:0]   <= error_log0_ff[31:24]; // State N-3
         end
 
     end  // else (not reset)
@@ -750,6 +840,7 @@ end
 // ===========================================================================
 //  Read logic (1-cycle registered)
 // ===========================================================================
+
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         rf_rdata  <= '0;
@@ -758,45 +849,21 @@ always_ff @(posedge clk or negedge rst_n) begin
         rdata_vld <= 1'b1;
 
         if (cfg_sel) begin
-            // ────────────────────────────────────────────────────────────
-            //  Config Space reads (addr[24]=0)
-            // ────────────────────────────────────────────────────────────
-            case (rf_addr[11:0])
-                12'h000: rf_rdata <= {32'h0, PCIE_EXT_CAP_HDR_VAL};
-                12'h004: rf_rdata <= {32'h0, DVSEC_HDR1_VAL};
-                12'h008: rf_rdata <= {48'h0, DVSEC_HDR2_VAL};         // 2-byte
-                12'h00A: rf_rdata <= {48'h0, CAP_DESC_VAL};           // 2-byte
-                12'h00C: rf_rdata <= {32'h0, ucie_link_cap_r};        // HWInit
-                12'h010: rf_rdata <= {32'h0, ucie_link_ctrl_r};       // RW
-                12'h014: rf_rdata <= {32'h0, ucie_link_status_r};     // mixed
-                12'h018: rf_rdata <= {48'h0, link_event_notif_ctrl_r};// 2-byte RW
-                12'h01A: rf_rdata <= {48'h0, error_notif_ctrl_r};     // 2-byte RW
-                12'h01C: rf_rdata <= {32'h0, REG_LOC_0_LOW_VAL};
-                12'h020: rf_rdata <= {32'h0, REG_LOC_0_HIGH_VAL};
-                default: rf_rdata <= 64'hDEAD_BEEF_DEAD_BEEF;
-            endcase
-
+            for (int i=0; i<8; i++) begin
+                if (i < 4 || rf_is_64b_access) begin
+                    rf_rdata[i*8 +: 8] <= ((rf_addr[11:0] + i) <= 35) ? cfg_mem[rf_addr[11:0] + i] : 8'h0;
+                end else begin
+                    rf_rdata[i*8 +: 8] <= 8'h0;
+                end
+            end
         end else if (phy_mmio_sel) begin
-            // ────────────────────────────────────────────────────────────
-            //  MMIO Space reads (addr[24]=1)
-            // ────────────────────────────────────────────────────────────
-            case (rf_addr[12:0])
-                13'h1000: rf_rdata <= {32'h0, phy_cap_r};              // HWInit
-                13'h1004: rf_rdata <= {32'h0, phy_control_r};          // RW
-                13'h1008: rf_rdata <= {32'h0, phy_status};             // RO live
-                13'h100C: rf_rdata <= {32'h0, phy_init_debug_r};       // RW + RO mixed
-                13'h1010: rf_rdata <= {32'h0, training_setup1_r};
-                13'h1020: rf_rdata <= {32'h0, training_setup2_r};
-                13'h1030: rf_rdata <= training_setup3_r;
-                13'h1050: rf_rdata <= {32'h0, training_setup4_r};
-                13'h1060: rf_rdata <= lane_map_mod0_r;                  // 64-bit
-                13'h1080: rf_rdata <= {32'h0, error_log0_r};           // ROS
-                13'h1090: rf_rdata <= {32'h0, error_log1_r};           // ROS+RW1CS
-                13'h1100: rf_rdata <= rt_test_ctrl_r;                   // 64-bit
-                13'h1108: rf_rdata <= {32'h0, rt_test_status_r};       // RO live
-                default:  rf_rdata <= 64'hDEAD_BEEF_DEAD_BEEF;
-            endcase
-
+            for (int i=0; i<8; i++) begin
+                if (i < 4 || rf_is_64b_access) begin
+                    rf_rdata[i*8 +: 8] <= ((rf_addr[12:0] - 13'h1000 + i) <= 267) ? mmio_mem[rf_addr[12:0] - 13'h1000 + i] : 8'h0;
+                end else begin
+                    rf_rdata[i*8 +: 8] <= 8'h0;
+                end
+            end
         end else begin
             rf_rdata <= 64'hDEAD_BEEF_DEAD_BEEF;  // addr_err_o already set
         end
