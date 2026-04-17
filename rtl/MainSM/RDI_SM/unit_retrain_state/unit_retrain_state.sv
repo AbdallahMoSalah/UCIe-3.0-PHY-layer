@@ -15,7 +15,6 @@
 //           state_sta      [3:0]  - Current LTSM stable state from top-level SM
 //           pm_exit               - Power-management exit flag from top-level SM
 //
-// Outputs : state_req       [3:0] - Requested state driven to top-level SM
 //           next_state      [3:0] - Next main RDI state on transition
 //           Active_handshake_strt - Start strobe for Active handshake sub-SM
 //           massage_send    [3:0] - RDI message to send to peer interface
@@ -33,7 +32,6 @@ module unit_retrain_state (
     input  logic           Active_handshake_done,   // Active handshake sub-SM done flag
     input  LTSM_state_e    state_sts,               // Current LTSM stable state (top-level SM)
 
-    output LTSM_state_e    state_req,               // State request driven to top-level SM
     output RDI_state       next_state,              // Next RDI main state on exit
     output logic           Active_handshake_strt,   // Start strobe for Active handshake sub-SM
     output msg_no_e        massage_send              // RDI message to send to peer
@@ -214,7 +212,6 @@ module unit_retrain_state (
                         Active_handshake_strt <= 1'b0;  // Pulse; sub-SM latches the enable
                         cs         <= active;
                         next_state <= Active;
-                        state_req  <= ACTIVE;           // Release state_req ownership
                     end
                 end
     
@@ -238,7 +235,6 @@ module unit_retrain_state (
                     if (~EN) begin
                         cs         <= state_disabled;
                         next_state <= Nop;
-                        state_req  <= NO_OP;
                     end
                 end
 
@@ -250,7 +246,6 @@ module unit_retrain_state (
                     if (~EN) begin
                         cs         <= state_disabled;
                         next_state <= Nop;
-                        state_req  <= NO_OP;
                     end
                 end
 
@@ -262,7 +257,6 @@ module unit_retrain_state (
                     if (~EN) begin
                         cs         <= state_disabled;
                         next_state <= Nop;
-                        state_req  <= NO_OP;
                     end
                 end
 
@@ -274,7 +268,6 @@ module unit_retrain_state (
                     if (~EN) begin
                         cs         <= state_disabled;
                         next_state <= Nop;
-                        state_req  <= NO_OP;
                     end
                 end
 

@@ -21,7 +21,8 @@ module unit_linkerror_state (
     input  logic           lp_linkerror,            // Link error flag from Adapter
     input  logic           time_16ms,               // 16ms timer elapsed signal
     input  RDI_state       lp_state_req,            // Requested RDI state from Adapter
-
+    
+    output logic           start_timer_16ms,        // Start 16ms timer
     output RDI_state       next_state               // Next RDI main state on exit
 );
 
@@ -46,6 +47,7 @@ module unit_linkerror_state (
             // STATE_DISABLE: Waiting for top-level SM to grant context
             // -----------------------------------------------------------------
             state_disable: begin
+                start_timer_16ms <= 1'b0;
                 if (EN) begin
                     cs <= idle;
                 end
@@ -56,6 +58,7 @@ module unit_linkerror_state (
             // IDLE: Monitoring transition condition: (time > 16ms && !error && Active req)
             // -----------------------------------------------------------------
             idle: begin
+                start_timer_16ms <= 1'b1;
                 if (EN == 1'b0) begin
                     cs <= state_disable;
                 end else if (!lp_linkerror && (lp_state_req == Active) && time_16ms) begin

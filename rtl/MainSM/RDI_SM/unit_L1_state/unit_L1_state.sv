@@ -11,7 +11,6 @@
 //   massage_receive [3:0] - Input: received RDI message from peer
 //   lp_linkerror          - Input: link error flag from Adapter
 //   next_state [3:0]      - Output: next main RDI state to top-level SM
-//   state_req [3:0]       - Output: LTSM state request to top-level SM
 //   active_handshake_strt - Output: start signal for Active handshake sub-SM
 //   massage_send [3:0]    - Output: RDI message to send to peer
 //-----------------------------------------------------------------------------
@@ -28,7 +27,6 @@ module unit_L1_state (
     input  logic           Active_handshake_done,   // Active handshake sub-SM done flag
 
     output RDI_state       next_state,              // Next RDI main state on exit
-    output LTSM_state_e    state_req,               // LTSM state request driven to top-level SM
     output logic           active_handshake_strt,   // Start strobe for Active handshake sub-SM
     output msg_no_e        massage_send              // RDI message to send to peer
 );
@@ -71,7 +69,6 @@ module unit_L1_state (
                 active_handshake_strt <= 1'b0;
                 massage_send          <= NOP;
                 next_state            <= Nop;
-                state_req             <= NO_OP;
             end
 
             // -----------------------------------------------------------------
@@ -112,12 +109,10 @@ module unit_L1_state (
                 end else if (lp_state_req == Active) begin
                     cs                    <= training;
                     active_handshake_strt <= 1'b1;
-                    state_req             <= ACTIVE;
 
                 // 8. Active Re-entry (Peer initiated)
                 end else if (massage_receive == RDI_ACTIVE_REQ) begin
                     cs        <= reset;
-                    state_req <= ACTIVE;
                 end
             end
 

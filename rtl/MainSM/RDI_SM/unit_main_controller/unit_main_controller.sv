@@ -26,10 +26,16 @@ module unit_main_controller(
     
     output logic trainerror,
     output logic phyinrecenter,
+    output logic inpand_pres,
     output logic pm_exit,
     output RDI_state rdi_state_sts
 );
-
+    assign inpand_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKNIT))||
+                           (rdi_state_sts == Active)||
+                           (rdi_state_sts == Active_PMNAK)||
+                           (rdi_state_sts == L1)||
+                           (rdi_state_sts == L2)||
+                           (rdi_state_sts == Retrain));
     assign trainerror = (state_sts == LINKERROR);
     assign pm_exit = (state_sts == L1 || state_sts == L2);
     assign phyinrecenter = (state_sts == SBINIT 
