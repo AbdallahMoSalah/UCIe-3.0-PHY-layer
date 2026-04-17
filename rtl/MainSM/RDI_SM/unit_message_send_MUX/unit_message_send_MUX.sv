@@ -31,8 +31,8 @@ module unit_message_send_MUX(
             Retrain:      message_send = Retrain_message_send;
             Active:       message_send = Active_message_send;
             Active_PMNAK: message_send = Active_PMNAK_message_send;
-            L1:           message_send = L1_message_send;
-            L2:           message_send = L2_message_send;
+            L_1:          message_send = L1_message_send;
+            L_2:          message_send = L2_message_send;
             LinkReset:    message_send = LinkReset_message_send;
             default:      message_send = NOP; // Default to No-Operation if state is unhandled or Nop
         endcase

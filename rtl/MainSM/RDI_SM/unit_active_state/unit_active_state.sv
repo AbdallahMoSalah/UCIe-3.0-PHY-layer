@@ -131,7 +131,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end 
                     // Check if Adapter requested L1 power state
-                    else if (lp_state_req==L1)begin
+                    else if (lp_state_req==L_1)begin
                         cs <=stall_handshake;
                         flow<=flow6;
                         stall_req<=1'b1;
@@ -143,7 +143,7 @@ module unit_active_state(
                         flow<=flow7;
                     end 
                     // Check if Adapter requested L2 power state
-                    else if (lp_state_req==L2)begin
+                    else if (lp_state_req==L_2)begin
                         cs <=stall_handshake;
                         flow<=flow9;
                         stall_req<=1'b1;
@@ -214,7 +214,7 @@ module unit_active_state(
                 Wait: begin
                     start_1us_timer<=1'b0;
                     // Check if Adapter confirmed L1 or L2 state request
-                    if ((lp_state_req==L1) || (lp_state_req==L2))begin
+                    if ((lp_state_req==L_1) || (lp_state_req==L_2))begin
                         cs<=stall_handshake;
                         stall_req<=1'b1;
                     end 
@@ -375,7 +375,7 @@ module unit_active_state(
                     // Check if L1 Response was received for peer-initiated L1
                     if ((message_receive==RDI_L1_RSP)&&(flow==flow7))begin 
                         cs<=l1;
-                        next_state<=L1;
+                        next_state<=L_1;
                     end
                 end
                 
@@ -385,7 +385,7 @@ module unit_active_state(
                     // If Adapter initiated, transition directly to L1 
                     if (flow==flow6)begin
                     cs<=l1;
-                    next_state<=L1;
+                    next_state<=L_1;
                     end
                     // If peer initiated, transition to wait for final reception response
                     if (flow==flow7)begin
@@ -433,7 +433,7 @@ module unit_active_state(
                     // Check if L2 Response was received for peer-initiated L2
                     if ((message_receive==RDI_L2_RSP)&&(flow==flow8))begin 
                         cs<=l2;
-                        next_state<=L2;
+                        next_state<=L_2;
                     end
                 end
                 
@@ -443,7 +443,7 @@ module unit_active_state(
                     // If Adapter initiated, transition directly to L2 
                     if (flow==flow9)begin
                     cs<=l2;
-                    next_state<=L2;
+                    next_state<=L_2;
                     end
                     // If peer initiated, transition to wait for final reception response
                     if (flow==flow8)begin

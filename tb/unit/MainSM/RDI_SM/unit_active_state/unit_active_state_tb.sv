@@ -271,7 +271,7 @@ module unit_active_state_tb();
         
         // Emulate Adapter confirming the L1 request before timeout
         @(negedge lclk);
-        lp_state_req = L1;
+        lp_state_req = L_1;
         
         @(negedge lclk);
         `CHECK(stall_req !== 1'b1, "Expected stall_req = 1")
@@ -287,14 +287,14 @@ module unit_active_state_tb();
         @(negedge lclk);
         message_receive = RDI_L1_RSP;  // Peer sends final confirmation based on the flow design
         @(negedge lclk);
-        `CHECK(next_state !== L1, "Expected next_state = L1")
+        `CHECK(next_state !== L_1, "Expected next_state = L_1")
         message_receive = NOP;
 
         soft_reset();
 
         $display("--> Scenario 10: L2 Entry initiated by Local Adapter (Success)");
         @(negedge lclk);
-        lp_state_req = L2;
+        lp_state_req = L_2;
         
         @(negedge lclk);
         stall_done = 1;
@@ -318,7 +318,7 @@ module unit_active_state_tb();
         `CHECK(message_send !== RDI_L2_RSP, "Expected RDI_L2_RSP back (confirmation)")
         
         @(negedge lclk);
-        `CHECK(next_state !== L2, "Expected next_state = L2")
+        `CHECK(next_state !== L_2, "Expected next_state = L_2")
         message_receive = NOP;
 
         soft_reset();

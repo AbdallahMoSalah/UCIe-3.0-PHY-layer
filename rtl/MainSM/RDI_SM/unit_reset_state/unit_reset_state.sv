@@ -1,7 +1,6 @@
 import UCIe_pkg::*;
 import RDI_SM_pkg::*;
 import LTSM_state_pkg::*;
-import reset_state_pkg::*;
 // ============================================================================
 // Module      : unit_reset_state
 // Description : Manages the main state transitions for the Reset/Active flows
@@ -171,7 +170,6 @@ module unit_reset_state (
                     cs <= active;
                     Active_handshake_strt<=0;
                     next_state<=Active;
-                    L2_exit<=0;
                 end
             end
 //===========================================================

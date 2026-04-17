@@ -30,13 +30,13 @@ module unit_main_controller(
     output logic pm_exit,
     output RDI_state rdi_state_sts
 );
-    assign inband_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKNIT))||
+    assign inband_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKINIT))||
                            (rdi_state_sts == Active)||
                            (rdi_state_sts == Active_PMNAK)||
-                           (rdi_state_sts == L1)||
-                           (rdi_state_sts == L2)||
+                           (rdi_state_sts == L_1)||
+                           (rdi_state_sts == L_2)||
                            (rdi_state_sts == Retrain));
-    assign trainerror = (state_sts == LINKERROR);
+    assign trainerror = (state_sts == TRAINERROR);
     assign pm_exit = (state_sts == L1 || state_sts == L2);
     assign phyinrecenter = (state_sts == SBINIT 
                             || state_sts == MBINIT 
@@ -44,7 +44,7 @@ module unit_main_controller(
                             || state_sts == PHYRETRAIN);
     always @(posedge lclk) begin
 
-        if ((state_sts == LINKERROR )&&
+        if ((state_sts == TRAINERROR )&&
             (rdi_state_sts != LinkError)) begin
             LinkError_EN <= 1'b1;
             Retrain_EN <= 1'b0;
@@ -81,10 +81,10 @@ module unit_main_controller(
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (Reset_next_state == Disable) begin
+                else if (Reset_next_state == Disabled) begin
                     Reset_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (Reset_next_state == LinkReset) begin
                     Reset_EN <= 1'b0;
@@ -111,7 +111,7 @@ module unit_main_controller(
                 end
 
             end
-            Disable:begin
+            Disabled:begin
                 Disable_EN <= 1'b1;
                 Active_EN <= 1'b0;
                 L1_EN <= 1'b0;
@@ -121,7 +121,7 @@ module unit_main_controller(
                 LinkReset_EN <= 1'b0;
                 LinkError_EN <= 1'b0;
                 Reset_EN <= 1'b0;
-                rdi_state_sts <= Disable;
+                rdi_state_sts <= Disabled;
                 if (Disable_next_state == LinkError) begin
                     Disable_EN <= 1'b0;
                     LinkError_EN <= 1'b1;
@@ -149,10 +149,10 @@ module unit_main_controller(
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (LinkReset_next_state == Disable) begin
+                else if (LinkReset_next_state == Disabled) begin
                     LinkReset_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (LinkReset_next_state == Reset) begin
                     LinkReset_EN <= 1'b0;
@@ -176,20 +176,20 @@ module unit_main_controller(
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (Active_next_state == Disable) begin
+                else if (Active_next_state == Disabled) begin
                     Active_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
-                else if (Active_next_state == L1) begin
+                else if (Active_next_state == L_1) begin
                     Active_EN <= 1'b0;
                     L1_EN <= 1'b1;
-                    rdi_state_sts <= L1;
+                    rdi_state_sts <= L_1;
                 end
-                else if (Active_next_state == L2) begin
+                else if (Active_next_state == L_2) begin
                     Active_EN <= 1'b0;
                     L2_EN <= 1'b1;
-                    rdi_state_sts <= L2;
+                    rdi_state_sts <= L_2;
                 end
                 else if (Active_next_state == Retrain) begin
                     Active_EN <= 1'b0;
@@ -207,7 +207,7 @@ module unit_main_controller(
                     rdi_state_sts <= LinkReset;
                 end
             end
-            L1:begin
+            L_1:begin
                 L1_EN <= 1'b1;
                 Active_EN <= 1'b0;
                 L2_EN <= 1'b0;
@@ -217,17 +217,17 @@ module unit_main_controller(
                 LinkError_EN <= 1'b0;
                 Disable_EN <= 1'b0;
                 Reset_EN <= 1'b0;
-                rdi_state_sts <= L1;
+                rdi_state_sts <= L_1;
                 
                 if (L1_next_state == LinkError) begin
                     L1_EN <= 1'b0;
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (L1_next_state == Disable) begin
+                else if (L1_next_state == Disabled) begin
                     L1_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (L1_next_state == Retrain) begin
                     L1_EN <= 1'b0;
@@ -240,7 +240,7 @@ module unit_main_controller(
                     rdi_state_sts <= LinkReset;
                 end
             end
-            L2:begin
+            L_2:begin
                 L2_EN <= 1'b1;
                 Active_EN <= 1'b0;
                 L1_EN <= 1'b0;
@@ -250,17 +250,17 @@ module unit_main_controller(
                 LinkError_EN <= 1'b0;
                 Disable_EN <= 1'b0;
                 Reset_EN <= 1'b0;
-                rdi_state_sts <= L2;
+                rdi_state_sts <= L_2;
                 
                 if (L2_next_state == LinkError) begin
                     L2_EN <= 1'b0;
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (L2_next_state == Disable) begin
+                else if (L2_next_state == Disabled) begin
                     L2_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (L2_next_state == LinkReset) begin
                     L2_EN <= 1'b0;
@@ -294,10 +294,10 @@ module unit_main_controller(
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (Retrain_next_state == Disable) begin
+                else if (Retrain_next_state == Disabled) begin
                     Retrain_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (Retrain_next_state == LinkReset) begin
                     Retrain_EN <= 1'b0;
@@ -326,10 +326,10 @@ module unit_main_controller(
                     LinkError_EN <= 1'b1;
                     rdi_state_sts <= LinkError;
                 end
-                else if (Active_PMNAK_next_state == Disable) begin
+                else if (Active_PMNAK_next_state == Disabled) begin
                     Active_PMNAK_EN <= 1'b0;
                     Disable_EN <= 1'b1;
-                    rdi_state_sts <= Disable;
+                    rdi_state_sts <= Disabled;
                 end
                 else if (Active_PMNAK_next_state == Retrain) begin
                     Active_PMNAK_EN <= 1'b0;
