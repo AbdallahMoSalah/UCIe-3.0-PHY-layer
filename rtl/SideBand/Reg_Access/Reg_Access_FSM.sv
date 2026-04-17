@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 // ===========================================================================
 //  Reg_Access_FSM (Updated based on New Architecture Diagram)
 //  Central control unit for the SideBand Register-Access block.
@@ -155,3 +156,5 @@ always_comb begin
 end
 
 endmodule
+=======
+>>>>>>> Stashed changes
