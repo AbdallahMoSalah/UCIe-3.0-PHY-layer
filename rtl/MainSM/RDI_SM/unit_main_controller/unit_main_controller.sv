@@ -26,11 +26,11 @@ module unit_main_controller(
     
     output logic trainerror,
     output logic phyinrecenter,
-    output logic inpand_pres,
+    output logic inband_pres,
     output logic pm_exit,
     output RDI_state rdi_state_sts
 );
-    assign inpand_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKNIT))||
+    assign inband_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKNIT))||
                            (rdi_state_sts == Active)||
                            (rdi_state_sts == Active_PMNAK)||
                            (rdi_state_sts == L1)||

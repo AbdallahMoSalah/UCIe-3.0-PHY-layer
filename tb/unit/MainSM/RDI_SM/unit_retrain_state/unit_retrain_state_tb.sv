@@ -23,14 +23,14 @@ module unit_retrain_state_tb();
     logic           EN;
     logic           lp_linkerror;
     RDI_state       lp_state_req;
-    msg_no_e        massage_receive;
+    msg_no_e        message_receive;
     logic       Active_handshake_done;
     LTSM_state_e    state_sts;
 
     LTSM_state_e    state_req;
     RDI_state       next_state;
     logic           Active_handshake_strt;
-    msg_no_e        massage_send;
+    msg_no_e        message_send;
 
     // -------------------------------------------------------------------------
     // Verification Counters
@@ -46,13 +46,13 @@ module unit_retrain_state_tb();
         .EN                   (EN),
         .lp_linkerror         (lp_linkerror),
         .lp_state_req         (lp_state_req),
-        .massage_receive      (massage_receive),
+        .message_receive      (message_receive),
         .Active_handshake_done(Active_handshake_done),
         .state_sts            (state_sts),
         .state_req            (state_req),
         .next_state           (next_state),
         .Active_handshake_strt (Active_handshake_strt),
-        .massage_send         (massage_send)
+        .message_send         (message_send)
     );
 
     // -------------------------------------------------------------------------
@@ -83,7 +83,7 @@ module unit_retrain_state_tb();
             EN                    = 0;
             lp_linkerror          = 0;
             lp_state_req          = Nop;
-            massage_receive       = NOP;
+            message_receive       = NOP;
             Active_handshake_done = 0;
             state_sts             = PHYRETRAIN;
             #20;
@@ -160,11 +160,11 @@ module unit_retrain_state_tb();
         lp_linkerror = 1;
         #10;
         lp_linkerror = 0;
-        check_condition((massage_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
+        check_condition((message_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
 
-        massage_receive = RDI_LINK_ERROR_RSP;
+        message_receive = RDI_LINK_ERROR_RSP;
         #10;
-        massage_receive = NOP;
+        message_receive = NOP;
         #10;
         check_condition((next_state == LinkError), "next_state not LinkError after local LE flow");
         check_condition((uut.cs == 4'd11),         "DUT did not reach linkerror sub-state");
@@ -178,10 +178,10 @@ module unit_retrain_state_tb();
         // =====================================================================
         $display("\n--- Scenario 4: LinkError escape (peer RDI_LINK_ERROR_REQ) ---");
         initialize_uut();
-        massage_receive = RDI_LINK_ERROR_REQ;
+        message_receive = RDI_LINK_ERROR_REQ;
         #10;
-        massage_receive = NOP;
-        check_condition((massage_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP to peer");
+        message_receive = NOP;
+        check_condition((message_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP to peer");
         #10;
         check_condition((next_state == LinkError), "next_state not LinkError after peer LE flow");
         check_condition((uut.cs == 4'd11),         "DUT did not reach linkerror sub-state (peer)");
@@ -198,11 +198,11 @@ module unit_retrain_state_tb();
         lp_state_req = LinkReset;
         #10;
         lp_state_req = Nop;
-        check_condition((massage_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
+        check_condition((message_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
 
-        massage_receive = RDI_LINK_RESET_RSP;
+        message_receive = RDI_LINK_RESET_RSP;
         #10;
-        massage_receive = NOP;
+        message_receive = NOP;
         #10;
         check_condition((next_state == LinkReset), "next_state not LinkReset after local LR flow");
         check_condition((uut.cs == 4'd12),         "DUT did not reach linkreset sub-state");
@@ -216,10 +216,10 @@ module unit_retrain_state_tb();
         // =====================================================================
         $display("\n--- Scenario 6: LinkReset escape (peer RDI_LINK_RESET_REQ) ---");
         initialize_uut();
-        massage_receive = RDI_LINK_RESET_REQ;
+        message_receive = RDI_LINK_RESET_REQ;
         #10;
-        massage_receive = NOP;
-        check_condition((massage_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP to peer");
+        message_receive = NOP;
+        check_condition((message_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP to peer");
         #10;
         check_condition((next_state == LinkReset), "next_state not LinkReset after peer LR flow");
         check_condition((uut.cs == 4'd12),         "DUT did not reach linkreset sub-state (peer)");
@@ -236,11 +236,11 @@ module unit_retrain_state_tb();
         lp_state_req = Disabled;
         #10;
         lp_state_req = Nop;
-        check_condition((massage_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
+        check_condition((message_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
 
-        massage_receive = RDI_DISABLE_RSP;
+        message_receive = RDI_DISABLE_RSP;
         #10;
-        massage_receive = NOP;
+        message_receive = NOP;
         #10;
         check_condition((next_state == Disabled), "next_state not Disabled after local Disable flow");
         check_condition((uut.cs == 4'd13),         "DUT did not reach disabled sub-state");
@@ -254,10 +254,10 @@ module unit_retrain_state_tb();
         // =====================================================================
         $display("\n--- Scenario 8: Disable escape (peer RDI_DISABLE_REQ) ---");
         initialize_uut();
-        massage_receive = RDI_DISABLE_REQ;
+        message_receive = RDI_DISABLE_REQ;
         #10;
-        massage_receive = NOP;
-        check_condition((massage_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP to peer");
+        message_receive = NOP;
+        check_condition((message_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP to peer");
         #10;
         check_condition((next_state == Disabled), "next_state not Disabled after peer Disable flow");
         check_condition((uut.cs == 4'd13),         "DUT did not reach disabled sub-state (peer)");

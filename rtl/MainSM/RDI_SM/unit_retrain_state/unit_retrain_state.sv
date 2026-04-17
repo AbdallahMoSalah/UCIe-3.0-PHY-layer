@@ -10,14 +10,14 @@
 // Inputs  : EN                    - Enable from top-level SM (de-asserted on exit)
 //           lp_linkerror          - Link error indicator from Adapter
 //           lp_state_req  [3:0]   - Requested RDI state from Adapter
-//           massage_receive[3:0]  - Received RDI message from peer interface
+//           message_receive[3:0]  - Received RDI message from peer interface
 //           Active_handshake_done - Completion flag from Active-handshake sub-SM
 //           state_sta      [3:0]  - Current LTSM stable state from top-level SM
 //           pm_exit               - Power-management exit flag from top-level SM
 //
 //           next_state      [3:0] - Next main RDI state on transition
 //           Active_handshake_strt - Start strobe for Active handshake sub-SM
-//           massage_send    [3:0] - RDI message to send to peer interface
+//           message_send    [3:0] - RDI message to send to peer interface
 //-----------------------------------------------------------------------------
 import RDI_SM_pkg::*;
 import UCIe_pkg::*;
@@ -28,13 +28,13 @@ module unit_retrain_state (
     input  logic           EN,                      // Enable from top-level RDI SM
     input  logic           lp_linkerror,            // Link error flag from Adapter
     input  RDI_state       lp_state_req,            // Requested RDI state from Adapter
-    input  msg_no_e        massage_receive,          // Received message from peer
+    input  msg_no_e        message_receive,          // Received message from peer
     input  logic           Active_handshake_done,   // Active handshake sub-SM done flag
     input  LTSM_state_e    state_sts,               // Current LTSM stable state (top-level SM)
 
     output RDI_state       next_state,              // Next RDI main state on exit
     output logic           Active_handshake_strt,   // Start strobe for Active handshake sub-SM
-    output msg_no_e        massage_send              // RDI message to send to peer
+    output msg_no_e        message_send              // RDI message to send to peer
 );
 
     // -------------------------------------------------------------------------
@@ -92,32 +92,32 @@ module unit_retrain_state (
                     // ---- LinkError escape (local adapter detects error) ----
                     if (lp_linkerror) begin
                         cs           <= le_req_send;
-                        massage_send <= RDI_LINK_ERROR_REQ;
+                        message_send <= RDI_LINK_ERROR_REQ;
 
                     // ---- LinkError escape (peer sends REQ) ----
-                    end else if (massage_receive == RDI_LINK_ERROR_REQ) begin
+                    end else if (message_receive == RDI_LINK_ERROR_REQ) begin
                         cs           <= le_resp_send;
-                        massage_send <= RDI_LINK_ERROR_RSP;
+                        message_send <= RDI_LINK_ERROR_RSP;
 
                     // ---- LinkReset escape: peer initiates ----
-                    end else if (massage_receive == RDI_LINK_RESET_REQ) begin
+                    end else if (message_receive == RDI_LINK_RESET_REQ) begin
                         cs           <= lr_resp_send;
-                        massage_send <= RDI_LINK_RESET_RSP;
+                        message_send <= RDI_LINK_RESET_RSP;
 
                     // ---- LinkReset escape: local adapter requests ----
                     end else if (lp_state_req == LinkReset) begin
                         cs           <= lr_req_send;
-                        massage_send <= RDI_LINK_RESET_REQ;
+                        message_send <= RDI_LINK_RESET_REQ;
 
                     // ---- Disable escape: peer initiates ----
-                    end else if (massage_receive == RDI_DISABLE_REQ) begin
+                    end else if (message_receive == RDI_DISABLE_REQ) begin
                         cs           <= d_resp_send;
-                        massage_send <= RDI_DISABLE_RSP;
+                        message_send <= RDI_DISABLE_RSP;
 
                     // ---- Disable escape: local adapter requests ----
                     end else if (lp_state_req == Disabled) begin
                         cs           <= d_req_send;
-                        massage_send <= RDI_DISABLE_REQ;
+                        message_send <= RDI_DISABLE_REQ;
 
                     // ---- Active handshake already done ----
                     end else if (Active_handshake_done) begin
@@ -140,8 +140,8 @@ module unit_retrain_state (
                 // We sent RDI_LINK_ERROR_REQ; wait for peer's RSP.
                 // -------------------------------------------------------------
                 le_req_send: begin
-                    massage_send <= NOP;
-                    if (massage_receive == RDI_LINK_ERROR_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_LINK_ERROR_RSP) begin
                         cs         <= linkerror;
                         next_state <= LinkError;
                     end
@@ -152,7 +152,7 @@ module unit_retrain_state (
                 // We sent RDI_LINK_ERROR_RSP; immediately settle into linkerror.
                 // -------------------------------------------------------------
                 le_resp_send: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs           <= linkerror;
                     next_state   <= LinkError;
                 end
@@ -162,8 +162,8 @@ module unit_retrain_state (
                 // We sent RDI_LINK_RESET_REQ; wait for peer's RSP.
                 // -------------------------------------------------------------
                 lr_req_send: begin
-                    massage_send <= NOP;
-                    if (massage_receive == RDI_LINK_RESET_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_LINK_RESET_RSP) begin
                         cs         <= linkreset;
                         next_state <= LinkReset;
                     end
@@ -174,7 +174,7 @@ module unit_retrain_state (
                 // We sent RDI_LINK_RESET_RSP; immediately settle into linkreset.
                 // -------------------------------------------------------------
                 lr_resp_send: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs           <= linkreset;
                     next_state   <= LinkReset;
                 end
@@ -184,8 +184,8 @@ module unit_retrain_state (
                 // We sent RDI_DISABLE_REQ; wait for peer's RSP.
                 // -------------------------------------------------------------
                 d_req_send: begin
-                    massage_send <= NOP;
-                    if (massage_receive == RDI_DISABLE_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_DISABLE_RSP) begin
                         cs         <= disabled;
                         next_state <= Disabled;
                     end
@@ -196,7 +196,7 @@ module unit_retrain_state (
                 // We sent RDI_DISABLE_RSP; immediately settle into disabled.
                 // -------------------------------------------------------------
                 d_resp_send: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs           <= disabled;
                     next_state   <= Disabled;
                 end

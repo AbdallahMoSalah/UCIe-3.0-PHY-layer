@@ -11,7 +11,7 @@ module unit_active_state_tb();
     logic lclk;
     logic rst_n;
     logic lp_linkerror;
-    msg_no_e massage_recieve;
+    msg_no_e message_receive;
     logic stall_done;
     logic EN;
     RDI_state lp_state_req;
@@ -20,7 +20,7 @@ module unit_active_state_tb();
     RDI_state next_state;
     logic stall_req;
     logic start_1us_timer;
-    msg_no_e massage_send;
+    msg_no_e message_send;
 
     int errors = 0;
     int successes = 0;
@@ -48,7 +48,7 @@ module unit_active_state_tb();
         .lclk(lclk),
         .rst_n(rst_n),
         .lp_linkerror(lp_linkerror),
-        .massage_recieve(massage_recieve),
+        .message_receive(message_receive),
         .stall_done(stall_done),
         .EN(EN),
         .lp_state_req(lp_state_req),
@@ -57,7 +57,7 @@ module unit_active_state_tb();
         .next_state(next_state),
         .stall_req(stall_req),
         .start_1us_timer(start_1us_timer),
-        .massage_send(massage_send)
+        .message_send(message_send)
     );
 
     // ------------------------------------------------------------------------
@@ -69,7 +69,7 @@ module unit_active_state_tb();
             EN = 0;
             @(negedge lclk);
             lp_state_req = Active;
-            massage_recieve = NOP;
+            message_receive = NOP;
             lp_linkerror = 0;
             stall_done = 0;
             timeout_1us = 0;
@@ -86,7 +86,7 @@ module unit_active_state_tb();
         // Initialize signals
         rst_n = 0;
         lp_linkerror = 0;
-        massage_recieve = NOP;
+        message_receive = NOP;
         stall_done = 0;
         EN = 0;
         lp_state_req = Active;
@@ -111,26 +111,26 @@ module unit_active_state_tb();
         @(negedge lclk);
         lp_linkerror = 1;
         @(negedge lclk);
-        `CHECK(massage_send !== RDI_LINK_ERROR_REQ, "Expected RDI_LINK_ERROR_REQ")
+        `CHECK(message_send !== RDI_LINK_ERROR_REQ, "Expected RDI_LINK_ERROR_REQ")
         lp_linkerror = 0;
         
         // Respond as Peer
         @(negedge lclk);
-        massage_recieve = RDI_LINK_ERROR_RSP;
+        message_receive = RDI_LINK_ERROR_RSP;
         @(negedge lclk);
         `CHECK(next_state !== LinkError, "Expected next_state = LinkError")
-        massage_recieve = NOP;
+        message_receive = NOP;
         
         soft_reset();
 
         $display("--> Scenario 2: Link Error from Peer");
         @(negedge lclk);
-        massage_recieve = RDI_LINK_ERROR_REQ;
+        message_receive = RDI_LINK_ERROR_REQ;
         @(negedge lclk);
-        `CHECK(massage_send !== RDI_LINK_ERROR_RSP, "Expected RDI_LINK_ERROR_RSP")
+        `CHECK(message_send !== RDI_LINK_ERROR_RSP, "Expected RDI_LINK_ERROR_RSP")
         @(negedge lclk); // Verify the state transitions immediately
         `CHECK(next_state !== LinkError, "Expected next_state = LinkError")
-        massage_recieve = NOP;
+        message_receive = NOP;
         
         soft_reset();
 
@@ -149,29 +149,29 @@ module unit_active_state_tb();
         lp_state_req = Active;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_RETRAIN_REQ, "Expected RDI_RETRAIN_REQ")
+        `CHECK(message_send !== RDI_RETRAIN_REQ, "Expected RDI_RETRAIN_REQ")
         
         @(negedge lclk);
-        massage_recieve = RDI_RETRAIN_RSP;
+        message_receive = RDI_RETRAIN_RSP;
         @(negedge lclk);
         `CHECK(next_state !== Retrain, "Expected next_state = Retrain")
-        massage_recieve = NOP;
+        message_receive = NOP;
 
         soft_reset();
 
 
         $display("--> Scenario 4: Retrain from Peer");
         @(negedge lclk);
-        massage_recieve = RDI_RETRAIN_REQ;
+        message_receive = RDI_RETRAIN_REQ;
         @(negedge lclk);
         `CHECK(stall_req !== 1'b1, "Expected stall_req = 1")
         
         @(negedge lclk);
         stall_done = 1;
-        massage_recieve = NOP;
+        message_receive = NOP;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_RETRAIN_RSP, "Expected RDI_RETRAIN_RSP")
+        `CHECK(message_send !== RDI_RETRAIN_RSP, "Expected RDI_RETRAIN_RSP")
         
         @(negedge lclk);
         `CHECK(next_state !== Retrain, "Expected next_state = Retrain")
@@ -191,27 +191,27 @@ module unit_active_state_tb();
         lp_state_req = Active;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_LINK_RESET_REQ, "Expected RDI_LINK_RESET_REQ")
+        `CHECK(message_send !== RDI_LINK_RESET_REQ, "Expected RDI_LINK_RESET_REQ")
         
         @(negedge lclk);
-        massage_recieve = RDI_LINK_RESET_RSP;
+        message_receive = RDI_LINK_RESET_RSP;
         @(negedge lclk);
         `CHECK(next_state !== LinkReset, "Expected next_state = LinkReset")
-        massage_recieve = NOP;
+        message_receive = NOP;
 
         soft_reset();
 
 
         $display("--> Scenario 6: Link Reset from Peer");
         @(negedge lclk);
-        massage_recieve = RDI_LINK_RESET_REQ;
+        message_receive = RDI_LINK_RESET_REQ;
         
         @(negedge lclk);
         stall_done = 1;
-        massage_recieve = NOP;
+        message_receive = NOP;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_LINK_RESET_RSP, "Expected RDI_LINK_RESET_RSP")
+        `CHECK(message_send !== RDI_LINK_RESET_RSP, "Expected RDI_LINK_RESET_RSP")
         
         @(negedge lclk);
         `CHECK(next_state !== LinkReset, "Expected next_state = LinkReset")
@@ -231,26 +231,26 @@ module unit_active_state_tb();
         lp_state_req = Active;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_DISABLE_REQ, "Expected RDI_DISABLE_REQ")
+        `CHECK(message_send !== RDI_DISABLE_REQ, "Expected RDI_DISABLE_REQ")
         
         @(negedge lclk);
-        massage_recieve = RDI_DISABLE_RSP;
+        message_receive = RDI_DISABLE_RSP;
         @(negedge lclk);
         `CHECK(next_state !== Disabled, "Expected next_state = Disabled")
-        massage_recieve = NOP;
+        message_receive = NOP;
 
         soft_reset();
 
         $display("--> Scenario 8: Disable from Peer");
         @(negedge lclk);
-        massage_recieve = RDI_DISABLE_REQ;
+        message_receive = RDI_DISABLE_REQ;
         
         @(negedge lclk);
         stall_done = 1;
-        massage_recieve = NOP;
+        message_receive = NOP;
         @(negedge lclk);
         stall_done = 0; 
-        `CHECK(massage_send !== RDI_DISABLE_RSP, "Expected RDI_DISABLE_RSP")
+        `CHECK(message_send !== RDI_DISABLE_RSP, "Expected RDI_DISABLE_RSP")
         
         @(negedge lclk);
         `CHECK(next_state !== Disabled, "Expected next_state = Disabled")
@@ -263,11 +263,11 @@ module unit_active_state_tb();
         // ====================================================================
         $display("--> Scenario 9: L1 Entry initiated by Peer (Success)");
         @(negedge lclk);
-        massage_recieve = RDI_L1_REQ;
+        message_receive = RDI_L1_REQ;
         
         @(negedge lclk);
         `CHECK(start_1us_timer !== 1'b1, "Expected start_1us_timer = 1 for Peer L1 req")
-        massage_recieve = NOP;
+        message_receive = NOP;
         
         // Emulate Adapter confirming the L1 request before timeout
         @(negedge lclk);
@@ -282,13 +282,13 @@ module unit_active_state_tb();
         @(negedge lclk);
         stall_done = 0; 
         @(negedge lclk);
-        `CHECK(massage_send !== RDI_L1_RSP, "Expected RDI_L1_RSP")
+        `CHECK(message_send !== RDI_L1_RSP, "Expected RDI_L1_RSP")
         
         @(negedge lclk);
-        massage_recieve = RDI_L1_RSP;  // Peer sends final confirmation based on the flow design
+        message_receive = RDI_L1_RSP;  // Peer sends final confirmation based on the flow design
         @(negedge lclk);
         `CHECK(next_state !== L1, "Expected next_state = L1")
-        massage_recieve = NOP;
+        message_receive = NOP;
 
         soft_reset();
 
@@ -303,32 +303,32 @@ module unit_active_state_tb();
         stall_done = 0; 
 
         // 1. send req
-        `CHECK(massage_send !== RDI_L2_REQ, "Expected RDI_L2_REQ")
+        `CHECK(message_send !== RDI_L2_REQ, "Expected RDI_L2_REQ")
         
         // 2. receive req
         @(negedge lclk);
-        massage_recieve = RDI_L2_REQ; 
+        message_receive = RDI_L2_REQ; 
         
         // 3. receive resp
         @(negedge lclk);
-        massage_recieve = RDI_L2_RSP;
+        message_receive = RDI_L2_RSP;
         
         // 4. send resp
         @(negedge lclk);
-        `CHECK(massage_send !== RDI_L2_RSP, "Expected RDI_L2_RSP back (confirmation)")
+        `CHECK(message_send !== RDI_L2_RSP, "Expected RDI_L2_RSP back (confirmation)")
         
         @(negedge lclk);
         `CHECK(next_state !== L2, "Expected next_state = L2")
-        massage_recieve = NOP;
+        message_receive = NOP;
 
         soft_reset();
 
         $display("--> Scenario 11: L1 Entry initiated by Peer but TIMEOUT occurs (PM NAK)");
         @(negedge lclk);
-        massage_recieve = RDI_L1_REQ;
+        message_receive = RDI_L1_REQ;
         
         @(negedge lclk);
-        massage_recieve = NOP;
+        message_receive = NOP;
         
         // Wait state de-asserts timer and waits for timeout_1us
         @(negedge lclk);
@@ -337,7 +337,7 @@ module unit_active_state_tb();
         // Verify PMNAK logic triggers
         @(negedge lclk);
         timeout_1us = 0;
-        `CHECK(massage_send !== RDI_PMNAK_RSP, "Expected PM NAK Response upon timeout")
+        `CHECK(message_send !== RDI_PMNAK_RSP, "Expected PM NAK Response upon timeout")
 
         // ====================================================================
         $display("\n========================================");

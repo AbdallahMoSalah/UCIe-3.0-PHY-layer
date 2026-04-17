@@ -10,8 +10,8 @@ add wave -noupdate -color violet -itemcolor violet /unit_reset_state_tb/dut/lp_l
 add wave -noupdate -color violet -itemcolor violet /unit_reset_state_tb/dut/lp_state_req
 add wave -noupdate -color violet -itemcolor violet /unit_reset_state_tb/dut/state_sts
 add wave -noupdate -divider {sb if}
-add wave -noupdate /unit_reset_state_tb/dut/Massage_Recieve
-add wave -noupdate /unit_reset_state_tb/dut/Massage_Send
+add wave -noupdate /unit_reset_state_tb/dut/message_receive
+add wave -noupdate /unit_reset_state_tb/dut/message_send
 add wave -noupdate -divider {state transition}
 add wave -noupdate -color blue -itemcolor blue /unit_reset_state_tb/dut/next_state
 add wave -noupdate -color blue -itemcolor blue /unit_reset_state_tb/dut/cs

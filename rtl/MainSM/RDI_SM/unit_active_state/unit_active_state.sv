@@ -11,7 +11,7 @@ import UCIe_pkg::*;
 module unit_active_state(
     input logic lclk,                   // Local clock
     input logic lp_linkerror,           // Link error indicator from Adapter
-    input msg_no_e massage_recieve,     // Received message from the other interface
+    input msg_no_e message_receive,     // Received message from the other interface
     input logic stall_done,             // Indicator that the stall handshake is complete
     input logic EN,                     // Enable signal for the active state machine
     input RDI_state lp_state_req,       // Requested state from Adapter
@@ -22,7 +22,7 @@ module unit_active_state(
     output RDI_state next_state,        // Next main state to transition to
     output logic stall_req,             // Request to stall the interface pipeline
     output logic start_1us_timer,       // Start 1us timer for L1/L2 entry
-    output msg_no_e massage_send        // Message to send to the other interface
+    output msg_no_e message_send        // Message to send to the other interface
 );
 
     // Sub-states of the Active State Machine
@@ -76,7 +76,7 @@ module unit_active_state(
             flow <= flow0;
             next_state <= Nop;
             stall_req <= 1'b0;
-            massage_send <= NOP;
+            message_send <= NOP;
             start_1us_timer <= 1'b0;
         end else begin
             case(cs)
@@ -85,14 +85,14 @@ module unit_active_state(
                 // This state handles the primary evaluations of requests
                 idle: begin
                     // Check if Link Error request message received from peer
-                    if (massage_recieve== RDI_LINK_ERROR_REQ)begin
+                    if (message_receive== RDI_LINK_ERROR_REQ)begin
                         cs<=le_send_resp; 
-                        massage_send<=RDI_LINK_ERROR_RSP;
+                        message_send<=RDI_LINK_ERROR_RSP;
                     end 
                     // Check if Link Error flagged by local Adapter
                     else if (lp_linkerror)begin
                         cs<=le_send_req; 
-                        massage_send<=RDI_LINK_ERROR_REQ;
+                        message_send<=RDI_LINK_ERROR_REQ;
                     end 
                     // Check if Adapter requested Retrain state
                     else if (lp_state_req==Retrain || pl_error)begin
@@ -101,7 +101,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end
                     // Check if Retrain request message received from peer
-                    else if (massage_recieve==RDI_RETRAIN_REQ)begin
+                    else if (message_receive==RDI_RETRAIN_REQ)begin
                         cs<=stall_handshake;
                         flow<=flow1;
                         stall_req<=1'b1;
@@ -113,7 +113,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end 
                     // Check if LinkReset request message received from peer
-                    else if (massage_recieve==RDI_LINK_RESET_REQ)begin
+                    else if (message_receive==RDI_LINK_RESET_REQ)begin
                         cs <=stall_handshake;
                         flow<=flow3;
                         stall_req<=1'b1;
@@ -125,7 +125,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end 
                     // Check if Disable request message received from peer
-                    else if (massage_recieve==RDI_DISABLE_REQ)begin
+                    else if (message_receive==RDI_DISABLE_REQ)begin
                         cs <=stall_handshake;
                         flow<=flow5;
                         stall_req<=1'b1;
@@ -137,7 +137,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end 
                     // Check if L1 power request message received from peer
-                    else if (massage_recieve==RDI_L1_REQ)begin
+                    else if (message_receive==RDI_L1_REQ)begin
                         cs <=Wait;
                         start_1us_timer<=1'b1;
                         flow<=flow7;
@@ -149,7 +149,7 @@ module unit_active_state(
                         stall_req<=1'b1;
                     end 
                     // Check if L2 power request message received from peer
-                    else if (massage_recieve==RDI_L2_REQ)begin
+                    else if (message_receive==RDI_L2_REQ)begin
                         cs <=Wait;
                         start_1us_timer<=1'b1;
                         flow<=flow8;
@@ -166,43 +166,43 @@ module unit_active_state(
                     if (stall_done)begin
                         case(flow)
                             flow0: begin
-                                massage_send<=RDI_RETRAIN_REQ;
+                                message_send<=RDI_RETRAIN_REQ;
                                 cs<=rt_send_req;
                             end
                             flow1: begin
-                                massage_send<=RDI_RETRAIN_RSP;
+                                message_send<=RDI_RETRAIN_RSP;
                                 cs<=rt_send_resp;
                             end
                             flow2: begin
-                                massage_send<=RDI_LINK_RESET_REQ;
+                                message_send<=RDI_LINK_RESET_REQ;
                                 cs<=lr_send_req;      
                             end
                             flow3: begin
-                                massage_send<=RDI_LINK_RESET_RSP;
+                                message_send<=RDI_LINK_RESET_RSP;
                                 cs<=lr_send_resp;
                             end
                             flow4: begin
-                                massage_send<=RDI_DISABLE_REQ;
+                                message_send<=RDI_DISABLE_REQ;
                                 cs<=d_send_req;
                             end
                             flow5: begin
-                                massage_send<=RDI_DISABLE_RSP;
+                                message_send<=RDI_DISABLE_RSP;
                                 cs<=d_send_resp;
                             end
                             flow6: begin
-                                massage_send<=RDI_L1_REQ;
+                                message_send<=RDI_L1_REQ;
                                 cs<=l1_send_req;
                             end
                             flow7: begin
-                                massage_send<=RDI_L1_REQ;
+                                message_send<=RDI_L1_REQ;
                                 cs<=l1_send_req;
                             end
                             flow8: begin
-                                massage_send<=RDI_L2_REQ;
+                                message_send<=RDI_L2_REQ;
                                 cs<=l2_send_req;
                             end
                             flow9: begin
-                                massage_send<=RDI_L2_REQ;
+                                message_send<=RDI_L2_REQ;
                                 cs<=l2_send_req;
                             end
                         endcase
@@ -221,7 +221,7 @@ module unit_active_state(
                     // Else if 1us timeout happens, trigger PM NAK response
                     else if (timeout_1us) begin
                         cs<=send_pmnak_resp;
-                        massage_send<=RDI_PMNAK_RSP;
+                        message_send<=RDI_PMNAK_RSP;
                     end
                 end
 
@@ -229,16 +229,16 @@ module unit_active_state(
                 // Issues a PM NAK response and returns to idle when a timeout occurs
                 send_pmnak_resp: begin
                     cs<=idle;
-                    massage_send<=NOP;
+                    message_send<=NOP;
                 end
 
 
                 // --- LINK ERROR HANDSHAKE ---
                 // Wait for Link Error Response after sending a Link Error Request
                 le_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if peer responded to Link Error Request
-                    if (massage_recieve==RDI_LINK_ERROR_RSP)begin
+                    if (message_receive==RDI_LINK_ERROR_RSP)begin
                         cs<=linkerror;
                         next_state<=LinkError;
                     end
@@ -246,7 +246,7 @@ module unit_active_state(
                 
                 // Transition to the linkerror state after sending a Link Error Response
                 le_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     cs<=linkerror;
                     next_state<=LinkError;
                 end
@@ -264,9 +264,9 @@ module unit_active_state(
                 // --- RETRAIN HANDSHAKE ---
                 // Wait for Retrain Response after sending a Retrain Request
                 rt_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if peer responded to Retrain Request
-                    if (massage_recieve==RDI_RETRAIN_RSP)begin
+                    if (message_receive==RDI_RETRAIN_RSP)begin
                         cs<=retrain;
                         next_state<=Retrain;
                     end
@@ -274,7 +274,7 @@ module unit_active_state(
                 
                 // Transition to the retrain state after sending a Retrain Response
                 rt_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     cs<=retrain;
                     next_state<=Retrain;
                 end
@@ -292,9 +292,9 @@ module unit_active_state(
                 // --- LINK RESET HANDSHAKE ---
                 // Wait for Link Reset Response after sending a Link Reset Request
                 lr_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if peer responded to Link Reset Request
-                    if (massage_recieve==RDI_LINK_RESET_RSP)begin
+                    if (message_receive==RDI_LINK_RESET_RSP)begin
                         cs<=linkreset;
                         next_state<=LinkReset;
                     end
@@ -302,7 +302,7 @@ module unit_active_state(
                 
                 // Transition to the linkreset state after sending a Link Reset Response
                 lr_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     cs<=linkreset;
                     next_state<=LinkReset;
                 end
@@ -320,9 +320,9 @@ module unit_active_state(
                 // --- DISABLE HANDSHAKE ---
                 // Wait for Disable Response after sending a Disable Request
                 d_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if peer responded to Disable Request
-                    if (massage_recieve==RDI_DISABLE_RSP)begin
+                    if (message_receive==RDI_DISABLE_RSP)begin
                         cs<=disabled;
                         next_state<=Disabled;
                     end
@@ -330,7 +330,7 @@ module unit_active_state(
                 
                 // Transition to disabled state after sending a Disable Response
                 d_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     cs<=disabled;
                     next_state<=Disabled;
                 end
@@ -348,19 +348,19 @@ module unit_active_state(
                 // --- L1 ENTRY HANDSHAKE ---
                 // Handle L1 Request phase: wait for L1 Req or PM NAK responses, or send L1 Rsp based on flow
                 l1_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if L1 Request was received while initiating L1 from adapter side
-                    if ((massage_recieve==RDI_L1_REQ)&&(flow==flow6))begin
+                    if ((message_receive==RDI_L1_REQ)&&(flow==flow6))begin
                         cs<=l1_receive_resp;
                     end
                     // Check if PM NAK response was received, meaning entry is aborted
-                    if (massage_recieve==RDI_PMNAK_RSP)begin
+                    if (message_receive==RDI_PMNAK_RSP)begin
                         cs<=active_pmnak;
                         next_state<=Active_PMNAK;
                     end
                     // Check if we are responding to a received L1 Request
                     if (flow==flow7)begin
-                        massage_send<=RDI_L1_RSP;
+                        message_send<=RDI_L1_RSP;
                         cs<=l1_send_resp;
                     end
                 end
@@ -368,12 +368,12 @@ module unit_active_state(
                 // Wait for L1 Response or finalize L1 transition depending on flow source
                 l1_receive_resp: begin
                     // Check if L1 Response was received for adapter-initiated L1
-                    if ((massage_recieve==RDI_L1_RSP)&&(flow==flow6))begin
+                    if ((message_receive==RDI_L1_RSP)&&(flow==flow6))begin
                         cs<=l1_send_resp;
-                        massage_send<=RDI_L1_RSP;
+                        message_send<=RDI_L1_RSP;
                     end
                     // Check if L1 Response was received for peer-initiated L1
-                    if ((massage_recieve==RDI_L1_RSP)&&(flow==flow7))begin 
+                    if ((message_receive==RDI_L1_RSP)&&(flow==flow7))begin 
                         cs<=l1;
                         next_state<=L1;
                     end
@@ -381,7 +381,7 @@ module unit_active_state(
                 
                 // Transition to main L1 state depending on the flow completion
                 l1_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // If Adapter initiated, transition directly to L1 
                     if (flow==flow6)begin
                     cs<=l1;
@@ -406,19 +406,19 @@ module unit_active_state(
                 // --- L2 ENTRY HANDSHAKE ---
                 // Handle L2 Request phase: wait for L2 Req or PM NAK responses, or send L2 Rsp based on flow
                 l2_send_req: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // Check if L2 Request was received while initiating L2 from adapter side
-                    if ((massage_recieve==RDI_L2_REQ)&&(flow==flow9))begin
+                    if ((message_receive==RDI_L2_REQ)&&(flow==flow9))begin
                         cs<=l2_receive_resp;
                     end
                     // Check if PM NAK response was received, meaning entry is aborted
-                    if (massage_recieve==RDI_PMNAK_RSP)begin
+                    if (message_receive==RDI_PMNAK_RSP)begin
                         cs<=active_pmnak;
                         next_state<=Active_PMNAK;
                     end
                     // Check if we are responding to a received L2 Request
                     if (flow==flow8)begin
-                        massage_send<=RDI_L2_RSP;
+                        message_send<=RDI_L2_RSP;
                         cs<=l2_send_resp;
                     end
                 end
@@ -426,12 +426,12 @@ module unit_active_state(
                 // Wait for L2 Response or finalize L2 transition depending on flow source
                 l2_receive_resp: begin
                     // Check if L2 Response was received for adapter-initiated L2
-                    if ((massage_recieve==RDI_L2_RSP)&&(flow==flow9))begin
+                    if ((message_receive==RDI_L2_RSP)&&(flow==flow9))begin
                         cs<=l2_send_resp;
-                        massage_send<=RDI_L2_RSP;
+                        message_send<=RDI_L2_RSP;
                     end
                     // Check if L2 Response was received for peer-initiated L2
-                    if ((massage_recieve==RDI_L2_RSP)&&(flow==flow8))begin 
+                    if ((message_receive==RDI_L2_RSP)&&(flow==flow8))begin 
                         cs<=l2;
                         next_state<=L2;
                     end
@@ -439,7 +439,7 @@ module unit_active_state(
                 
                 // Transition to main L2 state depending on the flow completion
                 l2_send_resp: begin
-                    massage_send<=NOP;
+                    message_send<=NOP;
                     // If Adapter initiated, transition directly to L2 
                     if (flow==flow9)begin
                     cs<=l2;

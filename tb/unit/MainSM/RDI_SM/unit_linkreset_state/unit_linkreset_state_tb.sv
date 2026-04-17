@@ -16,10 +16,10 @@ module unit_linkreset_state_tb();
     logic           EN;
     logic           lp_linkerror;
     RDI_state       lp_state_req;
-    msg_no_e        massage_receive;
+    msg_no_e        message_receive;
 
     RDI_state       next_state;
-    msg_no_e        massage_send;
+    msg_no_e        message_send;
 
     // -------------------------------------------------------------------------
     // Verification Counters
@@ -35,9 +35,9 @@ module unit_linkreset_state_tb();
         .EN             (EN),
         .lp_linkerror   (lp_linkerror),
         .lp_state_req   (lp_state_req),
-        .massage_receive(massage_receive),
+        .message_receive(message_receive),
         .next_state     (next_state),
-        .massage_send   (massage_send)
+        .message_send   (message_send)
     );
 
     // -------------------------------------------------------------------------
@@ -67,7 +67,7 @@ module unit_linkreset_state_tb();
             EN              = 0;
             lp_linkerror    = 0;
             lp_state_req    = Nop;
-            massage_receive = NOP;
+            message_receive = NOP;
             #20;
             EN = 1;
             #20;
@@ -120,14 +120,14 @@ module unit_linkreset_state_tb();
         $display("\n--- Scenario 4: Disable flow (Adapter initiated) ---");
         lp_state_req = Disabled;
         #10;
-        check_condition((massage_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
+        check_condition((message_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
         lp_state_req = Nop;
         
-        massage_receive = RDI_DISABLE_RSP;
+        message_receive = RDI_DISABLE_RSP;
         #10;
         check_condition((uut.cs == 3'd6),              "DUT did not reach disabled_st");
         check_condition((next_state == Disabled),      "next_state not Disabled");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         EN = 0; #20; EN = 1; #20;
 
@@ -135,12 +135,12 @@ module unit_linkreset_state_tb();
         // Scenario 5: Disable Flow (Peer Initiated)
         // ---------------------------------------------------------------------
         $display("\n--- Scenario 5: Disable flow (Peer initiated) ---");
-        massage_receive = RDI_DISABLE_REQ;
+        message_receive = RDI_DISABLE_REQ;
         #10;
-        check_condition((massage_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
+        check_condition((message_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
         #10;
         check_condition((uut.cs == 3'd6),                  "DUT did not reach disabled_st (Peer)");
-        massage_receive = NOP;
+        message_receive = NOP;
 
         // ---------------------------------------------------------------------
         // Final Summary

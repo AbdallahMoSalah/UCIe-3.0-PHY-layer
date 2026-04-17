@@ -8,10 +8,10 @@
 module unit_active_handshake (
     input  logic lclk,                  // Local clock
     input  logic pm_exit,
-    input  msg_no_e massage_recieve,          // Received active request from peer
+    input  msg_no_e message_receive,          // Received active request from peer
     input  logic Active_handshake_strt, // Signal to start the active handshake
     
-    output msg_no_e Active_massage_send,          // Sent active request to peer
+    output msg_no_e Active_message_send,          // Sent active request to peer
     output logic Active_handshake_done  // Indicator that handshake has completed
 );
 
@@ -41,7 +41,7 @@ module unit_active_handshake (
     
     always @(posedge lclk) begin
         // Latch incoming request
-        if (massage_recieve == RDI_ACTIVE_REQ) begin
+        if (message_receive == RDI_ACTIVE_REQ) begin
             req_r <= 1'b1;
         end
     end
@@ -52,11 +52,11 @@ module unit_active_handshake (
                     if (~req_r || pm_exit) begin
                         // Normal start: send our request
                         state <= SEND_REQ;
-                        Active_massage_send <= RDI_ACTIVE_REQ;
+                        Active_message_send <= RDI_ACTIVE_REQ;
                     end else if (req_r && ~pm_exit) begin
                         // Peer beat us to the punch: prioritize sending response
                         state <= SEND_RESP;
-                        Active_massage_send <= RDI_ACTIVE_RSP;
+                        Active_message_send <= RDI_ACTIVE_RSP;
                         flow  <= flow2;
                         req_r <= 1'b0;
                     end
@@ -65,20 +65,20 @@ module unit_active_handshake (
 
             SEND_REQ: begin
                 // Automatically proceed to wait for messages after sending req
-                Active_massage_send <= NOP;
+                Active_message_send <= NOP;
                 state <= CHECK_MSG;
             end
 
             CHECK_MSG: begin
                 // Wait to receive the peer's response or a conflicting request
 
-                if (massage_recieve == RDI_ACTIVE_RSP && (flow != flow1) && (flow != flow2)) begin
+                if (message_receive == RDI_ACTIVE_RSP && (flow != flow1) && (flow != flow2)) begin
                     // Got peer's req; keep waiting for their resp, update flow
                     state <= CHECK_MSG;
                     flow  <= flow0;
                 end
 
-                if (massage_recieve == RDI_ACTIVE_RSP && ((flow == flow2) || (flow == flow1))) begin
+                if (message_receive == RDI_ACTIVE_RSP && ((flow == flow2) || (flow == flow1))) begin
                     // Received response in flow2 scenario -> we are done
                     state <= DONE;
                 end
@@ -86,7 +86,7 @@ module unit_active_handshake (
                 if (req_r && (flow != flow0)&&Active_handshake_done) begin
                     // Conflicting req received -> need to send response
                     state <= SEND_RESP;
-                    Active_massage_send <= RDI_ACTIVE_RSP;
+                    Active_message_send <= RDI_ACTIVE_RSP;
                     flow  <= flow1;
                     req_r <= 1'b0;
                 end
@@ -94,7 +94,7 @@ module unit_active_handshake (
                 if (req_r && (flow == flow0)) begin
                     // Received request in default flow -> need to send response
                     state <= SEND_RESP;
-                    Active_massage_send <= RDI_ACTIVE_RSP;
+                    Active_message_send <= RDI_ACTIVE_RSP;
                     req_r <= 1'b0;
                 end
             end
@@ -112,7 +112,7 @@ module unit_active_handshake (
                 if (flow == flow2) begin
                     // Received our response while finishing flow2 resolution -> send our req
                     state <= SEND_REQ;
-                    Active_massage_send <= RDI_ACTIVE_REQ;
+                    Active_message_send <= RDI_ACTIVE_REQ;
                 end
             end
 

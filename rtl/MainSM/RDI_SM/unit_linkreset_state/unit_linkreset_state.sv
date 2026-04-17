@@ -8,9 +8,9 @@
 //   EN           - Input: Enable from top-level RDI SM
 //   lp_linkerror - Input: Link error flag from Adapter
 //   lp_state_req - Input: Requested RDI state from Adapter
-//   massage_receive - Input: Received RDI message from peer
+//   message_receive - Input: Received RDI message from peer
 //   next_state   - Output: Next RDI state to top-level SM
-//   massage_send    - Output: RDI message to send to peer
+//   message_send    - Output: RDI message to send to peer
 //-----------------------------------------------------------------------------
 import RDI_SM_pkg::*;
 import UCIe_pkg::*;
@@ -20,10 +20,10 @@ module unit_linkreset_state (
     input  logic           EN,                      // Enable from top-level RDI SM
     input  logic           lp_linkerror,            // Link error flag from Adapter
     input  RDI_state       lp_state_req,            // Requested RDI state from Adapter
-    input  msg_no_e        massage_receive,         // Received message from peer
+    input  msg_no_e        message_receive,         // Received message from peer
 
     output RDI_state       next_state,              // Next RDI main state on exit
-    output msg_no_e        massage_send             // RDI message to send to peer
+    output msg_no_e        message_send             // RDI message to send to peer
 );
 
     // -------------------------------------------------------------------------
@@ -55,7 +55,7 @@ module unit_linkreset_state (
                     cs <= idle;
                 end
                 next_state   <= Nop;
-                massage_send <= NOP;
+                message_send <= NOP;
             end
 
             // -----------------------------------------------------------------
@@ -76,12 +76,12 @@ module unit_linkreset_state (
                 // 3. Disable flow (Adapter initiated)
                 else if (lp_state_req == Disabled) begin
                     cs           <= d_send_req;
-                    massage_send <= RDI_DISABLE_REQ;
+                    message_send <= RDI_DISABLE_REQ;
                 end 
                 // 4. Disable flow (Peer initiated)
-                else if (massage_receive == RDI_DISABLE_REQ) begin
+                else if (message_receive == RDI_DISABLE_REQ) begin
                     cs           <= d_send_resp;
-                    massage_send <= RDI_DISABLE_RSP;
+                    message_send <= RDI_DISABLE_RSP;
                 end
             end
 
@@ -109,8 +109,8 @@ module unit_linkreset_state (
             // D_SEND_REQ: Local initiated disable handshake
             // -----------------------------------------------------------------
             d_send_req: begin
-                massage_send <= NOP;
-                if (massage_receive == RDI_DISABLE_RSP) begin
+                message_send <= NOP;
+                if (message_receive == RDI_DISABLE_RSP) begin
                     cs         <= disabled_st;
                     next_state <= Disabled;
                 end
@@ -120,7 +120,7 @@ module unit_linkreset_state (
             // D_SEND_RESP: Peer initiated disable handshake
             // -----------------------------------------------------------------
             d_send_resp: begin
-                massage_send <= NOP;
+                message_send <= NOP;
                 cs           <= disabled_st;
                 next_state   <= Disabled;
             end

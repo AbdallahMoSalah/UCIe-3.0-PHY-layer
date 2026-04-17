@@ -4,12 +4,12 @@ add wave -noupdate /unit_L2_state_tb/uut/lclk
 add wave -noupdate /unit_L2_state_tb/uut/EN
 add wave -noupdate /unit_L2_state_tb/uut/lp_linkerror
 add wave -noupdate /unit_L2_state_tb/uut/lp_state_req
-add wave -noupdate /unit_L2_state_tb/uut/massage_receive
+add wave -noupdate /unit_L2_state_tb/uut/message_receive
 add wave -noupdate /unit_L2_state_tb/uut/Active_handshake_done
 add wave -noupdate /unit_L2_state_tb/uut/next_state
 add wave -noupdate /unit_L2_state_tb/uut/state_req
 add wave -noupdate /unit_L2_state_tb/uut/active_handshake_strt
-add wave -noupdate /unit_L2_state_tb/uut/massage_send
+add wave -noupdate /unit_L2_state_tb/uut/message_send
 add wave -noupdate /unit_L2_state_tb/uut/cs
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {440117 ps} 0}

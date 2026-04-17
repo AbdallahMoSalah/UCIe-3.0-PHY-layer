@@ -15,13 +15,13 @@ module unit_active_pmnak_state_tb();
     logic rst_n;
     logic lp_linkerror;
     RDI_state lp_state_req;
-    msg_no_e massage_recieve;
+    msg_no_e message_receive;
     logic stall_done;
     logic EN;
 
     // Testbench Outputs
     logic stall_req;
-    msg_no_e massage_send;
+    msg_no_e message_send;
     RDI_state next_state;
 
     // Verification counters
@@ -34,11 +34,11 @@ module unit_active_pmnak_state_tb();
         .rst_n(rst_n),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
-        .massage_recieve(massage_recieve),
+        .message_receive(message_receive),
         .stall_done(stall_done),
         .EN(EN),
         .stall_req(stall_req),
-        .massage_send(massage_send),
+        .message_send(message_send),
         .next_state(next_state)
     );
 
@@ -68,7 +68,7 @@ module unit_active_pmnak_state_tb();
             EN = 0;
             lp_linkerror = 0;
             lp_state_req = Nop;
-            massage_recieve = NOP;
+            message_receive = NOP;
             stall_done = 0;
             #20;
             rst_n = 1;
@@ -107,12 +107,12 @@ module unit_active_pmnak_state_tb();
         reset_uut();
         check_condition((uut.cs == 5'd1), "Did not reach idle state."); // idle is 5'd1
         
-        // --- Scenario 2: massage_recieve == RDI_LINK_ERROR_REQ ---
+        // --- Scenario 2: message_receive == RDI_LINK_ERROR_REQ ---
         $display("\n--- Scenario 2: Peer RDI_LINK_ERROR_REQ ---");
-        massage_recieve = RDI_LINK_ERROR_REQ;
+        message_receive = RDI_LINK_ERROR_REQ;
         #10;
-        massage_recieve = NOP;
-        check_condition((massage_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP");
+        message_receive = NOP;
+        check_condition((message_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP");
         #10;
         check_condition((next_state == LinkError), "Did not reach LinkError next_state");
 
@@ -122,10 +122,10 @@ module unit_active_pmnak_state_tb();
         lp_linkerror = 1;
         #10;
         lp_linkerror = 0;
-        check_condition((massage_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
-        massage_recieve = RDI_LINK_ERROR_RSP;
+        check_condition((message_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
+        message_receive = RDI_LINK_ERROR_RSP;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         check_condition((next_state == LinkError), "Did not reach LinkError next_state");
 
         // --- Scenario 4: lp_state_req == Active ---
@@ -136,14 +136,14 @@ module unit_active_pmnak_state_tb();
         lp_state_req = Nop;
         check_condition((next_state == Active), "Did not transition to Active state properly");
 
-        // --- Scenario 5: massage_recieve == RDI_DISABLE_REQ ---
+        // --- Scenario 5: message_receive == RDI_DISABLE_REQ ---
         $display("\n--- Scenario 5: Peer sends RDI_DISABLE_REQ ---");
         reset_uut();
-        massage_recieve = RDI_DISABLE_REQ;
+        message_receive = RDI_DISABLE_REQ;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         complete_stall();
-        check_condition((massage_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
+        check_condition((message_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
         #10;
         check_condition((next_state == Disabled), "Did not reach Disabled next_state");
         #10;
@@ -154,20 +154,20 @@ module unit_active_pmnak_state_tb();
         #10;
         lp_state_req = Nop;
         complete_stall();
-        check_condition((massage_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
-        massage_recieve = RDI_DISABLE_RSP;
+        check_condition((message_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
+        message_receive = RDI_DISABLE_RSP;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         check_condition((next_state == Disabled), "Did not reach Disabled next_state");
 
-        // --- Scenario 7: massage_recieve == RDI_RETRAIN_REQ ---
+        // --- Scenario 7: message_receive == RDI_RETRAIN_REQ ---
         $display("\n--- Scenario 7: Peer sends RDI_RETRAIN_REQ ---");
         reset_uut();
-        massage_recieve = RDI_RETRAIN_REQ;
+        message_receive = RDI_RETRAIN_REQ;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         complete_stall();
-        check_condition((massage_send == RDI_RETRAIN_RSP), "Did not send RDI_RETRAIN_RSP");
+        check_condition((message_send == RDI_RETRAIN_RSP), "Did not send RDI_RETRAIN_RSP");
         #10;
         check_condition((next_state == Retrain), "Did not reach Retrain next_state");
         #10;
@@ -178,10 +178,10 @@ module unit_active_pmnak_state_tb();
         #10;
         lp_state_req = Nop;
         complete_stall();
-        check_condition((massage_send == RDI_RETRAIN_REQ), "Did not send RDI_RETRAIN_REQ");
-        massage_recieve = RDI_RETRAIN_RSP;
+        check_condition((message_send == RDI_RETRAIN_REQ), "Did not send RDI_RETRAIN_REQ");
+        message_receive = RDI_RETRAIN_RSP;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         #10;
         check_condition((next_state == Retrain), "Did not reach Retrain next_state");
         #10;
@@ -192,21 +192,21 @@ module unit_active_pmnak_state_tb();
         #10;
         lp_state_req = Nop;
         complete_stall();
-        check_condition((massage_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
-        massage_recieve = RDI_LINK_RESET_RSP;
+        check_condition((message_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
+        message_receive = RDI_LINK_RESET_RSP;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         #10;
         check_condition((next_state == LinkReset), "Did not reach LinkReset next_state");
         #10;
-        // --- Scenario 10: massage_recieve == RDI_LINK_RESET_REQ ---
+        // --- Scenario 10: message_receive == RDI_LINK_RESET_REQ ---
         $display("\n--- Scenario 10: Peer sends RDI_LINK_RESET_REQ ---");
         reset_uut();
-        massage_recieve = RDI_LINK_RESET_REQ;
+        message_receive = RDI_LINK_RESET_REQ;
         #10;
-        massage_recieve = NOP;
+        message_receive = NOP;
         complete_stall();
-        check_condition((massage_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP");
+        check_condition((message_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP");
         #10;
         check_condition((next_state == LinkReset), "Did not reach LinkReset next_state");
         #10;

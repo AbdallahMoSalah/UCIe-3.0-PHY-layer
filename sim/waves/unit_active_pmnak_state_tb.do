@@ -5,9 +5,9 @@ add wave -noupdate /unit_active_pmnak_state_tb/uut/rst_n
 add wave -noupdate /unit_active_pmnak_state_tb/uut/EN
 add wave -noupdate /unit_active_pmnak_state_tb/uut/lp_linkerror
 add wave -noupdate /unit_active_pmnak_state_tb/uut/lp_state_req
-add wave -noupdate -divider {massage handler if}
-add wave -noupdate -color coral -itemcolor coral /unit_active_pmnak_state_tb/uut/massage_recieve
-add wave -noupdate -color coral -itemcolor coral /unit_active_pmnak_state_tb/uut/massage_send
+add wave -noupdate -divider {message handler if}
+add wave -noupdate -color coral -itemcolor coral /unit_active_pmnak_state_tb/uut/message_receive
+add wave -noupdate -color coral -itemcolor coral /unit_active_pmnak_state_tb/uut/message_send
 add wave -noupdate -divider {stall handshake if}
 add wave -noupdate -color violet -itemcolor violet /unit_active_pmnak_state_tb/uut/stall_done
 add wave -noupdate -color violet -itemcolor violet /unit_active_pmnak_state_tb/uut/stall_req

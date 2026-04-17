@@ -17,13 +17,13 @@ module unit_L1_state_tb();
     logic           EN;
     logic           lp_linkerror;
     RDI_state       lp_state_req;
-    msg_no_e    massage_receive;
+    msg_no_e    message_receive;
     logic           Active_handshake_done;
 
     RDI_state       next_state;
     LTSM_state_e    state_req;
     logic           active_handshake_strt;
-    msg_no_e        massage_send;
+    msg_no_e        message_send;
 
     // -------------------------------------------------------------------------
     // Verification Counters
@@ -39,12 +39,12 @@ module unit_L1_state_tb();
         .EN                   (EN),
         .lp_linkerror         (lp_linkerror),
         .lp_state_req         (lp_state_req),
-        .massage_receive      (massage_receive),
+        .message_receive      (message_receive),
         .Active_handshake_done(Active_handshake_done),
         .next_state           (next_state),
         .state_req            (state_req),
         .active_handshake_strt(active_handshake_strt),
-        .massage_send         (massage_send)
+        .message_send         (message_send)
     );
 
     // -------------------------------------------------------------------------
@@ -75,7 +75,7 @@ module unit_L1_state_tb();
             EN                    = 0;
             lp_linkerror          = 0;
             lp_state_req          = Nop;
-            massage_receive       = NOP;
+            message_receive       = NOP;
             Active_handshake_done = 0;
             #20;
             EN = 1;
@@ -123,11 +123,11 @@ module unit_L1_state_tb();
         
         #10;
         lp_state_req = Nop;
-        massage_receive = RDI_ACTIVE_REQ; 
+        message_receive = RDI_ACTIVE_REQ; 
         #10;
         check_condition((uut.cs == 4'd9),                "DUT did not reach reset state (re-entry done)");
         check_condition((next_state == Active),          "next_state not Active");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("Active Re-entry Adapter");
 
@@ -136,11 +136,11 @@ module unit_L1_state_tb();
         // ---------------------------------------------------------------------
         $display("\n--- Scenario 3: Active Re-entry (Peer-initiated) ---");
         initialize_uut();
-        massage_receive = RDI_ACTIVE_REQ;
+        message_receive = RDI_ACTIVE_REQ;
         #10;
         check_condition((state_req == ACTIVE),           "state_req not ACTIVE on Peer re-entry");
         check_condition((uut.cs == 4'd9),                "DUT did not reach reset state");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("Active Re-entry Peer");
 
@@ -151,14 +151,14 @@ module unit_L1_state_tb();
         initialize_uut();
         lp_linkerror = 1;
         #10;
-        check_condition((massage_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
+        check_condition((message_send == RDI_LINK_ERROR_REQ), "Did not send RDI_LINK_ERROR_REQ");
         lp_linkerror = 0;
         
-        massage_receive = RDI_LINK_ERROR_RSP;
+        message_receive = RDI_LINK_ERROR_RSP;
         #10;
         #10;check_condition((uut.cs == 4'd11),             "DUT did not reach linkerror state");
         check_condition((next_state == LinkError),      "next_state not LinkError");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("LinkError Local");
 
@@ -167,11 +167,11 @@ module unit_L1_state_tb();
         // ---------------------------------------------------------------------
         $display("\n--- Scenario 5: LinkError (Peer initiated) ---");
         initialize_uut();
-        massage_receive = RDI_LINK_ERROR_REQ;
+        message_receive = RDI_LINK_ERROR_REQ;
         #10;
-        check_condition((massage_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP");
+        check_condition((message_send == RDI_LINK_ERROR_RSP), "Did not send RDI_LINK_ERROR_RSP");
         #10;check_condition((uut.cs == 4'd11),                    "DUT did not reach linkerror state (Peer)");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("LinkError Peer");
 
@@ -182,14 +182,14 @@ module unit_L1_state_tb();
         initialize_uut();
         lp_state_req = LinkReset;
         #10;
-        check_condition((massage_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
+        check_condition((message_send == RDI_LINK_RESET_REQ), "Did not send RDI_LINK_RESET_REQ");
         lp_state_req = Nop;
         
-        massage_receive = RDI_LINK_RESET_RSP;
+        message_receive = RDI_LINK_RESET_RSP;
         #10;
         #10;check_condition((uut.cs == 4'd10),               "DUT did not reach linkreset state");
         check_condition((next_state == LinkReset),        "next_state not LinkReset");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("LinkReset Local");
 
@@ -198,11 +198,11 @@ module unit_L1_state_tb();
         // ---------------------------------------------------------------------
         $display("\n--- Scenario 7: LinkReset (Peer initiated) ---");
         initialize_uut();
-        massage_receive = RDI_LINK_RESET_REQ;
+        message_receive = RDI_LINK_RESET_REQ;
         #10;
-        check_condition((massage_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP");
+        check_condition((message_send == RDI_LINK_RESET_RSP), "Did not send RDI_LINK_RESET_RSP");
         #10;check_condition((uut.cs == 4'd10),                    "DUT did not reach linkreset state (Peer)");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("LinkReset Peer");
 
@@ -213,14 +213,14 @@ module unit_L1_state_tb();
         initialize_uut();
         lp_state_req = Disabled;
         #10;
-        check_condition((massage_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
+        check_condition((message_send == RDI_DISABLE_REQ), "Did not send RDI_DISABLE_REQ");
         lp_state_req = Nop;
         
-        massage_receive = RDI_DISABLE_RSP;
+        message_receive = RDI_DISABLE_RSP;
         #10;
         #10;check_condition((uut.cs == 4'd12),             "DUT did not reach disabled state");
         check_condition((next_state == Disabled),      "next_state not Disabled");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("Disable Local");
 
@@ -229,11 +229,11 @@ module unit_L1_state_tb();
         // ---------------------------------------------------------------------
         $display("\n--- Scenario 9: Disable (Peer initiated) ---");
         initialize_uut();
-        massage_receive = RDI_DISABLE_REQ;
+        message_receive = RDI_DISABLE_REQ;
         #10;
-        check_condition((massage_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
+        check_condition((message_send == RDI_DISABLE_RSP), "Did not send RDI_DISABLE_RSP");
         #10;check_condition((uut.cs == 4'd12),                 "DUT did not reach disabled state (Peer)");
-        massage_receive = NOP;
+        message_receive = NOP;
         
         deassert_en_and_verify_disabled("Disable Peer");
 
