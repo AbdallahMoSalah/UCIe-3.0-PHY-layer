@@ -117,10 +117,10 @@ module unit_VALVREF #(
                 end
                 // (S10) TRAINERROR state:
                 TO_TRAINERROR: begin
-                    next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
+                    next_state = (valvref_if.valvref_en) ? TO_TRAINERROR : VALVREF_IDLE;
                 end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state = (valvref_if.valvref_en) ? TO_TRAINERROR : VALVREF_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -158,12 +158,12 @@ module unit_VALVREF #(
         // Received Tx Pattern Generator Setup Group:
         d2c_if.d2c_lfsr_en          = 1'b0  ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
         d2c_if.d2c_pattern_setup    = 3'b010; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
-        d2c_if.d2c_data_pattern_sel = 2'b00 ; // Data pattern used during training: LFSR, ID, or all 0.
+        d2c_if.d2c_data_pattern_sel = 2'b11 ; // Data pattern used during training: LFSR, ID, or all 0.
         d2c_if.d2c_val_pattern_sel  = 1'b0  ; // 0: VALTRAIN pattern, 1: Held Low.
 
         // Received Tx Pattern Mode Setup Group:
         d2c_if.d2c_pattern_mode =  1'D0  ; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
-        d2c_if.d2c_burst_count  = 16'D1  ; // Burst Count: Indicates the duration of selected pattern (UI count).
+        d2c_if.d2c_burst_count  = 16'D8  ; // Burst Count: Indicates the duration of selected pattern (UI count).
         d2c_if.d2c_idle_count   = 16'D0  ; // IDLE Count: Indicates the duration of low following the burst (UI count).
         d2c_if.d2c_iter_count   = 16'D128; // Iteration Count: Indicates the iteration count of bursts followed by idle.
 
@@ -261,13 +261,15 @@ module unit_VALVREF #(
 
             // (S9) Send & Receive SB Message: {End Rx Init D to C point test resp}.
             TO_DATAVREF: begin
-                valvref_if.valvref_done = 1'b1;
+                valvref_if.valvref_done     = 1'b1;
+                valvref_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
 
             // (S10) TRAINERROR state:
             TO_TRAINERROR: begin
-                valvref_if.valvref_done   = 1'b1;
-                valvref_if.trainerror_req = 1'b1;
+                valvref_if.valvref_done     = 1'b1;
+                valvref_if.trainerror_req   = 1'b1;
+                valvref_if.timeout_timer_en = 1'b0;
             end
             default: begin
                 // Default case to avoid latches in synthesis.

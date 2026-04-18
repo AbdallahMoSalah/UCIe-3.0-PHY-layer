@@ -93,6 +93,7 @@ interface internal_ltsm_if #(
     logic        mb_tx_lfsr_rst        ; // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
     logic        mb_rx_lfsr_en         ; // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
     logic        mb_rx_lfsr_rst        ; // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+    logic [1:0]  mb_tx_clk_pattern_sel ; // 2'b00: operational clock, 2'b01: Held Low, 2'b10: Clock Mode 1, 2'b11: Clock Mode 2.
 
     // Tx Pattern Mode Setup Group:
     logic        mb_tx_pattern_mode      ; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
@@ -143,7 +144,10 @@ interface internal_ltsm_if #(
     logic        phy_rx_track_lock_en      ; // Allow analog Rx circuit to Lock the coming Track.
     logic        phy_rx_phase_detector_en  ; // Activate Phase Detector Circuit for IQ clock phase shift test.
     logic        phy_tx_tckn_shift_en      ; // Activate circuits to calculate shift on partner TCKN_L.
-    logic [4:0]  phy_rx_tclkn_shift        ; // The required shift of the partner TCKN_L (range 0 to 12).
+    logic [4:0]  phy_tx_tckn_shift         ; // The shift applied on our die's TCKN_L.
+    logic        phy_tx_decrement_shift    ; // Direction of shift on our die.
+    logic        phy_tx_tckn_shift_out_of_range; // Extent of shift limit hit on our die.
+    logic [4:0]  phy_rx_tckn_shift         ; // The required shift of the partner TCKN_L (range 0 to 12).
     logic        phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
     logic [VAL_VREF_CODE_WIDTH-1 :0] phy_rx_valvref_ctrl       ; // Tell ADC the Rx Valid Lane Vref level to operate in.
     logic [DATA_VREF_CODE_WIDTH-1:0] phy_rx_datavref_ctrl[15:0]; // Tell ADC the Rx Data Lane Vref level to operate in.
@@ -400,7 +404,7 @@ interface internal_ltsm_if #(
         output phy_rx_track_lock_en      , // Allow analog Rx circuit to Lock the coming Track.
         output phy_rx_phase_detector_en  , // Activate Phase Detector Circuit for IQ clock phase shift test.
         output phy_tx_tckn_shift_en      , // Activate circuits to calculate shift on partner TCKN_L.
-        input  phy_rx_tclkn_shift        , // The required shift of the partner TCKN_L (range 0 to 12).
+        input  phy_rx_tckn_shift         , // The required shift of the partner TCKN_L (range 0 to 12).
         input  phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
         output phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
         output phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
@@ -473,7 +477,7 @@ interface internal_ltsm_if #(
         input  phy_rx_track_lock_en      , // Allow analog Rx circuit to Lock the coming Track.
         input  phy_rx_phase_detector_en  , // Activate Phase Detector Circuit for IQ clock phase shift test.
         input  phy_tx_tckn_shift_en      , // Activate circuits to calculate shift on partner TCKN_L.
-        output phy_rx_tclkn_shift        , // The required shift of the partner TCKN_L (range 0 to 12).
+        output phy_rx_tckn_shift         , // The required shift of the partner TCKN_L (range 0 to 12).
         output phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
         input  phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
         input  phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
@@ -620,8 +624,12 @@ interface internal_ltsm_if #(
     //          - MUX side from the LTSM states side.                                       //
     // Note: for the "another side of the MUX" we will use the modport "state_rf_offset_*". //
     //======================================================================================//
+    // Quick summary to remember:
+    //          What I can theoretically do = Capability (Offset Ch). (Before Link Training (Read Only for me))
+    //          What the software asks me to do = Control (Offset 10h). (Before Link Training (depending on the software selection))
+    //          The actual result we agreed upon after training = Status (Offset 14h). (After Link Training)
 
-    //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
+    // UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
     modport mux_rf_offset_c_mp (
         output  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
         output  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
@@ -1114,7 +1122,133 @@ interface internal_ltsm_if #(
     // Control Signals from the LTSM substate prespective:                                   //
     // LTSM -> LTSM                                                                          //
     //=======================================================================================//
-    modport  rxclkcal_mp ();
+    modport  rxclkcal_mp (
+        // ======================= //
+        // Clock and Reset.        //
+        // ======================= //
+        input  lclk, input  rst_n,
+
+        // ======================= //
+        // Timers signals.         //
+        // ======================= //
+        output timeout_timer_en      , input  timeout_8ms_occured    ,
+        output analog_settle_timer_en, input  analog_settle_time_done,
+
+        // ======================= //
+        // LTSM general signals.   //
+        // ======================= //
+        input  rxclkcal_en           , output rxclkcal_done         ,
+        output trainerror_req        , // To request TRAINERROR implementation.
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        output mb_tx_clk_lane_sel   ,
+        output mb_tx_trk_lane_sel   ,
+        output mb_tx_data_lane_sel  ,
+        output mb_tx_val_lane_sel   ,
+        output mb_rx_clk_lane_sel   ,
+        output mb_rx_trk_lane_sel   ,
+        output mb_rx_data_lane_sel  ,
+        output mb_rx_val_lane_sel   ,
+
+        output mb_tx_pattern_en     ,
+        output mb_tx_pattern_setup  ,
+        output mb_tx_clk_pattern_sel,
+
+        // ======================= //
+        // PHY Rx/Tx control       //
+        // ======================= //
+        output phy_rx_clock_lock_en          ,
+        output phy_rx_track_lock_en          ,
+        output phy_rx_phase_detector_en      ,
+        output phy_tx_tckn_shift_en          ,
+        input  phy_rx_tckn_shift             ,
+        input  phy_rx_decrement_shift        ,
+        output phy_tx_tckn_shift             ,
+        output phy_tx_decrement_shift        ,
+        input  phy_tx_tckn_shift_out_of_range,
+
+        // ======================= //
+        // RF Signals              //
+        // ======================= //
+        input  phy_negotiated_speed      , // this signal to know the max link speed.
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
+        // For SB TX:
+        output tx_sb_msg_valid,
+        output tx_sb_msg      ,
+        output tx_msginfo     ,
+        output tx_data_field  ,
+
+        // For SB RX:
+        input rx_sb_msg_valid,
+        input rx_sb_msg      ,
+        input rx_msginfo     ,
+        input rx_data_field
+    );
+    //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
+
+    //=========================.
+    // MBTRAIN.VALTRAINCENTER: |
+    //=======================================================================================//
+    // Control Signals from the LTSM substate prespective:                                   //
+    // LTSM -> LTSM                                                                          //
+    //=======================================================================================//
+    modport valtraincenter_mp (
+        // ======================= //
+        // Clock and Reset.        //
+        // ======================= //
+        input  lclk, input  rst_n,
+
+        // ======================= //
+        // Timers signals.         //
+        // ======================= //
+        output timeout_timer_en      , input  timeout_8ms_occured    ,
+        output analog_settle_timer_en, input  analog_settle_time_done,
+
+        // ======================= //
+        // LTSM general signals.   //
+        // ======================= //
+        input  valtraincenter_en, output valtraincenter_done, output valtraincenter_fail_flag,
+        output trainerror_req,
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+
+        // ======================= //
+        // PHY Rx/Tx control       //
+        // ======================= //
+        output phy_tx_pi_phase_ctrl, // Tell ADC the Tx Clock Lane PI phase level.
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
+        // For SB TX:
+        output tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        output tx_sb_msg      , // Tell the Sideband the message that it should to send.
+        output tx_msginfo     , // MsgInfo field of the SB message.
+        output tx_data_field  , // Data field of the SB message.
+
+        // For SB RX:
+        input rx_sb_msg_valid, // Indicates that the sideband message is valid.
+        input rx_sb_msg      , // Get the Received SB msg.
+        input rx_msginfo     , // MsgInfo field of the SB message received.
+        input rx_data_field    // Data field of the SB message.
+    );
+    //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
 
 
 

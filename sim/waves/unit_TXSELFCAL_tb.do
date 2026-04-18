@@ -4,8 +4,8 @@ add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcol
 add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_TXSELFCAL_tb/ltsm_tb_attachments_inst/sb_clk
 add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_TXSELFCAL_tb/lclk
 
-add wave -noupdate -expand -group {TXSELFCAL Operations} -color Gold -itemcolor Gold /unit_TXSELFCAL_tb/intf/txselfcal_en
-add wave -noupdate -expand -group {TXSELFCAL Operations} -color Gold -itemcolor Gold /unit_TXSELFCAL_tb/intf/txselfcal_done
+add wave -noupdate -expand -group {PHY Operations} -color Plum -itemcolor Plum /unit_TXSELFCAL_tb/intf/txselfcal_en
+add wave -noupdate -expand -group {PHY Operations} -color Plum -itemcolor Plum /unit_TXSELFCAL_tb/intf/txselfcal_done
 add wave -noupdate -expand -group {FSM States} -color Magenta -itemcolor Magenta /unit_TXSELFCAL_tb/current_state
 
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_TXSELFCAL_tb/ltsm_tb_attachments_inst/tx_sb_msg_valid_pulse
@@ -13,8 +13,8 @@ add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /uni
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_TXSELFCAL_tb/intf/rx_sb_msg
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_TXSELFCAL_tb/ltsm_tb_attachments_inst/d2c_mux_out_if/rx_sb_msg_valid
 
-add wave -noupdate -expand -group {MB Control} -color Violet -itemcolor Violet /unit_TXSELFCAL_tb/intf/mb_tx_clk_lane_sel
-add wave -noupdate -expand -group {MB Control} -color Violet -itemcolor Violet /unit_TXSELFCAL_tb/intf/mb_tx_data_lane_sel
+add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_TXSELFCAL_tb/intf/mb_tx_clk_lane_sel
+add wave -noupdate -expand -group {MB Interface} -color Pink -itemcolor Pink /unit_TXSELFCAL_tb/intf/mb_tx_data_lane_sel
 
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_TXSELFCAL_tb/intf/timeout_8ms_occured
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_TXSELFCAL_tb/intf/trainerror_req

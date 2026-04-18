@@ -101,10 +101,10 @@ module unit_SPEEDIDLE #() (
                 end
                 // (S6) TRAINERROR state:
                 TO_TRAINERROR: begin
-                    next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
+                    next_state = (speedidle_if.speedidle_en) ? TO_TRAINERROR : SPEEDIDLE_IDLE;
                 end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state = (speedidle_if.speedidle_en) ? TO_TRAINERROR : SPEEDIDLE_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -186,12 +186,14 @@ module unit_SPEEDIDLE #() (
             // (S5) End of SPEEDIDLE state, transition to TXSELFCAL via asserting speedidle_done.
             TO_TXSELFCAL: begin
                 speedidle_if.speedidle_done = 1'b1;
+                speedidle_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
 
             // (S6) TRAINERROR state:
             TO_TRAINERROR: begin
                 speedidle_if.speedidle_done   = 1'b1;
                 speedidle_if.trainerror_req   = 1'b1;
+                speedidle_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
 
             default: begin

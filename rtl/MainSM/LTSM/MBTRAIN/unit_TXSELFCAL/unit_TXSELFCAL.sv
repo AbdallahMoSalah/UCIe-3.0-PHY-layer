@@ -69,10 +69,10 @@ module unit_TXSELFCAL #() (
                 end
                 // (S5) TRAINERROR state:
                 TO_TRAINERROR: begin
-                    next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
+                    next_state = (txselfcal_if.txselfcal_en) ? TO_TRAINERROR : TXSELFCAL_IDLE;
                 end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state = (txselfcal_if.txselfcal_en) ? TO_TRAINERROR : TXSELFCAL_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -148,13 +148,15 @@ module unit_TXSELFCAL #() (
 
             // (S4) End of TXSELFCAL state.
             TO_RXCLKCAL: begin
-                txselfcal_if.txselfcal_done = 1'b1;
+                txselfcal_if.txselfcal_done   = 1'b1;
+                txselfcal_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
 
             // (S5) TRAINERROR state:
             TO_TRAINERROR: begin
                 txselfcal_if.txselfcal_done   = 1'b1;
                 txselfcal_if.trainerror_req   = 1'b1;
+                txselfcal_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
 
             default: begin

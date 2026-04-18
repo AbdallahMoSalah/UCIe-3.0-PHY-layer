@@ -4,8 +4,8 @@ add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcol
 add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_SPEEDIDLE_tb/ltsm_tb_attachments_inst/sb_clk
 add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} -itemcolor {Spring Green} /unit_SPEEDIDLE_tb/lclk
 
-add wave -noupdate -expand -group {SPEEDIDLE Operations} -color Gold -itemcolor Gold /unit_SPEEDIDLE_tb/intf/speedidle_en
-add wave -noupdate -expand -group {SPEEDIDLE Operations} -color Gold -itemcolor Gold /unit_SPEEDIDLE_tb/intf/speedidle_done
+add wave -noupdate -expand -group {Control & Data} /unit_SPEEDIDLE_tb/intf/speedidle_en
+add wave -noupdate -expand -group {Control & Data} /unit_SPEEDIDLE_tb/intf/speedidle_done
 add wave -noupdate -expand -group {FSM States} -color Magenta -itemcolor Magenta /unit_SPEEDIDLE_tb/current_state
 
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_SPEEDIDLE_tb/ltsm_tb_attachments_inst/tx_sb_msg_valid_pulse
@@ -13,9 +13,9 @@ add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /uni
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_SPEEDIDLE_tb/intf/rx_sb_msg
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_SPEEDIDLE_tb/ltsm_tb_attachments_inst/d2c_mux_out_if/rx_sb_msg_valid
 
-add wave -noupdate -expand -group {Speed Negotiation} -color Violet -itemcolor Violet /unit_SPEEDIDLE_tb/intf/param_negotiated_max_speed
-add wave -noupdate -expand -group {Speed Negotiation} -color Violet -itemcolor Violet /unit_SPEEDIDLE_tb/intf/phy_negotiated_speed
-add wave -noupdate -expand -group {Speed Negotiation} -color Violet -itemcolor Violet /unit_SPEEDIDLE_tb/intf/state_n
+add wave -noupdate -expand -group {Control & Data} /unit_SPEEDIDLE_tb/intf/param_negotiated_max_speed
+add wave -noupdate -expand -group {PHY Operations} -color Plum -itemcolor Plum /unit_SPEEDIDLE_tb/intf/phy_negotiated_speed
+add wave -noupdate -expand -group {FSM States} -color Magenta -itemcolor Magenta /unit_SPEEDIDLE_tb/intf/state_n
 
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_SPEEDIDLE_tb/intf/timeout_8ms_occured
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_SPEEDIDLE_tb/intf/trainerror_req
