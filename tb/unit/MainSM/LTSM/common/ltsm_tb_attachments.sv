@@ -198,16 +198,20 @@ module ltsm_tb_attachments #(
     // |  -------------------------         (timeout_8ms_counter module)         ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     integer analog_settle_counter;
-    always @(posedge intf.lclk or negedge intf.rst_n) begin
-        if(!intf.rst_n) begin
-            analog_settle_counter        <= 0;
-            intf.analog_settle_time_done <= 0;
-        end
-        else begin
-            analog_settle_counter        <= (intf.analog_settle_timer_en)? analog_settle_counter + 1 : 0;
-            intf.analog_settle_time_done <= (analog_settle_counter < ANALOG_SETTLE_CYCLES)? 0 : 1; // Set timeout_8ms to 1 if the TIMEOUT counter reaches the defined TIMEOUT_CYCLES, otherwise keep it at 0.
+    always_ff @(posedge intf.lclk or negedge intf.rst_n) begin
+        if (!intf.rst_n) begin
+            analog_settle_counter <= '0;
+        end else begin
+            if (intf.analog_settle_timer_en) begin
+                if (analog_settle_counter < ANALOG_SETTLE_CYCLES) begin
+                    analog_settle_counter <= analog_settle_counter + 1;
+                end
+            end else begin
+                analog_settle_counter <= '0;
+            end
         end
     end
+    assign intf.analog_settle_time_done = (analog_settle_counter >= ANALOG_SETTLE_CYCLES) && intf.analog_settle_timer_en; // Set timeout_8ms to 1 if the TIMEOUT counter reaches the defined TIMEOUT_CYCLES, otherwise keep it at 0.
 
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
@@ -610,10 +614,10 @@ module ltsm_tb_attachments #(
         intf.mb_rx_clk_err                        = d2c_mux_out_if.mb_rx_clk_err             ; // The error coming from Clock Lane receiver in MB.
         intf.mb_rx_compare_done                   = d2c_mux_out_if.mb_rx_compare_done        ; // From MB to LTSM to tell that comparison of burst_count is done.
 
-        intf.phy_rx_tclkn_shift                   = d2c_mux_out_if.phy_rx_tclkn_shift        ; // The required shift of the partner TCKN_L (range 0 to 12).
-        intf.phy_rx_decrement_shift               = d2c_mux_out_if.phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
-        intf.phy_rx_clk_drift_cal_state           = d2c_mux_out_if.phy_rx_clk_drift_cal_state; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
-        intf.phy_rx_clk_drift_cal_valid           = d2c_mux_out_if.phy_rx_clk_drift_cal_valid; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+        // intf.phy_rx_tckn_shift                    = d2c_mux_out_if.phy_rx_tckn_shift         ; // The required shift of the partner TCKN_L (range 0 to 12).
+        // intf.phy_rx_decrement_shift               = d2c_mux_out_if.phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
+        // intf.phy_rx_clk_drift_cal_state           = d2c_mux_out_if.phy_rx_clk_drift_cal_state; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+        // intf.phy_rx_clk_drift_cal_valid           = d2c_mux_out_if.phy_rx_clk_drift_cal_valid; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
 
         intf.rx_sb_msg_valid                      = d2c_mux_out_if.rx_sb_msg_valid           ; // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
         intf.rx_sb_msg                            = d2c_mux_out_if.rx_sb_msg                 ; // Get the Received SB msg.
@@ -627,7 +631,7 @@ module ltsm_tb_attachments #(
         d2c_mux_in1_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ;
         d2c_mux_in1_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ;
         d2c_mux_in1_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
-        d2c_mux_in1_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ;
+        d2c_mux_in1_if.phy_rx_tckn_shift          = d2c_mux_out_if.phy_rx_tckn_shift         ;
         d2c_mux_in1_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
         d2c_mux_in1_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
         d2c_mux_in1_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
@@ -643,7 +647,7 @@ module ltsm_tb_attachments #(
         d2c_mux_in2_if.mb_rx_val_err              = d2c_mux_out_if.mb_rx_val_err             ;
         d2c_mux_in2_if.mb_rx_clk_err              = d2c_mux_out_if.mb_rx_clk_err             ;
         d2c_mux_in2_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
-        d2c_mux_in2_if.phy_rx_tclkn_shift         = d2c_mux_out_if.phy_rx_tclkn_shift        ;
+        d2c_mux_in2_if.phy_rx_tckn_shift          = d2c_mux_out_if.phy_rx_tckn_shift         ;
         d2c_mux_in2_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
         d2c_mux_in2_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
         d2c_mux_in2_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
