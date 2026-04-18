@@ -7,7 +7,6 @@ tb/wrapper/Link_Controller/Link_controller_tb_pkg.sv
 rtl/SideBand/common/sb_priority_arbiter.sv
 rtl/SideBand/Link_Controller/sb_mapper.sv
 rtl/SideBand/Link_Controller/sb_demapper.sv
-rtl/SideBand/Link_Controller/Link_Arbiter.sv
 rtl/SideBand/Link_Controller/Link_Demux.sv
 rtl/SideBand/Link_Controller/Link_Controller.sv
 rtl/SideBand/Link_Controller/sb_pattern_detector.sv

@@ -19,12 +19,12 @@ module unit_reset_state_tb;
     logic EN;
     LTSM_state_e state_sts;
     RDI_state lp_state_req;
-    msg_no_e Massage_Recieve;
+    msg_no_e message_receive;
 
     RDI_state next_state;
     logic Active_handshake_strt;
     reset_state cs_reg; 
-    msg_no_e Massage_Send;
+    msg_no_e message_send;
 
 
     // Instantiate the DUT
@@ -35,11 +35,11 @@ module unit_reset_state_tb;
         .EN(EN),
         .state_sts(state_sts),
         .lp_state_req(lp_state_req),
-        .Massage_Recieve(Massage_Recieve),
+        .message_receive(message_receive),
         .next_state(next_state),
         .Active_handshake_strt(Active_handshake_strt),
         .cs_reg(cs_reg),
-        .Massage_Send(Massage_Send)
+        .message_send(message_send)
     );
 
     // Clock Generation
@@ -55,7 +55,7 @@ module unit_reset_state_tb;
         Active_handshake_done=0;
         state_sts=RESET;
         lp_state_req=Nop;
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         lp_state_req=Reset;
         #10;
         // --------------------------------------------------------------------
@@ -69,9 +69,9 @@ module unit_reset_state_tb;
         lp_linkerror=0;
         #30;
         @(negedge lclk);
-        Massage_Recieve=RDI_LINK_ERROR_RSP;
+        message_receive=RDI_LINK_ERROR_RSP;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #10 EN=0;
         // --------------------------------------------------------------------
         // Scenario 2: LinkError triggered by a remote RDI_LINK_ERROR_REQ message
@@ -81,9 +81,9 @@ module unit_reset_state_tb;
         $display("scenario 2: LinkError through remote request");
         #10
         @(negedge lclk);
-        Massage_Recieve=RDI_LINK_ERROR_REQ;
+        message_receive=RDI_LINK_ERROR_REQ;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #30 EN=0;
         // --------------------------------------------------------------------
         // Scenario 3: Disabled state triggered by local adapter request
@@ -98,9 +98,9 @@ module unit_reset_state_tb;
         lp_state_req=Disabled;
         #30 
         @(negedge lclk);
-        Massage_Recieve=RDI_DISABLE_RSP;
+        message_receive=RDI_DISABLE_RSP;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #10 EN=0;
         // --------------------------------------------------------------------
         // Scenario 4: Disabled state triggered by a remote RDI_DISABLE_REQ message
@@ -110,9 +110,9 @@ module unit_reset_state_tb;
         $display("scenario 4: link Disabled through remote request");
         #10;
         @(negedge lclk);
-        Massage_Recieve=RDI_DISABLE_REQ;
+        message_receive=RDI_DISABLE_REQ;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #50 EN=0;
         // --------------------------------------------------------------------
         // Scenario 5: LinkReset triggered by local adapter request
@@ -127,9 +127,9 @@ module unit_reset_state_tb;
         lp_state_req=LinkReset;
         #30 
         @(negedge lclk);
-        Massage_Recieve=RDI_LINK_RESET_RSP;
+        message_receive=RDI_LINK_RESET_RSP;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #10 EN=0;
         // --------------------------------------------------------------------
         // Scenario 6: LinkReset triggered by a remote RDI_LINK_RESET_REQ message
@@ -139,9 +139,9 @@ module unit_reset_state_tb;
         $display("scenario 6: link reset through remote request ");
         #10;
         @(negedge lclk);
-        Massage_Recieve=RDI_LINK_RESET_REQ;
+        message_receive=RDI_LINK_RESET_REQ;
         @(negedge lclk);
-        Massage_Recieve=NOTHING;
+        message_receive=NOTHING;
         #30 EN=0;
         // --------------------------------------------------------------------
         // Scenario 7: Active state sequence triggered by local adapter request

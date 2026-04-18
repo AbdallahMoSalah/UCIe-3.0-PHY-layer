@@ -1,13 +1,13 @@
 package RDI_SM_pkg;
-    typedef enum logic [3:0] { Reset, 
-                                Active, 
-                                L1, 
-                                L2, 
-                                Retrain, 
-                                LinkReset, 
-                                Disabled, 
+    typedef enum logic [3:0] {  Reset,
+                                Active,
+                                Active_PMNAK,
+                                L_1, 
+                                L_2,
+                                LinkReset,
                                 LinkError,
-                                Nop,
-                                Active_PMNAK
+                                Retrain, 
+                                Disabled, 
+                                Nop
                                 } RDI_state;
 endpackage

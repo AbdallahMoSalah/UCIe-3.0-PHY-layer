@@ -3,9 +3,9 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate /unit_active_state_tb/dut/lclk
 add wave -noupdate /unit_active_state_tb/dut/rst_n
 add wave -noupdate /unit_active_state_tb/dut/EN
-add wave -noupdate -divider {massage interface}
-add wave -noupdate /unit_active_state_tb/dut/massage_recieve
-add wave -noupdate /unit_active_state_tb/dut/massage_send
+add wave -noupdate -divider {message interface}
+add wave -noupdate /unit_active_state_tb/dut/message_receive
+add wave -noupdate /unit_active_state_tb/dut/message_send
 add wave -noupdate -divider {stall handshake interface}
 add wave -noupdate -color coral -itemcolor coral /unit_active_state_tb/dut/stall_req
 add wave -noupdate -color coral -itemcolor coral /unit_active_state_tb/dut/stall_done

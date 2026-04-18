@@ -12,12 +12,12 @@ module unit_active_pmnak_state(
     input logic rst_n,                  // Asynchronous active-low reset
     input logic lp_linkerror,           // Link error indicator from Adapter
     input RDI_state lp_state_req,       // Requested state from Adapter
-    input msg_no_e massage_recieve,     // Received message from the other interface
+    input msg_no_e message_receive,     // Received message from the other interface
     input logic stall_done,             // Indicator that the stall handshake is complete
     input logic EN,                     // Enable signal for the state machine
     
     output logic stall_req,             // Request to stall the interface pipeline
-    output msg_no_e massage_send,       // Message to send to the other interface
+    output msg_no_e message_send,       // Message to send to the other interface
     output RDI_state next_state         // Next main state to transition to
 );
 
@@ -62,7 +62,7 @@ module unit_active_pmnak_state(
             flow <= flow0;
             next_state <= Nop;
             stall_req <= 1'b0;
-            massage_send <= NOP;
+            message_send <= NOP;
         end else begin
             case(cs)
                 // --- STATE_DISABLED ---
@@ -78,16 +78,16 @@ module unit_active_pmnak_state(
                 // Scans inputs sequentially. Processes adapter requests or peer messages
                 // and sets branching flags accordingly.
                 idle: begin
-                    if (massage_recieve == RDI_LINK_ERROR_REQ) begin
+                    if (message_receive == RDI_LINK_ERROR_REQ) begin
                         cs <= le_send_resp;
-                        massage_send <= RDI_LINK_ERROR_RSP;
+                        message_send <= RDI_LINK_ERROR_RSP;
                     end else if (lp_linkerror) begin
                         cs <= le_send_req;
-                        massage_send <= RDI_LINK_ERROR_REQ;
+                        message_send <= RDI_LINK_ERROR_REQ;
                     end else if (lp_state_req == Active) begin
                         cs <= active;
                         next_state <= Active;
-                    end else if (massage_recieve == RDI_DISABLE_REQ) begin
+                    end else if (message_receive == RDI_DISABLE_REQ) begin
                         cs <= stall_handshake;
                         flow <= flow0;
                         stall_req <= 1'b1;
@@ -95,7 +95,7 @@ module unit_active_pmnak_state(
                         cs <= stall_handshake;
                         flow <= flow1;
                         stall_req <= 1'b1;
-                    end else if (massage_recieve == RDI_RETRAIN_REQ) begin
+                    end else if (message_receive == RDI_RETRAIN_REQ) begin
                         cs <= stall_handshake;
                         flow <= flow2;
                         stall_req <= 1'b1;
@@ -107,7 +107,7 @@ module unit_active_pmnak_state(
                         cs <= stall_handshake;
                         flow <= flow4;
                         stall_req <= 1'b1;
-                    end else if (massage_recieve == RDI_LINK_RESET_REQ) begin
+                    end else if (message_receive == RDI_LINK_RESET_REQ) begin
                         cs <= stall_handshake;
                         flow <= flow5;
                         stall_req <= 1'b1;
@@ -122,27 +122,27 @@ module unit_active_pmnak_state(
                     if (stall_done) begin
                         case(flow)
                             flow0: begin
-                                massage_send <= RDI_DISABLE_RSP;
+                                message_send <= RDI_DISABLE_RSP;
                                 cs <= d_send_resp;
                             end
                             flow1: begin
-                                massage_send <= RDI_DISABLE_REQ;
+                                message_send <= RDI_DISABLE_REQ;
                                 cs <= d_send_req;
                             end
                             flow2: begin
-                                massage_send <= RDI_RETRAIN_RSP;
+                                message_send <= RDI_RETRAIN_RSP;
                                 cs <= rt_send_resp;
                             end
                             flow3: begin
-                                massage_send <= RDI_RETRAIN_REQ;
+                                message_send <= RDI_RETRAIN_REQ;
                                 cs <= rt_send_req;
                             end
                             flow4: begin
-                                massage_send <= RDI_LINK_RESET_REQ;
+                                message_send <= RDI_LINK_RESET_REQ;
                                 cs <= lr_send_req;
                             end
                             flow5: begin
-                                massage_send <= RDI_LINK_RESET_RSP;
+                                message_send <= RDI_LINK_RESET_RSP;
                                 cs <= lr_send_resp;
                             end
                         endcase
@@ -152,8 +152,8 @@ module unit_active_pmnak_state(
                 // --- LINK ERROR HANDSHAKE ---
                 // Waiting for peer's response to our link error request
                 le_send_req: begin
-                    massage_send <= NOP;
-                    if (massage_recieve == RDI_LINK_ERROR_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_LINK_ERROR_RSP) begin
                         cs <= linkerror;
                         next_state <= LinkError;
                     end
@@ -161,7 +161,7 @@ module unit_active_pmnak_state(
 
                 // After sending link error response, immediately settle into linkerror state
                 le_send_resp: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs <= linkerror;
                     next_state <= LinkError;
                 end
@@ -186,8 +186,8 @@ module unit_active_pmnak_state(
                 // --- DISABLE HANDSHAKE ---
                 // Waiting for peer's response to our disable request
                 d_send_req: begin
-                    massage_send <= NOP;
-                    if (massage_recieve == RDI_DISABLE_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_DISABLE_RSP) begin
                         cs <= disabled;
                         next_state <= Disabled;
                     end
@@ -195,7 +195,7 @@ module unit_active_pmnak_state(
 
                 // After sending disable response, immediately settle into disabled state
                 d_send_resp: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs <= disabled;
                     next_state <= Disabled;
                 end
@@ -211,8 +211,8 @@ module unit_active_pmnak_state(
                 // --- RETRAIN HANDSHAKE ---
                 // Waiting for peer's response to our retrain request
                 rt_send_req: begin
-                    massage_send <= NOP;
-                    if (massage_recieve == RDI_RETRAIN_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_RETRAIN_RSP) begin
                         cs <= retrain;
                         next_state <= Retrain;
                     end
@@ -220,7 +220,7 @@ module unit_active_pmnak_state(
 
                 // After sending retrain response, immediately settle into retrain state
                 rt_send_resp: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs <= retrain;
                     next_state <= Retrain;
                 end
@@ -236,8 +236,8 @@ module unit_active_pmnak_state(
                 // --- LINK RESET HANDSHAKE ---
                 // Waiting for peer's response to our link reset request
                 lr_send_req: begin
-                    massage_send <= NOP;
-                    if (massage_recieve == RDI_LINK_RESET_RSP) begin
+                    message_send <= NOP;
+                    if (message_receive == RDI_LINK_RESET_RSP) begin
                         cs <= linkreset;
                         next_state <= LinkReset;
                     end
@@ -245,7 +245,7 @@ module unit_active_pmnak_state(
 
                 // After sending link reset response, immediately settle into linkreset state
                 lr_send_resp: begin
-                    massage_send <= NOP;
+                    message_send <= NOP;
                     cs <= linkreset;
                     next_state <= LinkReset;
                 end

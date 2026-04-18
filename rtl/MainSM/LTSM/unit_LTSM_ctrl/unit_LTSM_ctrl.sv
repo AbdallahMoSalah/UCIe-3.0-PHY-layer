@@ -46,12 +46,12 @@ module unit_LTSM_ctrl (
                 end
                 CTRL_SBINIT: begin
                     itf.sbinit_en = 1'b1;
-                    if (itf.mbinit_done) next_state = CTRL_MBINIT;
+                    if (itf.sbinit_done) next_state = CTRL_MBINIT;
                     else                 next_state = CTRL_SBINIT;
                 end
                 CTRL_MBINIT: begin
                     itf.mbinit_en = 1'b1;
-                    if (itf.mbtrain_done) next_state = CTRL_MBTRAIN;
+                    if (itf.mbinit_done) next_state = CTRL_MBTRAIN;
                     else                  next_state = CTRL_MBINIT ;
                 end
                 CTRL_MBTRAIN: begin

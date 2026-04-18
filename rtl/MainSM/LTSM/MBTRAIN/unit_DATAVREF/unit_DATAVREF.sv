@@ -131,10 +131,10 @@ module unit_DATAVREF #(
                 end
                 // (S10) TRAINERROR state:
                 TO_TRAINERROR: begin
-                    next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
+                    next_state = (datavref_if.datavref_en)? TO_TRAINERROR : DATAVREF_IDLE;
                 end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state = (datavref_if.datavref_en)? TO_TRAINERROR : DATAVREF_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -171,7 +171,7 @@ module unit_DATAVREF #(
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
         d2c_if.d2c_lfsr_en          = 1'b0  ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
-        d2c_if.d2c_pattern_setup    = 3'b001; // Data Pattern
+        d2c_if.d2c_pattern_setup    = 3'b011; // Data Pattern
         d2c_if.d2c_data_pattern_sel = 2'b00 ; // Data pattern used during training: LFSR
         d2c_if.d2c_val_pattern_sel  = 1'b1  ; // Held Low (don't care for data lanes)
 
@@ -259,11 +259,13 @@ module unit_DATAVREF #(
             // (S9) Next Sub-state
             TO_SPEEDIDLE: begin
                 datavref_if.datavref_done = 1'b1;
+                datavref_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
             // (S10) TRAINERROR state:
             TO_TRAINERROR: begin
-                datavref_if.datavref_done  = 1'b1;
-                datavref_if.trainerror_req = 1'b1;
+                datavref_if.datavref_done    = 1'b1;
+                datavref_if.trainerror_req   = 1'b1;
+                datavref_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
             default: begin
             end

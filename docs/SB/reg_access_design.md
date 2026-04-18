@@ -260,3 +260,9 @@ Matches `docs/SB/reg_access_fsm.png`:
 | [Completion_gen.sv](file:///media/abdallah-salah/eng/Graduation_Project/UCIe-3.0-PHY-layer/rtl/SideBand/Reg_Access/Completion_gen.sv) | `rtl/SideBand/Reg_Access/` |
 | [Reg_File.sv](file:///media/abdallah-salah/eng/Graduation_Project/UCIe-3.0-PHY-layer/rtl/SideBand/Reg_Access/Reg_File.sv) | `rtl/SideBand/Reg_Access/` |
 | [Reg_Access.sv](file:///media/abdallah-salah/eng/Graduation_Project/UCIe-3.0-PHY-layer/rtl/SideBand/Reg_Access/Reg_Access.sv) | `rtl/SideBand/Reg_Access/` |
+
+
+1Ah + 2h = 1C
+1Ch + 8h = 24h
+24h + 8h = 2Ch
+decimal(2Ch) = 44

@@ -1,0 +1,734 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /MB_PATTERN_COMPARATOR_TB/DUT
+=== Design Unit: work.PATTERN_COMPARATOR
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         9         9         0   100.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /MB_PATTERN_COMPARATOR_TB/DUT
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/MB_Pattern_comparator/mb_pattern_comparator.sv
+------------------------------------IF Branch------------------------------------
+    106                                      269     Count coming in to IF
+    106             1                          2             if (!i_rst_n) begin
+    116             1                        267             end else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    117                                      267     Count coming in to IF
+    117             1                        262                 if (i_enable_pattern_com) begin
+    161             1                          5                 end else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    118                                      262     Count coming in to IF
+    118             1                          4                     if (!in_progress) begin
+    129             1                        256                     end else if (iteration_ctr < 128) begin
+    147             1                          2                     end else begin
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    154                                       32     Count coming in to IF
+    154             1                          1                             if (lane_err_accum[k] > i_max_error_threshold_per_lane_ID) begin
+    156             1                         31                             end else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       2         2         0   100.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /MB_PATTERN_COMPARATOR_TB/DUT --
+
+  File rtl/MainBand/MB_Pattern_comparator/mb_pattern_comparator.sv
+----------------Focused Condition View-------------------
+Line       129 Item    1  (iteration_ctr < 128)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+  (iteration_ctr < 128)         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (iteration_ctr < 128)_0  -                             
+  Row   2:          1  (iteration_ctr < 128)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       154 Item    1  (lane_err_accum[k] > i_max_error_threshold_per_lane_ID)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                                               Input Term   Covered  Reason for no coverage   Hint
+                                              -----------  --------  -----------------------  --------------
+  (lane_err_accum[k] > i_max_error_threshold_per_lane_ID)         Y
+
+     Rows:       Hits  FEC Target                                                 Non-masking condition(s)      
+ ---------  ---------  --------------------                                       -------------------------     
+  Row   1:          1  (lane_err_accum[k] > i_max_error_threshold_per_lane_ID)_0  -                             
+  Row   2:          1  (lane_err_accum[k] > i_max_error_threshold_per_lane_ID)_1  -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                     115       115         0   100.00%
+
+================================Statement Details================================
+
+Statement Coverage for instance /MB_PATTERN_COMPARATOR_TB/DUT --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/MB_Pattern_comparator/mb_pattern_comparator.sv
+    5                                                module PATTERN_COMPARATOR #(
+    6                                                    parameter WIDTH = 32
+    7                                                )(
+    8                                                    input  wire        i_clk,
+    9                                                    input  wire        i_rst_n,
+    10                                                   input  wire [1:0]  i_type_of_com,
+    11                                                   input  wire        i_enable_pattern_com,
+    12                                                   input  wire [15:0] i_max_error_threshold_per_lane_ID, // Threshold for per-lane error disabling
+    13                                                   input  wire [15:0] i_max_error_threshold_aggergate,   // Aggregate error threshold
+    14                                               
+    15                                                   // Reference PRBS / Generator
+    16                                                   input  wire [WIDTH-1:0] i_local_gen_0, i_local_gen_1, i_local_gen_2, i_local_gen_3,
+    17                                                   input  wire [WIDTH-1:0] i_local_gen_4, i_local_gen_5, i_local_gen_6, i_local_gen_7,
+    18                                                   input  wire [WIDTH-1:0] i_local_gen_8, i_local_gen_9, i_local_gen_10, i_local_gen_11,
+    19                                                   input  wire [WIDTH-1:0] i_local_gen_12, i_local_gen_13, i_local_gen_14, i_local_gen_15,
+    20                                               
+    21                                                   // Received Data
+    22                                                   input  wire [WIDTH-1:0] i_data_0,  i_data_1,  i_data_2,  i_data_3,
+    23                                                   input  wire [WIDTH-1:0] i_data_4,  i_data_5,  i_data_6,  i_data_7,
+    24                                                   input  wire [WIDTH-1:0] i_data_8,  i_data_9,  i_data_10, i_data_11,
+    25                                                   input  wire [WIDTH-1:0] i_data_12, i_data_13, i_data_14, i_data_15,
+    26                                               
+    27                                                   output reg  [15:0]      o_per_lane_error,
+    28                                                   output reg  [31:0]      o_error_counter,
+    29                                                   output reg              o_error_done
+    30                                               );
+    31                                               
+    32                                                   // =========================================================================
+    33                                                   // Arrays for easier indexing
+    34                                                   // =========================================================================
+    35                                                   wire [WIDTH-1:0] w_local_gen [0:15];
+    36                                                   wire [WIDTH-1:0] w_data [0:15];
+    37                                               
+    38                                                   assign w_local_gen[0] = i_local_gen_0;  assign w_data[0] = i_data_0;
+    39                                                   assign w_local_gen[1] = i_local_gen_1;  assign w_data[1] = i_data_1;
+    40                                                   assign w_local_gen[2] = i_local_gen_2;  assign w_data[2] = i_data_2;
+    41                                                   assign w_local_gen[3] = i_local_gen_3;  assign w_data[3] = i_data_3;
+    42                                                   assign w_local_gen[4] = i_local_gen_4;  assign w_data[4] = i_data_4;
+    43                                                   assign w_local_gen[5] = i_local_gen_5;  assign w_data[5] = i_data_5;
+    44                                                   assign w_local_gen[6] = i_local_gen_6;  assign w_data[6] = i_data_6;
+    45                                                   assign w_local_gen[7] = i_local_gen_7;  assign w_data[7] = i_data_7;
+    46                                                   assign w_local_gen[8] = i_local_gen_8;  assign w_data[8] = i_data_8;
+    47                                                   assign w_local_gen[9] = i_local_gen_9;  assign w_data[9] = i_data_9;
+    48                                                   assign w_local_gen[10]= i_local_gen_10; assign w_data[10]= i_data_10;
+    49                                                   assign w_local_gen[11]= i_local_gen_11; assign w_data[11]= i_data_11;
+    50                                                   assign w_local_gen[12]= i_local_gen_12; assign w_data[12]= i_data_12;
+    51                                                   assign w_local_gen[13]= i_local_gen_13; assign w_data[13]= i_data_13;
+    52                                                   assign w_local_gen[14]= i_local_gen_14; assign w_data[14]= i_data_14;
+    53                                                   assign w_local_gen[15]= i_local_gen_15; assign w_data[15]= i_data_15;
+    54                                               
+    55                                                   // =========================================================================
+    56                                                   // Functions for Bit Mismatch Counting (Popcount)
+    57                                                   // =========================================================================
+    58                                                   function automatic [4:0] count_ones_16(input [15:0] val);
+    59                                                       integer i;
+    60                                                       begin
+    61              1                         68                 count_ones_16 = 0;
+    62              1                         68                 for (i = 0; i < 16; i = i + 1) begin
+    62              2                       1088     
+    63              1                       1088                     count_ones_16 = count_ones_16 + val[i];
+    64                                                           end
+    65                                                       end
+    66                                                   endfunction
+    67                                               
+    68                                                   // =========================================================================
+    69                                                   // Combinational Mismatch Checking (2-stage as per spec: Lower & Upper 16)
+    70                                                   // =========================================================================
+    71                                                   wire [15:0] mismatch_lower [0:15];
+    72                                                   wire [15:0] mismatch_upper [0:15];
+    73                                                   wire [4:0]  lane_mismatch_part_1 [0:15];
+    74                                                   wire [4:0]  lane_mismatch_part_2 [0:15];
+    75                                                   wire [5:0]  lane_total_mismatch  [0:15];
+    76                                               
+    77                                                   genvar g;
+    78                                                   generate
+    79                                                       for (g = 0; g < 16; g = g + 1) begin : gen_cmp
+    80                                                           // Bitwise XOR per lane
+    81       1 (GI=0)                        258                 assign mismatch_lower[g] = w_local_gen[g][15:0]  ^ w_data[g][15:0];
+    81       1 (GI=1)                        258     
+    81       1 (GI=2)                        258     
+    81       1 (GI=3)                        258     
+    81       1 (GI=4)                        258     
+    81       1 (GI=5)                        258     
+    81       1 (GI=6)                        258     
+    81       1 (GI=7)                        258     
+    81       1 (GI=8)                        258     
+    81       1 (GI=9)                        258     
+    81      1 (GI=10)                        258     
+    81      1 (GI=11)                        258     
+    81      1 (GI=12)                        258     
+    81      1 (GI=13)                        258     
+    81      1 (GI=14)                        258     
+    81      1 (GI=15)                        258     
+    82       1 (GI=0)                        258                 assign mismatch_upper[g] = w_local_gen[g][31:16] ^ w_data[g][31:16];
+    82       1 (GI=1)                        258     
+    82       1 (GI=2)                        258     
+    82       1 (GI=3)                        258     
+    82       1 (GI=4)                        258     
+    82       1 (GI=5)                        258     
+    82       1 (GI=6)                        258     
+    82       1 (GI=7)                        258     
+    82       1 (GI=8)                        258     
+    82       1 (GI=9)                        258     
+    82      1 (GI=10)                        258     
+    82      1 (GI=11)                        258     
+    82      1 (GI=12)                        258     
+    82      1 (GI=13)                        258     
+    82      1 (GI=14)                        258     
+    82      1 (GI=15)                        258     
+    83                                                           
+    84                                                           // Popcount 16-bit parts
+    85       1 (GI=0)                          2                 assign lane_mismatch_part_1[g] = count_ones_16(mismatch_lower[g]);
+    85       1 (GI=1)                          2     
+    85       1 (GI=2)                          2     
+    85       1 (GI=3)                          4     
+    85       1 (GI=4)                          2     
+    85       1 (GI=5)                          2     
+    85       1 (GI=6)                          2     
+    85       1 (GI=7)                          4     
+    85       1 (GI=8)                          2     
+    85       1 (GI=9)                          2     
+    85      1 (GI=10)                          2     
+    85      1 (GI=11)                          2     
+    85      1 (GI=12)                          2     
+    85      1 (GI=13)                          2     
+    85      1 (GI=14)                          2     
+    85      1 (GI=15)                          2     
+    86       1 (GI=0)                          2                 assign lane_mismatch_part_2[g] = count_ones_16(mismatch_upper[g]);
+    86       1 (GI=1)                          2     
+    86       1 (GI=2)                          2     
+    86       1 (GI=3)                          2     
+    86       1 (GI=4)                          2     
+    86       1 (GI=5)                          2     
+    86       1 (GI=6)                          2     
+    86       1 (GI=7)                          2     
+    86       1 (GI=8)                          2     
+    86       1 (GI=9)                          2     
+    86      1 (GI=10)                          2     
+    86      1 (GI=11)                          2     
+    86      1 (GI=12)                          2     
+    86      1 (GI=13)                          2     
+    86      1 (GI=14)                          2     
+    86      1 (GI=15)                          2     
+    87                                                           
+    88                                                           // Total mismatch per lane in a cycle
+    89       1 (GI=0)                          2                 assign lane_total_mismatch[g]  = lane_mismatch_part_1[g] + lane_mismatch_part_2[g];
+    89       1 (GI=1)                          2     
+    89       1 (GI=2)                          2     
+    89       1 (GI=3)                          4     
+    89       1 (GI=4)                          2     
+    89       1 (GI=5)                          2     
+    89       1 (GI=6)                          2     
+    89       1 (GI=7)                          4     
+    89       1 (GI=8)                          2     
+    89       1 (GI=9)                          2     
+    89      1 (GI=10)                          2     
+    89      1 (GI=11)                          2     
+    89      1 (GI=12)                          2     
+    89      1 (GI=13)                          2     
+    89      1 (GI=14)                          2     
+    89      1 (GI=15)                          2     
+    90                                                       end
+    91                                                   endgenerate
+    92                                               
+    93                                                   // =========================================================================
+    94                                                   // Iteration Count & Accumulation logic
+    95                                                   // =========================================================================
+    96                                                   reg [7:0]   iteration_ctr;
+    97                                                   reg         in_progress;
+    98                                                   
+    99                                                   // Per-lane accumulated errors
+    100                                                  reg [15:0]  lane_err_accum [0:15];
+    101                                              
+    102                                                  integer k;
+    103                                              
+    104                                                  // FSM & Evaluation Logic
+    105             1                        269         always @(posedge i_clk or negedge i_rst_n) begin
+    106                                                      if (!i_rst_n) begin
+    107             1                          2                 iteration_ctr    <= 8'd0;
+    108             1                          2                 in_progress      <= 1'b0;
+    109             1                          2                 o_error_done     <= 1'b0;
+    110             1                          2                 o_error_counter  <= 32'd0;
+    111             1                          2                 o_per_lane_error <= 16'd0;
+    112                                                          
+    113             1                          2                 for (k = 0; k < 16; k = k + 1) begin
+    113             2                         32     
+    114             1                         32                     lane_err_accum[k] <= 16'd0;
+    115                                                          end
+    116                                                      end else begin
+    117                                                          if (i_enable_pattern_com) begin
+    118                                                              if (!in_progress) begin
+    119                                                                  // Initial setup/edge of compare triggering
+    120             1                          4                         in_progress      <= 1'b1;
+    121             1                          4                         iteration_ctr    <= 8'd0;
+    122             1                          4                         o_error_done     <= 1'b0;
+    123             1                          4                         o_error_counter  <= 32'd0;
+    124             1                          4                         o_per_lane_error <= 16'd0;
+    125                                                                  
+    126             1                          4                         for (k = 0; k < 16; k = k + 1) begin
+    126             2                         64     
+    127             1                         64                             lane_err_accum[k] <= 16'd0; // start fresh
+    128                                                                  end
+    129                                                              end else if (iteration_ctr < 128) begin
+    130                                                                  // ACCUMULATE
+    131                                                                  // Accumulate per lane errors
+    132             1                        256                         for (k = 0; k < 16; k = k + 1) begin
+    132             2                       4096     
+    133             1                       4096                             lane_err_accum[k] <= lane_err_accum[k] + lane_total_mismatch[k];
+    134                                                                  end
+    135                                                                  // Accumulate aggregate errors
+    136             1                        256                         o_error_counter <= o_error_counter + 
+    137                                                                                     lane_total_mismatch[0] + lane_total_mismatch[1] + 
+    138                                                                                     lane_total_mismatch[2] + lane_total_mismatch[3] + 
+    139                                                                                     lane_total_mismatch[4] + lane_total_mismatch[5] + 
+    140                                                                                     lane_total_mismatch[6] + lane_total_mismatch[7] + 
+    141                                                                                     lane_total_mismatch[8] + lane_total_mismatch[9] + 
+    142                                                                                     lane_total_mismatch[10]+ lane_total_mismatch[11]+ 
+    143                                                                                     lane_total_mismatch[12]+ lane_total_mismatch[13]+ 
+    144                                                                                     lane_total_mismatch[14]+ lane_total_mismatch[15];
+    145                                              
+    146             1                        256                         iteration_ctr <= iteration_ctr + 1'b1;
+    147                                                              end else begin
+    148                                                                  // FINISH
+    149             1                          2                         in_progress <= 1'b0;
+    150             1                          2                         o_error_done <= 1'b1;
+    151                                                                  
+    152                                                                  // Evaluate threshold limits per-lane
+    153             1                          2                         for (k = 0; k < 16; k = k + 1) begin
+    153             2                         32     
+    154                                                                      if (lane_err_accum[k] > i_max_error_threshold_per_lane_ID) begin
+    155             1                          1                                 o_per_lane_error[k] <= 1'b1;
+    156                                                                      end else begin
+    157             1                         31                                 o_per_lane_error[k] <= 1'b0;
+    158                                                                      end
+    159                                                                  end
+    160                                                              end
+    161                                                          end else begin
+    162                                                              // Reset/Idle when enable is low
+    163             1                          5                     in_progress  <= 1'b0;
+    164             1                          5                     o_error_done <= 1'b0;
+    165             1                          5                     iteration_ctr <= 8'd0;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                       2302      2085       217    90.57%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /MB_PATTERN_COMPARATOR_TB/DUT --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                             i_clk           1           1      100.00 
+                                    i_data_0[0-31]           1           1      100.00 
+                                    i_data_1[0-31]           1           1      100.00 
+                                    i_data_2[0-31]           1           1      100.00 
+                                    i_data_3[0-31]           1           1      100.00 
+                                    i_data_4[0-31]           1           1      100.00 
+                                    i_data_5[0-31]           1           1      100.00 
+                                    i_data_6[0-31]           1           1      100.00 
+                                    i_data_7[0-31]           1           1      100.00 
+                                    i_data_8[0-31]           1           1      100.00 
+                                    i_data_9[0-31]           1           1      100.00 
+                                   i_data_10[0-31]           1           1      100.00 
+                                   i_data_11[0-31]           1           1      100.00 
+                                   i_data_12[0-31]           1           1      100.00 
+                                   i_data_13[0-31]           1           1      100.00 
+                                   i_data_14[0-31]           1           1      100.00 
+                                   i_data_15[0-31]           1           1      100.00 
+                              i_enable_pattern_com           1           1      100.00 
+                               i_local_gen_0[0-31]           1           1      100.00 
+                               i_local_gen_1[0-31]           1           1      100.00 
+                               i_local_gen_2[0-31]           1           1      100.00 
+                               i_local_gen_3[0-31]           1           1      100.00 
+                               i_local_gen_4[0-31]           1           1      100.00 
+                               i_local_gen_5[0-31]           1           1      100.00 
+                               i_local_gen_6[0-31]           1           1      100.00 
+                               i_local_gen_7[0-31]           1           1      100.00 
+                               i_local_gen_8[0-31]           1           1      100.00 
+                               i_local_gen_9[0-31]           1           1      100.00 
+                              i_local_gen_10[0-31]           1           1      100.00 
+                              i_local_gen_11[0-31]           1           1      100.00 
+                              i_local_gen_12[0-31]           1           1      100.00 
+                              i_local_gen_13[0-31]           1           1      100.00 
+                              i_local_gen_14[0-31]           1           1      100.00 
+                              i_local_gen_15[0-31]           1           1      100.00 
+             i_max_error_threshold_aggergate[0-15]           0           0        0.00 
+           i_max_error_threshold_per_lane_ID[0-15]           0           0        0.00 
+                                           i_rst_n           0           1       50.00 
+                                i_type_of_com[0-1]           0           0        0.00 
+                                       in_progress           1           1      100.00 
+                                iteration_ctr[0-7]           1           1      100.00 
+                                           k[0-31]           0           0        0.00 
+                              o_error_counter[0-4]           1           1      100.00 
+                             o_error_counter[5-31]           0           0        0.00 
+                                      o_error_done           1           1      100.00 
+                             o_per_lane_error[0-6]           0           0        0.00 
+                               o_per_lane_error[7]           1           1      100.00 
+                            o_per_lane_error[8-15]           0           0        0.00 
+
+Total Node Count     =       1151 
+Toggled Node Count   =       1042 
+Untoggled Node Count =        109 
+
+Toggle Coverage      =      90.57% (2085 of 2302 bins)
+
+=================================================================================
+=== Instance: /MB_PATTERN_COMPARATOR_TB
+=== Design Unit: work.MB_PATTERN_COMPARATOR_TB
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         8         6         2    75.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /MB_PATTERN_COMPARATOR_TB
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/mb_pattern_comp_tb/MB_PATTERN_COMPARATOR_TB.sv
+------------------------------------IF Branch------------------------------------
+    105                                        1     Count coming in to IF
+    105             1                    ***0***             if (o_error_counter !== 0 || o_per_lane_error !== 0)
+    107             1                          1             else
+Branch totals: 1 hit of 2 branches = 50.00%
+
+------------------------------------IF Branch------------------------------------
+    132                                     2048     Count coming in to IF
+    132             1                          5                     if (i == 3 && iter < 5) begin
+                                            2043     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    137                                     2048     Count coming in to IF
+    137             1                         10                     if (i == 7 && iter < 10) begin
+                                            2038     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    153                                        1     Count coming in to IF
+    153             1                          1             if (o_error_counter === 25 && o_per_lane_error[7] === 1'b1 && o_per_lane_error[3] === 1'b0) begin
+    155             1                    ***0***             end else begin
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       9         4         5    44.44%
+
+================================Condition Details================================
+
+Condition Coverage for instance /MB_PATTERN_COMPARATOR_TB --
+
+  File tb/unit/mainband/mb_pattern_comp_tb/MB_PATTERN_COMPARATOR_TB.sv
+----------------Focused Condition View-------------------
+Line       105 Item    1  ((o_error_counter !== 0) || (o_per_lane_error !== 0))
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+                Input Term   Covered  Reason for no coverage   Hint
+               -----------  --------  -----------------------  --------------
+   (o_error_counter !== 0)         N  '_1' not hit             Hit '_1'
+  (o_per_lane_error !== 0)         N  '_1' not hit             Hit '_1'
+
+     Rows:       Hits  FEC Target                  Non-masking condition(s)      
+ ---------  ---------  --------------------        -------------------------     
+  Row   1:          1  (o_error_counter !== 0)_0   ~(o_per_lane_error !== 0)     
+  Row   2:    ***0***  (o_error_counter !== 0)_1   -                             
+  Row   3:          1  (o_per_lane_error !== 0)_0  ~(o_error_counter !== 0)      
+  Row   4:    ***0***  (o_per_lane_error !== 0)_1  ~(o_error_counter !== 0)      
+
+----------------Focused Condition View-------------------
+Line       132 Item    1  ((i == 3) && (iter < 5))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+  Input Term   Covered  Reason for no coverage   Hint
+ -----------  --------  -----------------------  --------------
+    (i == 3)         Y
+  (iter < 5)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (i == 3)_0            -                             
+  Row   2:          1  (i == 3)_1            (iter < 5)                    
+  Row   3:          1  (iter < 5)_0          (i == 3)                      
+  Row   4:          1  (iter < 5)_1          (i == 3)                      
+
+----------------Focused Condition View-------------------
+Line       137 Item    1  ((i == 7) && (iter < 10))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+   Input Term   Covered  Reason for no coverage   Hint
+  -----------  --------  -----------------------  --------------
+     (i == 7)         Y
+  (iter < 10)         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  (i == 7)_0            -                             
+  Row   2:          1  (i == 7)_1            (iter < 10)                   
+  Row   3:          1  (iter < 10)_0         (i == 7)                      
+  Row   4:          1  (iter < 10)_1         (i == 7)                      
+
+----------------Focused Condition View-------------------
+Line       153 Item    1  (((o_error_counter === 25) && (o_per_lane_error[7] === 1'b1)) && (o_per_lane_error[3] === 1'b0))
+Condition totals: 0 of 3 input terms covered = 0.00%
+
+                      Input Term   Covered  Reason for no coverage   Hint
+                     -----------  --------  -----------------------  --------------
+        (o_error_counter === 25)         N  '_0' not hit             Hit '_0'
+  (o_per_lane_error[7] === 1'b1)         N  '_0' not hit             Hit '_0'
+  (o_per_lane_error[3] === 1'b0)         N  '_0' not hit             Hit '_0'
+
+     Rows:       Hits  FEC Target                        Non-masking condition(s)      
+ ---------  ---------  --------------------              -------------------------     
+  Row   1:    ***0***  (o_error_counter === 25)_0        -                             
+  Row   2:          1  (o_error_counter === 25)_1        ((o_per_lane_error[3] === 1'b0) && (o_per_lane_error[7] === 1'b1))
+  Row   3:    ***0***  (o_per_lane_error[7] === 1'b1)_0  (o_error_counter === 25)      
+  Row   4:          1  (o_per_lane_error[7] === 1'b1)_1  ((o_per_lane_error[3] === 1'b0) && (o_error_counter === 25))
+  Row   5:    ***0***  (o_per_lane_error[3] === 1'b0)_0  ((o_error_counter === 25) && (o_per_lane_error[7] === 1'b1))
+  Row   6:          1  (o_per_lane_error[3] === 1'b0)_1  ((o_error_counter === 25) && (o_per_lane_error[7] === 1'b1))
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      54        52         2    96.29%
+
+================================Statement Details================================
+
+Statement Coverage for instance /MB_PATTERN_COMPARATOR_TB --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/mb_pattern_comp_tb/MB_PATTERN_COMPARATOR_TB.sv
+    3                                                module MB_PATTERN_COMPARATOR_TB;
+    4                                                
+    5                                                    parameter WIDTH = 32;
+    6                                                
+    7                                                    // Inputs
+    8                                                    reg        i_clk;
+    9                                                    reg        i_rst_n;
+    10                                                   reg [1:0]  i_type_of_com;
+    11                                                   reg        i_enable_pattern_com;
+    12                                                   reg [15:0] i_max_error_threshold_per_lane_ID;
+    13                                                   reg [15:0] i_max_error_threshold_aggergate;
+    14                                               
+    15                                                   // Generators and Data
+    16                                                   reg [WIDTH-1:0] local_gen [0:15];
+    17                                                   reg [WIDTH-1:0] rcv_data  [0:15];
+    18                                               
+    19                                                   // Outputs
+    20                                                   wire [15:0] o_per_lane_error;
+    21                                                   wire [31:0] o_error_counter;
+    22                                                   wire        o_error_done;
+    23                                               
+    24                                                   integer i, iter;
+    25                                                   integer seed = 32'hDEADBEEF;
+    26                                               
+    27                                                   // Instantiate DUT
+    28                                                   PATTERN_COMPARATOR #(
+    29                                                       .WIDTH(WIDTH)
+    30                                                   ) DUT (
+    31                                                       .i_clk(i_clk),
+    32                                                       .i_rst_n(i_rst_n),
+    33                                                       .i_type_of_com(i_type_of_com),
+    34                                                       .i_enable_pattern_com(i_enable_pattern_com),
+    35                                                       .i_max_error_threshold_per_lane_ID(i_max_error_threshold_per_lane_ID),
+    36                                                       .i_max_error_threshold_aggergate(i_max_error_threshold_aggergate),
+    37                                               
+    38                                                       .i_local_gen_0(local_gen[0]),   .i_local_gen_1(local_gen[1]),
+    39                                                       .i_local_gen_2(local_gen[2]),   .i_local_gen_3(local_gen[3]),
+    40                                                       .i_local_gen_4(local_gen[4]),   .i_local_gen_5(local_gen[5]),
+    41                                                       .i_local_gen_6(local_gen[6]),   .i_local_gen_7(local_gen[7]),
+    42                                                       .i_local_gen_8(local_gen[8]),   .i_local_gen_9(local_gen[9]),
+    43                                                       .i_local_gen_10(local_gen[10]), .i_local_gen_11(local_gen[11]),
+    44                                                       .i_local_gen_12(local_gen[12]), .i_local_gen_13(local_gen[13]),
+    45                                                       .i_local_gen_14(local_gen[14]), .i_local_gen_15(local_gen[15]),
+    46                                               
+    47                                                       .i_data_0(rcv_data[0]),   .i_data_1(rcv_data[1]),
+    48                                                       .i_data_2(rcv_data[2]),   .i_data_3(rcv_data[3]),
+    49                                                       .i_data_4(rcv_data[4]),   .i_data_5(rcv_data[5]),
+    50                                                       .i_data_6(rcv_data[6]),   .i_data_7(rcv_data[7]),
+    51                                                       .i_data_8(rcv_data[8]),   .i_data_9(rcv_data[9]),
+    52                                                       .i_data_10(rcv_data[10]), .i_data_11(rcv_data[11]),
+    53                                                       .i_data_12(rcv_data[12]), .i_data_13(rcv_data[13]),
+    54                                                       .i_data_14(rcv_data[14]), .i_data_15(rcv_data[15]),
+    55                                               
+    56                                                       .o_per_lane_error(o_per_lane_error),
+    57                                                       .o_error_counter(o_error_counter),
+    58                                                       .o_error_done(o_error_done)
+    59                                                   );
+    60                                               
+    61                                                   // Clock gen
+    62              1                        561         always #5 i_clk = ~i_clk; // 100 MHz
+    62              2                        560     
+    63                                               
+    64                                                   initial begin
+    65                                                       // Initialize
+    66              1                          1             i_clk = 0;
+    67              1                          1             i_rst_n = 0;
+    68              1                          1             i_type_of_com = 2'b01; // LFSR mode
+    69              1                          1             i_enable_pattern_com = 0;
+    70              1                          1             i_max_error_threshold_per_lane_ID = 16'd10; // Disable lane if > 10 errors
+    71              1                          1             i_max_error_threshold_aggergate = 16'd50;
+    72                                               
+    73              1                          1             for (i = 0; i < 16; i = i + 1) begin
+    73              2                         16     
+    74              1                         16                 local_gen[i] = 0;
+    75              1                         16                 rcv_data[i]  = 0;
+    76                                                       end
+    77                                               
+    78                                                       // Assert reset
+    79              1                          1             #20;
+    80              1                          1             i_rst_n = 1;
+    81              1                          1             #10;
+    82                                               
+    83                                                       // ==========================================
+    84                                                       // TEST 1: PERFECT MATCH TEST
+    85                                                       // ==========================================
+    86              1                          1             $display("[%0t] ==== STARTING TEST 1: No Errors ====", $time);
+    87              1                          1             @(posedge i_clk);
+    88              1                          1             i_enable_pattern_com = 1;
+    89                                               
+    90                                                       // Drive random data for 128 cycles, cleanly matching
+    91              1                          1             for (iter = 0; iter < 128; iter = iter + 1) begin
+    91              2                        128     
+    92              1                        128                 @(posedge i_clk);
+    93              1                        128                 for (i = 0; i < 16; i = i + 1) begin
+    93              2                       2048     
+    94              1                       2048                     local_gen[i] = $random(seed);
+    95              1                       2048                     rcv_data[i]  = local_gen[i]; // Perfect match
+    96                                                           end
+    97                                                       end
+    98                                               
+    99                                                       // Wait for completion
+    100             1                          1             wait(o_error_done);
+    101             1                          1             @(posedge i_clk);
+    102             1                          1             i_enable_pattern_com = 0;
+    103                                                      
+    104             1                          1             $display("[%0t] Test 1 Done. Total Errors: %0d", $time, o_error_counter);
+    105                                                      if (o_error_counter !== 0 || o_per_lane_error !== 0)
+    106             1                    ***0***                 $display("-> FAILED Test 1!");
+    107                                                      else
+    108             1                          1                 $display("-> PASSED Test 1!");
+    109                                              
+    110             1                          1             #50;
+    111                                              
+    112                                                      // ==========================================
+    113                                                      // TEST 2: ERROR INJECTION TEST
+    114                                                      // ==========================================
+    115             1                          1             $display("[%0t] ==== STARTING TEST 2: Error Injection ====", $time);
+    116             1                          1             @(posedge i_clk);
+    117             1                          1             i_enable_pattern_com = 1;
+    118                                              
+    119                                                      // Run 128 iterations
+    120                                                      // We will inject exactly:
+    121                                                      // - 5 errors in lane 3 (should not exceed threshold 10, won't disable)
+    122                                                      // - 20 errors in lane 7 (exceeds threshold 10, will disable lane / flag error)
+    123             1                          1             for (iter = 0; iter < 128; iter = iter + 1) begin
+    123             2                        128     
+    124             1                        128                 @(posedge i_clk);
+    125             1                        128                 for (i = 0; i < 16; i = i + 1) begin
+    125             2                       2048     
+    126             1                       2048                     local_gen[i] = $random(seed);
+    127                                                              
+    128                                                              // Default match
+    129             1                       2048                     rcv_data[i] = local_gen[i]; 
+    130                                              
+    131                                                              // Inject 1 bit error in lane 3 for first 5 iterations
+    132                                                              if (i == 3 && iter < 5) begin
+    133             1                          5                         rcv_data[i][0] = ~local_gen[i][0]; // flip bit 0
+    134                                                              end
+    135                                                              
+    136                                                              // Inject 2 bit errors in lane 7 for first 10 iterations (20 errors total)
+    137                                                              if (i == 7 && iter < 10) begin
+    138             1                         10                         rcv_data[i][0] = ~local_gen[i][0];
+    139             1                         10                         rcv_data[i][1] = ~local_gen[i][1];
+    140                                                              end
+    141                                                          end
+    142                                                      end
+    143                                              
+    144             1                          1             wait(o_error_done);
+    145             1                          1             @(posedge i_clk);
+    146             1                          1             i_enable_pattern_com = 0;
+    147                                              
+    148             1                          1             $display("[%0t] Test 2 Done. Total Errors: %0d", $time, o_error_counter);
+    149             1                          1             $display("Lane Flags: %b", o_per_lane_error);
+    150                                              
+    151                                                      // Verify counts
+    152                                                      // Aggregate = 5 + 20 = 25
+    153                                                      if (o_error_counter === 25 && o_per_lane_error[7] === 1'b1 && o_per_lane_error[3] === 1'b0) begin
+    154             1                          1                  $display("-> PASSED Test 2!");
+    155                                                      end else begin
+    156             1                    ***0***                  $display("-> FAILED Test 2! (Expected Aggregate=25, Lane 7 flaged)");
+    157                                                      end
+    158                                              
+    159             1                          1             #100;
+    160             1                          1             $stop;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        364        91       273    25.00%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /MB_PATTERN_COMPARATOR_TB --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                           i[0-31]           0           0        0.00 
+                                             i_clk           1           1      100.00 
+                              i_enable_pattern_com           1           1      100.00 
+             i_max_error_threshold_aggergate[0-15]           0           0        0.00 
+           i_max_error_threshold_per_lane_ID[0-15]           0           0        0.00 
+                                           i_rst_n           0           1       50.00 
+                                i_type_of_com[0-1]           0           0        0.00 
+                                         iter[0-7]           1           1      100.00 
+                                        iter[8-31]           0           0        0.00 
+                              o_error_counter[0-4]           1           1      100.00 
+                             o_error_counter[5-31]           0           0        0.00 
+                                      o_error_done           1           1      100.00 
+                             o_per_lane_error[0-6]           0           0        0.00 
+                               o_per_lane_error[7]           1           1      100.00 
+                            o_per_lane_error[8-15]           0           0        0.00 
+                                         seed[0-3]           0           0        0.00 
+                                        seed[4-31]           1           1      100.00 
+
+Total Node Count     =        182 
+Toggled Node Count   =         45 
+Untoggled Node Count =        137 
+
+Toggle Coverage      =      25.00% (91 of 364 bins)
+
+
+Total Coverage By Instance (filtered view): 80.80%
+
