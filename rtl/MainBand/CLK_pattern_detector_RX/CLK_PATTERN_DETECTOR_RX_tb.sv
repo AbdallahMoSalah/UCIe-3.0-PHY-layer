@@ -1,14 +1,16 @@
+
+
 module CLK_PATTERN_DETECTOR_RX_tb;
 
   // -------------------------
   // Easy parameters to change
   // -------------------------
-  localparam int TOGGLE_CYCLES = 16;    // toggle clk_p for 16 cycles
-  localparam int ZERO_CYCLES   = 8;     // then keep clk_p=0 for 8 cycles
-  localparam int REPEAT_TIMES  = 128;   // repeat the whole pattern 128 times
+  localparam int TOGGLE_CYCLES = 16;     // toggle for 16 cycles
+  localparam int ZERO_CYCLES   = 8;      // then hold 0 for 8 cycles
+  localparam int REPEAT_TIMES  = 16;     // repeat enough times to reach 16 "good blocks"
 
-  localparam time CLK_PERIOD   = 10ns;  // i_clk period
-  localparam time PHASE_DELAY  = 5ns;   // clk_n delayed from clk_p by 5ns
+  localparam time CLK_PERIOD   = 10ns;   // i_clk period
+  localparam time PHASE_DELAY  = 5ns;    // clk_n delayed from clk_p by 5ns
 
   // -------------------------
   // Signals
@@ -21,11 +23,12 @@ module CLK_PATTERN_DETECTOR_RX_tb;
   logic clk_n;
   logic track;
 
-  logic clk_check_done;
-  logic clk_pattern_error;
+  logic clk_p_pattern_error;
+  logic clk_n_pattern_error;
+  logic track_pattern_error;
 
   // -------------------------
-  // DUT (Device Under Test)
+  // DUT
   // -------------------------
   CLK_PATTERN_DETECTOR_RX dut (
     .i_clk(i_clk),
@@ -34,12 +37,13 @@ module CLK_PATTERN_DETECTOR_RX_tb;
     .clk_p(clk_p),
     .clk_n(clk_n),
     .track(track),
-    .clk_check_done(clk_check_done),
-    .clk_pattern_error(clk_pattern_error)
+    .clk_p_pattern_error(clk_p_pattern_error),
+    .clk_n_pattern_error(clk_n_pattern_error),
+    .track_pattern_error(track_pattern_error)
   );
 
   // -------------------------
-  // 1) Make i_clk toggle forever
+  // 1) i_clk toggles forever
   // -------------------------
   initial begin
     i_clk = 1'b0;
@@ -47,74 +51,109 @@ module CLK_PATTERN_DETECTOR_RX_tb;
   end
 
   // -------------------------
-  // 2) Make clk_n = clk_p delayed (phase shift)
+  // 2) clk_n is delayed version of clk_p
   // -------------------------
   assign #(PHASE_DELAY) clk_n = clk_p;
 
   // -------------------------
-  // 3) Main stimulus
+  // 3) Stimulus
   // -------------------------
   initial begin
-    int rep;  // counts how many times we repeated the pattern
-    int i;    // simple loop counter
+    int rep, i;
 
-    // Start with everything low
+    // init
     i_rst_n         = 1'b0;
     clk_detector_en = 1'b0;
     clk_p           = 1'b0;
     track           = 1'b0;
 
-    // Hold reset for a few clock cycles
+    // reset for a few cycles
     repeat (3) @(posedge i_clk);
-    i_rst_n = 1'b1;  // release reset
+    i_rst_n = 1'b1;
 
-    // Enable the detector
+    // enable detector
     @(posedge i_clk);
     clk_detector_en = 1'b1;
+for (rep = 0; rep < 1; rep++) begin
 
-    // Repeat the full pattern up to 128 times (stop early if done)
-    for (rep = 0; rep < REPEAT_TIMES; rep++) begin
-      if (clk_check_done) break;
-
-      // -------------------------
-      // Part A: Toggle for 16 cycles
-      // clk_p will behave like i_clk for 16 cycles
-      // -------------------------
-      for (i = 0; i < TOGGLE_CYCLES; i++) begin
-        if (clk_check_done) break;
-
-        @(posedge i_clk);
-        clk_p <= 1'b1;
-        track <= 1'b1;
-
+     // extra 2 toggle
+      for (i = 0; i < 18; i++) begin
+      @(posedge i_clk);
+        clk_p  <= 1'b1;
+        track  <= 1'b1;
+        
         @(negedge i_clk);
-        clk_p <= 1'b0;
-        track <= 1'b0;
+        clk_p  <= 1'b0;
+        track  <= 1'b0;
+          
+        
       end
-
-      // -------------------------
-      // Part B: Hold zero for 8 cycles
-      // clk_p stays 0 for 8 cycles
-      // -------------------------
       clk_p <= 1'b0;
       track <= 1'b0;
-
-      for (i = 0; i < ZERO_CYCLES; i++) begin
-        if (clk_check_done) break;
-        @(posedge i_clk);
-      end
+      repeat (ZERO_CYCLES) @(posedge i_clk);
     end
 
-    // After we finish, keep clocks low
-    clk_p <= 1'b0;
-    track <= 1'b0;
 
-    // Disable detector (optional)
-    @(posedge i_clk);
-    clk_detector_en = 1'b0;
+    for (rep = 0; rep < 1; rep++) begin
 
-    // Wait a little, then finish simulation
+     
+      for (i = 0; i < TOGGLE_CYCLES; i++) begin
+      @(posedge i_clk);
+        clk_p  <= 1'b1;
+        track  <= 1'b1;
+        
+        @(negedge i_clk);
+        clk_p  <= 1'b0;
+        track  <= 1'b0;
+          
+        
+      end
+
+      //extra 2 zeros
+      clk_p <= 1'b0;
+      track <= 1'b0;
+      repeat (10) @(posedge i_clk);
+    end
+     
+
+    // generate pattern blocks
+    for (rep = 0; rep < REPEAT_TIMES; rep++) begin
+
+      // A) toggle for TOGGLE_CYCLES (make clk_p and track toggle every half cycle)
+      for (i = 0; i < TOGGLE_CYCLES; i++) begin
+      @(posedge i_clk);
+        clk_p  <= 1'b1;
+        track  <= 1'b1;
+        
+        @(negedge i_clk);
+        clk_p  <= 1'b0;
+        track  <= 1'b0;
+          
+        
+      end
+
+      // B) hold low for ZERO_CYCLES full cycles
+      clk_p <= 1'b0;
+      track <= 1'b0;
+      repeat (ZERO_CYCLES) @(posedge i_clk);
+    end
+
+    // let DUT settle a bit
     repeat (5) @(posedge i_clk);
+
+    // simple check / print
+    $display("clk_p_pattern_error   = %0b", clk_p_pattern_error);
+    $display("clk_n_pattern_error   = %0b", clk_n_pattern_error);
+    $display("track_pattern_error   = %0b", track_pattern_error);
+
+    if ((clk_p_pattern_error === 1'b0) &&
+        (clk_n_pattern_error === 1'b0) &&
+        (track_pattern_error === 1'b0)) begin
+      $display("PASS: all pattern_error signals deasserted (0).");
+    end else begin
+      $display("FAIL: one or more pattern_error signals still asserted (1).");
+    end
+
     $stop;
   end
 
