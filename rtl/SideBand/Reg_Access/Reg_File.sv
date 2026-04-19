@@ -697,7 +697,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         ucie_link_cap_ff[3:1]         <= hw_max_link_width_cap_i;
         ucie_link_cap_ff[7:4]         <= hw_max_link_speed_cap_i;
         ucie_link_cap_ff[8]           <= 1'b1;
-        ucie_link_cap_ff[9]           <= adapter_multi_protocol_cap_cap_i;
+        ucie_link_cap_ff[9]           <= adapter_multi_protocol_cap_i;
         ucie_link_cap_ff[10]          <= phy_advanced_pkg_cap_i;
         ucie_link_cap_ff[11]          <= adapter_68B_flit_formate_streaming_cap_i;
         ucie_link_cap_ff[12]          <= adapter_256B_end_header_flit_format_streaming_cap_i;
