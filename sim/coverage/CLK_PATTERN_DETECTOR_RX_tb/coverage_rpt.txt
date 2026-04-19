@@ -1,0 +1,1380 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /CLK_PATTERN_DETECTOR_RX_tb/dut
+=== Design Unit: work.CLK_PATTERN_DETECTOR_RX
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        69        63         6    91.30%
+
+================================Branch Details================================
+
+Branch Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb/dut
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/CLK_pattern_detector_RX/CLK_PATTERN_DETECTOR_RX.sv
+------------------------------------IF Branch------------------------------------
+    35                                       444     Count coming in to IF
+    35              1                          2         if (!i_rst_n) begin
+    61              1                        442         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    63                                       442     Count coming in to IF
+    63              1                          1             if (!clk_detector_en) begin
+    90              1                        441             else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    100                                      444     Count coming in to IF
+    100             1                          2         if (!i_rst_n) begin
+    126             1                        442         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    128                                      442     Count coming in to IF
+    128             1                          1             if (!clk_detector_en) begin
+    155             1                        441             else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    165                                      444     Count coming in to IF
+    165             1                          2         if (!i_rst_n) begin
+    191             1                        442         else begin
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    193                                      442     Count coming in to IF
+    193             1                          1             if (!clk_detector_en) begin
+    220             1                        441             else begin 
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    224                                      441     Count coming in to IF
+    224             1                        290                 if (clk_p_p_w ^ clk_p_n_w == 1) begin
+    240             1                        151                 end else if (clk_p_p_w ^ clk_p_n_w == 0 ) begin
+                                         ***0***     All False Count
+Branch totals: 2 hits of 3 branches = 66.66%
+
+------------------------------------IF Branch------------------------------------
+    230                                      290     Count coming in to IF
+    230             1                          1                     if (counter_zero_p < ZERO && counter_zero_p != 0 ) begin
+                                             289     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    234                                      290     Count coming in to IF
+    234             1                         18                     if (counter_toggle_p == TOGGLE-1 ) begin
+    236             1                          2                     end else if (counter_toggle_p > TOGGLE-1) begin
+                                             270     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    245                                      151     Count coming in to IF
+    245             1                    ***0***                     if (counter_toggle_p < TOGGLE && counter_toggle_p != 0) begin
+                                             151     All False Count
+Branch totals: 1 hit of 2 branches = 50.00%
+
+------------------------------------IF Branch------------------------------------
+    249                                      151     Count coming in to IF
+    249             1                         18                     if (counter_zero_p == ZERO-1 ) begin
+    251             1                          4                     end else if (counter_zero_p > ZERO) begin
+                                             129     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    253                                        4     Count coming in to IF
+    253             1                          1                         if (counter_16_consecetive_p <= TOGGLE-1) begin
+                                               3     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    260                                      441     Count coming in to IF
+    260             1                        290                 if (clk_n_p_w ^ clk_n_n_w == 1) begin
+    276             1                        151                 end else if (clk_n_p_w ^ clk_n_n_w == 0 ) begin
+                                         ***0***     All False Count
+Branch totals: 2 hits of 3 branches = 66.66%
+
+------------------------------------IF Branch------------------------------------
+    266                                      290     Count coming in to IF
+    266             1                          1                     if (counter_zero_n < ZERO && counter_zero_n != 0 ) begin
+                                             289     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    270                                      290     Count coming in to IF
+    270             1                         18                     if (counter_toggle_n == TOGGLE-1 ) begin
+    272             1                          2                     end else if (counter_toggle_n > TOGGLE-1) begin
+                                             270     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    281                                      151     Count coming in to IF
+    281             1                    ***0***                     if (counter_toggle_n < TOGGLE && counter_toggle_n != 0) begin
+                                             151     All False Count
+Branch totals: 1 hit of 2 branches = 50.00%
+
+------------------------------------IF Branch------------------------------------
+    285                                      151     Count coming in to IF
+    285             1                         18                     if (counter_zero_n == ZERO-1 ) begin
+    287             1                          4                     end else if (counter_zero_n > ZERO) begin
+                                             129     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    289                                        4     Count coming in to IF
+    289             1                          1                         if (counter_16_consecetive_n <= TOGGLE-1) begin
+                                               3     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    296                                      441     Count coming in to IF
+    296             1                        290                 if (track_p_w ^ track_n_w == 1) begin
+    312             1                        151                 end else if (track_p_w ^ track_n_w == 0 ) begin
+                                         ***0***     All False Count
+Branch totals: 2 hits of 3 branches = 66.66%
+
+------------------------------------IF Branch------------------------------------
+    302                                      290     Count coming in to IF
+    302             1                          1                     if (counter_zero_track < ZERO && counter_zero_track != 0 ) begin
+                                             289     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    306                                      290     Count coming in to IF
+    306             1                         18                     if (counter_toggle_track == TOGGLE-1 ) begin
+    308             1                          2                     end else if (counter_toggle_track > TOGGLE-1) begin
+                                             270     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    317                                      151     Count coming in to IF
+    317             1                    ***0***                     if (counter_toggle_track < TOGGLE && counter_toggle_track != 0) begin
+                                             151     All False Count
+Branch totals: 1 hit of 2 branches = 50.00%
+
+------------------------------------IF Branch------------------------------------
+    321                                      151     Count coming in to IF
+    321             1                         18                     if (counter_zero_track == ZERO-1 ) begin
+    323             1                          4                     end else if (counter_zero_track > ZERO) begin
+                                             129     All False Count
+Branch totals: 3 hits of 3 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    325                                        4     Count coming in to IF
+    325             1                          1                         if (counter_16_consecetive_track <= TOGGLE-1 ) begin
+                                               3     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    331                                      441     Count coming in to IF
+    331             1                         17                 if (flag_p_tog && flag_p_zero) begin  
+                                             424     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    336                                      441     Count coming in to IF
+    336             1                         17                   if (flag_n_tog && flag_n_zero) begin 
+                                             424     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    341                                      441     Count coming in to IF
+    341             1                         17                   if (flag_track_tog && flag_track_zero) begin 
+                                             424     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    346                                      441     Count coming in to IF
+    346             1                          3                 if (counter_16_consecetive_p == 16) begin
+                                             438     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    349                                      441     Count coming in to IF
+    349             1                          3                 if (counter_16_consecetive_n == 16) begin
+                                             438     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+------------------------------------IF Branch------------------------------------
+    352                                      441     Count coming in to IF
+    352             1                          3                 if (counter_16_consecetive_track == 16) begin
+                                             438     All False Count
+Branch totals: 2 hits of 2 branches = 100.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                      48        33        15    68.75%
+
+================================Condition Details================================
+
+Condition Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb/dut --
+
+  File rtl/MainBand/CLK_pattern_detector_RX/CLK_PATTERN_DETECTOR_RX.sv
+-----------Focused Condition View (Bimodal)--------------
+Line       224 Item    1  (clk_p_p_w ^ clk_p_n_w)
+Condition totals: 1 of 2 input terms covered = 50.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    clk_p_p_w         N  '_0' hit but '_1' not hit              Hit '_1' for output ->0 or ->1
+    clk_p_n_w         Y
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           1           1  clk_p_p_w_0           -                                  
+ Row   2:           0           0  clk_p_p_w_1           -                                  
+ Row   3:           1           0  clk_p_n_w_0           -                                  
+ Row   4:           0           1  clk_p_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       230 Item    1  ((counter_zero_p < 8) && (counter_zero_p != 0))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+   (counter_zero_p < 8)         Y
+  (counter_zero_p != 0)         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (counter_zero_p < 8)_0   -                             
+  Row   2:          1  (counter_zero_p < 8)_1   (counter_zero_p != 0)         
+  Row   3:          1  (counter_zero_p != 0)_0  (counter_zero_p < 8)          
+  Row   4:          1  (counter_zero_p != 0)_1  (counter_zero_p < 8)          
+
+----------------Focused Condition View-------------------
+Line       234 Item    1  (counter_toggle_p == (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                      Input Term   Covered  Reason for no coverage   Hint
+                     -----------  --------  -----------------------  --------------
+  (counter_toggle_p == (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                        Non-masking condition(s)      
+ ---------  ---------  --------------------              -------------------------     
+  Row   1:          1  (counter_toggle_p == (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_p == (16 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       236 Item    1  (counter_toggle_p > (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                     Input Term   Covered  Reason for no coverage   Hint
+                    -----------  --------  -----------------------  --------------
+  (counter_toggle_p > (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                       Non-masking condition(s)      
+ ---------  ---------  --------------------             -------------------------     
+  Row   1:          1  (counter_toggle_p > (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_p > (16 - 1))_1  -                             
+
+-----------Focused Condition View (Bimodal)--------------
+Line       240 Item    1  (clk_p_p_w ^ ~clk_p_n_w)
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    clk_p_p_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+    clk_p_n_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           0           1  clk_p_p_w_0           -                                  
+ Row   2:           0           0  clk_p_p_w_1           -                                  
+ Row   3:           0           1  clk_p_n_w_0           -                                  
+ Row   4:           0           0  clk_p_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       245 Item    1  ((counter_toggle_p < 16) && (counter_toggle_p != 0))
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+               Input Term   Covered  Reason for no coverage   Hint
+              -----------  --------  -----------------------  --------------
+  (counter_toggle_p < 16)         N  '_1' not hit             Hit '_1'
+  (counter_toggle_p != 0)         N  '_1' not hit             Hit '_1'
+
+     Rows:       Hits  FEC Target                 Non-masking condition(s)      
+ ---------  ---------  --------------------       -------------------------     
+  Row   1:          1  (counter_toggle_p < 16)_0  -                             
+  Row   2:    ***0***  (counter_toggle_p < 16)_1  (counter_toggle_p != 0)       
+  Row   3:          1  (counter_toggle_p != 0)_0  (counter_toggle_p < 16)       
+  Row   4:    ***0***  (counter_toggle_p != 0)_1  (counter_toggle_p < 16)       
+
+----------------Focused Condition View-------------------
+Line       249 Item    1  (counter_zero_p == (8 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                   Input Term   Covered  Reason for no coverage   Hint
+                  -----------  --------  -----------------------  --------------
+  (counter_zero_p == (8 - 1))         Y
+
+     Rows:       Hits  FEC Target                     Non-masking condition(s)      
+ ---------  ---------  --------------------           -------------------------     
+  Row   1:          1  (counter_zero_p == (8 - 1))_0  -                             
+  Row   2:          1  (counter_zero_p == (8 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       251 Item    1  (counter_zero_p > 8)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+            Input Term   Covered  Reason for no coverage   Hint
+           -----------  --------  -----------------------  --------------
+  (counter_zero_p > 8)         Y
+
+     Rows:       Hits  FEC Target              Non-masking condition(s)      
+ ---------  ---------  --------------------    -------------------------     
+  Row   1:          1  (counter_zero_p > 8)_0  -                             
+  Row   2:          1  (counter_zero_p > 8)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       253 Item    1  (counter_16_consecetive_p <= (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                              Input Term   Covered  Reason for no coverage   Hint
+                             -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_p <= (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                                Non-masking condition(s)      
+ ---------  ---------  --------------------                      -------------------------     
+  Row   1:          1  (counter_16_consecetive_p <= (16 - 1))_0  -                             
+  Row   2:          1  (counter_16_consecetive_p <= (16 - 1))_1  -                             
+
+-----------Focused Condition View (Bimodal)--------------
+Line       260 Item    1  (clk_n_p_w ^ clk_n_n_w)
+Condition totals: 1 of 2 input terms covered = 50.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    clk_n_p_w         N  '_0' hit but '_1' not hit              Hit '_1' for output ->0 or ->1
+    clk_n_n_w         Y
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           1           1  clk_n_p_w_0           -                                  
+ Row   2:           0           0  clk_n_p_w_1           -                                  
+ Row   3:           1           0  clk_n_n_w_0           -                                  
+ Row   4:           0           1  clk_n_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       266 Item    1  ((counter_zero_n < 8) && (counter_zero_n != 0))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+             Input Term   Covered  Reason for no coverage   Hint
+            -----------  --------  -----------------------  --------------
+   (counter_zero_n < 8)         Y
+  (counter_zero_n != 0)         Y
+
+     Rows:       Hits  FEC Target               Non-masking condition(s)      
+ ---------  ---------  --------------------     -------------------------     
+  Row   1:          1  (counter_zero_n < 8)_0   -                             
+  Row   2:          1  (counter_zero_n < 8)_1   (counter_zero_n != 0)         
+  Row   3:          1  (counter_zero_n != 0)_0  (counter_zero_n < 8)          
+  Row   4:          1  (counter_zero_n != 0)_1  (counter_zero_n < 8)          
+
+----------------Focused Condition View-------------------
+Line       270 Item    1  (counter_toggle_n == (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                      Input Term   Covered  Reason for no coverage   Hint
+                     -----------  --------  -----------------------  --------------
+  (counter_toggle_n == (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                        Non-masking condition(s)      
+ ---------  ---------  --------------------              -------------------------     
+  Row   1:          1  (counter_toggle_n == (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_n == (16 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       272 Item    1  (counter_toggle_n > (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                     Input Term   Covered  Reason for no coverage   Hint
+                    -----------  --------  -----------------------  --------------
+  (counter_toggle_n > (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                       Non-masking condition(s)      
+ ---------  ---------  --------------------             -------------------------     
+  Row   1:          1  (counter_toggle_n > (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_n > (16 - 1))_1  -                             
+
+-----------Focused Condition View (Bimodal)--------------
+Line       276 Item    1  (clk_n_p_w ^ ~clk_n_n_w)
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    clk_n_p_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+    clk_n_n_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           0           1  clk_n_p_w_0           -                                  
+ Row   2:           0           0  clk_n_p_w_1           -                                  
+ Row   3:           0           1  clk_n_n_w_0           -                                  
+ Row   4:           0           0  clk_n_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       281 Item    1  ((counter_toggle_n < 16) && (counter_toggle_n != 0))
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+               Input Term   Covered  Reason for no coverage   Hint
+              -----------  --------  -----------------------  --------------
+  (counter_toggle_n < 16)         N  '_1' not hit             Hit '_1'
+  (counter_toggle_n != 0)         N  '_1' not hit             Hit '_1'
+
+     Rows:       Hits  FEC Target                 Non-masking condition(s)      
+ ---------  ---------  --------------------       -------------------------     
+  Row   1:          1  (counter_toggle_n < 16)_0  -                             
+  Row   2:    ***0***  (counter_toggle_n < 16)_1  (counter_toggle_n != 0)       
+  Row   3:          1  (counter_toggle_n != 0)_0  (counter_toggle_n < 16)       
+  Row   4:    ***0***  (counter_toggle_n != 0)_1  (counter_toggle_n < 16)       
+
+----------------Focused Condition View-------------------
+Line       285 Item    1  (counter_zero_n == (8 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                   Input Term   Covered  Reason for no coverage   Hint
+                  -----------  --------  -----------------------  --------------
+  (counter_zero_n == (8 - 1))         Y
+
+     Rows:       Hits  FEC Target                     Non-masking condition(s)      
+ ---------  ---------  --------------------           -------------------------     
+  Row   1:          1  (counter_zero_n == (8 - 1))_0  -                             
+  Row   2:          1  (counter_zero_n == (8 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       287 Item    1  (counter_zero_n > 8)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+            Input Term   Covered  Reason for no coverage   Hint
+           -----------  --------  -----------------------  --------------
+  (counter_zero_n > 8)         Y
+
+     Rows:       Hits  FEC Target              Non-masking condition(s)      
+ ---------  ---------  --------------------    -------------------------     
+  Row   1:          1  (counter_zero_n > 8)_0  -                             
+  Row   2:          1  (counter_zero_n > 8)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       289 Item    1  (counter_16_consecetive_n <= (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                              Input Term   Covered  Reason for no coverage   Hint
+                             -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_n <= (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                                Non-masking condition(s)      
+ ---------  ---------  --------------------                      -------------------------     
+  Row   1:          1  (counter_16_consecetive_n <= (16 - 1))_0  -                             
+  Row   2:          1  (counter_16_consecetive_n <= (16 - 1))_1  -                             
+
+-----------Focused Condition View (Bimodal)--------------
+Line       296 Item    1  (track_p_w ^ track_n_w)
+Condition totals: 1 of 2 input terms covered = 50.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    track_p_w         N  '_0' hit but '_1' not hit              Hit '_1' for output ->0 or ->1
+    track_n_w         Y
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           1           1  track_p_w_0           -                                  
+ Row   2:           0           0  track_p_w_1           -                                  
+ Row   3:           1           0  track_n_w_0           -                                  
+ Row   4:           0           1  track_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       302 Item    1  ((counter_zero_track < 8) && (counter_zero_track != 0))
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+                 Input Term   Covered  Reason for no coverage   Hint
+                -----------  --------  -----------------------  --------------
+   (counter_zero_track < 8)         Y
+  (counter_zero_track != 0)         Y
+
+     Rows:       Hits  FEC Target                   Non-masking condition(s)      
+ ---------  ---------  --------------------         -------------------------     
+  Row   1:          1  (counter_zero_track < 8)_0   -                             
+  Row   2:          1  (counter_zero_track < 8)_1   (counter_zero_track != 0)     
+  Row   3:          1  (counter_zero_track != 0)_0  (counter_zero_track < 8)      
+  Row   4:          1  (counter_zero_track != 0)_1  (counter_zero_track < 8)      
+
+----------------Focused Condition View-------------------
+Line       306 Item    1  (counter_toggle_track == (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                          Input Term   Covered  Reason for no coverage   Hint
+                         -----------  --------  -----------------------  --------------
+  (counter_toggle_track == (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                            Non-masking condition(s)      
+ ---------  ---------  --------------------                  -------------------------     
+  Row   1:          1  (counter_toggle_track == (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_track == (16 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       308 Item    1  (counter_toggle_track > (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                         Input Term   Covered  Reason for no coverage   Hint
+                        -----------  --------  -----------------------  --------------
+  (counter_toggle_track > (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                           Non-masking condition(s)      
+ ---------  ---------  --------------------                 -------------------------     
+  Row   1:          1  (counter_toggle_track > (16 - 1))_0  -                             
+  Row   2:          1  (counter_toggle_track > (16 - 1))_1  -                             
+
+-----------Focused Condition View (Bimodal)--------------
+Line       312 Item    1  (track_p_w ^ ~track_n_w)
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+   Input Term   Covered  Reason for no coverage                  Hint
+  -----------  --------  --------------------------------------  --------------
+    track_p_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+    track_n_w         N  '_0' hit but '_1' is not hit           Hit '_1' for output ->0
+
+    Rows:   Hits(->0)   Hits(->1)  FEC Target            Non-masking condition(s)           
+
+---------  ----------  ----------  --------------------  -------------------------          
+ Row   1:           0           1  track_p_w_0           -                                  
+ Row   2:           0           0  track_p_w_1           -                                  
+ Row   3:           0           1  track_n_w_0           -                                  
+ Row   4:           0           0  track_n_w_1           -                                  
+
+----------------Focused Condition View-------------------
+Line       317 Item    1  ((counter_toggle_track < 16) && (counter_toggle_track != 0))
+Condition totals: 0 of 2 input terms covered = 0.00%
+
+                   Input Term   Covered  Reason for no coverage   Hint
+                  -----------  --------  -----------------------  --------------
+  (counter_toggle_track < 16)         N  '_1' not hit             Hit '_1'
+  (counter_toggle_track != 0)         N  '_1' not hit             Hit '_1'
+
+     Rows:       Hits  FEC Target                     Non-masking condition(s)      
+ ---------  ---------  --------------------           -------------------------     
+  Row   1:          1  (counter_toggle_track < 16)_0  -                             
+  Row   2:    ***0***  (counter_toggle_track < 16)_1  (counter_toggle_track != 0)   
+  Row   3:          1  (counter_toggle_track != 0)_0  (counter_toggle_track < 16)   
+  Row   4:    ***0***  (counter_toggle_track != 0)_1  (counter_toggle_track < 16)   
+
+----------------Focused Condition View-------------------
+Line       321 Item    1  (counter_zero_track == (8 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                       Input Term   Covered  Reason for no coverage   Hint
+                      -----------  --------  -----------------------  --------------
+  (counter_zero_track == (8 - 1))         Y
+
+     Rows:       Hits  FEC Target                         Non-masking condition(s)      
+ ---------  ---------  --------------------               -------------------------     
+  Row   1:          1  (counter_zero_track == (8 - 1))_0  -                             
+  Row   2:          1  (counter_zero_track == (8 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       323 Item    1  (counter_zero_track > 8)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                Input Term   Covered  Reason for no coverage   Hint
+               -----------  --------  -----------------------  --------------
+  (counter_zero_track > 8)         Y
+
+     Rows:       Hits  FEC Target                  Non-masking condition(s)      
+ ---------  ---------  --------------------        -------------------------     
+  Row   1:          1  (counter_zero_track > 8)_0  -                             
+  Row   2:          1  (counter_zero_track > 8)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       325 Item    1  (counter_16_consecetive_track <= (16 - 1))
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                                  Input Term   Covered  Reason for no coverage   Hint
+                                 -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_track <= (16 - 1))         Y
+
+     Rows:       Hits  FEC Target                                    Non-masking condition(s)      
+ ---------  ---------  --------------------                          -------------------------     
+  Row   1:          1  (counter_16_consecetive_track <= (16 - 1))_0  -                             
+  Row   2:          1  (counter_16_consecetive_track <= (16 - 1))_1  -                             
+
+----------------Focused Condition View-------------------
+Line       331 Item    1  (flag_p_tog && flag_p_zero)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+   Input Term   Covered  Reason for no coverage   Hint
+  -----------  --------  -----------------------  --------------
+   flag_p_tog         Y
+  flag_p_zero         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  flag_p_tog_0          -                             
+  Row   2:          1  flag_p_tog_1          flag_p_zero                   
+  Row   3:          1  flag_p_zero_0         flag_p_tog                    
+  Row   4:          1  flag_p_zero_1         flag_p_tog                    
+
+----------------Focused Condition View-------------------
+Line       336 Item    1  (flag_n_tog && flag_n_zero)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+   Input Term   Covered  Reason for no coverage   Hint
+  -----------  --------  -----------------------  --------------
+   flag_n_tog         Y
+  flag_n_zero         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  flag_n_tog_0          -                             
+  Row   2:          1  flag_n_tog_1          flag_n_zero                   
+  Row   3:          1  flag_n_zero_0         flag_n_tog                    
+  Row   4:          1  flag_n_zero_1         flag_n_tog                    
+
+----------------Focused Condition View-------------------
+Line       341 Item    1  (flag_track_tog && flag_track_zero)
+Condition totals: 2 of 2 input terms covered = 100.00%
+
+       Input Term   Covered  Reason for no coverage   Hint
+      -----------  --------  -----------------------  --------------
+   flag_track_tog         Y
+  flag_track_zero         Y
+
+     Rows:       Hits  FEC Target            Non-masking condition(s)      
+ ---------  ---------  --------------------  -------------------------     
+  Row   1:          1  flag_track_tog_0      -                             
+  Row   2:          1  flag_track_tog_1      flag_track_zero               
+  Row   3:          1  flag_track_zero_0     flag_track_tog                
+  Row   4:          1  flag_track_zero_1     flag_track_tog                
+
+----------------Focused Condition View-------------------
+Line       346 Item    1  (counter_16_consecetive_p == 16)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                        Input Term   Covered  Reason for no coverage   Hint
+                       -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_p == 16)         Y
+
+     Rows:       Hits  FEC Target                          Non-masking condition(s)      
+ ---------  ---------  --------------------                -------------------------     
+  Row   1:          1  (counter_16_consecetive_p == 16)_0  -                             
+  Row   2:          1  (counter_16_consecetive_p == 16)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       349 Item    1  (counter_16_consecetive_n == 16)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                        Input Term   Covered  Reason for no coverage   Hint
+                       -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_n == 16)         Y
+
+     Rows:       Hits  FEC Target                          Non-masking condition(s)      
+ ---------  ---------  --------------------                -------------------------     
+  Row   1:          1  (counter_16_consecetive_n == 16)_0  -                             
+  Row   2:          1  (counter_16_consecetive_n == 16)_1  -                             
+
+----------------Focused Condition View-------------------
+Line       352 Item    1  (counter_16_consecetive_track == 16)
+Condition totals: 1 of 1 input term covered = 100.00%
+
+                            Input Term   Covered  Reason for no coverage   Hint
+                           -----------  --------  -----------------------  --------------
+  (counter_16_consecetive_track == 16)         Y
+
+     Rows:       Hits  FEC Target                              Non-masking condition(s)      
+ ---------  ---------  --------------------                    -------------------------     
+  Row   1:          1  (counter_16_consecetive_track == 16)_0  -                             
+  Row   2:          1  (counter_16_consecetive_track == 16)_1  -                             
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                     201       198         3    98.50%
+
+================================Statement Details================================
+
+Statement Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb/dut --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File rtl/MainBand/CLK_pattern_detector_RX/CLK_PATTERN_DETECTOR_RX.sv
+    1                                                module CLK_PATTERN_DETECTOR_RX( //Abdallah
+    2                                                    input  logic i_clk,
+    3                                                    input  logic i_rst_n,
+    4                                                    input  logic clk_detector_en,
+    5                                                
+    6                                                    input  logic clk_p,
+    7                                                    input  logic clk_n,
+    8                                                    input  logic track,
+    9                                                
+    10                                                   
+    11                                                   output logic clk_p_pattern_error,clk_n_pattern_error,track_pattern_error
+    12                                               );
+    13                                               
+    14                                               parameter MAIN   = 128;
+    15                                               parameter TOGGLE = 16;
+    16                                               parameter ZERO   = 8;
+    17                                               
+    18                                               
+    19                                               
+    20                                               logic [4:0] counter_toggle_p;
+    21                                               logic [4:0] counter_toggle_n;
+    22                                               logic [4:0] counter_toggle_track;
+    23                                               logic [3:0] counter_zero_p;
+    24                                               logic [3:0] counter_zero_n;
+    25                                               logic [3:0] counter_zero_track;
+    26                                               
+    27                                               logic [4:0] counter_16_consecetive_p;
+    28                                               logic [4:0] counter_16_consecetive_n;
+    29                                               logic [4:0] counter_16_consecetive_track;
+    30                                               logic clk_p_p_w , clk_p_n_w , clk_n_p_w , clk_n_n_w , track_p_w , track_n_w; 
+    31                                               logic flag_p_tog , flag_p_zero , flag_n_tog , flag_n_zero , flag_track_tog , flag_track_zero ;
+    32                                               
+    33                                               
+    34              1                        444     always @(posedge i_clk , negedge i_rst_n ) begin
+    35                                                   if (!i_rst_n) begin
+    36              1                          2             counter_toggle_p    <= 0;
+    37              1                          2             counter_toggle_n    <= 0;
+    38              1                          2             counter_toggle_track    <= 0;
+    39              1                          2             counter_zero_p <= 0;
+    40              1                          2             counter_zero_n <= 0;
+    41              1                          2             counter_zero_track <= 0;
+    42              1                          2             counter_16_consecetive_p <= 0;
+    43              1                          2             counter_16_consecetive_n <= 0;
+    44              1                          2             counter_16_consecetive_track <= 0;
+    45              1                          2             clk_p_p_w <= 0; 
+    46              1                          2             clk_p_n_w <= 0; 
+    47              1                          2             clk_n_p_w <= 0; 
+    48              1                          2             clk_n_n_w <= 0; 
+    49              1                          2             track_p_w <= 0; 
+    50              1                          2             track_n_w <= 0;
+    51              1                          2             flag_p_tog <= 0; 
+    52              1                          2             flag_p_zero <= 0; 
+    53              1                          2             flag_n_tog <= 0; 
+    54              1                          2             flag_n_zero <= 0; 
+    55              1                          2             flag_track_tog <= 0; 
+    56              1                          2             flag_track_zero <= 0; 
+    57              1                          2             clk_p_pattern_error <= 1;
+    58              1                          2             clk_n_pattern_error <= 1;
+    59              1                          2             track_pattern_error <= 1;
+    60                                                   end
+    61                                                   else begin
+    62                                               
+    63                                                       if (!clk_detector_en) begin
+    64              1                          1            counter_toggle_p    <= 0;
+    65              1                          1             counter_toggle_n    <= 0;
+    66              1                          1             counter_toggle_track    <= 0;
+    67              1                          1             counter_zero_p <= 0;
+    68              1                          1             counter_zero_n <= 0;
+    69              1                          1             counter_zero_track <= 0;
+    70              1                          1             counter_16_consecetive_p <= 0;
+    71              1                          1             counter_16_consecetive_n <= 0;
+    72              1                          1             counter_16_consecetive_track <= 0;
+    73              1                          1             clk_p_p_w <= 0; 
+    74              1                          1             clk_p_n_w <= 0; 
+    75              1                          1             clk_n_p_w <= 0; 
+    76              1                          1             clk_n_n_w <= 0; 
+    77              1                          1             track_p_w <= 0; 
+    78              1                          1             track_n_w <= 0;
+    79              1                          1             flag_p_tog <= 0; 
+    80              1                          1             flag_p_zero <= 0; 
+    81              1                          1             flag_n_tog <= 0; 
+    82              1                          1             flag_n_zero <= 0; 
+    83              1                          1             flag_track_tog <= 0; 
+    84              1                          1             flag_track_zero <= 0; 
+    85              1                          1             clk_p_pattern_error <= 1;
+    86              1                          1             clk_n_pattern_error <= 1;
+    87              1                          1             track_pattern_error <= 1;
+    88                                                       end
+    89                                               
+    90                                                       else begin
+    91              1                        441                 clk_p_p_w <= clk_p;
+    92              1                        441                 clk_n_p_w <= clk_n;
+    93              1                        441                 track_p_w <= track;
+    94                                                  
+    95                                                       end
+    96                                                   end
+    97                                               end
+    98                                               
+    99              1                        444     always @(negedge i_clk , negedge i_rst_n ) begin
+    100                                                  if (!i_rst_n) begin
+    101             1                          2             counter_toggle_p    <= 0;
+    102             1                          2             counter_toggle_n    <= 0;
+    103             1                          2             counter_toggle_track    <= 0;
+    104             1                          2             counter_zero_p <= 0;
+    105             1                          2             counter_zero_n <= 0;
+    106             1                          2             counter_zero_track <= 0;
+    107             1                          2             counter_16_consecetive_p <= 0;
+    108             1                          2             counter_16_consecetive_n <= 0;
+    109             1                          2             counter_16_consecetive_track <= 0;
+    110             1                          2             clk_p_p_w <= 0; 
+    111             1                          2             clk_p_n_w <= 0; 
+    112             1                          2             clk_n_p_w <= 0; 
+    113             1                          2             clk_n_n_w <= 0; 
+    114             1                          2             track_p_w <= 0; 
+    115             1                          2             track_n_w <= 0;
+    116             1                          2             flag_p_tog <= 0; 
+    117             1                          2             flag_p_zero <= 0; 
+    118             1                          2             flag_n_tog <= 0; 
+    119             1                          2             flag_n_zero <= 0; 
+    120             1                          2             flag_track_tog <= 0; 
+    121             1                          2             flag_track_zero <= 0; 
+    122             1                          2             clk_p_pattern_error <= 1;
+    123             1                          2             clk_n_pattern_error <= 1;
+    124             1                          2             track_pattern_error <= 1;
+    125                                                  end
+    126                                                  else begin
+    127                                              
+    128                                                      if (!clk_detector_en) begin
+    129             1                          1             counter_toggle_p    <= 0;
+    130             1                          1             counter_toggle_n    <= 0;
+    131             1                          1             counter_toggle_track    <= 0;
+    132             1                          1             counter_zero_p <= 0;
+    133             1                          1             counter_zero_n <= 0;
+    134             1                          1             counter_zero_track <= 0;
+    135             1                          1             counter_16_consecetive_p <= 0;
+    136             1                          1             counter_16_consecetive_n <= 0;
+    137             1                          1             counter_16_consecetive_track <= 0;
+    138             1                          1             clk_p_p_w <= 0; 
+    139             1                          1             clk_p_n_w <= 0; 
+    140             1                          1             clk_n_p_w <= 0; 
+    141             1                          1             clk_n_n_w <= 0; 
+    142             1                          1             track_p_w <= 0; 
+    143             1                          1             track_n_w <= 0;
+    144             1                          1             flag_p_tog <= 0; 
+    145             1                          1             flag_p_zero <= 0; 
+    146             1                          1             flag_n_tog <= 0; 
+    147             1                          1             flag_n_zero <= 0; 
+    148             1                          1             flag_track_tog <= 0; 
+    149             1                          1             flag_track_zero <= 0; 
+    150             1                          1             clk_p_pattern_error <= 1;
+    151             1                          1             clk_n_pattern_error <= 1;
+    152             1                          1             track_pattern_error <= 1;
+    153                                                      end
+    154                                              
+    155                                                      else begin
+    156             1                        441                 clk_p_n_w <= clk_p;
+    157             1                        441                 clk_n_n_w <= clk_n;
+    158             1                        441                 track_n_w <= track;
+    159                                              
+    160                                                      end
+    161                                                  end
+    162                                              end
+    163                                              
+    164             1                        444     always @(posedge i_clk , negedge i_rst_n ) begin
+    165                                                  if (!i_rst_n) begin
+    166             1                          2           counter_toggle_p    <= 0;
+    167             1                          2             counter_toggle_n    <= 0;
+    168             1                          2             counter_toggle_track    <= 0;
+    169             1                          2             counter_zero_p <= 0;
+    170             1                          2             counter_zero_n <= 0;
+    171             1                          2             counter_zero_track <= 0;
+    172             1                          2             counter_16_consecetive_p <= 0;
+    173             1                          2             counter_16_consecetive_n <= 0;
+    174             1                          2             counter_16_consecetive_track <= 0;
+    175             1                          2             clk_p_p_w <= 0; 
+    176             1                          2             clk_p_n_w <= 0; 
+    177             1                          2             clk_n_p_w <= 0; 
+    178             1                          2             clk_n_n_w <= 0; 
+    179             1                          2             track_p_w <= 0; 
+    180             1                          2             track_n_w <= 0;
+    181             1                          2             flag_p_tog <= 0; 
+    182             1                          2             flag_p_zero <= 0; 
+    183             1                          2             flag_n_tog <= 0; 
+    184             1                          2             flag_n_zero <= 0; 
+    185             1                          2             flag_track_tog <= 0; 
+    186             1                          2             flag_track_zero <= 0; 
+    187             1                          2             clk_p_pattern_error <= 1;
+    188             1                          2             clk_n_pattern_error <= 1;
+    189             1                          2             track_pattern_error <= 1;
+    190                                                  end
+    191                                                  else begin
+    192                                              
+    193                                                      if (!clk_detector_en) begin
+    194             1                          1             counter_toggle_p    <= 0;
+    195             1                          1             counter_toggle_n    <= 0;
+    196             1                          1             counter_toggle_track    <= 0;
+    197             1                          1             counter_zero_p <= 0;
+    198             1                          1             counter_zero_n <= 0;
+    199             1                          1             counter_zero_track <= 0;
+    200             1                          1             counter_16_consecetive_p <= 0;
+    201             1                          1             counter_16_consecetive_n <= 0;
+    202             1                          1             counter_16_consecetive_track <= 0;
+    203             1                          1             clk_p_p_w <= 0; 
+    204             1                          1             clk_p_n_w <= 0; 
+    205             1                          1             clk_n_p_w <= 0; 
+    206             1                          1             clk_n_n_w <= 0; 
+    207             1                          1             track_p_w <= 0; 
+    208             1                          1             track_n_w <= 0;
+    209             1                          1             flag_p_tog <= 0; 
+    210             1                          1             flag_p_zero <= 0; 
+    211             1                          1             flag_n_tog <= 0; 
+    212             1                          1             flag_n_zero <= 0; 
+    213             1                          1             flag_track_tog <= 0; 
+    214             1                          1             flag_track_zero <= 0; 
+    215             1                          1             clk_p_pattern_error <= 1;
+    216             1                          1             clk_n_pattern_error <= 1;
+    217             1                          1             track_pattern_error <= 1;
+    218                                                      end
+    219                                              
+    220                                                      else begin 
+    221                                              
+    222                                                          // positive clk
+    223                                                          //toggle
+    224                                                          if (clk_p_p_w ^ clk_p_n_w == 1) begin
+    225                                              
+    226             1                        290                     counter_toggle_p <= counter_toggle_p + 1; 
+    227             1                        290                     counter_zero_p <= 0;                      
+    228             1                        290                     flag_p_zero <= 0;                         
+    229                                                              
+    230                                                              if (counter_zero_p < ZERO && counter_zero_p != 0 ) begin
+    231             1                          1                         counter_16_consecetive_p <= 0;
+    232                                                              end     
+    233                                              
+    234                                                              if (counter_toggle_p == TOGGLE-1 ) begin
+    235             1                         18                         flag_p_tog <= 1;
+    236                                                              end else if (counter_toggle_p > TOGGLE-1) begin
+    237             1                          2                         flag_p_tog <= 0;
+    238                                                              end
+    239                                                                 //idle
+    240                                                          end else if (clk_p_p_w ^ clk_p_n_w == 0 ) begin
+    241                                                          
+    242             1                        151                     counter_zero_p <= counter_zero_p + 1;   
+    243             1                        151                     counter_toggle_p <= 0;  
+    244                                                              
+    245                                                              if (counter_toggle_p < TOGGLE && counter_toggle_p != 0) begin
+    246             1                    ***0***                         counter_16_consecetive_p <= 0;
+    247                                                              end  
+    248                                              
+    249                                                              if (counter_zero_p == ZERO-1 ) begin
+    250             1                         18                         flag_p_zero <= 1;       //
+    251                                                              end else if (counter_zero_p > ZERO) begin
+    252             1                          4                         flag_p_zero <= 0;
+    253                                                                  if (counter_16_consecetive_p <= TOGGLE-1) begin
+    254             1                          1                         counter_16_consecetive_p <= 0;
+    255                                                                  end
+    256                                                              end  
+    257                                                          end 
+    258                                                           // negative clk
+    259                                                           //toggle
+    260                                                          if (clk_n_p_w ^ clk_n_n_w == 1) begin
+    261                                              
+    262             1                        290                     counter_toggle_n <= counter_toggle_n + 1; 
+    263             1                        290                     counter_zero_n <= 0;                      
+    264             1                        290                     flag_n_zero <= 0;                         
+    265                                                              
+    266                                                              if (counter_zero_n < ZERO && counter_zero_n != 0 ) begin
+    267             1                          1                         counter_16_consecetive_n <= 0;
+    268                                                              end     
+    269                                              
+    270                                                              if (counter_toggle_n == TOGGLE-1 ) begin
+    271             1                         18                         flag_n_tog <= 1;
+    272                                                              end else if (counter_toggle_n > TOGGLE-1) begin
+    273             1                          2                         flag_n_tog <= 0;
+    274                                                              end
+    275                                                                 //idle
+    276                                                          end else if (clk_n_p_w ^ clk_n_n_w == 0 ) begin
+    277                                                          
+    278             1                        151                     counter_zero_n <= counter_zero_n + 1;   
+    279             1                        151                     counter_toggle_n <= 0;  
+    280                                                              
+    281                                                              if (counter_toggle_n < TOGGLE && counter_toggle_n != 0) begin
+    282             1                    ***0***                         counter_16_consecetive_n <= 0;
+    283                                                              end  
+    284                                              
+    285                                                              if (counter_zero_n == ZERO-1 ) begin
+    286             1                         18                         flag_n_zero <= 1;       //
+    287                                                              end else if (counter_zero_n > ZERO) begin
+    288             1                          4                         flag_n_zero <= 0;
+    289                                                                  if (counter_16_consecetive_n <= TOGGLE-1) begin
+    290             1                          1                         counter_16_consecetive_n <= 0;
+    291                                                                  end
+    292                                                              end
+    293                                                          end
+    294                                                          // track
+    295                                                          //toggle
+    296                                                          if (track_p_w ^ track_n_w == 1) begin
+    297                                              
+    298             1                        290                     counter_toggle_track <= counter_toggle_track + 1; 
+    299             1                        290                     counter_zero_track <= 0;                      
+    300             1                        290                     flag_track_zero <= 0;                         
+    301                                                              
+    302                                                              if (counter_zero_track < ZERO && counter_zero_track != 0 ) begin
+    303             1                          1                         counter_16_consecetive_track <= 0;
+    304                                                              end     
+    305                                              
+    306                                                              if (counter_toggle_track == TOGGLE-1 ) begin
+    307             1                         18                         flag_track_tog <= 1;
+    308                                                              end else if (counter_toggle_track > TOGGLE-1) begin
+    309             1                          2                         flag_track_tog <= 0;
+    310                                                              end
+    311                                                                 //idle
+    312                                                          end else if (track_p_w ^ track_n_w == 0 ) begin
+    313                                                          
+    314             1                        151                     counter_zero_track <= counter_zero_track + 1;   
+    315             1                        151                     counter_toggle_track <= 0;  
+    316                                                              
+    317                                                              if (counter_toggle_track < TOGGLE && counter_toggle_track != 0) begin
+    318             1                    ***0***                         counter_16_consecetive_track <= 0;
+    319                                                              end  
+    320                                              
+    321                                                              if (counter_zero_track == ZERO-1 ) begin
+    322             1                         18                         flag_track_zero <= 1;       
+    323                                                              end else if (counter_zero_track > ZERO) begin
+    324             1                          4                         flag_track_zero <= 0;
+    325                                                                  if (counter_16_consecetive_track <= TOGGLE-1 ) begin
+    326             1                          1                         counter_16_consecetive_track <= 0;
+    327                                                                  end
+    328                                                              end
+    329                                                          end
+    330                                              
+    331                                                          if (flag_p_tog && flag_p_zero) begin  
+    332             1                         17                     counter_16_consecetive_p <= counter_16_consecetive_p + 1;
+    333             1                         17                     flag_p_tog <= 0;
+    334             1                         17                     flag_p_zero <= 0;
+    335                                                          end
+    336                                                            if (flag_n_tog && flag_n_zero) begin 
+    337             1                         17                     counter_16_consecetive_n <= counter_16_consecetive_n + 1;
+    338             1                         17                     flag_n_tog <= 0;
+    339             1                         17                     flag_n_zero <= 0;
+    340                                                          end
+    341                                                            if (flag_track_tog && flag_track_zero) begin 
+    342             1                         17                     counter_16_consecetive_track <= counter_16_consecetive_track + 1;
+    343             1                         17                     flag_track_tog <= 0;
+    344             1                         17                     flag_track_zero <= 0;
+    345                                                          end
+    346                                                          if (counter_16_consecetive_p == 16) begin
+    347             1                          3                     clk_p_pattern_error <= 0;
+    348                                                          end
+    349                                                          if (counter_16_consecetive_n == 16) begin
+    350             1                          3                     clk_n_pattern_error <= 0;
+    351                                                          end
+    352                                                          if (counter_16_consecetive_track == 16) begin
+    353             1                          3                     track_pattern_error <= 0;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                        126       112        14    88.88%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb/dut --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                   clk_detector_en           0           1       50.00 
+                                             clk_n           1           1      100.00 
+                                         clk_n_n_w           1           1      100.00 
+                                         clk_n_p_w           0           0        0.00 
+                               clk_n_pattern_error           1           0       50.00 
+                                             clk_p           1           1      100.00 
+                                         clk_p_n_w           1           1      100.00 
+                                         clk_p_p_w           0           0        0.00 
+                               clk_p_pattern_error           1           0       50.00 
+                     counter_16_consecetive_n[0-3]           1           1      100.00 
+                       counter_16_consecetive_n[4]           0           1       50.00 
+                     counter_16_consecetive_p[0-3]           1           1      100.00 
+                       counter_16_consecetive_p[4]           0           1       50.00 
+                 counter_16_consecetive_track[0-3]           1           1      100.00 
+                   counter_16_consecetive_track[4]           0           1       50.00 
+                             counter_toggle_n[0-4]           1           1      100.00 
+                             counter_toggle_p[0-4]           1           1      100.00 
+                         counter_toggle_track[0-4]           1           1      100.00 
+                               counter_zero_n[0-3]           1           1      100.00 
+                               counter_zero_p[0-3]           1           1      100.00 
+                           counter_zero_track[0-3]           1           1      100.00 
+                                        flag_n_tog           1           1      100.00 
+                                       flag_n_zero           1           1      100.00 
+                                        flag_p_tog           1           1      100.00 
+                                       flag_p_zero           1           1      100.00 
+                                    flag_track_tog           1           1      100.00 
+                                   flag_track_zero           1           1      100.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                             track           1           1      100.00 
+                                         track_n_w           1           1      100.00 
+                                         track_p_w           0           0        0.00 
+                               track_pattern_error           1           0       50.00 
+
+Total Node Count     =         63 
+Toggled Node Count   =         52 
+Untoggled Node Count =         11 
+
+Toggle Coverage      =      88.88% (112 of 126 bins)
+
+=================================================================================
+=== Instance: /CLK_PATTERN_DETECTOR_RX_tb
+=== Design Unit: work.CLK_PATTERN_DETECTOR_RX_tb
+=================================================================================
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                         2         1         1    50.00%
+
+================================Branch Details================================
+
+Branch Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/CLK_PATTERN_DETECTOR_RX_tb/CLK_PATTERN_DETECTOR_RX_tb.sv
+------------------------------------IF Branch------------------------------------
+    149                                        1     Count coming in to IF
+    149             1                          1         if ((clk_p_pattern_error === 1'b0) &&
+    153             1                    ***0***         end else begin
+Branch totals: 1 hit of 2 branches = 50.00%
+
+
+Condition Coverage:
+    Enabled Coverage              Bins   Covered    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Conditions                       3         0         3     0.00%
+
+================================Condition Details================================
+
+Condition Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb --
+
+  File tb/unit/mainband/CLK_PATTERN_DETECTOR_RX_tb/CLK_PATTERN_DETECTOR_RX_tb.sv
+----------------Focused Condition View-------------------
+Line       149 Item    1  (((clk_p_pattern_error === 1'b0) && (clk_n_pattern_error === 1'b0)) && (track_pattern_error === 1'b0))
+Condition totals: 0 of 3 input terms covered = 0.00%
+
+                      Input Term   Covered  Reason for no coverage   Hint
+                     -----------  --------  -----------------------  --------------
+  (clk_p_pattern_error === 1'b0)         N  '_0' not hit             Hit '_0'
+  (clk_n_pattern_error === 1'b0)         N  '_0' not hit             Hit '_0'
+  (track_pattern_error === 1'b0)         N  '_0' not hit             Hit '_0'
+
+     Rows:       Hits  FEC Target                        Non-masking condition(s)      
+ ---------  ---------  --------------------              -------------------------     
+  Row   1:    ***0***  (clk_p_pattern_error === 1'b0)_0  -                             
+  Row   2:          1  (clk_p_pattern_error === 1'b0)_1  ((track_pattern_error === 1'b0) && (clk_n_pattern_error === 1'b0))
+  Row   3:    ***0***  (clk_n_pattern_error === 1'b0)_0  (clk_p_pattern_error === 1'b0)
+  Row   4:          1  (clk_n_pattern_error === 1'b0)_1  ((track_pattern_error === 1'b0) && (clk_p_pattern_error === 1'b0))
+  Row   5:    ***0***  (track_pattern_error === 1'b0)_0  ((clk_p_pattern_error === 1'b0) && (clk_n_pattern_error === 1'b0))
+  Row   6:          1  (track_pattern_error === 1'b0)_1  ((clk_p_pattern_error === 1'b0) && (clk_n_pattern_error === 1'b0))
+
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      63        62         1    98.41%
+
+================================Statement Details================================
+
+Statement Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb --
+
+    Line         Item                      Count     Source 
+    ----         ----                      -----     ------ 
+  File tb/unit/mainband/CLK_PATTERN_DETECTOR_RX_tb/CLK_PATTERN_DETECTOR_RX_tb.sv
+    3                                                module CLK_PATTERN_DETECTOR_RX_tb;
+    4                                                
+    5                                                  // -------------------------
+    6                                                  // Easy parameters to change
+    7                                                  // -------------------------
+    8                                                  localparam int TOGGLE_CYCLES = 16;     // toggle for 16 cycles
+    9                                                  localparam int ZERO_CYCLES   = 8;      // then hold 0 for 8 cycles
+    10                                                 localparam int REPEAT_TIMES  = 16;     // repeat enough times to reach 16 "good blocks"
+    11                                               
+    12                                                 localparam time CLK_PERIOD   = 10ns;   // i_clk period
+    13                                                 localparam time PHASE_DELAY  = 5ns;    // clk_n delayed from clk_p by 5ns
+    14                                               
+    15                                                 // -------------------------
+    16                                                 // Signals
+    17                                                 // -------------------------
+    18                                                 logic i_clk;
+    19                                                 logic i_rst_n;
+    20                                                 logic clk_detector_en;
+    21                                               
+    22                                                 logic clk_p;
+    23                                                 logic clk_n;
+    24                                                 logic track;
+    25                                               
+    26                                                 logic clk_p_pattern_error;
+    27                                                 logic clk_n_pattern_error;
+    28                                                 logic track_pattern_error;
+    29                                               
+    30                                                 // -------------------------
+    31                                                 // DUT
+    32                                                 // -------------------------
+    33                                                 CLK_PATTERN_DETECTOR_RX dut (
+    34                                                   .i_clk(i_clk),
+    35                                                   .i_rst_n(i_rst_n),
+    36                                                   .clk_detector_en(clk_detector_en),
+    37                                                   .clk_p(clk_p),
+    38                                                   .clk_n(clk_n),
+    39                                                   .track(track),
+    40                                                   .clk_p_pattern_error(clk_p_pattern_error),
+    41                                                   .clk_n_pattern_error(clk_n_pattern_error),
+    42                                                   .track_pattern_error(track_pattern_error)
+    43                                                 );
+    44                                               
+    45                                                 // -------------------------
+    46                                                 // 1) i_clk toggles forever
+    47                                                 // -------------------------
+    48                                                 initial begin
+    49              1                          1         i_clk = 1'b0;
+    50              1                          1         forever #(CLK_PERIOD/2) i_clk = ~i_clk;
+    50              2                        890     
+    50              3                        889     
+    51                                                 end
+    52                                               
+    53                                                 // -------------------------
+    54                                                 // 2) clk_n is delayed version of clk_p
+    55                                                 // -------------------------
+    56                                                 assign #(PHASE_DELAY) clk_n = clk_p;
+    57                                               
+    58                                                 // -------------------------
+    59                                                 // 3) Stimulus
+    60                                                 // -------------------------
+    61                                                 initial begin
+    62                                                   int rep, i;
+    63                                               
+    64                                                   // init
+    65              1                          1         i_rst_n         = 1'b0;
+    66              1                          1         clk_detector_en = 1'b0;
+    67              1                          1         clk_p           = 1'b0;
+    68              1                          1         track           = 1'b0;
+    69                                               
+    70                                                   // reset for a few cycles
+    71              1                          3         repeat (3) @(posedge i_clk);
+    71              2                          3     
+    72              1                          1         i_rst_n = 1'b1;
+    73                                               
+    74                                                   // enable detector
+    75              1                          1         @(posedge i_clk);
+    76              1                          1         clk_detector_en = 1'b1;
+    77              1                          1     for (rep = 0; rep < 1; rep++) begin
+    77              2                          1     
+    78                                               
+    79                                                    // extra 2 toggle
+    80              1                          1           for (i = 0; i < 18; i++) begin
+    80              2                         18     
+    81              1                         18           @(posedge i_clk);
+    82              1                         18             clk_p  <= 1'b1;
+    83              1                         18             track  <= 1'b1;
+    84                                                       
+    85              1                         18             @(negedge i_clk);
+    86              1                         18             clk_p  <= 1'b0;
+    87              1                         18             track  <= 1'b0;
+    88                                                         
+    89                                                       
+    90                                                     end
+    91              1                          1           clk_p <= 1'b0;
+    92              1                          1           track <= 1'b0;
+    93              1                          8           repeat (ZERO_CYCLES) @(posedge i_clk);
+    93              2                          8     
+    94                                                   end
+    95                                               
+    96                                               
+    97              1                          1         for (rep = 0; rep < 1; rep++) begin
+    97              2                          1     
+    98                                               
+    99                                                    
+    100             1                          1           for (i = 0; i < TOGGLE_CYCLES; i++) begin
+    100             2                         16     
+    101             1                         16           @(posedge i_clk);
+    102             1                         16             clk_p  <= 1'b1;
+    103             1                         16             track  <= 1'b1;
+    104                                                      
+    105             1                         16             @(negedge i_clk);
+    106             1                         16             clk_p  <= 1'b0;
+    107             1                         16             track  <= 1'b0;
+    108                                                        
+    109                                                      
+    110                                                    end
+    111                                              
+    112                                                    //extra 2 zeros
+    113             1                          1           clk_p <= 1'b0;
+    114             1                          1           track <= 1'b0;
+    115             1                         10           repeat (10) @(posedge i_clk);
+    115             2                         10     
+    116                                                  end
+    117                                                   
+    118                                              
+    119                                                  // generate pattern blocks
+    120             1                          1         for (rep = 0; rep < REPEAT_TIMES; rep++) begin
+    120             2                         16     
+    121                                              
+    122                                                    // A) toggle for TOGGLE_CYCLES (make clk_p and track toggle every half cycle)
+    123             1                         16           for (i = 0; i < TOGGLE_CYCLES; i++) begin
+    123             2                        256     
+    124             1                        256           @(posedge i_clk);
+    125             1                        256             clk_p  <= 1'b1;
+    126             1                        256             track  <= 1'b1;
+    127                                                      
+    128             1                        256             @(negedge i_clk);
+    129             1                        256             clk_p  <= 1'b0;
+    130             1                        256             track  <= 1'b0;
+    131                                                        
+    132                                                      
+    133                                                    end
+    134                                              
+    135                                                    // B) hold low for ZERO_CYCLES full cycles
+    136             1                         16           clk_p <= 1'b0;
+    137             1                         16           track <= 1'b0;
+    138             1                        128           repeat (ZERO_CYCLES) @(posedge i_clk);
+    138             2                        128     
+    139                                                  end
+    140                                              
+    141                                                  // let DUT settle a bit
+    142             1                          5         repeat (5) @(posedge i_clk);
+    142             2                          5     
+    143                                              
+    144                                                  // simple check / print
+    145             1                          1         $display("clk_p_pattern_error   = %0b", clk_p_pattern_error);
+    146             1                          1         $display("clk_n_pattern_error   = %0b", clk_n_pattern_error);
+    147             1                          1         $display("track_pattern_error   = %0b", track_pattern_error);
+    148                                              
+    149                                                  if ((clk_p_pattern_error === 1'b0) &&
+    150                                                      (clk_n_pattern_error === 1'b0) &&
+    151                                                      (track_pattern_error === 1'b0)) begin
+    152             1                          1           $display("PASS: all pattern_error signals deasserted (0).");
+    153                                                  end else begin
+    154             1                    ***0***           $display("FAIL: one or more pattern_error signals still asserted (1).");
+    155                                                  end
+    156                                              
+    157             1                          1         $stop;
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                         18        13         5    72.22%
+
+================================Toggle Details================================
+
+Toggle Coverage for instance /CLK_PATTERN_DETECTOR_RX_tb --
+
+                                              Node      1H->0L      0L->1H  "Coverage"
+                                              ---------------------------------------
+                                   clk_detector_en           0           1       50.00 
+                                             clk_n           1           1      100.00 
+                               clk_n_pattern_error           1           0       50.00 
+                                             clk_p           1           1      100.00 
+                               clk_p_pattern_error           1           0       50.00 
+                                             i_clk           1           1      100.00 
+                                           i_rst_n           0           1       50.00 
+                                             track           1           1      100.00 
+                               track_pattern_error           1           0       50.00 
+
+Total Node Count     =          9 
+Toggled Node Count   =          4 
+Untoggled Node Count =          5 
+
+Toggle Coverage      =      72.22% (13 of 18 bins)
+
+
+Total Coverage By Instance (filtered view): 85.03%
+
