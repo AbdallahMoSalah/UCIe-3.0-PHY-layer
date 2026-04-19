@@ -3,7 +3,7 @@ module unit_TX_D2C_PT  #() (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        internal_ltsm_if.d2c2substate_mp d2c_if,
+        internal_ltsm_if.d2c2substate_mp substate_if,
 
         //=====================================//
         // Control Signals for MB, SB, LTSM:   //
@@ -47,15 +47,15 @@ module unit_TX_D2C_PT  #() (
     // Log Rx Comparison Results from MB:
     always @(posedge mux_if.lclk or negedge mux_if.rst_n) begin
         if (!mux_if.rst_n) begin
-            d2c_if.d2c_aggr_err    <= 16'b0;
-            d2c_if.d2c_perlane_err <= 16'b0;
-            d2c_if.d2c_val_err     <= 1'b0;
-            d2c_if.d2c_clk_err     <= 1'b0;
+            substate_if.d2c_aggr_err    <= 16'b0;
+            substate_if.d2c_perlane_err <= 16'b0;
+            substate_if.d2c_val_err     <= 1'b0;
+            substate_if.d2c_clk_err     <= 1'b0;
         end else if(mux_if.mb_rx_compare_done) begin
-            d2c_if.d2c_aggr_err    <= mux_if.mb_rx_aggr_err;   // The total calculated Aggregate Errors on Rx.
-            d2c_if.d2c_perlane_err <= mux_if.mb_rx_perlane_err; // The Per-Lane Errors (Each bit represents one fail Data Lane).
-            d2c_if.d2c_val_err     <= mux_if.mb_rx_val_err;     // The error coming from Valid Lane receiver in MB.
-            d2c_if.d2c_clk_err     <= mux_if.mb_rx_clk_err;     // The error coming from Clock Lane receiver in MB.
+            substate_if.d2c_aggr_err    <= mux_if.mb_rx_aggr_err;   // The total calculated Aggregate Errors on Rx.
+            substate_if.d2c_perlane_err <= mux_if.mb_rx_perlane_err; // The Per-Lane Errors (Each bit represents one fail Data Lane).
+            substate_if.d2c_val_err     <= mux_if.mb_rx_val_err;     // The error coming from Valid Lane receiver in MB.
+            substate_if.d2c_clk_err     <= mux_if.mb_rx_clk_err;     // The error coming from Clock Lane receiver in MB.
         end
     end
 
@@ -73,14 +73,14 @@ module unit_TX_D2C_PT  #() (
     end
 
     always @(*) begin
-        if(d2c_if.substate_timeout_8ms_occured | (mux_if.rx_sb_msg == TRAINERROR_Entry_req && mux_if.rx_sb_msg_valid == 1'b1)) begin
+        if(substate_if.substate_timeout_8ms_occured | (mux_if.rx_sb_msg == TRAINERROR_Entry_req && mux_if.rx_sb_msg_valid == 1'b1)) begin
             // (S11)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
         end else begin
             case (current_state)
                 // (S0) IDLE state: Wait for the trigger to start the Rx D2C Pattern Test.
                 TX_PT_IDLE: begin
-                    if (d2c_if.tx_pt_en) next_state = TX_PT_START_REQ;
+                    if (substate_if.tx_pt_en) next_state = TX_PT_START_REQ;
                     else next_state = TX_PT_IDLE;
                 end
                 // (S1) Send & Receive SB Message: {Start Rx Init D to C point test req}
@@ -130,14 +130,14 @@ module unit_TX_D2C_PT  #() (
                 end
                 // (S10)
                 TX_PT_DONE: begin
-                    next_state = TX_PT_IDLE; // Stay here for 1 mux_if.lclk cycle.
+                    next_state = (substate_if.tx_pt_en)? TX_PT_DONE : TX_PT_IDLE; // Stay here for 1 mux_if.lclk cycle.
                 end
-                // // (S11) TRAINERROR state:
-                // TO_TRAINERROR: begin
-                //     next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
-                // end
+                // (S11) TRAINERROR state:
+                TO_TRAINERROR: begin
+                    next_state = (substate_if.tx_pt_en)? TO_TRAINERROR : TX_PT_IDLE; // Stay here for 1 mux_if.lclk cycle.
+                end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state =  (substate_if.tx_pt_en)? TO_TRAINERROR : TX_PT_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -149,15 +149,15 @@ module unit_TX_D2C_PT  #() (
         //=======================================================//
         //     Default values for outputs (to avoid latches)     //
         //=======================================================//
-        d2c_if.test_d2c_done = 0;
+        substate_if.test_d2c_done = 0;
 
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Clock Sampling Details Group:
         mux_if.mb_tx_clk_sampling_en = 0; // Enable changing Clock sampling/PI phase control state.
-        d2c_if.d2c_timeout_or_error  = 0; // It will be set to 1 if timeout or error occurs during the test to move to TRAINERROR state.
+        substate_if.d2c_timeout_or_error  = 0; // It will be set to 1 if timeout or error occurs during the test to move to TRAINERROR state.
 
         // Tx Pattern Generator Setup Group:
-        mux_if.mb_tx_pattern_setup    = d2c_if.d2c_pattern_setup; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        mux_if.mb_tx_pattern_setup    = substate_if.d2c_pattern_setup; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         mux_if.mb_tx_pattern_en       = 0;                 // 0: Don't send pattern.
         mux_if.mb_tx_lfsr_en          = 0;                 // 0: Disable the Tx LFSR.
         mux_if.mb_tx_lfsr_rst         = 0;                 // 0: Don't Reset the Tx LFSR.
@@ -200,31 +200,31 @@ module unit_TX_D2C_PT  #() (
                 // For Req MSG sent: (We send these information Because the partner uses it).
                 mux_if.tx_sb_msg_valid      = (~data_incoherence); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
                 mux_if.tx_sb_msg = Start_Tx_Init_D_to_C_point_test_req;
-                mux_if.tx_msginfo           = (d2c_if.d2c_compare_setup == 1)? {mux_if.cfg_train4_max_err_thresh_aggr}         :    // Send aggregate comparison mode,
-                    (d2c_if.d2c_compare_setup == 0)? {4'b0, mux_if.cfg_train4_max_err_thresh_perlane}: 0; // Send Per-lane comparison mode, otherwise 0.
+                mux_if.tx_msginfo           = (substate_if.d2c_compare_setup == 1)? {mux_if.cfg_train4_max_err_thresh_aggr}         :    // Send aggregate comparison mode,
+                    (substate_if.d2c_compare_setup == 0)? {4'b0, mux_if.cfg_train4_max_err_thresh_perlane}: 0; // Send Per-lane comparison mode, otherwise 0.
                 mux_if.tx_data_field[63:60] = 4'b0                    ; // Reserved for future use. Just set it to 0 for now.
-                mux_if.tx_data_field[59]    = (d2c_if.d2c_compare_setup != 0); // Comparison Mode (0: Per Lane; 1: Aggregate)
-                mux_if.tx_data_field[58:43] = d2c_if.d2c_iter_count          ; // Iteration Count Setting.
-                mux_if.tx_data_field[42:27] = d2c_if.d2c_idle_count          ; // Idle Count Setting.
-                mux_if.tx_data_field[26:11] = d2c_if.d2c_burst_count         ; // Burst Count Setting.
-                mux_if.tx_data_field[10]    = d2c_if.d2c_pattern_mode        ; // Pattern Mode (0: continuous mode, 1: Burst Mode).
-                mux_if.tx_data_field[9:6]   = 4'(d2c_if.d2c_clk_sampling)    ; // Clock Phase control at Transmitter (0h: Clock PI Center, 1h: Left Edge, 2h: Right Edge).
-                mux_if.tx_data_field[5:3]   = 3'b000                  ; //d2c_if.d2c_val_pattern_sel always = 0 in this test // Valid Pattern (0h: Functional pattern).
-                mux_if.tx_data_field[2:0]   = 3'(d2c_if.d2c_data_pattern_sel); // Data pattern (0h: LFSR, 1h: Per Lane ID).
+                mux_if.tx_data_field[59]    = (substate_if.d2c_compare_setup != 0); // Comparison Mode (0: Per Lane; 1: Aggregate)
+                mux_if.tx_data_field[58:43] = substate_if.d2c_iter_count          ; // Iteration Count Setting.
+                mux_if.tx_data_field[42:27] = substate_if.d2c_idle_count          ; // Idle Count Setting.
+                mux_if.tx_data_field[26:11] = substate_if.d2c_burst_count         ; // Burst Count Setting.
+                mux_if.tx_data_field[10]    = substate_if.d2c_pattern_mode        ; // Pattern Mode (0: continuous mode, 1: Burst Mode).
+                mux_if.tx_data_field[9:6]   = 4'(substate_if.d2c_clk_sampling)    ; // Clock Phase control at Transmitter (0h: Clock PI Center, 1h: Left Edge, 2h: Right Edge).
+                mux_if.tx_data_field[5:3]   = 3'b000                  ; //substate_if.d2c_val_pattern_sel always = 0 in this test // Valid Pattern (0h: Functional pattern).
+                mux_if.tx_data_field[2:0]   = 3'(substate_if.d2c_data_pattern_sel); // Data pattern (0h: LFSR, 1h: Per Lane ID).
 
                 // Configure the MB depending on the content of the received SB msg: {Start Tx Init D to C point test req}
-                mux_if.mb_tx_pattern_setup  = d2c_if.d2c_pattern_setup; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+                mux_if.mb_tx_pattern_setup  = substate_if.d2c_pattern_setup; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
 
                 // mux_if.mb_rx_max_err_thresh_perlane <= (Get these signals from the Partner (using the SB Msg):) mux_if.cfg_train4_max_err_thresh_perlane;  // Max error Threshold in per-Lane comparison for error counting. From "Training Setup 4 (Offset 1050h)" in RF.
                 // mux_if.mb_rx_max_err_thresh_aggr    <= (Get these signals from the Partner (using the SB Msg):) mux_if.cfg_train4_max_err_thresh_aggr   ;  // Max error Threshold in aggregate comparison for error counting. From "Training Setup 4 (Offset 1050h)" in RF.
-                // mux_if.mb_rx_compare_setup          <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_compare_setup                ;  // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
-                // mux_if.mb_tx_iter_count             <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_iter_count                   ;  // Iteration Count: Indicates the iteration count of bursts followed by idle.
-                // mux_if.mb_tx_idle_count             <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_idle_count                   ;  // IDLE Count: Indicates the duration of low following the burst (UI count).
-                // mux_if.mb_tx_burst_count            <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_burst_count                  ;  // Burst Count: Indicates the duration of selected pattern (UI count).
-                // mux_if.mb_tx_pattern_mode           <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_pattern_mode                 ;  // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
-                // mux_if.mb_tx_clk_sampling           <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_clk_sampling                 ;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-                // mux_if.mb_tx_val_pattern_sel        <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_val_pattern_sel              ;  // 0: VALTRAIN pattern, 1: Don't use VALTRAIN, 2: Operational Valid.
-                // mux_if.mb_tx_data_pattern_sel       <= (Get these signals from the Partner (using the SB Msg):) d2c_if.d2c_data_pattern_sel             ;  // Data pattern used during training: 0h: LFSR; 1h: ID, or all 0.
+                // mux_if.mb_rx_compare_setup          <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_compare_setup                ;  // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+                // mux_if.mb_tx_iter_count             <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_iter_count                   ;  // Iteration Count: Indicates the iteration count of bursts followed by idle.
+                // mux_if.mb_tx_idle_count             <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_idle_count                   ;  // IDLE Count: Indicates the duration of low following the burst (UI count).
+                // mux_if.mb_tx_burst_count            <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_burst_count                  ;  // Burst Count: Indicates the duration of selected pattern (UI count).
+                // mux_if.mb_tx_pattern_mode           <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_pattern_mode                 ;  // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+                // mux_if.mb_tx_clk_sampling           <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_clk_sampling                 ;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+                // mux_if.mb_tx_val_pattern_sel        <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_val_pattern_sel              ;  // 0: VALTRAIN pattern, 1: Don't use VALTRAIN, 2: Operational Valid.
+                // mux_if.mb_tx_data_pattern_sel       <= (Get these signals from the Partner (using the SB Msg):) substate_if.d2c_data_pattern_sel             ;  // Data pattern used during training: 0h: LFSR; 1h: ID, or all 0.
             end
             // (S2) Send & Receive SB Message: {Start Tx Init D to C point test resp}.
             TX_PT_START_RESP: begin
@@ -247,7 +247,7 @@ module unit_TX_D2C_PT  #() (
 
                 // Configure the MB to be ready for the pattern generation:
                 mux_if.mb_rx_compare_en    = 1;
-                mux_if.mb_tx_lfsr_en       = d2c_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_tx_lfsr_en       = substate_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
                 mux_if.mb_tx_lfsr_rst      = 1; // Reset the Tx LFSR to clear the previous errors.
             end
             // (S4) Send & Receive SB Message: {LFSR clear error resp}.
@@ -259,8 +259,8 @@ module unit_TX_D2C_PT  #() (
 
                 // Configure the MB to be ready for the pattern generation:
                 mux_if.mb_rx_compare_en    = 1;
-                mux_if.mb_tx_lfsr_en       = d2c_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
-                mux_if.mb_rx_lfsr_en       = d2c_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_tx_lfsr_en       = substate_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_rx_lfsr_en       = substate_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
                 mux_if.mb_rx_lfsr_rst      = 1;           // Reset the Rx LFSR to clear the previous errors.
             end
             // (S5) Send & Receive MB Pattern
@@ -272,13 +272,13 @@ module unit_TX_D2C_PT  #() (
 
                 // For Comparison:
                 mux_if.mb_rx_compare_en    = 1;
-                mux_if.mb_tx_lfsr_en       = d2c_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
-                mux_if.mb_rx_lfsr_en       = d2c_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_tx_lfsr_en       = substate_if.d2c_lfsr_en; // Enable the Tx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_rx_lfsr_en       = substate_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
 
                 // Logical Lane Selection:
                 mux_if.mb_tx_clk_lane_sel  = 2'b01                       ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
-                mux_if.mb_tx_data_lane_sel = {1'b0, d2c_if.d2c_pattern_setup[0]}; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
-                mux_if.mb_tx_val_lane_sel  = {1'b0, d2c_if.d2c_pattern_setup[1]}; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+                mux_if.mb_tx_data_lane_sel = {1'b0, substate_if.d2c_pattern_setup[0]}; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+                mux_if.mb_tx_val_lane_sel  = {1'b0, substate_if.d2c_pattern_setup[1]}; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
                 mux_if.mb_tx_trk_lane_sel  = 2'b00                       ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
             end
             // (S6) Send & Receive SB Message {Tx Init D to C results req}.
@@ -291,7 +291,7 @@ module unit_TX_D2C_PT  #() (
                 mux_if.mb_tx_pattern_en = 0; // <====== 1: Send pattern immediately, 0: Don't send pattern.
                 mux_if.mb_rx_compare_en = 1;
                 mux_if.mb_tx_lfsr_en    = 0;           // disable the Tx LFSR.
-                mux_if.mb_rx_lfsr_en    = d2c_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
+                mux_if.mb_rx_lfsr_en    = substate_if.d2c_lfsr_en; // Enable the Rx LFSR to start generating the pattern based on the configured settings.
             end
             // (S7) Send & Receive SB Message: {Tx Init D to C results resp}.
             TX_PT_RESULTS_RESP: begin
@@ -308,9 +308,9 @@ module unit_TX_D2C_PT  #() (
 
                 // For Resp SB Msg received: {Tx Init D to C results resp}: The next code is written in external sequential always block
                 // if(mux_if.rx_sb_msg == MSG_RESULTS_REQ && mux_if.rx_sb_msg_valid == 1'b1) begin
-                //     d2c_if.d2c_val_err     <= mux_if.rx_msginfo[5]      ; // Get the Valid Lane comparison results from the partner (based on the received SB message).
-                //     d2c_if.d2c_aggr_err    <= mux_if.rx_msginfo[4]      ; // Get the Aggregate comparison results from the partner (based on the received SB message). We use 1 bit to indicate if there is error for aggregate comparison.
-                //     d2c_if.d2c_perlane_err <= mux_if.rx_data_field[15:0]; // Get the Per-lane   comparison results from the partner (based on the received SB message).
+                //     substate_if.d2c_val_err     <= mux_if.rx_msginfo[5]      ; // Get the Valid Lane comparison results from the partner (based on the received SB message).
+                //     substate_if.d2c_aggr_err    <= mux_if.rx_msginfo[4]      ; // Get the Aggregate comparison results from the partner (based on the received SB message). We use 1 bit to indicate if there is error for aggregate comparison.
+                //     substate_if.d2c_perlane_err <= mux_if.rx_data_field[15:0]; // Get the Per-lane   comparison results from the partner (based on the received SB message).
                 // end
 
                 mux_if.mb_tx_pattern_en    = 0;
@@ -338,12 +338,12 @@ module unit_TX_D2C_PT  #() (
                 mux_if.tx_sb_msg = End_Tx_Init_D_to_C_point_test_resp;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
-                d2c_if.test_d2c_done       = 1; // Assert the test done signal to tell the external Sub-state the completion of the test.
+                substate_if.test_d2c_done       = 1; // Assert the test done signal to tell the external Sub-state the completion of the test.
             end
             // (S11) TRAINERROR state:
             TO_TRAINERROR: begin
-                d2c_if.test_d2c_done = 0;
-                d2c_if.d2c_timeout_or_error = 1; // Set the timeout or error signal to tell the external Sub-state to move to TRAINERROR state.
+                substate_if.test_d2c_done = 0;
+                substate_if.d2c_timeout_or_error = 1; // Set the timeout or error signal to tell the external Sub-state to move to TRAINERROR state.
             end
             default: begin
                 // Do nothing. Just to avoid latches in synthesis.
@@ -363,16 +363,16 @@ module unit_TX_D2C_PT  #() (
             mux_if.mb_tx_clk_sampling           <= 0;
             mux_if.mb_tx_val_pattern_sel        <= 0;
             mux_if.mb_tx_data_pattern_sel       <= 0;
-            d2c_if.d2c_val_err                  <= 0;
-            d2c_if.d2c_aggr_err                 <= 0;
-            d2c_if.d2c_perlane_err              <= 0;
+            substate_if.d2c_val_err             <= 0;
+            substate_if.d2c_aggr_err            <= 0;
+            substate_if.d2c_perlane_err         <= 0;
         end
         // For Req SB Msg received: {Start Tx Init D to C point test req}
         else if(mux_if.rx_sb_msg == Start_Tx_Init_D_to_C_point_test_req && mux_if.rx_sb_msg_valid) begin
             // For the Tx Init D to C Point Test:
             mux_if.mb_rx_max_err_thresh_perlane <= (mux_if.rx_data_field[59] == 0)? 12'(mux_if.rx_msginfo) : '0; // Receive Per-lane error threshold.
             mux_if.mb_rx_max_err_thresh_aggr    <= (mux_if.rx_data_field[59] == 1)? 16'(mux_if.rx_msginfo) : '0; // Receive Aggregate error threshold.
-            mux_if.mb_rx_compare_setup          <= (d2c_if.d2c_compare_setup == 2'b00 | d2c_if.d2c_compare_setup == 2'b01)? {1'b0, mux_if.rx_data_field[59]} : {d2c_if.d2c_compare_setup}; // Comparison Mode (0: Per Lane; 1: Aggregate)
+            mux_if.mb_rx_compare_setup          <= (substate_if.d2c_compare_setup == 2'b00 | substate_if.d2c_compare_setup == 2'b01)? {1'b0, mux_if.rx_data_field[59]} : {substate_if.d2c_compare_setup}; // Comparison Mode (0: Per Lane; 1: Aggregate)
             mux_if.mb_tx_iter_count             <=  mux_if.rx_data_field[58:43]  ; // Iteration Count Setting.
             mux_if.mb_tx_idle_count             <=  mux_if.rx_data_field[42:27]  ; // Idle Count Setting.
             mux_if.mb_tx_burst_count            <=  mux_if.rx_data_field[26:11]  ; // Burst Count Setting.
@@ -383,9 +383,9 @@ module unit_TX_D2C_PT  #() (
         end
         // For Resp SB Msg received: {Tx Init D to C results resp}
         else if(mux_if.rx_sb_msg == Tx_Init_D_to_C_results_req && mux_if.rx_sb_msg_valid == 1'b1) begin
-            d2c_if.d2c_val_err     <= mux_if.rx_msginfo[5]         ; // Get the Valid Lane comparison results from the partner (based on the received SB message).
-            d2c_if.d2c_aggr_err    <= {15'b0, mux_if.rx_msginfo[4]}; // Get the Aggregate comparison results from the partner (based on the received SB message). We use 1 bit to indicate if there is error for aggregate comparison.
-            d2c_if.d2c_perlane_err <= mux_if.rx_data_field[15:0]   ; // Get the Per-lane   comparison results from the partner (based on the received SB message).
+            substate_if.d2c_val_err     <= mux_if.rx_msginfo[5]         ; // Get the Valid Lane comparison results from the partner (based on the received SB message).
+            substate_if.d2c_aggr_err    <= {15'b0, mux_if.rx_msginfo[4]}; // Get the Aggregate comparison results from the partner (based on the received SB message). We use 1 bit to indicate if there is error for aggregate comparison.
+            substate_if.d2c_perlane_err <= mux_if.rx_data_field[15:0]   ; // Get the Per-lane   comparison results from the partner (based on the received SB message).
         end
     end
 
