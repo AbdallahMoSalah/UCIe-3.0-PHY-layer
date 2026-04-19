@@ -24,7 +24,7 @@ if ($MODE -eq "debug") {
     vsim -do "set CONFIG $CONFIG; set TOP $TOP; set MODE debug; set SEED $SEED; do $SimDo"
 }
 elseif ($MODE -eq "report") {
-    vsim -c -do "set CONFIG $CONFIG; set TOP $TOP; set MODE report; set REPORT_EXT $REPORT_EXT; set SEED $SEED; do $SimDo"
+    vsim -c -do "set CONFIG $CONFIG.\run_sim.ps1  -MODE report -CONFIG mb_pattern_com -TOP MB_PATTERN_COMPARATOR_TB ; set TOP $TOP; set MODE report; set REPORT_EXT $REPORT_EXT; set SEED $SEED; do $SimDo"
 }
 elseif ($MODE -eq "ci") {
     vsim -c -do "set CONFIG $CONFIG; set TOP $TOP; set MODE ci; set SEED $SEED; do $SimDo"
