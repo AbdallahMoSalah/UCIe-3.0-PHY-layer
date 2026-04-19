@@ -22,61 +22,64 @@ phase_delay #(5) pd (.in_signal(o_clk_p),.delayed_signal(o_clk_n));
         end
         else begin
             if (clk_embedded_en) begin
-                  if (counter_toggle < TOGGLE) begin
+                 if (counter_toggle < TOGGLE) begin
                     o_clk_p = i_clk;
                     track = i_clk;
 
                 counter_toggle = counter_toggle +1; 
                 end
-                else if (counter_toggle == TOGGLE && counter_zero < ZERO-1) begin
+                else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
                     o_clk_p = 0;
                     track = 0;
 
                     counter_zero = counter_zero + 1;
-                end
-                    else if (counter_zero == ZERO-1 /*&& counter_main < MAIN-1*/) begin
+                    if (counter_zero == ZERO) begin
                         counter_toggle = 0;
                         counter_zero = 0;
-                        //counter_main = counter_main + 1;
+                       
                     end
-                      /*  if (counter_main == MAIN-1) begin
-                            o_done = 1;
-                        end*/
-                    
-           /* else begin
-                o_clk_p = 0;
-                track = 0;
-            end */
+                end
                 
             end else begin
-            if (clk_pattern_en && counter_main < MAIN-1) begin
+                   if (clk_pattern_en ) begin
+                    if (counter_main < MAIN) begin
                 if (counter_toggle < TOGGLE) begin
                     o_clk_p = i_clk;
                     track = i_clk;
 
                 counter_toggle = counter_toggle +1; 
                 end
-                else if (counter_toggle == TOGGLE && counter_zero < ZERO-1) begin
+                else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
                     o_clk_p = 0;
                     track = 0;
 
                     counter_zero = counter_zero + 1;
-                end
-                    else if (counter_zero == ZERO-1 && counter_main < MAIN-1) begin
+                    if (counter_zero == ZERO && counter_main < MAIN) begin
                         counter_toggle = 0;
                         counter_zero = 0;
                         counter_main = counter_main + 1;
                     end
-                        if (counter_main == MAIN-1) begin
+                end
+                end
+                        if (counter_main == MAIN) begin 
                             o_done = 1;
                         end
-                    end
-           /* else begin
-                o_clk_p = 0;
-
-                track = 0;
-            end */
-            end
+                    
+                end
+            else begin
+                counter_main <= 0;
+                o_done <= 0;
+            end 
+                end
         end
     end
+endmodule
+
+module phase_delay #(parameter real PHASE_DELAY)(
+                    input logic in_signal,
+                    output logic delayed_signal);
+
+assign #(PHASE_DELAY) delayed_signal  = in_signal;
+
+
 endmodule
