@@ -209,8 +209,65 @@ module Reg_File (
     // =======================================================================
     //  Convenience taps
     // =======================================================================
+    output logic [31:0]  ucie_link_cap_r_out, 
+    output logic [31:0]  ucie_link_ctrl_r_out, 
+    output logic [31:0]  ucie_link_status_r_out, 
+    output logic [15:0]  link_event_notif_ctrl_r_out, 
+    output logic [15:0]  error_notif_ctrl_r_out, 
+    output logic [31:0]  phy_cap_r_out, 
+    output logic [31:0]  phy_control_r_out, 
+    output logic [31:0]  phy_status_r_out, 
+    output logic [31:0]  phy_init_debug_r_out, // bit[7] is RO; written from phy_train_success_i at read
+    output logic [31:0]  training_setup1_r_out, // Training Setup 1 (1010h)
+    output logic [31:0]  training_setup2_r_out, // Training Setup 2 (1020h)
+    output logic [63:0]  training_setup3_r_out, // Training Setup 3 (1030h)
+    output logic [31:0]  training_setup4_r_out, // Training Setup 4 (1050h)
+    output logic [63:0]  lane_map_mod0_r_out, // Current Lane Map Module 0 (1060h)
+    output logic [31:0]  error_log0_r_out, 
+    output logic [31:0]  error_log1_r_out, 
+    output logic [63:0]  rt_test_ctrl_r_out, // Runtime Link Test Control (1100h)
+    output logic [31:0]  rt_test_status_r_out);
 
-);
+// ===========================================================================
+//  Internal Register Declarations & Output Assignments
+// ===========================================================================
+logic [31:0]  ucie_link_cap_r;
+logic [31:0]  ucie_link_ctrl_r;
+logic [31:0]  ucie_link_status_r;
+logic [15:0]  link_event_notif_ctrl_r;
+logic [15:0]  error_notif_ctrl_r;
+logic [31:0]  phy_cap_r;
+logic [31:0]  phy_control_r;
+logic [31:0]  phy_status_r;
+logic [31:0]  phy_init_debug_r;
+logic [31:0]  training_setup1_r;
+logic [31:0]  training_setup2_r;
+logic [63:0]  training_setup3_r;
+logic [31:0]  training_setup4_r;
+logic [63:0]  lane_map_mod0_r;
+logic [31:0]  error_log0_r;
+logic [31:0]  error_log1_r;
+logic [63:0]  rt_test_ctrl_r;
+logic [31:0]  rt_test_status_r;
+
+assign ucie_link_cap_r_out = ucie_link_cap_r;
+assign ucie_link_ctrl_r_out = ucie_link_ctrl_r;
+assign ucie_link_status_r_out = ucie_link_status_r;
+assign link_event_notif_ctrl_r_out = link_event_notif_ctrl_r;
+assign error_notif_ctrl_r_out = error_notif_ctrl_r;
+assign phy_cap_r_out = phy_cap_r;
+assign phy_control_r_out = phy_control_r;
+assign phy_status_r_out = phy_status_r;
+assign phy_init_debug_r_out = phy_init_debug_r;
+assign training_setup1_r_out = training_setup1_r;
+assign training_setup2_r_out = training_setup2_r;
+assign training_setup3_r_out = training_setup3_r;
+assign training_setup4_r_out = training_setup4_r;
+assign lane_map_mod0_r_out = lane_map_mod0_r;
+assign error_log0_r_out = error_log0_r;
+assign error_log1_r_out = error_log1_r;
+assign rt_test_ctrl_r_out = rt_test_ctrl_r;
+assign rt_test_status_r_out = rt_test_status_r;
 
 // ===========================================================================
 //  Address decode
@@ -291,7 +348,6 @@ localparam logic [31:0] REG_LOC_0_HIGH_VAL   = 32'h0000_0000;
 //    others = RsvdZ
 // ---------------------------------------------------------------------------
 logic [31:0] ucie_link_cap_ff;   // Latched at reset from HW inputs
-logic [31:0] ucie_link_cap_r;
 always_comb begin
     ucie_link_cap_r = ucie_link_cap_ff;
 end
@@ -310,8 +366,6 @@ assign phy_max_link_speed_cap_out = ucie_link_cap_r[7:4];
 //    [23]  L2 Sideband Power Down (L2SPD)
 //    others = RsvdZ
 logic [31:0] ucie_link_ctrl_ff;
-logic [31:0] ucie_link_ctrl_r;
-
 always_comb begin
     ucie_link_ctrl_r = ucie_link_ctrl_ff;
     ucie_link_ctrl_r[31:24] = 8'b11111111;   // Reserved
@@ -336,7 +390,6 @@ assign phy_l2spd_ctrl_out = ucie_link_ctrl_r[23];
 //   – ucie_link_status_r holds the RW1C and RW1CS bits only.
 //   – bit[12] is not stored in a flop; it's injected at read time from live HW.
 // ---------------------------------------------------------------------------
-logic [31:0] ucie_link_status_r;
 logic [31:0] ucie_link_status_ff;
 always_comb begin
     ucie_link_status_r        = '0;
@@ -358,7 +411,6 @@ assign phy_link_width_enabled_status_out = ucie_link_status_r[10:7];
 assign phy_link_speed_enabled_status_out = ucie_link_status_r[14:11];
 
 //  Link Event Notif Ctrl (018h) – RW, 2-byte
-logic [15:0] link_event_notif_ctrl_r;
 logic [15:0] link_event_notif_ctrl_ff;
 always_comb begin
     link_event_notif_ctrl_r [1:0]   = link_event_notif_ctrl_ff[1:0];
@@ -369,7 +421,6 @@ end
 
 
 //  Error Notif Ctrl (01Ah) – RW, 2-byte
-logic [15:0] error_notif_ctrl_r;
 logic [15:0] error_notif_ctrl_ff;
 always_comb begin
     error_notif_ctrl_r = error_notif_ctrl_ff;
@@ -390,8 +441,6 @@ end
 //    others = RsvdZ or constant-0 (RO)
 // ---------------------------------------------------------------------------
 logic [31:0] phy_cap_ff;
-logic [31:0] phy_cap_r;
-
 always_comb begin
     phy_cap_r = phy_cap_ff;
 end
@@ -415,7 +464,6 @@ end
 //    [5]   Resume Training
 //    others = RsvdZ
 // ---------------------------------------------------------------------------
-logic [31:0] phy_control_r;
 logic [31:0] phy_control_ff;
 always_comb begin
     phy_control_r = phy_control_ff;
@@ -445,7 +493,6 @@ assign phy_tarr_en_ctrl_out = phy_control_r[21];    // PHY_CONTROL[21]: Tx Adjus
 //    [26:19] Link State (LTSM encoding §9.5.34)
 //    others  = RsvdZ
 // ---------------------------------------------------------------------------
-logic [31:0] phy_status_r;
 always_comb begin
     phy_status_r        = 32'hFF_FF_FF_FF;
     phy_status_r[3]     = phy_rx_term_status_i;
@@ -461,7 +508,6 @@ end
 
 
 // Note: bit[22] and [24] added per spec; kept generic for bits not in spec
-logic [31:0] phy_init_debug_r;   // bit[7] is RO; written from phy_train_success_i at read
 logic [31:0] phy_init_debug_ff;
 
 always_comb begin
@@ -474,14 +520,11 @@ assign phy_resume_training_ctrl_out = phy_init_debug_r[5];    // PHY_INIT_DEBUG[
 // ---------------------------------------------------------------------------
 //  RW registers (generic 32-bit)
 // ---------------------------------------------------------------------------
-logic [31:0] training_setup1_r;   // Training Setup 1 (1010h)
 logic [31:0] training_setup1_ff;
 always_comb begin
     training_setup1_r = training_setup1_ff;
     training_setup1_r[31:27] = 5'b11111;
 end
-
-logic [31:0] training_setup2_r;   // Training Setup 2 (1020h)
 logic [31:0] training_setup2_ff;
 
 always_comb begin
@@ -491,24 +534,18 @@ end
 
 assign idle_count_out = training_setup2_r[15:0];
 assign iterations_out = training_setup2_r[31:16];
-
-logic [63:0] training_setup3_r;   // Training Setup 3 (1030h)
 logic [63:0] training_setup3_ff;
 always_comb begin
     training_setup3_r = training_setup3_ff;
 end
 
 assign lane_mask_ctrl_out = training_setup3_r;
-
-logic [31:0] training_setup4_r;   // Training Setup 4 (1050h)
 logic [31:0] training_setup4_ff;
 always_comb begin
     training_setup4_r = training_setup4_ff;
 end
 assign max_error_threshold_in_per_lane_comparison_out = training_setup4_r[15:4];
 assign max_error_threshold_in_aggregate_comparison_out = training_setup4_r[31:16];
-
-logic [63:0] lane_map_mod0_r;     // Current Lane Map Module 0 (1060h)
 logic [63:0] lane_map_mod0_ff;
 
 always_comb begin
@@ -525,7 +562,6 @@ assign current_lane_map_module_0_enable_out = lane_map_mod0_r[15:0];
 //    [23:16] State N-1
 //    [31:24] State N-2
 // ---------------------------------------------------------------------------
-logic [31:0] error_log0_r;
 logic [31:0] error_log0_ff;
 
 always_comb begin
@@ -542,15 +578,12 @@ end
 //    [11]   Internal Error       RW1CS
 //    [31:12] RsvdZ
 // ---------------------------------------------------------------------------
-logic [31:0] error_log1_r;
 logic [31:0] error_log1_ff;
 
 always_comb begin
     error_log1_r = error_log1_ff;
     error_log1_r[31:12] = 20'b0;
 end
-
-logic [63:0] rt_test_ctrl_r;      // Runtime Link Test Control (1100h)
 logic [63:0] rt_test_ctrl_ff;      // Runtime Link Test Control (1100h)
 
 always_comb begin
@@ -562,7 +595,6 @@ end
 // ---------------------------------------------------------------------------
 //  Runtime Link Test Status (1108h) – RO live field --------------------------
 // ---------------------------------------------------------------------------
-logic [31:0] rt_test_status_r;
 always_comb begin
     rt_test_status_r = '0;
     rt_test_status_r [0] = rt_link_busy_status_i;   
