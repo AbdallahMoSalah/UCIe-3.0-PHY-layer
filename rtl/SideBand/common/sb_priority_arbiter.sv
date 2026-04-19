@@ -16,7 +16,7 @@ module sb_priority_arbiter #(
     output logic                  out_vld,
     input  logic                  out_ready
 );
-
+    
     always_comb begin
         // Priority 1: High Priority Input
         if (hip_vld) begin
