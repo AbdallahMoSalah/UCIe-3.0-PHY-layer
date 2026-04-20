@@ -84,6 +84,7 @@ module wrapper_sm(
     // Reset State Module
     unit_reset_state u_unit_reset_state (
         .lclk(lclk),
+        .rst_n(rst_n),
         .lp_linkerror(lp_linkerror),
         .Active_handshake_done(Active_handshake_done),
         .EN(Reset_EN),
@@ -106,6 +107,7 @@ module wrapper_sm(
         .rst_n(rst_n),
         .timeout_1us(time_1us),
         .pl_error(pl_error),
+        .state_sts(state_sts),
         .next_state(Active_next_state),
         .stall_req(Active_stall_req),
         .start_1us_timer(start_time_1us),
@@ -129,6 +131,7 @@ module wrapper_sm(
     // Retrain State Module
     unit_retrain_state u_unit_retrain_state ( 
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(Retrain_EN),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
@@ -143,6 +146,7 @@ module wrapper_sm(
     // L1 State Module
     unit_L1_state u_unit_L1_state (
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(L1_EN),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
@@ -156,6 +160,7 @@ module wrapper_sm(
     // L2 State Module
     unit_L2_state u_unit_L2_state (
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(L2_EN),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
@@ -169,6 +174,7 @@ module wrapper_sm(
     // LinkReset State Module
     unit_linkreset_state u_unit_linkreset_state ( 
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(LinkReset_EN),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
@@ -180,6 +186,7 @@ module wrapper_sm(
     // LinkError State Module
     unit_linkerror_state u_unit_linkerror_state ( 
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(LinkError_EN),
         .lp_linkerror(lp_linkerror),
         .time_16ms(time_16ms),
@@ -191,6 +198,7 @@ module wrapper_sm(
     // Disabled State Module
     unit_disabled_state u_unit_disabled_state ( 
         .lclk(lclk),
+        .rst_n(rst_n),
         .EN(Disable_EN),
         .lp_linkerror(lp_linkerror),
         .lp_state_req(lp_state_req),
@@ -200,6 +208,7 @@ module wrapper_sm(
     // Main Controller Module
     unit_main_controller u_unit_main_controller (
         .lclk(lclk),
+        .rst_n(rst_n),
         .Reset_next_state(Reset_next_state),
         .LinkError_next_state(LinkError_next_state),
         .Disable_next_state(Disable_next_state),

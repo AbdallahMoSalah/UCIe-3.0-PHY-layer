@@ -2,7 +2,7 @@ import RDI_SM_pkg::*;
 import LTSM_state_pkg::*;
 module unit_main_controller(
     input logic lclk,
-
+    
     input RDI_state Reset_next_state,
     input RDI_state LinkError_next_state,
     input RDI_state Disable_next_state,
@@ -13,7 +13,8 @@ module unit_main_controller(
     input RDI_state Retrain_next_state,
     input RDI_state Active_PMNAK_next_state,
     input LTSM_state_e state_sts,
-
+    input logic rst_n,
+ 
     output logic Active_EN,
     output logic L1_EN,
     output logic L2_EN,
@@ -42,7 +43,19 @@ module unit_main_controller(
                             || state_sts == MBINIT 
                             || state_sts == MBTRAIN 
                             || state_sts == PHYRETRAIN);
-    always @(posedge lclk) begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            Active_EN <= 1'b0;
+            L1_EN <= 1'b0;
+            L2_EN <= 1'b0;
+            Retrain_EN <= 1'b0;
+            Active_PMNAK_EN <= 1'b0;
+            LinkReset_EN <= 1'b0;
+            Disable_EN <= 1'b0;
+            Reset_EN <= 1'b1; // Start in Reset
+            LinkError_EN <= 1'b0;
+            rdi_state_sts <= Reset;
+        end else begin
 
         if ((state_sts == TRAINERROR )&&
             (rdi_state_sts != LinkError)) begin
@@ -343,5 +356,6 @@ module unit_main_controller(
                 end
             end 
         endcase
+    end
     end
 endmodule

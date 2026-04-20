@@ -16,6 +16,7 @@ module unit_reset_state (
     input LTSM_state_e state_sts,            // Link training state machine status
     input RDI_state lp_state_req,            // State requested by the local/remote layer
     input msg_no_e message_receive,          // Incoming RDI message decoded by SideBand
+    input logic rst_n,                       // Asynchronous active-low reset
     
     output RDI_state next_state,             // Next state computed by the FSM
     output logic Active_handshake_strt,      // Start signal for Active handshake sequence
@@ -37,10 +38,21 @@ module unit_reset_state (
                              active_hs, 
                              active,
                              state_disable } reset_state;
-    reset_state cs=idle;
+    reset_state cs;
 
     // FSM State transitions and outputs
-    always @(posedge lclk) begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            cs <= state_disable;
+            message_send <= NOP;
+            next_state <= Reset;
+            Active_handshake_strt <= 0;
+        end else if (!EN) begin
+            cs <= state_disable;
+            next_state <= Reset;
+            message_send <= NOP;
+            Active_handshake_strt <= 0;
+        end else begin
         case (cs)
             idle: begin
                 message_send<=NOP;
@@ -68,7 +80,6 @@ module unit_reset_state (
                 end
                 else if(state_sts==LINKINIT)begin
                     cs<=INPP;
-
                 end
             end
 //===========================================================
@@ -89,10 +100,7 @@ module unit_reset_state (
 //===========================================================
             // linkerror: Main LinkError resting state. Exits to idle upon disable.
             linkerror: begin
-                if (~EN)begin
-                    next_state<=Nop;
-                    cs <= state_disable;
-                end
+                // Transition handled by EN de-assertion logic
             end
 //===========================================================
             d_req: begin
@@ -111,10 +119,7 @@ module unit_reset_state (
 //===========================================================
             // disabled: Main Disabled resting state. Exits to idle upon disable.
             disabled: begin
-                if (~EN)begin
-                    next_state<=Nop;
-                    cs <= state_disable;
-                end
+                // Transition handled by EN de-assertion logic
             end
 //===========================================================
             lr_req: begin
@@ -133,10 +138,7 @@ module unit_reset_state (
 //===========================================================
             // linkreset: Main LinkReset resting state. Exits to idle upon disable.
             linkreset: begin
-                if (~EN)begin
-                    next_state<=Nop;
-                    cs <= state_disable;
-                end
+                // Transition handled by EN de-assertion logic
             end
 //===========================================================
             // NOP_rcvd: Resting state waiting for target active, linkreset, or disable states
@@ -175,10 +177,7 @@ module unit_reset_state (
 //===========================================================
             // active: Main Active resting state. Operates here until disabled.
             active: begin
-                if (~EN)begin
-                    cs <= state_disable;
-                    next_state<=Nop;
-                end
+                // Transition handled by EN de-assertion logic
             end
 //===========================================================
             state_disable: begin
@@ -188,6 +187,7 @@ module unit_reset_state (
                 end
             end
         endcase
+    end
     end
     assign cs_reg = cs;
 endmodule

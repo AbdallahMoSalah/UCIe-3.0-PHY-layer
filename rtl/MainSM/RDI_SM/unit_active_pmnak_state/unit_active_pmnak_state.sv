@@ -63,10 +63,14 @@ module unit_active_pmnak_state(
             next_state <= Nop;
             stall_req <= 1'b0;
             message_send <= NOP;
+        end else if (!EN) begin
+            cs <= state_disabled;
+            next_state <= Nop;
+            stall_req <= 1'b0;
+            message_send <= NOP;
         end else begin
             case(cs)
                 // --- STATE_DISABLED ---
-                // Remains here while disabled. Re-enters 'idle' when EN goes high.
                 state_disabled: begin
                     if (EN) begin
                         cs <= idle;
@@ -75,8 +79,6 @@ module unit_active_pmnak_state(
                 end
 
                 // --- IDLE ---
-                // Scans inputs sequentially. Processes adapter requests or peer messages
-                // and sets branching flags accordingly.
                 idle: begin
                     if (message_receive == RDI_LINK_ERROR_REQ) begin
                         cs <= le_send_resp;
@@ -115,10 +117,8 @@ module unit_active_pmnak_state(
                 end
 
                 // --- STALL HANDSHAKE ---
-                // Blocks until stall_done is asserted, effectively freezing transitions 
-                // while the pipeline clears out. Then branches utilizing 'flow_state'.
                 stall_handshake: begin
-                    stall_req <= 1'b0; // De-assert stall constraint bit for edge detection parity
+                    stall_req <= 1'b0; 
                     if (stall_done) begin
                         case(flow)
                             flow0: begin
@@ -150,7 +150,6 @@ module unit_active_pmnak_state(
                 end
 
                 // --- LINK ERROR HANDSHAKE ---
-                // Waiting for peer's response to our link error request
                 le_send_req: begin
                     message_send <= NOP;
                     if (message_receive == RDI_LINK_ERROR_RSP) begin
@@ -159,32 +158,20 @@ module unit_active_pmnak_state(
                     end
                 end
 
-                // After sending link error response, immediately settle into linkerror state
                 le_send_resp: begin
                     message_send <= NOP;
                     cs <= linkerror;
                     next_state <= LinkError;
                 end
                 
-                // End state for LinkError, waits for global state drop (EN=0) to recover
                 linkerror: begin
-                    if (~EN) begin
-                        cs <= state_disabled;
-                        next_state <= Nop;
-                    end
+                    // Transition handled by EN de-assertion logic
                 end
 
-                // --- ACTIVE LOOPBACK STATE ---
-                // Confirmed adapter's state_req == Active, remains until EN drops
                 active: begin
-                    if (~EN) begin
-                        cs <= state_disabled;
-                        next_state <= Nop;
-                    end
+                    // Transition handled by EN de-assertion logic
                 end
 
-                // --- DISABLE HANDSHAKE ---
-                // Waiting for peer's response to our disable request
                 d_send_req: begin
                     message_send <= NOP;
                     if (message_receive == RDI_DISABLE_RSP) begin
@@ -193,23 +180,16 @@ module unit_active_pmnak_state(
                     end
                 end
 
-                // After sending disable response, immediately settle into disabled state
                 d_send_resp: begin
                     message_send <= NOP;
                     cs <= disabled;
                     next_state <= Disabled;
                 end
 
-                // End state for Disabled, waits for global state drop (EN=0) to recover
                 disabled: begin
-                    if (~EN) begin
-                        cs <= state_disabled;
-                        next_state <= Nop;
-                    end
+                    // Transition handled by EN de-assertion logic
                 end
 
-                // --- RETRAIN HANDSHAKE ---
-                // Waiting for peer's response to our retrain request
                 rt_send_req: begin
                     message_send <= NOP;
                     if (message_receive == RDI_RETRAIN_RSP) begin
@@ -218,23 +198,16 @@ module unit_active_pmnak_state(
                     end
                 end
 
-                // After sending retrain response, immediately settle into retrain state
                 rt_send_resp: begin
                     message_send <= NOP;
                     cs <= retrain;
                     next_state <= Retrain;
                 end
 
-                // End state for Retrain, waits for global state drop (EN=0) to recover
                 retrain: begin
-                    if (~EN) begin
-                        cs <= state_disabled;
-                        next_state <= Nop;
-                    end
+                    // Transition handled by EN de-assertion logic
                 end
 
-                // --- LINK RESET HANDSHAKE ---
-                // Waiting for peer's response to our link reset request
                 lr_send_req: begin
                     message_send <= NOP;
                     if (message_receive == RDI_LINK_RESET_RSP) begin
@@ -243,19 +216,14 @@ module unit_active_pmnak_state(
                     end
                 end
 
-                // After sending link reset response, immediately settle into linkreset state
                 lr_send_resp: begin
                     message_send <= NOP;
                     cs <= linkreset;
                     next_state <= LinkReset;
                 end
 
-                // End state for Link Reset, waits for global state drop (EN=0) to recover
                 linkreset: begin
-                    if (~EN) begin
-                        cs <= state_disabled;
-                        next_state <= Nop;
-                    end
+                    // Transition handled by EN de-assertion logic
                 end
 
             endcase
