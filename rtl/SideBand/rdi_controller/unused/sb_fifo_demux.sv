@@ -20,8 +20,9 @@ module sb_fifo_demux(
     always_comb begin
 
         case(opcode)
-           
+
             SB_COMPLETION_WITHOUT_DATA,
+            SB_COMPLETION_WITH_32_DATA,
             SB_COMPLETION_WITH_64_DATA:
                 is_completion = 1;
             default:
