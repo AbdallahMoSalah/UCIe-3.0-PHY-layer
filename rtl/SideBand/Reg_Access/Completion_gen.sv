@@ -43,8 +43,8 @@ module Completion_gen
 // ---------------------------------------------------------------------------
 // Internal signals
 // ---------------------------------------------------------------------------
-sb_header_t   req_hdr;           // View into original request header
-sb_header_t   cpl_hdr;           // Completion header being built
+sb_header_u   req_hdr;           // View into original request header
+sb_header_u   cpl_hdr;           // Completion header being built
 sb_opcode_e   cpl_opcode;        // Determined completion opcode
 logic [63:0]  cpl_payload;       // Data payload (rf_rdata or Original_Header)
 logic         is_64bit_read;     
@@ -55,12 +55,12 @@ logic         is_read;
 // Decode original request opcode & Construct Payload
 // ---------------------------------------------------------------------------
 always_comb begin
-    req_hdr = Original_Header;
+    req_hdr.raw = Original_Header;
 
-    is_32bit_read = req_hdr.opcode inside {
+    is_32bit_read = req_hdr.req.opcode inside {
         SB_32_MEM_READ, SB_32_DMS_REG_READ, SB_32_CFG_READ
     };
-    is_64bit_read = req_hdr.opcode inside {
+    is_64bit_read = req_hdr.req.opcode inside {
         SB_64_MEM_READ, SB_64_DMS_REG_READ, SB_64_CFG_READ
     };
     is_read = is_32bit_read || is_64bit_read;
@@ -90,28 +90,27 @@ always_comb begin
     // Build completion header
     // -----------------------------------------------------------------------
     cpl_hdr            = '0;
-    cpl_hdr.opcode     = cpl_opcode;
+    cpl_hdr.cpl.opcode = cpl_opcode;
 
-    // Mirror Tag (bits [13:11] mapped to MsgSubcode equivalent)
-    cpl_hdr.MsgSubcode = {5'b0, req_hdr[13:11]};  
+    // Mirror Tag
+    cpl_hdr.cpl.tag    = req_hdr.req.tag;  
 
-    // Insert Status into bits [34:32] (Mapped to MsgInfo equivalent)
-    cpl_hdr.MsgInfo    = {13'b0, status};
+    // Insert Status
+    cpl_hdr.cpl.status = status;
 
     // Swap srcid/dstid to route back to requester
-    cpl_hdr.srcid      = req_hdr.dstid;   
-    cpl_hdr.dstid      = req_hdr.srcid;   
+    cpl_hdr.cpl.srcid  = req_hdr.req.dstid;   
+    cpl_hdr.cpl.dstid  = req_hdr.req.srcid;   
 
-    // [FIX]: Mirror Byte Enables (BE) into bits [21:14]
-    // Because cpl_hdr is a packed struct, we can safely index its bits directly
-    cpl_hdr[21:14]     = req_hdr[21:14];
+    // Mirror Byte Enables (BE)
+    cpl_hdr.cpl.be     = req_hdr.req.be;
 
     // [FIX]: Data Parity (Odd Parity -> XNOR)
-    // ep = XNOR of payload bits for data-carrying completions; 0 otherwise
-    cpl_hdr.ep         = (cpl_opcode != SB_COMPLETION_WITHOUT_DATA) ? ~(^cpl_payload) : 1'b0;
+    // dp = XNOR of payload bits for data-carrying completions; 0 otherwise
+    cpl_hdr.cpl.dp     = (cpl_opcode != SB_COMPLETION_WITHOUT_DATA) ? ~(^cpl_payload) : 1'b0;
 
     // Control parity placeholder (calculated sequentially to avoid long combinational path)
-    cpl_hdr.cp         = 1'b0;   
+    cpl_hdr.cpl.cp     = 1'b0;   
 end
 
 // ---------------------------------------------------------------------------
@@ -125,11 +124,11 @@ always_ff @(posedge clk or negedge rst_n) begin
         
         // [FIX]: Control Parity (Odd Parity -> XNOR)
         // Compute odd parity over final header[62:0]
-        automatic logic [62:0] hdr_low = cpl_hdr[62:0];
+        automatic logic [62:0] hdr_low = cpl_hdr.raw[62:0];
         automatic logic cp_final       = ~(^hdr_low);
 
         // Assemble final 128-bit packet
-        completion_msg <= {cpl_payload, cp_final, cpl_hdr[62:0]};
+        completion_msg <= {cpl_payload, cp_final, cpl_hdr.raw[62:0]};
         completion_vld <= 1'b1;
         
     end else if (completion_rdy && completion_vld) begin

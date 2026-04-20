@@ -17,7 +17,7 @@ module RDI_Packetizer_tb;
     int pass_count = 0;
     int fail_count = 0;
 
-    sb_header_t dut_hdr;
+    sb_header_u dut_hdr;
 
     RDI_Packetizer_class RDI_Packetizer_object = new();
     // -----------------------------------
@@ -109,7 +109,7 @@ module RDI_Packetizer_tb;
     // ----------------------------------   
     task checker_result();
         @(negedge clk);
-        dut_hdr = sb_header_t'(RDI_msg[63:0]);
+        dut_hdr = sb_header_u'(RDI_msg[63:0]);
         
         if (dut_hdr === RDI_Packetizer_object.exp_hdr && RDI_vld_out === RDI_Packetizer_object.RDI_vld_out_exp) begin
             pass_count++;

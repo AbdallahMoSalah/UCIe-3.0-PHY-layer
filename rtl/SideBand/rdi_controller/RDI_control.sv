@@ -268,12 +268,12 @@ sb_priority_arbiter #(
 // This notifies the adapter that a slot in the downstream req FIFO was consumed.
 assign pl_cfg_crd = dfifo_req_rinc;
 
-// ─── 5. rdi_tx_demux  (downstream Router) ────────────────────────────────────
+// ─── 5. rdi_router  (downstream Router) ────────────────────────────────────
 // Acts as the downstream Router: takes the single arbitrated output from
 // u_down_arb and routes it based on reset flag and dstid:
 //   reset || LOCAL_PHY  → reg_msg / reg_vld  → Reg_Access
 //   otherwise           → Adapter_msg_send   → Link Controller
-rdi_tx_demux u_tx_demux (
+rdi_router u_rdi_router (
     .rst_n           (rst_n),
     .reset           (phy_in_reset),
 

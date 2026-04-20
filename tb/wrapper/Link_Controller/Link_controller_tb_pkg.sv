@@ -35,7 +35,7 @@ package Link_Controller_tb_pkg;
         // Adapter message constraints (Aggregator-like)
         constraint Adapter_msg_c {
             if (mapper_ready) {
-                Adapter_msg_send.header.opcode inside {
+                Adapter_msg_send.header.msg.opcode inside {
                     SB_32_MEM_READ               ,
                     SB_32_MEM_WRITE              ,
                     SB_32_DMS_REG_READ           ,
@@ -59,15 +59,15 @@ package Link_Controller_tb_pkg;
                     SB_PRIORITY_MSG2             
                 };
 
-                Adapter_msg_send.header.srcid inside {
+                Adapter_msg_send.header.msg.srcid inside {
                     STACK0       ,
                     ADAPTER      ,
                     MNGT_PORT_SRC,
                     STACK1
                 };
 
-                if (Adapter_msg_send.header.srcid == ADAPTER || Adapter_msg_send.header.srcid == MNGT_PORT_SRC) {
-                    Adapter_msg_send.header.dstid inside { 
+                if (Adapter_msg_send.header.msg.srcid == ADAPTER || Adapter_msg_send.header.msg.srcid == MNGT_PORT_SRC) {
+                    Adapter_msg_send.header.msg.dstid inside { 
                         LOCAL_PHY        ,
                         REMOTE_ADAPTER   ,
                         REMOTE_PHY       ,
@@ -75,7 +75,7 @@ package Link_Controller_tb_pkg;
                         MNGT_PORT_DST    
                     };
                 } else {
-                    Adapter_msg_send.header.dstid == LOCAL_PHY;
+                    Adapter_msg_send.header.msg.dstid == LOCAL_PHY;
                 }
             }
         }
@@ -83,9 +83,9 @@ package Link_Controller_tb_pkg;
         // Link message constraints (Packetizer-like)
         constraint Link_msg_c {
             if (mapper_ready) {
-                Link_msg_send.header.opcode inside {SB_MSG_WITHOUT_DATA, SB_MSG_WITH_64_DATA};
-                Link_msg_send.header.srcid == PHY;
-                Link_msg_send.header.dstid == REMOTE_PHY;
+                Link_msg_send.header.msg.opcode inside {SB_MSG_WITHOUT_DATA, SB_MSG_WITH_64_DATA};
+                Link_msg_send.header.msg.srcid == PHY;
+                Link_msg_send.header.msg.dstid == REMOTE_PHY;
             }
         }
 
@@ -340,7 +340,7 @@ package Link_Controller_tb_pkg;
                         expected_tx_mbx.put(exp);
                         
                         // Cycle 2: MSB (Payload) if 128-bit
-                        if (is_128bit_opcode(winner.header.opcode)) begin
+                        if (is_128bit_opcode(winner.header.msg.opcode)) begin
                             exp = new();
                             exp.ser_data_send = winner.payload;
                             exp.ser_vld_send = 1;
@@ -393,7 +393,7 @@ package Link_Controller_tb_pkg;
                     exp.Link_valid_rcvd = 0;
                     exp.det_pat_rcvd = 0;
                     // Demux logic based on dstid
-                    if (rcvd_pkt.header.dstid == REMOTE_PHY) begin
+                    if (rcvd_pkt.header.msg.dstid == REMOTE_PHY) begin
                         exp.LINK_msg_rcvd = rcvd_pkt;
                         exp.Link_valid_rcvd = 1;
                     end else begin

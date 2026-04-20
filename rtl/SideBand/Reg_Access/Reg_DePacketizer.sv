@@ -71,27 +71,27 @@ module Reg_DePacketizer
 // ---------------------------------------------------------------------------
 // Unpack header fields from the 128-bit packet
 // ---------------------------------------------------------------------------
-sb_header_t hdr;
-assign hdr = 'sb_header_t(pkt_in[63:0]);   // Header occupies lower 64 bits
+sb_header_u hdr;
+assign hdr = 'sb_header_u(pkt_in[63:0]);   // Header occupies lower 64 bits
 
 // ---------------------------------------------------------------------------
 // Always-comb outputs – decoded purely from latched packet
 // ---------------------------------------------------------------------------
 always_comb begin
     // ── Control path ──────────────────────────────────────────────────────
-    opcode          = hdr.opcode;
-    ep              = hdr.dp;       // dp = data-poison on the incoming packet
+    opcode          = hdr.req.opcode;
+    ep              = hdr.req.ep;       // Error Poison from request header bit 5
 
-    // Control parity check: odd parity over header[62:0]
-    // cp is stored in hdr.cp (bit[62]); parity of hdr[62:0] should == hdr.cp
-    // Odd parity: ^(hdr[62:0]) == 1 means even number of 1s → bit should be 1
-    // The standard check: cp_expected = ~(^hdr[62:0]); error if cp_expected != hdr.cp
-    parity_err      = (hdr.cp !== ~(^(pkt_in[61:0])));
+    // Control parity check: even parity over header[62:0]
+    // cp is stored in hdr.req.cp (bit[62]); parity of hdr[62:0] should == hdr.cp
+    // even parity: ^(hdr[62:0]) == 1 means even number of 1s → bit should be 1
+    // The standard check: cp_expected = (^hdr[61:0]); error if cp_expected != hdr.cp
+    parity_err      = (hdr.req.cp !== (^(pkt_in[61:0])));
 
     // false_msg: dstid is not a register-access destination
     // According to UCIe spec, reg-access packets are addressed to LOCAL_ADAPTER(001),
     // LOCAL_PHY(010), or REMOTE_REG_ACCESS(100).  Any other dstid is a false message.
-    false_msg       = (hdr.dstid != LOCAL_PHY);
+    false_msg       = (hdr.req.dstid != LOCAL_PHY);
 
     // ── Address decode ────────────────────────────────────────────────────
     // space bit: CFG opcodes → 0, MEM/DMS opcodes → 1
@@ -120,15 +120,12 @@ always_comb begin
     rf_addr[24]    = (opcode == SB_32_CFG_READ ||
                       opcode == SB_32_CFG_WRITE||
                       opcode == SB_64_CFG_READ ||
-                      opcode == SB_64_CFG_WRITE) ? 1'b0 : 1'b1;           // bit3 of opcode: 0=CFG, 1=MEM/DMS
-    rf_addr[23:20] = hdr.MsgInfo[15:12]; // RL[3:0]
-    rf_addr[19:2]  = hdr.MsgInfo[11:0];  // DWORD offset (18 bits, offset 19:2)
-    rf_addr[1:0]   = 2'b00;              // Byte addresses always DWORD-aligned
+                      opcode == SB_64_CFG_WRITE) ? 1'b0 : 1'b1;           // bit3 of opcode: 0=CFG, 1=MEM
+    rf_addr[23:0]  = hdr.req.addr;       // Directly use the 24-bit address
 
     // ── Byte enables ─────────────────────────────────────────────────────
-    // Spec §3.4: BE[7:0] are carried in header bits [21:14] = msgcode field
-    rf_be           = hdr.msgcode;        // msgcode[7:0] = BE[7:0]
-
+    // Spec §3.4: BE[7:0] are carried in header bits [19:12] = be field
+    rf_be           = hdr.req.be;         // Direct access from struct
     // ── 64-bit access flag ────────────────────────────────────────────────
     rf_is_64b_access = opcode[3];         // 64-bit opcodes have opcode[3]=1
 

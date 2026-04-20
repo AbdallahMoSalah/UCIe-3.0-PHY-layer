@@ -13,7 +13,7 @@ module LTSM_DE (
     output logic stall_rcvd
 );
     
-    sb_header_t header_in;
+    sb_header_u header_in;
     logic is_req;
     logic [7:0] msg_no_comb;
     logic error_flag;
@@ -28,20 +28,20 @@ module LTSM_DE (
         header_in = ltsm_msg_in [63:0];
 
         error_flag = 0;
-        is_stall = header_in.MsgInfo == 16'hffff ? 1'b1 : 1'b0; 
+        is_stall = header_in.msg.MsgInfo == 16'hffff ? 1'b1 : 1'b0; 
         // direction derived once (LSB rule: 1=req , 0=resp)
 
-        is_req = header_in.msgcode[0];
+        is_req = header_in.msg.msgcode[0];
 
         // parity calculations
         cp_calc = ^ltsm_msg_in [61:0];
         dp_calc = ^ltsm_msg_in [127:64];
 
-        if(header_in.opcode == SB_MSG_WITH_64_DATA) begin
-            error_flag = !((cp_calc == header_in.cp) && (dp_calc == header_in.dp));
+        if(header_in.msg.opcode == SB_MSG_WITH_64_DATA) begin
+            error_flag = !((cp_calc == header_in.msg.cp) && (dp_calc == header_in.msg.dp));
         end
-        else if(header_in.opcode == SB_MSG_WITHOUT_DATA) begin
-            error_flag = !(cp_calc == header_in.cp) ;
+        else if(header_in.msg.opcode == SB_MSG_WITHOUT_DATA) begin
+            error_flag = !(cp_calc == header_in.msg.cp) ;
         end
         else begin
             error_flag = 1'b1;
@@ -49,13 +49,13 @@ module LTSM_DE (
         // =====================================================
         // Main Decode
         // =====================================================
-        case (header_in.msgcode)
+        case (header_in.msg.msgcode)
 
             // =================================================
             // SBINIT_OFFRESET
             // =================================================
             SBINIT_OFFRESET_DOMAIN: begin
-                if (header_in.MsgSubcode == 8'h00)
+                if (header_in.msg.MsgSubcode == 8'h00)
                     msg_no_comb = SBINIT_Out_of_Reset;
                 else begin
                     error_flag = 1;
@@ -69,7 +69,7 @@ module LTSM_DE (
             SBINIT_REQ_DOMAIN,
             SBINIT_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h01:
                         msg_no_comb = is_req ?
@@ -85,7 +85,7 @@ module LTSM_DE (
             RDI_REQ_DOMAIN,
             RDI_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h01: msg_no_comb = is_req ?
                                         ACTIVE_REQ :
@@ -127,7 +127,7 @@ module LTSM_DE (
             MBINIT_REQ_DOMAIN,
             MBINIT_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h00: msg_no_comb = is_req ?
                                         MBINIT_PARAM_configuration_req :
@@ -208,7 +208,7 @@ module LTSM_DE (
             MBTRAIN_REQ_DOMAIN,
             MBTRAIN_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h00: msg_no_comb = is_req ?
                                         MBTRAIN_VALVREF_start_req :
@@ -360,7 +360,7 @@ module LTSM_DE (
             RECAL_REQ_DOMAIN,
             RECAL_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h00: msg_no_comb = is_req ?
                                         RECAL_track_pattern_init_req :
@@ -378,7 +378,7 @@ module LTSM_DE (
             // PHYRETRAIN
             // =================================================
             PHYRETRAIN_REQ_DOMAIN: begin
-                if (header_in.MsgSubcode == 8'h01) begin
+                if (header_in.msg.MsgSubcode == 8'h01) begin
                     msg_no_comb = PHYRETRAIN_retrain_start_req;
                 end
                 else begin
@@ -387,7 +387,7 @@ module LTSM_DE (
             end
 
             PHYRETRAIN_RESP_DOMAIN: begin
-                if (header_in.MsgSubcode == 8'h01) begin
+                if (header_in.msg.MsgSubcode == 8'h01) begin
                     msg_no_comb = PHYRETRAIN_retrain_start_resp;
                 end
                 else begin
@@ -400,7 +400,7 @@ module LTSM_DE (
             // TRAINERROR
             // =================================================
             TRAINERROR_REQ_DOMAIN: begin
-                if (header_in.MsgSubcode == 8'h00) begin
+                if (header_in.msg.MsgSubcode == 8'h00) begin
                     msg_no_comb = TRAINERROR_Entry_req;
                 end
                 else begin
@@ -409,7 +409,7 @@ module LTSM_DE (
             end
 
             TRAINERROR_RESP_DOMAIN: begin
-                if (header_in.MsgSubcode == 8'h00) begin
+                if (header_in.msg.MsgSubcode == 8'h00) begin
                     msg_no_comb = TRAINERROR_Entry_resp;
                 end
                 else begin
@@ -423,7 +423,7 @@ module LTSM_DE (
             TEST_REQ_DOMAIN,
             TEST_RESP_DOMAIN: begin
 
-                case (header_in.MsgSubcode)
+                case (header_in.msg.MsgSubcode)
 
                     8'h01: msg_no_comb = is_req ?
                                         Start_Tx_Init_D_to_C_point_test_req :
@@ -478,7 +478,7 @@ module LTSM_DE (
 
             end
             RX_TEST_SWEEP_DONE_RESULT: begin
-                if (header_in.MsgSubcode == 8'h0C) begin
+                if (header_in.msg.MsgSubcode == 8'h0C) begin
                     msg_no_comb = SBINIT_Out_of_Reset;
                 end
                 else begin
@@ -507,7 +507,7 @@ module LTSM_DE (
             msg_no_out <= msg_no_comb;
             stall_rcvd <= is_stall;
             ltsm_vld_r <=1; // Indicate that the message is valid and ready to be sent
-            msginfo_r <= header_in.MsgInfo;  
+            msginfo_r <= header_in.msg.MsgInfo;  
             payload_r <= ltsm_msg_in [127:64];
         end else begin
             ltsm_vld_r <= 1'b0; 
