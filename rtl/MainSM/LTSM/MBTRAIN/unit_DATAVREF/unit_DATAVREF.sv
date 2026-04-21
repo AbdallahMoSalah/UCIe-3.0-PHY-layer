@@ -41,22 +41,38 @@ module unit_DATAVREF #(
     reg [3:0] current_state, next_state, previous_state; // The Current, Next states, and Previous state of the FSM.
     wire data_incoherence;
 
-    //================================
-    // Calculate Vref Code:
-    //================================
-    reg [DATA_VREF_CODE_WIDTH-1:0] current_vref_code; // The code that is currently swept.
+    // ====================================================================
+    // Vref sweep data-path registers (per-lane, 16 lanes)
+    //
+    // Unified signal names mirroring VALVREF / DTVREF companion modules:
+    //   swept_code_r    <-> current_vref_code  -- Vref code being swept (S3-S5 loop)
+    //   zone_valid[l]   <-> is_in_valid_region -- 1 while inside a contiguous pass zone
+    //   found_pass[l]   <-> vref_code_filled   -- 1 once any passing code seen for lane l
+    //   zone_min_r[l]   <-> temp_min_vref      -- start of the current contiguous pass zone
+    //   best_lo[l]      <-> min_vref_code      -- left  edge of widest pass window
+    //   best_hi[l]      <-> max_vref_code      -- right edge of widest pass window
+    //   best_vref_code[l]                      -- midpoint applied after CALC_APPLY
+    //
+    // Two-zone algorithm (same logic as VALVREF_LOG_RESULT_PROC):
+    //   Zone A (new contiguous pass zone starts):
+    //     -> set zone_valid[l], save zone_min_r[l] = swept_code_r.
+    //     -> if first-ever pass (found_pass[l]==0): seed best_lo/hi, set found_pass.
+    //   Zone B (extending a contiguous pass zone):
+    //     -> if current zone wider than best window: update best_lo/hi.
+    //   Fail: zone_valid[l] -> 0 (hole in the lane's Vref eye diagram).
+    // ====================================================================
+    reg [DATA_VREF_CODE_WIDTH-1:0] swept_code_r; // Vref code currently being swept
 
-    // Arrays for each of the 16 lanes
-    wire [DATA_VREF_CODE_WIDTH-1:0] vref_range [15:0];
-    wire [DATA_VREF_CODE_WIDTH-1:0] temp_vref_range [15:0];
-    reg  [DATA_VREF_CODE_WIDTH-1:0] temp_min_vref [15:0];
-    reg  [DATA_VREF_CODE_WIDTH-1:0] min_vref_code [15:0];
-    reg  [DATA_VREF_CODE_WIDTH-1:0] max_vref_code [15:0];
-    reg  [15:0] vref_code_filled;
-    reg  [15:0] is_in_valid_region;
+    // Per-lane eye-map tracking arrays (indexed [lane])
+    wire [DATA_VREF_CODE_WIDTH-1:0] best_range     [15:0]; // width of best window
+    wire [DATA_VREF_CODE_WIDTH-1:0] zone_range     [15:0]; // width of current zone
+    reg  [DATA_VREF_CODE_WIDTH-1:0] zone_min_r     [15:0]; // start of current zone (zone_min_r)
+    reg  [DATA_VREF_CODE_WIDTH-1:0] best_lo        [15:0]; // left  edge (min_vref_code)
+    reg  [DATA_VREF_CODE_WIDTH-1:0] best_hi        [15:0]; // right edge (max_vref_code)
+    reg  [15:0] found_pass;   // 1b per lane: at least one pass code seen
+    reg  [15:0] zone_valid;   // 1b per lane: currently inside a contiguous pass zone
 
-    reg  [DATA_VREF_CODE_WIDTH-1:0] best_vref_code [15:0];
-    // reg  [15:0] lane_fail_flag;
+    reg  [DATA_VREF_CODE_WIDTH-1:0] best_vref_code [15:0]; // applied midpoint after CALC_APPLY
 
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
@@ -96,7 +112,7 @@ module unit_DATAVREF #(
                     if (datavref_if.rx_sb_msg == MBTRAIN_DATAVREF_start_resp && datavref_if.rx_sb_msg_valid == 1'b1) next_state = DATAVREF_SET_VREF_CODE;
                     else next_state = DATAVREF_START_RESP;
                 end
-                // (S3) Drive Vref (current_vref_code) to PHY MB Receiver Data Lanes.
+                // (S3) Drive Vref (swept_code_r) to PHY MB Receiver Data Lanes.
                 DATAVREF_SET_VREF_CODE: begin
                     if (datavref_if.analog_settle_time_done) next_state = DATAVREF_RX_D2C_PT;
                     else next_state = DATAVREF_SET_VREF_CODE;
@@ -108,7 +124,7 @@ module unit_DATAVREF #(
                 end
                 // (S5) Log the current vref_code value if the received pattern on MB Receiver Data Lanes is valid.
                 DATAVREF_LOG_RESULT: begin
-                    if (current_vref_code == MAX_DATA_VREF_CODE) next_state = DATAVREF_CALC_APPLY;
+                    if (swept_code_r == MAX_DATA_VREF_CODE) next_state = DATAVREF_CALC_APPLY;
                     else next_state = DATAVREF_SET_VREF_CODE;
                 end
                 // (S6) Caluculate the best value for vref_code for all 16 lanes independently.
@@ -189,13 +205,13 @@ module unit_DATAVREF #(
         // // MB signals:
         // //=========================
         // Lane Behavior Control
-        datavref_if.mb_tx_clk_lane_sel  = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
-        datavref_if.mb_tx_data_lane_sel = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        datavref_if.mb_tx_clk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        datavref_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
         datavref_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
-        datavref_if.mb_tx_trk_lane_sel  = 2'b10; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        datavref_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
         datavref_if.mb_rx_clk_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
         datavref_if.mb_rx_data_lane_sel = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
-        datavref_if.mb_rx_val_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        datavref_if.mb_rx_val_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
         datavref_if.mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
 
@@ -297,105 +313,141 @@ module unit_DATAVREF #(
     genvar lane;
     generate
         for(lane=0; lane<16; lane=lane+1) begin : VREF_RANGE_GEN
-            assign vref_range[lane]      = (vref_code_filled[lane] == 1'b1) ? (max_vref_code[lane] - min_vref_code[lane]) : '0;
-            assign temp_vref_range[lane] = (current_vref_code - temp_min_vref[lane]);
+            // best_range[l]: width of the best recorded pass window for lane l.
+            assign best_range[lane] = (found_pass[lane] == 1'b1) ?
+                (best_hi[lane] - best_lo[lane]) : '0;
+            // zone_range[l]: width of the current contiguous pass zone for lane l.
+            assign zone_range[lane] = (swept_code_r - zone_min_r[lane]);
 
-            // Drive the sweeping current_vref_code during early active states, otherwise output the permanent best_vref_code.
+            // Drive swept_code_r to PHY during the sweep states (S1-S5),
+            // then switch to the per-lane best midpoint (best_vref_code) afterwards.
             assign datavref_if.phy_rx_datavref_ctrl[lane] = (current_state == DATAVREF_START_REQ     ||
                     current_state == DATAVREF_START_RESP    ||
                     current_state == DATAVREF_SET_VREF_CODE ||
                     current_state == DATAVREF_RX_D2C_PT     ||
-                    current_state == DATAVREF_LOG_RESULT) ? current_vref_code : best_vref_code[lane];
+                    current_state == DATAVREF_LOG_RESULT) ? swept_code_r : best_vref_code[lane];
         end
     endgenerate
 
-    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_CALC_APPLY_PROC
+    // =====================================================================
+    // Sequential: swept_code_r counter and per-lane best_vref_code apply
+    //
+    // This block manages:
+    //   1. Reset of swept_code_r at the start of each calibration run (S1).
+    //   2. Increment of swept_code_r on every LOG_RESULT cycle (S5).
+    //   3. Compute per-lane best midpoint in CALC_APPLY (S6) and record fail flag.
+    // =====================================================================
+    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_CODE_AND_CALC_PROC
         integer j;
         if(!datavref_if.rst_n) begin
-            current_vref_code         <= MIN_DATA_VREF_CODE;
+            swept_code_r                   <= MIN_DATA_VREF_CODE;
             datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
         end
         else if(current_state == DATAVREF_START_REQ) begin
-            current_vref_code         <= MIN_DATA_VREF_CODE;
+            // Reset swept_code_r and applied values at the start of each run.
+            swept_code_r                   <= MIN_DATA_VREF_CODE;
             datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
         end
-        // Change the Vref value:
+        // (S5) Advance the Vref sweep counter after each test result is logged.
         else if(current_state == DATAVREF_LOG_RESULT) begin
-            if(current_vref_code != MAX_DATA_VREF_CODE) begin
-                current_vref_code <= current_vref_code + 1;
+            if(swept_code_r != MAX_DATA_VREF_CODE) begin
+                swept_code_r <= swept_code_r + 1;
             end
         end
-        // Calculate the best Vref value for all 16 lanes independently:
+        // (S6) Compute the per-lane best Vref midpoint:
+        //      best_vref_code[l] = (best_lo[l] + best_hi[l]) / 2
+        //      Spec eq.: vref_code = (1st_success + last_success) / 2
         else if(current_state == DATAVREF_CALC_APPLY) begin
             for(j=0; j<16; j=j+1) begin
-                if(vref_code_filled[j] == 1'b1) begin
-                    best_vref_code[j] <= ({1'b0, min_vref_code[j]} + {1'b0, max_vref_code[j]}) >> 1;
+                if(found_pass[j] == 1'b1) begin
+                    best_vref_code[j] <= ({1'b0, best_lo[j]} + {1'b0, best_hi[j]}) >> 1;
                 end
                 else begin
-                    best_vref_code[j] <= '0;
+                    best_vref_code[j] <= '0; // No passing code: safe default
                 end
             end
 
-            // Fail if any lane (of the negotiated lanes) is not filled
-            datavref_if.datavref_fail_flag <= ~( &(vref_code_filled|(~negotiated_data_lanes)) );
+            // Fail flag: set if any negotiated lane has no passing Vref code.
+            // (negotiated_data_lanes mask gates out non-active lanes.)
+            datavref_if.datavref_fail_flag <= ~( &(found_pass|(~negotiated_data_lanes)) );
         end
     end
 
-    //=======================================
-    // DATAVREF_LOG_RESULT: Log the Vref Code
-    //=======================================
+    // =====================================================================
+    // Sequential: per-lane two-zone eye-map tracking (LOG_RESULT)
+    //
+    // Same algorithm as VALVREF_LOG_RESULT_PROC, extended to 16 lanes.
+    // Signal names (unified):
+    //   zone_valid[l]  <-> is_in_valid_region[l]
+    //   found_pass[l]  <-> vref_code_filled[l]
+    //   zone_min_r[l]  <-> temp_min_vref[l]
+    //   best_lo[l]     <-> min_vref_code[l]
+    //   best_hi[l]     <-> max_vref_code[l]
+    //   swept_code_r   <-> current_vref_code
+    //
+    // Zone A (new contiguous pass zone):
+    //   zone_valid[l] 0->1; save zone_min_r[l]=swept_code_r.
+    //   First-ever pass (found_pass[l]==0 & negotiated): seed best_lo/hi.
+    // Zone B (continuing inside the pass zone):
+    //   If zone_range[l] > best_range[l]: update best_lo[l]/best_hi[l].
+    // Fail (hole detected):
+    //   zone_valid[l] -> 0.
+    // =====================================================================
     always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_LOG_RESULT_PROC
         integer i;
         if(!datavref_if.rst_n) begin
             for(i=0; i<16; i=i+1) begin
-                min_vref_code[i]      <= '0;
-                max_vref_code[i]      <= '0;
-                vref_code_filled[i]   <= 1'b0;
-                is_in_valid_region[i] <= 1'b0;
-                temp_min_vref[i]      <= '0;
+                best_lo   [i] <= '0;
+                best_hi   [i] <= '0;
+                found_pass[i] <= 1'b0;
+                zone_valid[i] <= 1'b0;
+                zone_min_r[i] <= '0;
             end
         end
         else if(current_state == DATAVREF_START_REQ) begin
             for(i=0; i<16; i=i+1) begin
-                min_vref_code[i]      <= '0;
-                max_vref_code[i]      <= '0;
-                vref_code_filled[i]   <= 1'b0;
-                is_in_valid_region[i] <= 1'b0;
-                temp_min_vref[i]      <= '0;
+                best_lo   [i] <= '0;
+                best_hi   [i] <= '0;
+                found_pass[i] <= 1'b0;
+                zone_valid[i] <= 1'b0;
+                zone_min_r[i] <= '0;
             end
         end
         else if(current_state == DATAVREF_LOG_RESULT) begin
             for(i=0; i<16; i=i+1) begin
-                // Check if the current lane is successful (No error)
                 if (!d2c_if.d2c_perlane_err[i]) begin
-                    // 1. If we start a new connected Vref valid region
-                    if (!is_in_valid_region[i] || current_vref_code == MIN_DATA_VREF_CODE) begin
-                        is_in_valid_region[i] <= 1'b1; // start new zone.
-                        temp_min_vref[i]      <= current_vref_code;
+                    // PASS at swept_code_r for lane i
+                    // Zone A: entering a new contiguous pass region.
+                    if (!zone_valid[i]) begin
+                        zone_valid[i] <= 1'b1; // mark zone active
+                        zone_min_r[i] <= swept_code_r; // save zone start
 
-                        if (!vref_code_filled[i] && negotiated_data_lanes[i]) begin
-                            vref_code_filled[i] <= 1'b1;
-                            min_vref_code[i]    <= current_vref_code;
-                            max_vref_code[i]    <= current_vref_code;
+                        if (!found_pass[i] && negotiated_data_lanes[i]) begin
+                            // Very first passing code for this lane: seed the window.
+                            found_pass[i] <= 1'b1;
+                            best_lo[i]    <= swept_code_r;
+                            best_hi[i]    <= swept_code_r;
                         end
                     end
-                    // 2. If we continue within a current success zone
+                    // Zone B: extending the current contiguous pass zone.
+                    // Update best window only if current zone is wider.
                     else begin
-                        if ((temp_vref_range[i]) > (vref_range[i])) begin
-                            min_vref_code[i] <= temp_min_vref[i];
-                            max_vref_code[i] <= current_vref_code;
+                        if (zone_range[i] > best_range[i]) begin
+                            best_lo[i] <= zone_min_r[i];
+                            best_hi[i] <= swept_code_r;
                         end
                     end
                 end
-                // The result was "Fail" for this lane
+                // FAIL at swept_code_r for lane i: close pass zone
+                // (Hole in the Vref eye diagram - Zone A will restart on next pass)
                 else begin
-                    is_in_valid_region[i] <= 1'b0;
+                    zone_valid[i] <= 1'b0;
                 end
             end
         end

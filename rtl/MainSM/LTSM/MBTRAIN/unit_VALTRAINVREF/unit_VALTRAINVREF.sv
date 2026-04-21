@@ -8,8 +8,8 @@
 //           VALTRAIN pattern (11110000).
 //
 //           Key Spec Compliance (LTSM_from_MBTRAIN_tables.txt lines 439-499):
-//           ─────────────────────────────────────────────────────────────────
-//           S2 (START_RESP): If valtraincenter_fail_flag == 1 on resp rcvd →
+//           ---------------------------------------------------------------------
+//           S2 (START_RESP): If valtraincenter_fail_flag == 1 on resp rcvd ->
 //                            skip Vref sweep and jump directly to S7 (END_REQ).
 //           S5 (LOG_RESULT): No TRAINERROR on all-fail; just continue to S6
 //                            and assert valtrainvref_fail_flag.
@@ -37,10 +37,10 @@ module unit_VALTRAINVREF #(
 
     // To get the used SB messages for: (valtrainvref_if.tx_sb_msg, valtrainvref_if.rx_sb_msg)
     import UCIe_pkg::msg_no_e;
-    import UCIe_pkg::MBTRAIN_VALTRAINVREF_start_req ; // Msg Number: d57 — MsgCode B5h, SubCode 0Ah
-    import UCIe_pkg::MBTRAIN_VALTRAINVREF_start_resp; // Msg Number: d58 — MsgCode BAh, SubCode 0Ah
-    import UCIe_pkg::MBTRAIN_VALTRAINVREF_end_req   ; // Msg Number: d59 — MsgCode B5h, SubCode 0Bh
-    import UCIe_pkg::MBTRAIN_VALTRAINVREF_end_resp  ; // Msg Number: d60 — MsgCode BAh, SubCode 0Bh
+    import UCIe_pkg::MBTRAIN_VALTRAINVREF_start_req ; // Msg Number: d57 -- MsgCode B5h, SubCode 0Ah
+    import UCIe_pkg::MBTRAIN_VALTRAINVREF_start_resp; // Msg Number: d58 -- MsgCode BAh, SubCode 0Ah
+    import UCIe_pkg::MBTRAIN_VALTRAINVREF_end_req   ; // Msg Number: d59 -- MsgCode B5h, SubCode 0Bh
+    import UCIe_pkg::MBTRAIN_VALTRAINVREF_end_resp  ; // Msg Number: d60 -- MsgCode BAh, SubCode 0Bh
     import UCIe_pkg::TRAINERROR_Entry_req            ; // Msg Number: d107
     import UCIe_pkg::NOTHING                         ; // Msg Number: 8'hFF
 
@@ -83,39 +83,32 @@ module unit_VALTRAINVREF #(
     // (Block 2) Combinational: Next-State Logic
     // =====================================================================
     always @(*) begin
-        // ── Global override: timeout or remote TRAINERROR message ──────────
+        // Global override: timeout or remote TRAINERROR message
         // NOTE: valtrainvref_fail_flag does NOT cause TRAINERROR here (spec
-        //       line 482-488: "vref_code == MAX_VREF_CODE → GOTO S6" — fail
+        //       line 482-488: "vref_code == MAX_VREF_CODE -> GOTO S6" -- fail
         //       flag is set then execution continues to notify partner via SB).
-        if (valtrainvref_if.timeout_8ms_occured |
-                (valtrainvref_if.rx_sb_msg == TRAINERROR_Entry_req &&
-                    valtrainvref_if.rx_sb_msg_valid == 1'b1)) begin
+        if (valtrainvref_if.timeout_8ms_occured | (valtrainvref_if.rx_sb_msg == TRAINERROR_Entry_req && valtrainvref_if.rx_sb_msg_valid == 1'b1)) begin
             next_state = TO_TRAINERROR;
         end else begin
             case (current_state)
                 // (S0) Wait for enable trigger from MBTRAIN controller.
                 VALTRAINVREF_IDLE: begin
-                    next_state = (valtrainvref_if.valtrainvref_en) ?
-                        VALTRAINVREF_START_REQ : VALTRAINVREF_IDLE;
+                    next_state = (valtrainvref_if.valtrainvref_en) ? VALTRAINVREF_START_REQ : VALTRAINVREF_IDLE;
                 end
 
                 // (S1) Handshake: {MBTRAIN.VALTRAINVREF start req}
                 VALTRAINVREF_START_REQ: begin
-                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_req &&
-                        valtrainvref_if.rx_sb_msg_valid == 1'b1) ?
-                        VALTRAINVREF_START_RESP : VALTRAINVREF_START_REQ;
+                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_req && valtrainvref_if.rx_sb_msg_valid == 1'b1) ? VALTRAINVREF_START_RESP : VALTRAINVREF_START_REQ;
                 end
 
                 // (S2) Handshake: {MBTRAIN.VALTRAINVREF start resp}
                 //      SPEC: if valtraincenter_fail_flag == 1 → skip sweep → S7
                 //            if valtraincenter_fail_flag == 0 → run sweep  → S3
                 VALTRAINVREF_START_RESP: begin
-                    if (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_resp &&
-                            valtrainvref_if.rx_sb_msg_valid == 1'b1) begin
+                    if (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_resp && valtrainvref_if.rx_sb_msg_valid == 1'b1) begin
                         // valtraincenter_fail_flag is an INPUT: set by the previous
                         // VALTRAINCENTER sub-state and read here via the interface.
-                        next_state = (valtrainvref_if.valtraincenter_fail_flag) ?
-                            VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
+                        next_state = (valtrainvref_if.valtraincenter_fail_flag) ? VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
                     end else begin
                         next_state = VALTRAINVREF_START_RESP;
                     end
@@ -123,61 +116,50 @@ module unit_VALTRAINVREF #(
 
                 // (S3) Drive Vref to PHY Rx; wait analog settle.
                 VALTRAINVREF_SET_VREF_CODE: begin
-                    next_state = (valtrainvref_if.analog_settle_time_done) ?
-                        VALTRAINVREF_RX_D2C_PT : VALTRAINVREF_SET_VREF_CODE;
+                    next_state = (valtrainvref_if.analog_settle_time_done) ? VALTRAINVREF_RX_D2C_PT : VALTRAINVREF_SET_VREF_CODE;
                 end
 
                 // (S4) Run sub-FSM: Rx-initiated Data-to-Clock point test.
                 VALTRAINVREF_RX_D2C_PT: begin
-                    next_state = (d2c_if.test_d2c_done) ?
-                        VALTRAINVREF_LOG_RESULT : VALTRAINVREF_RX_D2C_PT;
+                    next_state = (d2c_if.test_d2c_done) ? VALTRAINVREF_LOG_RESULT : VALTRAINVREF_RX_D2C_PT;
                 end
 
                 // (S5) Log result; continue sweep or finish.
-                //      SPEC: vref_code < MAX → S3.  vref_code == MAX → S6.
+                //      SPEC: vref_code < MAX -> S3.  vref_code == MAX -> S6.
                 //            NO TRAINERROR on all-fail (valtrainvref_fail_flag set in S6).
                 VALTRAINVREF_LOG_RESULT: begin
-                    next_state = (valtrainvref_if.phy_rx_valvref_ctrl == MAX_VAL_VREF_CODE) ?
-                        VALTRAINVREF_CALC_APPLY : VALTRAINVREF_SET_VREF_CODE;
+                    next_state = (valtrainvref_if.phy_rx_valvref_ctrl == MAX_VAL_VREF_CODE) ? VALTRAINVREF_CALC_APPLY : VALTRAINVREF_SET_VREF_CODE;
                 end
 
                 // (S6) Calculate midpoint Vref and apply; wait analog settle.
                 //      SPEC: "wait till the value of Vref_code be settled. (wait analog timer)
                 //             IF(analog timer finished) GOTO S7"
                 VALTRAINVREF_CALC_APPLY: begin
-                    next_state = (valtrainvref_if.analog_settle_time_done) ?
-                        VALTRAINVREF_END_REQ : VALTRAINVREF_CALC_APPLY;
+                    next_state = (valtrainvref_if.analog_settle_time_done) ? VALTRAINVREF_END_REQ : VALTRAINVREF_CALC_APPLY;
                 end
 
                 // (S7) Handshake: {MBTRAIN.VALTRAINVREF end req}
                 VALTRAINVREF_END_REQ: begin
-                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_end_req &&
-                        valtrainvref_if.rx_sb_msg_valid == 1'b1) ?
-                        VALTRAINVREF_END_RESP : VALTRAINVREF_END_REQ;
+                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_end_req && valtrainvref_if.rx_sb_msg_valid == 1'b1) ? VALTRAINVREF_END_RESP : VALTRAINVREF_END_REQ;
                 end
 
                 // (S8) Handshake: {MBTRAIN.VALTRAINVREF end resp}
                 VALTRAINVREF_END_RESP: begin
-                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_end_resp &&
-                        valtrainvref_if.rx_sb_msg_valid == 1'b1) ?
-                        TO_DATATRAINCENTER1 : VALTRAINVREF_END_RESP;
+                    next_state = (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_end_resp && valtrainvref_if.rx_sb_msg_valid == 1'b1) ? TO_DATATRAINCENTER1 : VALTRAINVREF_END_RESP;
                 end
 
                 // (S9) Assert done; hold until enable is de-asserted by controller.
                 TO_DATATRAINCENTER1: begin
-                    next_state = (valtrainvref_if.valtrainvref_en) ?
-                        TO_DATATRAINCENTER1 : VALTRAINVREF_IDLE;
+                    next_state = (valtrainvref_if.valtrainvref_en) ? TO_DATATRAINCENTER1 : VALTRAINVREF_IDLE;
                 end
 
                 // (S10) TRAINERROR: hold until enable de-asserted.
                 TO_TRAINERROR: begin
-                    next_state = (valtrainvref_if.valtrainvref_en) ?
-                        TO_TRAINERROR : VALTRAINVREF_IDLE;
+                    next_state = (valtrainvref_if.valtrainvref_en) ? TO_TRAINERROR : VALTRAINVREF_IDLE;
                 end
 
                 default: begin
-                    next_state = (valtrainvref_if.valtrainvref_en) ?
-                        TO_TRAINERROR : VALTRAINVREF_IDLE;
+                    next_state = (valtrainvref_if.valtrainvref_en) ? TO_TRAINERROR : VALTRAINVREF_IDLE;
                 end
             endcase
         end
@@ -187,7 +169,7 @@ module unit_VALTRAINVREF #(
     // (Block 3) Combinational: Output Logic
     // =====================================================================
     always @(*) begin
-        // ── Safe defaults (prevent latches) ───────────────────────────────
+        // Safe defaults (prevent latches)
 
         // --- LTSM handshake ---
         valtrainvref_if.valtrainvref_done = 1'b0;
@@ -240,7 +222,7 @@ module unit_VALTRAINVREF #(
         valtrainvref_if.tx_msginfo      = 16'h0  ;
         valtrainvref_if.tx_data_field   = 64'h0  ;
 
-        // ── Per-state output overrides ─────────────────────────────────────
+        // Per-state output overrides
         case (current_state)
 
             // (S0) IDLE: timeout timer disabled while waiting for trigger.
@@ -358,7 +340,24 @@ module unit_VALTRAINVREF #(
     // Drive to modport output.
     assign valtrainvref_if.valtrainvref_fail_flag = valtrainvref_fail_flag_r;
 
-    // ── Sequential: Vref code control ────────────────────────────────────
+    // Sequential: Vref code control (swept_code_r = phy_rx_valvref_ctrl)
+    //
+    // Unified signal names (for cross-module readability):
+    //   valtrainvref_if.phy_rx_valvref_ctrl <-> swept_code_r (both sweep code and result)
+    //   is_in_valid_region                  <-> zone_valid
+    //   vref_code_filled                    <-> found_pass
+    //   temp_min_vref                       <-> zone_min_r
+    //   min_vref_code                       <-> best_lo
+    //   max_vref_code                       <-> best_hi
+    //
+    // Two-zone algorithm (same as VALVREF / DATAVREF / DTVREF companion modules):
+    //   Zone A (new contiguous pass zone starts):
+    //     is_in_valid_region 0->1; temp_min_vref = swept_code_r (zone_min_r).
+    //     If first-ever pass (vref_code_filled==0): seed min/max_vref_code.
+    //   Zone B (extending the contiguous pass zone):
+    //     If temp_vref_range (zone_range) > vref_range (best_range):
+    //       update min_vref_code (best_lo) and max_vref_code (best_hi).
+    //   Fail: is_in_valid_region -> 0 (hole detected in Valid-lane Vref eye).
     always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_CALC_APPLY_PROC
         if (!valtrainvref_if.rst_n) begin
             valtrainvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
@@ -385,7 +384,7 @@ module unit_VALTRAINVREF #(
         end
     end
 
-    // ── Sequential: Eye-map tracking (widest contiguous pass window) ─────
+    // Sequential: Eye-map tracking (widest contiguous pass window)
     reg is_in_valid_region;
 
     always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_LOG_RESULT_PROC
@@ -406,13 +405,13 @@ module unit_VALTRAINVREF #(
         end
         else if (current_state == VALTRAINVREF_LOG_RESULT) begin
             if (!d2c_if.d2c_val_err) begin
-                // ── Pass ─────────────────────────────────────────────────
+                // PASS: start or extend the contiguous pass zone.
                 if (!is_in_valid_region || valtrainvref_if.phy_rx_valvref_ctrl == MIN_VAL_VREF_CODE) begin
                     // Start a new contiguous success zone.
                     is_in_valid_region <= 1'b1;
                     temp_min_vref      <= valtrainvref_if.phy_rx_valvref_ctrl;
                     if (!vref_code_filled) begin
-                        // Very first pass point — record it as both min and max.
+                        // Very first pass point -- record it as both min and max.
                         vref_code_filled <= 1'b1;
                         min_vref_code    <= valtrainvref_if.phy_rx_valvref_ctrl;
                         max_vref_code    <= valtrainvref_if.phy_rx_valvref_ctrl;
@@ -425,8 +424,7 @@ module unit_VALTRAINVREF #(
                     end
                 end
             end else begin
-                // ── Fail ─────────────────────────────────────────────────
-                // Break the current contiguous zone; next pass starts a fresh zone.
+                // FAIL: break the current contiguous zone; next pass starts a fresh zone.
                 is_in_valid_region <= 1'b0;
             end
         end

@@ -696,8 +696,8 @@ module unit_RXCLKCAL #() (
             phy_tx_decrement_shift_reg <= 1'b0; // Reset: direction = increment.
         end
         else if (current_state == IQ_TCKN_L_SHIFT_REQ &&
-                 rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req &&
-                 rxclkcal_if.rx_sb_msg_valid == 1'b1) begin
+                rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req &&
+                rxclkcal_if.rx_sb_msg_valid == 1'b1) begin
             // Latch partner-commanded shift from rx_msginfo (UCIe Table 7-9):
             phy_tx_tckn_shift_reg      <= rxclkcal_if.rx_msginfo[5:1]; // [5:1]: shift magnitude.
             phy_tx_decrement_shift_reg <= rxclkcal_if.rx_msginfo[0]  ; // [0]  : shift direction.

@@ -264,9 +264,28 @@ module unit_VALTRAINCENTER #(
     end
 
 
-    //================================
-    // Caluculate Phase Code:
-    //================================
+    // =====================================================================
+    // Phase sweep data-path registers
+    //
+    // Unified signal names (for cross-module readability):
+    //   phy_tx_pi_phase_ctrl <-> swept_code_r  -- PI phase code swept (S3-S5 loop)
+    //                                             and applied value after CALC_APPLY.
+    //   is_in_valid_region   <-> zone_valid    -- 1 while inside a contiguous pass zone
+    //   phase_code_filled    <-> found_pass    -- 1 once any passing code seen
+    //   temp_min_phase       <-> zone_min_r    -- start of the current contiguous pass zone
+    //   min_phase_code       <-> best_lo       -- left  edge of widest pass window
+    //   max_phase_code       <-> best_hi       -- right edge of widest pass window
+    //   (result written directly to phy_tx_pi_phase_ctrl in CALC_APPLY)
+    //
+    // Two-zone algorithm (same as VALVREF / DATAVREF / DTVREF companion modules):
+    //   Zone A (new contiguous pass zone starts):
+    //     is_in_valid_region 0->1; temp_min_phase = phy_tx_pi_phase_ctrl (zone_min_r).
+    //     First-ever pass (phase_code_filled==0): seed min/max_phase_code (best_lo/hi).
+    //   Zone B (extending the contiguous pass zone):
+    //     If temp_phase_range (zone_range) > phase_range (best_range):
+    //       update min_phase_code (best_lo) and max_phase_code (best_hi).
+    //   Fail: is_in_valid_region -> 0 (hole detected in Valid-lane phase eye).
+    // =====================================================================
     wire [PHASE_CODE_WIDTH-1:0] phase_range;
     wire [PHASE_CODE_WIDTH-1:0] temp_phase_range;
     reg  [PHASE_CODE_WIDTH-1:0] temp_min_phase;      // To store the start of the current valid Phase range.
@@ -275,12 +294,21 @@ module unit_VALTRAINCENTER #(
     reg                         phase_code_filled;   // To represent each "phase_code" register to know if it filled with correct data or not.
 
 
-    // Get the Phase range
     assign phase_range        = (phase_code_filled == 1'b1) ? (max_phase_code - min_phase_code) : '0;
     assign temp_phase_range   = (valtraincenter_if.phy_tx_pi_phase_ctrl - temp_min_phase);
 
-    // We assign valtraincenter_fail_flag here directly. It goes back to main FSM.
+    // valtraincenter_fail_flag: asserted in CALC_APPLY if sweep found no passing
+    // phase or the best window is too narrow (< VAL_SUCCESS_RANGE codes wide).
     assign valtraincenter_if.valtraincenter_fail_flag = (current_state == VALTRAINCENTER_CALC_APPLY) & (~phase_code_filled | (phase_range < VAL_SUCCESS_RANGE));
+
+    // =====================================================================
+    // Sequential: swept_code_r (phy_tx_pi_phase_ctrl) increment and apply
+    //
+    // In this module phy_tx_pi_phase_ctrl serves dual purpose:
+    //   During sweep (S3-S5): driven with the current phase code.
+    //   After CALC_APPLY    : holds the computed midpoint (best phase center).
+    // The LOG_RESULT block reads phy_tx_pi_phase_ctrl as swept_code_r.
+    // =====================================================================
 
     always @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : VALTRAINCENTER_CALC_APPLY_PROC
         if(!valtraincenter_if.rst_n) begin
@@ -295,7 +323,9 @@ module unit_VALTRAINCENTER #(
                 valtraincenter_if.phy_tx_pi_phase_ctrl <= valtraincenter_if.phy_tx_pi_phase_ctrl + 1;
             end
         end
-        // Calculate the best Phase value:
+        // (S6) Compute and apply the optimal phase midpoint.
+        //      Spec eq.: phase_code = (min_phase_code + max_phase_code) / 2
+        //                i.e. best_code = (best_lo + best_hi) / 2
         else if(current_state == VALTRAINCENTER_CALC_APPLY) begin
             if(phase_code_filled == 1'b1) begin
                 valtraincenter_if.phy_tx_pi_phase_ctrl <= ({1'b0, min_phase_code} + {1'b0, max_phase_code})>>1;
@@ -307,10 +337,28 @@ module unit_VALTRAINCENTER #(
     end
 
 
-    reg is_in_valid_region;
-    //=============================================
-    // VALTRAINCENTER_LOG_RESULT: Log the Phase Code:
-    //=============================================
+    reg is_in_valid_region; // (zone_valid) 1 while inside a contiguous pass zone.
+
+    // =====================================================================
+    // Sequential: two-zone eye-map tracking for Valid-lane phase sweep
+    //
+    // Signal names (unified with VALVREF / DATAVREF / DTVREF companion modules):
+    //   valtraincenter_if.phy_tx_pi_phase_ctrl <-> swept_code_r (both sweep and result)
+    //   is_in_valid_region                     <-> zone_valid
+    //   phase_code_filled                      <-> found_pass
+    //   temp_min_phase                         <-> zone_min_r
+    //   min_phase_code                         <-> best_lo
+    //   max_phase_code                         <-> best_hi
+    //
+    // Zone A (new contiguous pass zone starts):
+    //   is_in_valid_region 0->1; temp_min_phase = current code (= zone_min_r).
+    //   Also restarts at MIN_PHASE_CODE to handle the first code correctly.
+    //   If first-ever pass (phase_code_filled==0): seed min/max_phase_code.
+    // Zone B (extending the contiguous pass zone):
+    //   If temp_phase_range (zone_range) > phase_range (best_range):
+    //     update min_phase_code (best_lo) and max_phase_code (best_hi).
+    // Fail: is_in_valid_region -> 0 (hole detected in the Valid-lane phase eye).
+    // =====================================================================
     always @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : VALTRAINCENTER_LOG_RESULT_PROC
         if(!valtraincenter_if.rst_n) begin
             min_phase_code     <=   '0;
