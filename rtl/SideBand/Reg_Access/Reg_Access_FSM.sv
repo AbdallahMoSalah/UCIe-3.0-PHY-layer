@@ -9,7 +9,6 @@ module Reg_Access_FSM
 (
     input  logic         clk,
     input  logic         rst_n,
-    input  logic         phy_in_reset,   // Indicates PHY is in Link/Soft Reset
 
     // -----------------------------------------------------------------------
     // Handshake with Top Level / RDI_CONTROL
@@ -32,6 +31,7 @@ module Reg_Access_FSM
     output logic         rd_en,          // Read enable
     output logic         wr_en,          // Write enable
     input  logic         rdata_vld,      // Register file read-data ready
+    input  logic         rf_addr_err,
 
     // -----------------------------------------------------------------------
     // To Completion_gen
@@ -60,17 +60,15 @@ logic error;
 // Opcode classification
 // ---------------------------------------------------------------------------
 always_comb begin
-    is_read = opcode inside {
-        SB_32_MEM_READ, SB_32_DMS_REG_READ, SB_32_CFG_READ,
-        SB_64_MEM_READ, SB_64_DMS_REG_READ, SB_64_CFG_READ
-    };
+    is_read = (opcode == SB_32_MEM_READ) || (opcode == SB_32_CFG_READ) || 
+              (opcode == SB_64_MEM_READ) || (opcode == SB_64_CFG_READ);
 end
 
 // ---------------------------------------------------------------------------
 // Error detection (Added Poison 'ep' flag)
 // ---------------------------------------------------------------------------
 always_comb begin
-    error = parity_err || false_msg || ep || phy_in_reset;
+    error = parity_err || false_msg || ep || rf_addr_err;
 end
 
 // ---------------------------------------------------------------------------

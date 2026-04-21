@@ -229,6 +229,7 @@ Reg_DePacketizer u_depacketizer (
     // Packet input
     .pkt_in          (pkt_in),
     .pkt_vld         (pkt_vld),
+    .reg_rdy         (reg_rdy),
     // Control → FSM
     .opcode          (opcode_w),
     .parity_err      (parity_err_w),
@@ -263,12 +264,13 @@ Reg_Access_FSM u_fsm (
     // From DePacketizer
     .opcode          (opcode_w),
     .parity_err      (parity_err_w),
-    .ep              (ep_w | addr_err_w),   // merge addr decode error
+    .ep              (ep_w),
     .false_msg       (false_msg_w),
     // To/From Reg_File
     .rd_en           (rd_en_w),
     .wr_en           (wr_en_w),
     .rdata_vld       (rdata_vld_w),
+    .rf_addr_err     (addr_err_w),
     // To Completion_gen
     .status          (status_w),
     .completion_start(completion_start_w)

@@ -45,6 +45,7 @@ module Reg_DePacketizer
     // -----------------------------------------------------------------------
     input  logic [127:0] pkt_in,     // Full 128-bit SB packet
     input  logic         pkt_vld,    // Packet is valid / latched
+    input  logic         reg_rdy,    // Ready to accept new request
 
     // -----------------------------------------------------------------------
     // Control outputs → Reg_Access_FSM
@@ -69,10 +70,22 @@ module Reg_DePacketizer
 );
 
 // ---------------------------------------------------------------------------
-// Unpack header fields from the 128-bit packet
+// Internal Latch for the Packet
+// ---------------------------------------------------------------------------
+logic [127:0] latched_pkt;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        latched_pkt <= '0;
+    else if (pkt_vld && reg_rdy)
+        latched_pkt <= pkt_in;
+end
+
+// ---------------------------------------------------------------------------
+// Unpack header fields from the latched packet
 // ---------------------------------------------------------------------------
 sb_header_u hdr;
-assign hdr = 'sb_header_u(pkt_in[63:0]);   // Header occupies lower 64 bits
+assign hdr = 'sb_header_u(latched_pkt[63:0]);   // Header occupies lower 64 bits
 
 // ---------------------------------------------------------------------------
 // Always-comb outputs – decoded purely from latched packet
@@ -86,7 +99,7 @@ always_comb begin
     // cp is stored in hdr.req.cp (bit[62]); parity of hdr[62:0] should == hdr.cp
     // even parity: ^(hdr[62:0]) == 1 means even number of 1s → bit should be 1
     // The standard check: cp_expected = (^hdr[61:0]); error if cp_expected != hdr.cp
-    parity_err      = (hdr.req.cp !== (^(pkt_in[61:0])));
+    parity_err      = (hdr.req.cp !== (^(latched_pkt[61:0])));
 
     // false_msg: dstid is not a register-access destination
     // According to UCIe spec, reg-access packets are addressed to LOCAL_ADAPTER(001),
@@ -130,17 +143,12 @@ always_comb begin
     rf_is_64b_access = opcode[3];         // 64-bit opcodes have opcode[3]=1
 
     // ── Write data ───────────────────────────────────────────────────────
-    rf_wdata        = pkt_in[127:64];     // Payload = upper 64 bits of packet
+    rf_wdata        = latched_pkt[127:64];     // Payload = upper 64 bits of packet
 end
 
 // ---------------------------------------------------------------------------
 // Original_Header latch (registered at packet-valid)
 // ---------------------------------------------------------------------------
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-        Original_Header <= '0;
-    else if (pkt_vld)
-        Original_Header <= pkt_in[63:0];
-end
+assign Original_Header = latched_pkt[63:0];
 
 endmodule

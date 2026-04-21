@@ -286,7 +286,7 @@ assign phy_mmio_sel = rf_addr[24]
                       && (rf_addr[12:0] >= 13'h1000)
                       && (rf_addr[12:0] <= 13'h110B);
 
-assign addr_err_o = (rd_en || wr_en) && !cfg_sel && !phy_mmio_sel;
+assign addr_err_o = !cfg_sel && !phy_mmio_sel;
 
 // ===========================================================================
 //  ─── CONFIG SPACE ────────────────────────────────────────────────────────
