@@ -273,10 +273,10 @@ module unit_RXDESKEW #(
         rxdeskew_if.mb_tx_data_lane_sel = 2'b00; // Low (spec S1: force track/data/val low)
         rxdeskew_if.mb_tx_val_lane_sel  = 2'b00; // Low
         rxdeskew_if.mb_tx_trk_lane_sel  = 2'b00; // Low
-        rxdeskew_if.mb_rx_clk_lane_sel  = 1'b1 ;
-        rxdeskew_if.mb_rx_data_lane_sel = 1'b1 ;
-        rxdeskew_if.mb_rx_val_lane_sel  = 1'b0 ;
-        rxdeskew_if.mb_rx_trk_lane_sel  = 1'b0 ;
+        rxdeskew_if.mb_rx_clk_lane_sel  = 2'b01 ;
+        rxdeskew_if.mb_rx_data_lane_sel  = 2'b01 ;
+        rxdeskew_if.mb_rx_val_lane_sel  = 2'b00 ;
+        rxdeskew_if.mb_rx_trk_lane_sel  = 2'b00 ;
 
         rxdeskew_if.phy_rx_deskew_ctrl[0]  = deskew_applied_r;
         rxdeskew_if.phy_tx_eq_preset_ctrl   = current_eq_preset;

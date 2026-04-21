@@ -211,10 +211,10 @@ module unit_VALTRAINVREF #(
         valtrainvref_if.mb_tx_data_lane_sel = 2'b00; // Low
         valtrainvref_if.mb_tx_val_lane_sel  = 2'b01; // Active
         valtrainvref_if.mb_tx_trk_lane_sel  = 2'b00; // Low
-        valtrainvref_if.mb_rx_clk_lane_sel  = 1'b1 ; // Enabled
-        valtrainvref_if.mb_rx_data_lane_sel = 1'b0 ; // Disabled
-        valtrainvref_if.mb_rx_val_lane_sel  = 1'b1 ; // Enabled
-        valtrainvref_if.mb_rx_trk_lane_sel  = 1'b0 ; // Disabled
+        valtrainvref_if.mb_rx_clk_lane_sel  = 2'b01 ; // Enabled
+        valtrainvref_if.mb_rx_data_lane_sel  = 2'b00 ; // Disabled
+        valtrainvref_if.mb_rx_val_lane_sel  = 2'b01 ; // Enabled
+        valtrainvref_if.mb_rx_trk_lane_sel  = 2'b00 ; // Disabled
 
         // SB TX defaults.
         valtrainvref_if.tx_sb_msg_valid = 1'b0   ;

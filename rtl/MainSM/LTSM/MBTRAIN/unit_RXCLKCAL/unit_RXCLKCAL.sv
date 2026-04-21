@@ -321,10 +321,10 @@ module unit_RXCLKCAL #() (
         rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low (Tx Logical Valid Lane), 01b: active (Tx Logical Valid Lane), 1xb: Tri-state (Tx Logical Valid Lane).
         rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low (Tx Logical Track Lane), 01b: active (Tx Logical Track Lane), 1xb: Tri-state (Tx Logical Track Lane).
 
-        rxclkcal_if.mb_rx_clk_lane_sel  = 1'b0;  // 0b: Disabled (Rx Logical Clock Lane).
-        rxclkcal_if.mb_rx_data_lane_sel = 1'b0;  // 0b: Disabled (Rx Logical Data Lanes).
-        rxclkcal_if.mb_rx_val_lane_sel  = 1'b0;  // 0b: Disabled (Rx Logical Valid Lane).
-        rxclkcal_if.mb_rx_trk_lane_sel  = 1'b0;  // 0b: Disabled (Rx Logical Track Lane).
+        rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Clock Lane).
+        rxclkcal_if.mb_rx_data_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Data Lanes).
+        rxclkcal_if.mb_rx_val_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Valid Lane).
+        rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Track Lane).
 
         // Setting the pattern configeration for the pattern generator.
         rxclkcal_if.mb_tx_pattern_en      = 1'b0  ; // Enable pattern generator and send the clock immediately.
@@ -363,10 +363,10 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
 
-                rxclkcal_if.mb_rx_clk_lane_sel  = 1'b0; // disable.
-                rxclkcal_if.mb_rx_data_lane_sel = 1'b0; // disable.
-                rxclkcal_if.mb_rx_val_lane_sel  = 1'b0; // disable.
-                rxclkcal_if.mb_rx_trk_lane_sel  = 1'b0; // disable.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00; // disable.
             end
 
             // -------------------------------------------------------------------
@@ -383,10 +383,10 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
 
-                rxclkcal_if.mb_rx_clk_lane_sel  = 1'b1; // enabled.
-                rxclkcal_if.mb_rx_data_lane_sel = 1'b0; // disable.
-                rxclkcal_if.mb_rx_val_lane_sel  = 1'b0; // disable.
-                rxclkcal_if.mb_rx_trk_lane_sel  = 1'b1; // enabled.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // enabled.
+                rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // enabled.
 
                 // SB:
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send request.
@@ -613,8 +613,8 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
 
                 // Rx: keep receivers active until the final handshake completes.
-                rxclkcal_if.mb_rx_clk_lane_sel = 1'b1; // Enabled.
-                rxclkcal_if.mb_rx_trk_lane_sel = 1'b1; // Enabled.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // Enabled.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // Enabled.
 
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1; // Keep forwarding the clock pattern.

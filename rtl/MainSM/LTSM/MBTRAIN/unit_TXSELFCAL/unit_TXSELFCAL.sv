@@ -106,10 +106,10 @@ module unit_TXSELFCAL #() (
         txselfcal_if.mb_tx_val_lane_sel  = 2'b10; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
         txselfcal_if.mb_tx_trk_lane_sel  = 2'b10; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
 
-        txselfcal_if.mb_rx_clk_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
-        txselfcal_if.mb_rx_data_lane_sel = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
-        txselfcal_if.mb_rx_val_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-        txselfcal_if.mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+        txselfcal_if.mb_rx_clk_lane_sel  = 2'b00 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        txselfcal_if.mb_rx_data_lane_sel  = 2'b00 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        txselfcal_if.mb_rx_val_lane_sel  = 2'b00 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        txselfcal_if.mb_rx_trk_lane_sel  = 2'b00 ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
         txselfcal_if.phy_tx_selfcal_en   = 1'b0 ; // Enable Tx Self Calibration (To adjust the MB Tx analog circuits).
 

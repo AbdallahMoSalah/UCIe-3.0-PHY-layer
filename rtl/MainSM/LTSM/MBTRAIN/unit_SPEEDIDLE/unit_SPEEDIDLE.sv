@@ -133,7 +133,7 @@ module unit_SPEEDIDLE #() (
         //=========================
         // Lane Behavior Control
         // Transmitters are held low; Clock receivers are enabled.
-        speedidle_if.mb_tx_clk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        speedidle_if.mb_tx_clk_lane_sel  = 2'b01; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         speedidle_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
         speedidle_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
         speedidle_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).

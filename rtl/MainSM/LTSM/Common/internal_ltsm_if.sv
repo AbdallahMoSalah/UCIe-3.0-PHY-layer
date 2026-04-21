@@ -132,10 +132,10 @@ interface internal_ltsm_if #(
     logic [1:0]  mb_tx_data_lane_sel; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
     logic [1:0]  mb_tx_val_lane_sel ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
     logic [1:0]  mb_tx_trk_lane_sel ; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
-    logic [1:0]  mb_rx_clk_lane_sel ; // 00b: Disabled, 01b: Enabled (Rx Logical Clock Lane).
-    logic [1:0]  mb_rx_data_lane_sel; // 00b: Disabled, 01b: Enabled (Rx Logical Data Lanes).
-    logic [1:0]  mb_rx_val_lane_sel ; // 00b: Disabled, 01b: Enabled (Rx Logical Valid Lane).
-    logic [1:0]  mb_rx_trk_lane_sel ; // 00b: Disabled, 01b: Enabled (Rx Logical Track Lane).
+    logic        mb_rx_clk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+    logic        mb_rx_data_lane_sel; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+    logic        mb_rx_val_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+    logic        mb_rx_trk_lane_sel ; // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
     // PHY Level Control & Analog Interface
     logic        phy_tx_selfcal_en         ; // Enable Tx Self Calibration. It's Used in TXSELFCAL FSM.
