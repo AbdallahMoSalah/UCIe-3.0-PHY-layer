@@ -43,7 +43,7 @@ module sb_downstream_demux (
     // ==========================================
     // Packet Decoding & Internal Signals
     // ==========================================
-    sb_header_t header;
+    sb_header_u header;
     // Cast the lower 64 bits of the incoming payload to the protocol header struct
     assign header = rdi_msg[63:0]; 
 
@@ -59,19 +59,19 @@ module sb_downstream_demux (
 
         // Condition 1: Route locally based on Destination ID.
         // This ensures local Completions and adapter-targeted messages are caught.
-        if (header.dstid == LOCAL_PHY || header.dstid == LOCAL_ADAPTER) begin
+        if (header.msg.dstid == LOCAL_PHY || header.msg.dstid == LOCAL_ADAPTER) begin
             route_to_local_reg = 1'b1;
         end
         // Condition 2: Route locally based on specific Register/Config Opcodes.
         // Covers both 32-bit and 64-bit Sideband access formats.
-        else if (header.opcode == SB_32_DMS_REG_READ  || 
-                 header.opcode == SB_32_DMS_REG_WRITE || 
-                 header.opcode == SB_32_CFG_READ      || 
-                 header.opcode == SB_32_CFG_WRITE     ||
-                 header.opcode == SB_64_DMS_REG_READ  || 
-                 header.opcode == SB_64_DMS_REG_WRITE || 
-                 header.opcode == SB_64_CFG_READ      || 
-                 header.opcode == SB_64_CFG_WRITE) begin
+        else if (header.msg.opcode == SB_32_DMS_REG_READ  || 
+                 header.msg.opcode == SB_32_DMS_REG_WRITE || 
+                 header.msg.opcode == SB_32_CFG_READ      || 
+                 header.msg.opcode == SB_32_CFG_WRITE     ||
+                 header.msg.opcode == SB_64_DMS_REG_READ  || 
+                 header.msg.opcode == SB_64_DMS_REG_WRITE || 
+                 header.msg.opcode == SB_64_CFG_READ      || 
+                 header.msg.opcode == SB_64_CFG_WRITE) begin
             
             route_to_local_reg = 1'b1;
         end

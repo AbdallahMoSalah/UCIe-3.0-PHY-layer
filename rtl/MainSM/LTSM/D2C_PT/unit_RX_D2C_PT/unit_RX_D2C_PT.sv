@@ -155,10 +155,10 @@ module unit_RX_D2C_PT  #() (
                 end
                 // (S11) TRAINERROR state:
                 TO_TRAINERROR: begin
-                    next_state = TO_TRAINERROR; // Stay in TRAINERROR state until reset.
+                    next_state = (substate_if.rx_pt_en)? TO_TRAINERROR : RX_PT_IDLE; // Stay here for 1 lclk cycle.
                 end
                 default: begin
-                    next_state = TO_TRAINERROR; // Default case to avoid latches in synthesis.
+                    next_state =  (substate_if.rx_pt_en)? TO_TRAINERROR : RX_PT_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end

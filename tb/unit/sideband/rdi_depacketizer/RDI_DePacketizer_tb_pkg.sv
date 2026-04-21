@@ -32,7 +32,7 @@ package RDI_DePacketizer_tb_pkg;
         rand logic [7:0] not_msgcode;
         rand logic [7:0] not_msgsubcode;
 
-        sb_header_t hdr;
+        sb_header_u hdr;
         
         int bit_pos;
         // expected
@@ -88,21 +88,21 @@ package RDI_DePacketizer_tb_pkg;
             case (error_type)
 
                 PARITY_ERROR: begin
-                    hdr.cp = ~hdr.cp;
+                    hdr.msg.cp = ~hdr.msg.cp;
                     affects_decode = 1;
                 end
                     
                 OPCODE_ERROR: begin
-                    hdr.opcode = error_opcode;
+                    hdr.msg.opcode = error_opcode;
                     affects_decode = 1;
                 end
 
                 MSGCODE_ERROR: begin
-                    hdr.msgcode = msg_code_e'(not_msgcode);
+                    hdr.msg.msgcode = msg_code_e'(not_msgcode);
                     affects_decode = 1;
                 end
                 MSGSUBCODE_ERROR: begin
-                    hdr.MsgSubcode = not_msgsubcode;
+                    hdr.msg.MsgSubcode = not_msgsubcode;
                     affects_decode = 1;
                 end
 

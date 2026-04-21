@@ -13,7 +13,7 @@ module RDI_DePacketizer(
 );
 
 
-    sb_header_t header;
+    sb_header_u header;
 
 
     sb_rdi_msg_no_e RDI_msg_no_rcvd_next;
@@ -39,15 +39,15 @@ module RDI_DePacketizer(
 
         header = LINK_msg_rcvd[63:0];
 
-        cp_calc = ^header[61:0];
+        cp_calc = ^header.raw[61:0];
 
-        if (header.msgcode == 8'h02 )begin
-            stall_rcvd_next = (header.MsgInfo == 16'hFFFF);
+        if (header.msg.msgcode == 8'h02 )begin
+            stall_rcvd_next = (header.msg.MsgInfo == 16'hFFFF);
         end
         else begin
             stall_rcvd_next = 0;
         end
-        case ({header.msgcode, header.MsgSubcode})
+        case ({header.msg.msgcode, header.msg.MsgSubcode})
             {8'h01,8'h01}: RDI_msg_no_rcvd_next = ACTIVE_REQ;
             {8'h01,8'h04}: RDI_msg_no_rcvd_next = L1_REQ;
             {8'h01,8'h08}: RDI_msg_no_rcvd_next = L2_REQ;
@@ -66,8 +66,8 @@ module RDI_DePacketizer(
             default: RDI_msg_no_rcvd_next = NOP;
         endcase
             
-        rdi_msg_valid = ((header.MsgInfo == 16'h0 || header.MsgInfo == 16'hffff) && RDI_msg_no_rcvd_next != NOP);
-        error = (header.opcode != SB_MSG_WITHOUT_DATA || header.cp != cp_calc || !rdi_msg_valid);
+        rdi_msg_valid = ((header.msg.MsgInfo == 16'h0 || header.msg.MsgInfo == 16'hffff) && RDI_msg_no_rcvd_next != NOP);
+        error = (header.msg.opcode != SB_MSG_WITHOUT_DATA || header.msg.cp != cp_calc || !rdi_msg_valid);
     end
 
     // --------------------------

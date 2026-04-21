@@ -38,7 +38,7 @@ endclass
 // ==========================================================
 // Testbench Module (Combinational Checker)
 // ==========================================================
-module rdi_tx_demux_tb;
+module rdi_router_tb;
 
     // Interfaces
     logic         rst_n;
@@ -57,7 +57,7 @@ module rdi_tx_demux_tb;
     logic         Adapter_ready;
 
     // DUT Instantiation
-    rdi_tx_demux dut (
+    rdi_router dut (
         .rst_n(rst_n),
         .reset(reset),
         

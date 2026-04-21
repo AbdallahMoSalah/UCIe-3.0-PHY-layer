@@ -12,24 +12,19 @@ add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /uni
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_DATAVREF_tb/ltsm_tb_attachments_inst/d2c_mux_out_if/tx_sb_msg
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_DATAVREF_tb/ltsm_tb_attachments_inst/d2c_mux_out_if/rx_sb_msg
 add wave -noupdate -expand -group {SB Messages} -color Cyan -itemcolor Cyan /unit_DATAVREF_tb/ltsm_tb_attachments_inst/d2c_mux_out_if/rx_sb_msg_valid
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/current_vref_code
+add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/swept_code_r
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange -radix binary /unit_DATAVREF_tb/intf/tb_perlane_err
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/vref_range
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/min_vref_code
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/max_vref_code
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/unit_DATAVREF_inst/best_vref_code
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned /unit_DATAVREF_tb/intf/phy_rx_datavref_ctrl
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix binary /unit_DATAVREF_tb/unit_DATAVREF_inst/vref_code_filled
-add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange -radix binary {/unit_DATAVREF_tb/intf/tb_perlane_err[0]}
-add wave -noupdate -expand -group {Control & Data} -radix binary {/unit_DATAVREF_tb/unit_DATAVREF_inst/is_in_valid_region[0]}
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/min_vref_code[0]}
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/max_vref_code[0]}
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/best_vref_code[0]}
-add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/intf/phy_rx_datavref_ctrl[0]}
 add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold /unit_DATAVREF_tb/intf/datavref_done
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_DATAVREF_tb/intf/timeout_8ms_occured
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_DATAVREF_tb/intf/trainerror_req
 add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange /unit_DATAVREF_tb/intf/datavref_fail_flag
+add wave -noupdate -expand -group {Errors & Alerts} -color Orange -itemcolor Orange -radix binary {/unit_DATAVREF_tb/intf/tb_perlane_err[0]}
+add wave -noupdate -expand -group {Control & Data} -radix binary {/unit_DATAVREF_tb/unit_DATAVREF_inst/zone_valid[0]}
+add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/best_lo[0]}
+add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/best_hi[0]}
+add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/unit_DATAVREF_inst/best_vref_code[0]}
+add wave -noupdate -expand -group {VREF Operations} -color Gold -itemcolor Gold -radix unsigned {/unit_DATAVREF_tb/intf/phy_rx_datavref_ctrl[0]}
+add wave -noupdate -expand -group {VREF Operations} -color Violet -itemcolor Violet -radix binary {/unit_DATAVREF_tb/unit_DATAVREF_inst/found_pass[0]}
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {12994628374 ps} 0}
 quietly wave cursor active 1
@@ -47,6 +42,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {12994166500 ps} {12996166500 ps}
-
-
+WaveRestoreZoom {0 ps} {10000000 ps}

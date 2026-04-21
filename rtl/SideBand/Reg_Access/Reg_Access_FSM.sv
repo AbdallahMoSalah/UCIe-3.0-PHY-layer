@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 // ===========================================================================
 //  Reg_Access_FSM (Updated based on New Architecture Diagram)
 //  Central control unit for the SideBand Register-Access block.
@@ -10,7 +9,7 @@ module Reg_Access_FSM
 (
     input  logic         clk,
     input  logic         rst_n,
-    input  logic         phy_in_reset,   // NEW: Indicates PHY is in Link/Soft Reset
+    input  logic         phy_in_reset,   // Indicates PHY is in Link/Soft Reset
 
     // -----------------------------------------------------------------------
     // Handshake with Top Level / RDI_CONTROL
@@ -48,7 +47,7 @@ typedef enum logic [1:0] {
     IDLE     = 2'b00,
     DECODE   = 2'b01,
     EXECUTE  = 2'b10,
-    GEN = 2'b11
+    GEN      = 2'b11
 } state_t;
 
 state_t current_state, next_state;
@@ -107,7 +106,7 @@ always_comb begin
         end
 
         EXECUTE: begin
-            // [Fix]: If it's a WRITE (!is_read), exit immediately.
+            // If it's a WRITE (!is_read), exit immediately.
             // If it's a READ, wait for rdata_vld.
             if (!is_read || rdata_vld)
                 next_state = GEN;
@@ -156,5 +155,3 @@ always_comb begin
 end
 
 endmodule
-=======
->>>>>>> Stashed changes

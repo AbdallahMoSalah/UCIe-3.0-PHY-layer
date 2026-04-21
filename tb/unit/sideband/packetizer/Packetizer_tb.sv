@@ -106,8 +106,8 @@ task check();
           obj.exp_msg, LINK_msg,
           valid_send, LINK_ready);
     $display("msgno= %s",msg_no_send);
-    $display("exmsgcode=%s,msgcode=%s",obj.hdr.msgcode, dut.header_reg.msgcode);
-    $display("exmsgsubcode=%h,msgsubcode=%h",obj.hdr.MsgSubcode, dut.header_reg.MsgSubcode);
+    $display("exmsgcode=%s,msgcode=%s",obj.hdr.msg.msgcode, dut.header_reg.msg.msgcode);
+    $display("exmsgsubcode=%h,msgsubcode=%h",obj.hdr.msg.MsgSubcode, dut.header_reg.msg.MsgSubcode);
     
     fail_count++;
   end else begin

@@ -237,7 +237,7 @@ module ltsm_tb_attachments #(
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        .d2c_if(to_tx_d2c_if.d2c2substate_mp),
+        .substate_if(to_tx_d2c_if.d2c2substate_mp),
 
         //=====================================//
         // Control Signals for the MB and SB:  //

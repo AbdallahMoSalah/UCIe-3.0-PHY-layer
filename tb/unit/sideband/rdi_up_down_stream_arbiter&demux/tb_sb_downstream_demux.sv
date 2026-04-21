@@ -50,10 +50,10 @@ module tb_sb_downstream_demux();
     
     // Helper task to dynamically construct a 128-bit packet using the structured header
     task send_packet(input sb_dstid_e dst, input sb_opcode_e op);
-        sb_header_t hdr;
+        sb_header_u hdr;
         hdr = '0;           // Initialize all header fields to zero
-        hdr.dstid  = dst;   // Assign Destination ID
-        hdr.opcode = op;    // Assign Opcode
+        hdr.msg.dstid  = dst;   // Assign Destination ID
+        hdr.msg.opcode = op;    // Assign Opcode
 
         // Concatenate a dummy 64-bit payload with the 64-bit header to form a full 128-bit message
         rdi_msg = {64'hDEADBEEF_CAFEBAFE, hdr}; 

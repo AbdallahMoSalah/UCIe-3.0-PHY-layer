@@ -15,7 +15,7 @@ package RDI_Packetizer_tb_pkg;
         logic Prev_push_ready = 1;
         logic Prev_RDI_vld_send = 0;
 
-        sb_header_t exp_hdr;
+        sb_header_u exp_hdr;
 
         logic RDI_vld_out_exp;
 
@@ -61,7 +61,7 @@ package RDI_Packetizer_tb_pkg;
 
 
     function void build_expected();
-        sb_header_t hdr;
+        sb_header_u hdr;
         hdr = encode_rdi_header(RDI_msg_no_send, stall_send);
 
         if (!rst_n) begin

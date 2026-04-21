@@ -90,27 +90,62 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
 
 
   typedef struct packed {
- 
+    logic        dp;          // [63]
+    logic        cp;          // [62]
+    logic        cr;          // [61]
+    logic [1:0]  rsvd2;       // [60:59]
+    sb_dstid_e   dstid;       // [58:56]
+    logic [23:0] addr;        // [55:32]
+    sb_srcid_e   srcid;       // [31:29]
+    logic [3:0]  rsvd1;       // [28:25]
+    logic [4:0]  tag;         // [24:20]
+    logic [7:0]  be;          // [19:12]
+    logic [5:0]  rsvd0;       // [11:6]
+    logic        ep;          // [5]
+    sb_opcode_e  opcode;      // [4:0]
+  } sb_req_header_t;
+
+  typedef struct packed {
+    logic        dp;          // [63]
+    logic        cp;          // [62]
+    logic        cr;          // [61]
+    logic [1:0]  rsvd3;       // [60:59]
+    sb_dstid_e   dstid;       // [58:56]
+    logic [20:0] rsvd2;       // [55:35]
+    logic [2:0]  status;      // [34:32]
+    sb_srcid_e   srcid;       // [31:29]
+    logic [3:0]  rsvd1;       // [28:25]
+    logic [4:0]  tag;         // [24:20]
+    logic [7:0]  be;          // [19:12]
+    logic [5:0]  rsvd0;       // [11:6]
+    logic        ep;          // [5]
+    sb_opcode_e  opcode;      // [4:0]
+  } sb_cpl_header_t;
+
+  typedef struct packed {
     logic        dp;          // [63]
     logic        cp;          // [62]
     logic [2:0]  rsvd2;       // [61:59]
     sb_dstid_e   dstid;       // [58:56]
     logic [15:0] MsgInfo;     // [55:40]
     logic [7:0]  MsgSubcode;  // [39:32]
+    sb_srcid_e   srcid;       // [31:29]
+    logic [4:0]  rsvd1;       // [28:24]
+    msg_code_e   msgcode;     // [23:16]
+    logic [10:0] rsvd0;       // [15:5]
+    sb_opcode_e  opcode;      // [4:0]
+  } sb_msg_header_t;
 
-    sb_srcid_e  srcid;    // [31:29]
-    logic [6:0] rsvd1;    // [28:22]
-    msg_code_e  msgcode;  // [21:14]
-    logic [8:0] rsvd0;   // [13:5]
-    sb_opcode_e opcode;   // [4:0]
-
-  } sb_header_t;
+  typedef union packed {
+    logic [63:0]    raw;
+    sb_req_header_t req;
+    sb_cpl_header_t cpl;
+    sb_msg_header_t msg;
+  } sb_header_u;
 
   typedef struct packed {
-
     logic [63:0] payload;  // [127:64]
-    sb_header_t header;    // [63:0]
-
+    sb_header_u  header;   // [63:0]
   } sb_packet_t;
 
 endpackage

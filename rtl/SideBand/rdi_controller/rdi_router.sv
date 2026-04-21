@@ -2,7 +2,7 @@
 
 import sb_pkg::*;
 
-module rdi_tx_demux (
+module rdi_router (
 
     input  logic         rst_n,
     input  logic         reset,       // Sideband or link reset flag

@@ -22,7 +22,7 @@ class Packetizer_class;
 
     logic [127:0] exp_msg;
     logic exp_vld,exp_ready;
-    sb_header_t hdr;
+    sb_header_u hdr;
 
     
     constraint rst_constraint{

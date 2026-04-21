@@ -51,7 +51,7 @@ package DePacketizer_tb_pkg;
                                             TEST_REQ_DOMAIN,       
                                             TEST_RESP_DOMAIN};
 
-        sb_header_t hdr;
+        sb_header_u hdr;
         logic [127:0] msg_in;
 
         // Expected
@@ -104,21 +104,21 @@ package DePacketizer_tb_pkg;
             // 2) Inject errors
             case (error_type)
 
-                CP_ERROR: hdr.cp = ~hdr.cp;
+                CP_ERROR: hdr.msg.cp = ~hdr.msg.cp;
 
                 DP_ERROR: begin 
                     affects_decode = 0;
-                    if (hdr.opcode == SB_MSG_WITH_64_DATA) begin
-                        hdr.dp = ~hdr.dp;
+                    if (hdr.msg.opcode == SB_MSG_WITH_64_DATA) begin
+                        hdr.msg.dp = ~hdr.msg.dp;
                         affects_decode = 1;
                     end
                 end
 
-                OPCODE_ERROR: hdr.opcode = error_opcode;
+                OPCODE_ERROR: hdr.msg.opcode = error_opcode;
 
-                MSGCODE_ERROR: hdr.msgcode = msg_code_e'(not_msgcode);
+                MSGCODE_ERROR: hdr.msg.msgcode = msg_code_e'(not_msgcode);
 
-                MSGSUBCODE_ERROR: hdr.MsgSubcode = not_msgsubcode;
+                MSGSUBCODE_ERROR: hdr.msg.MsgSubcode = not_msgsubcode;
 
                 default: affects_decode = 0;
             endcase
@@ -140,9 +140,9 @@ package DePacketizer_tb_pkg;
             else if (vld_in && !affects_decode && msg_no != NOTHING && msg_no != NOP) begin
                 exp_vld      = 1;
                 exp_msg_no   = msg_no;
-                exp_msginfo  = hdr.MsgInfo;
+                exp_msginfo  = hdr.msg.MsgInfo;
                 exp_payload  = data;
-                exp_stall    = (hdr.MsgInfo == 16'hFFFF);
+                exp_stall    = (hdr.msg.MsgInfo == 16'hFFFF);
             end
             else begin
                 exp_vld      = 0;

@@ -45,7 +45,7 @@ package rdi_de_aggregator_tb_pkg;
 
 
         constraint opcode_c {
-            data_drive.header.opcode inside {
+            data_drive.header.msg.opcode inside {
                 SB_32_MEM_READ               ,
                 SB_32_MEM_WRITE              ,
                 SB_32_DMS_REG_READ           ,
@@ -71,7 +71,7 @@ package rdi_de_aggregator_tb_pkg;
         }
 
         constraint srcid_c {
-            data_drive.header.srcid inside {
+            data_drive.header.msg.srcid inside {
                 STACK0       ,
                 ADAPTER      ,
                 MNGT_PORT_SRC,
@@ -81,8 +81,8 @@ package rdi_de_aggregator_tb_pkg;
 
         constraint dstid_c {
 
-            if(data_drive.header.srcid == ADAPTER || data_drive.header.srcid == MNGT_PORT_SRC) {
-                data_drive.header.dstid inside { 
+            if(data_drive.header.msg.srcid == ADAPTER || data_drive.header.msg.srcid == MNGT_PORT_SRC) {
+                data_drive.header.msg.dstid inside { 
                     LOCAL_PHY        ,
                     REMOTE_ADAPTER   ,
                     REMOTE_PHY       ,
@@ -91,16 +91,16 @@ package rdi_de_aggregator_tb_pkg;
                 };
             }
             else {
-                data_drive.header.dstid == LOCAL_PHY;
+                data_drive.header.msg.dstid == LOCAL_PHY;
             }
         }
 
         constraint payload_c {
 
-            if(get_chunks(data_drive.header.opcode) == 2){
+            if(get_chunks(data_drive.header.msg.opcode) == 2){
                 data_drive.payload == 64'b0;
             }
-            else if(get_chunks(data_drive.header.opcode) == 3){
+            else if(get_chunks(data_drive.header.msg.opcode) == 3){
                 data_drive.payload[63:32] == 32'b0;
             }
             
@@ -113,8 +113,8 @@ package rdi_de_aggregator_tb_pkg;
         }
 
         constraint parity_c {
-            data_drive.header.cp == (^data_drive.header[61:0]);
-            data_drive.header.dp == (^data_drive.payload);
+            data_drive.header.msg.cp == (^data_drive.header.raw[61:0]);
+            data_drive.header.msg.dp == (^data_drive.payload);
         }
 
         constraint valid_dist {
@@ -261,7 +261,7 @@ package rdi_de_aggregator_tb_pkg;
                 mon.in_mbx.get(pkt);
 
                 data = pkt.data_drive;
-                num_chunks = get_chunks(pkt.data_drive.header.opcode);
+                num_chunks = get_chunks(pkt.data_drive.header.msg.opcode);
                 
                 for(i = 0; i < num_chunks; i++) begin
                     inter_pkt = new();

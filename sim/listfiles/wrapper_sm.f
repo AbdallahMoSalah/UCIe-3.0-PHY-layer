@@ -25,4 +25,4 @@ rtl/MainSM/RDI_SM/unit_message_send_MUX/unit_message_send_MUX.sv
 rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv
 
 // Testbench
-tb/unit/MainSM/RDI_SM/wrapper_sm/wrapper_sm_tb.sv
+tb/wrapper/wrapper_sm/wrapper_sm_tb.sv
