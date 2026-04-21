@@ -28,5 +28,59 @@ module moduleName #(
     output logic       o_lfsr_tx_done ,
 
 );
+
+
+    //============================================================
+    // Degrade Modes
+    //============================================================
+    localparam NONE_DEGRADE           = 3'b000;
+    localparam DEGRADE_LANES_0_TO_7   = 3'b001;
+    localparam DEGRADE_LANES_8_TO_15  = 3'b010;
+    localparam DEGRADE_LANES_0_TO_15  = 3'b011;
+    localparam DEGRADE_LANES_0_TO_3   = 3'b100;
+    localparam DEGRADE_LANES_4_TO_7   = 3'b101;
+    //============================================================
+    // Lane ID
+    //============================================================
+    localparam lane_0_ID  = 16'b0101_00000000_0101;
+    localparam lane_1_ID  = 16'b0101_00000001_0101;
+    localparam lane_2_ID  = 16'b0101_00000010_0101;
+    localparam lane_3_ID  = 16'b0101_00000011_0101; 
+    localparam lane_4_ID  = 16'b0101_00000100_0101;
+    localparam lane_5_ID  = 16'b0101_00000101_0101;
+    localparam lane_6_ID  = 16'b0101_00000110_0101;
+    localparam lane_7_ID  = 16'b0101_00000111_0101;
+    localparam lane_8_ID  = 16'b0101_00001000_0101;
+    localparam lane_9_ID  = 16'b0101_00001001_0101;
+    localparam lane_10_ID = 16'b0101_00001010_0101;
+    localparam lane_11_ID = 16'b0101_00001011_0101;
+    localparam lane_12_ID = 16'b0101_00001100_0101;
+    localparam lane_13_ID = 16'b0101_00001101_0101;
+    localparam lane_14_ID = 16'b0101_00001110_0101;
+    localparam lane_15_ID = 16'b0101_00001111_0101;
+
+    // lane_reverse_en 
+    reg lane_rev_en 
+
+    // SEEDS
+    reg[22:0] SEED_0;
+    reg[22:0] SEED_1;
+    reg[22:0] SEED_2;
+    reg[22:0] SEED_3;
+    reg[22:0] SEED_4;
+    reg[22:0] SEED_5;
+    reg[22:0] SEED_6;
+    reg[22:0] SEED_7;
+    assign SEED_0 = 23'h1DBFBC;
+    assign SEED_1 = 23'h0607BB;
+    assign SEED_2 = 23'h1EC760;
+    assign SEED_3 = 23'h18C0DB;
+    assign SEED_4 = 23'h010F12;
+    assign SEED_5 = 23'h19CFC9;
+    assign SEED_6 = 23'h0277CE;
+    assign SEED_7 = 23'h1BB807;
+    
+
+
     
 endmodule
