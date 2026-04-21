@@ -36,10 +36,28 @@ module unit_DATATRAINVREF_tb ();
         DTVREF_END_REQ     = unit_DATATRAINVREF_inst.DTVREF_END_REQ    ,
         DTVREF_END_RESP    = unit_DATATRAINVREF_inst.DTVREF_END_RESP   ,
         TO_RXDESKEW        = unit_DATATRAINVREF_inst.TO_RXDESKEW       ,
-        TO_TRAINERROR      = unit_DATATRAINVREF_inst.TO_TRAINERROR
+        TO_TRAINERROR      = unit_DATATRAINVREF_inst.TO_TRAINERROR     ,
+        Continue_Repeating_The_Last_3_States = 'hF  // Shown in transcript instead of repeating S3/S4/S5
     } fsm_state_t;
-    fsm_state_t current_state;
+    fsm_state_t current_state, monitor_current_state;
     assign current_state = fsm_state_t'(unit_DATATRAINVREF_inst.current_state);
+
+    // Suppress sweep-loop repetition in transcript:
+    // Once entered_states[0:5] are all set, collapse the repeating S3/S4/S5
+    // loop into "Continue_Repeating_The_Last_3_States" in the $monitor output.
+    logic first_loop;
+    reg [10:0] entered_states;
+
+    always @(posedge lclk or negedge rst_n) begin
+        if (!lclk) first_loop = 1;
+        else if (entered_states[10:0] == 11'b000_0011_1111) first_loop = 0;
+        else first_loop = 1;
+    end
+
+    assign monitor_current_state =
+        (current_state == TO_TRAINERROR) ? TO_TRAINERROR :
+        ((entered_states[10:0] == 11'b000_0011_1111) && !first_loop) ?
+        Continue_Repeating_The_Last_3_States : current_state;
 
     // Clock
     initial begin lclk = 0; forever #(LCLK_PERIOD/2) lclk = ~lclk; end
@@ -58,26 +76,28 @@ module unit_DATATRAINVREF_tb ();
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES)
     ) ltsm_tb_attachments_inst (.intf(intf));
 
-    // ── Vref eye model ────────────────────────────────────────────────────
-    // Uses intf.phy_rx_datavref_ctrl[0] (indexed) to avoid packed/unpacked mix.
+    // ── Vref eye model (all 16 data lanes share the same swept Vref code) ────
+    // During the sweep (S3-S5), phy_rx_datavref_ctrl[l] == swept_code_r for ALL
+    // lanes; so lane-0 is representative. We drive the same pass/fail result on
+    // all 16 tb_perlane_err bits so every lane experiences the same eye diagram.
     reg [6:0] current_vref_min    ;
     reg [6:0] current_vref_max    ;
     reg       inject_hole_at_quarter;
 
     always @(*) begin
+        integer lane_hit_hole;
         if (intf.phy_rx_datavref_ctrl[0] >= current_vref_min &&
-            intf.phy_rx_datavref_ctrl[0] <= current_vref_max) begin
-            // One hole injected at the quarter-point of the pass window
-            if ((intf.phy_rx_datavref_ctrl[0] ==
-                     (current_vref_min + (current_vref_max - current_vref_min)/4))
-                && inject_hole_at_quarter)
-                intf.tb_perlane_err = 16'h0001; // Lane-0 fails
-            else
-                intf.tb_perlane_err = 16'h0000; // All pass
+                intf.phy_rx_datavref_ctrl[0] <= current_vref_max) begin
+            // Inside the eye -- optionally inject a hole at the 1/4 point.
+            lane_hit_hole = (intf.phy_rx_datavref_ctrl[0] ==
+                                (current_vref_min +
+                                 (current_vref_max - current_vref_min)/4))
+                             && inject_hole_at_quarter;
+            intf.tb_perlane_err = lane_hit_hole ? 16'hFFFF : 16'h0000;
         end else begin
-            intf.tb_perlane_err = 16'h0001; // Outside range: lane-0 fails
+            intf.tb_perlane_err = 16'hFFFF; // Outside eye: all lanes fail
         end
-        intf.tb_aggr_err = intf.tb_perlane_err[0];
+        intf.tb_aggr_err = |intf.tb_perlane_err;
     end
 
     // ── Reset ─────────────────────────────────────────────────────────────
@@ -94,6 +114,9 @@ module unit_DATATRAINVREF_tb ();
         intf.tb_rx_data_field           = 64'B0;
         intf.datatraincenter1_fail_flag = 1'b0;
         intf.valtraincenter_fail_flag   = 1'b0;
+        // All 16 data lanes active (3'b011 = Lanes 0-15)
+        // This ensures negotiated_data_lanes = 16'hFFFF inside the DUT.
+        intf.mb_rx_data_lane_mask       = 3'b011;
         current_vref_min                = MIN_VREF_CODE;
         current_vref_max                = MAX_VREF_CODE;
         inject_hole_at_quarter          = 0;
@@ -121,6 +144,7 @@ module unit_DATATRAINVREF_tb ();
         intf.datatraincenter1_fail_flag = dtc1_fail;
         intf.valtraincenter_fail_flag   = vtc_fail;
         lclk_counter_run_flag           = 1;
+        entered_states                  = 0;
 
         fork : TEST
             begin
@@ -132,20 +156,20 @@ module unit_DATATRAINVREF_tb ();
                     repeat(5) $display("\t\t *** ERROR *** Expected TRAINERROR!"); $stop;
                 end
                 if (!expect_trainerror && intf.trainerror_req &&
-                    !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
+                        !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
                     repeat(5) $display("\t\t *** ERROR *** Unexpected TRAINERROR!"); $stop;
                 end
                 if (!expect_trainerror &&
-                    intf.datatrainvref_fail_flag != expect_fail_flag) begin
-                    $display("\t\t DEBUG: vref_filled=%0b vref_code_r=%0d min=%0d max=%0d",
-                        unit_DATATRAINVREF_inst.vref_code_filled,
-                        unit_DATATRAINVREF_inst.vref_code_r,
-                        unit_DATATRAINVREF_inst.min_vref_code,
-                        unit_DATATRAINVREF_inst.max_vref_code);
+                        intf.datatrainvref_fail_flag != expect_fail_flag) begin
+                    $display("\t\t DEBUG: found_pass[0]=%0b swept_code_r=%0d best_lo[0]=%0d best_hi[0]=%0d",
+                        unit_DATATRAINVREF_inst.found_pass[0],
+                        unit_DATATRAINVREF_inst.swept_code_r,
+                        unit_DATATRAINVREF_inst.best_lo[0],
+                        unit_DATATRAINVREF_inst.best_hi[0]);
                     $display("\t\t DEBUG: current_vref_min=%0d current_vref_max=%0d inject_hole=%0b",
                         current_vref_min, current_vref_max, inject_hole_at_quarter);
                     repeat(5) $display("\t\t *** ERROR *** fail_flag=%0b expected=%0b",
-                        intf.datatrainvref_fail_flag, expect_fail_flag); $stop;
+                            intf.datatrainvref_fail_flag, expect_fail_flag); $stop;
                 end
 
                 wait(current_state == DTVREF_IDLE || current_state == TO_TRAINERROR);
@@ -165,6 +189,35 @@ module unit_DATATRAINVREF_tb ();
                 for (int i = 0; i < abort_after; i++) @(posedge lclk);
                 intf.tb_wait_timeout = 1;
             end
+
+            // Track FSM state transitions to feed the entered_states bitmask
+            begin : DTVREF_STATE_MONITOR
+                wait(current_state == DTVREF_IDLE);
+                entered_states[0] = 1;
+                wait(current_state == DTVREF_START_REQ);
+                entered_states[1] = 1;
+                wait(current_state == DTVREF_START_RESP);
+                entered_states[2] = 1;
+                // Sweep repeats (MAX - MIN + 1) times; may be skipped via S2 shortcut.
+                repeat((MAX_VREF_CODE - MIN_VREF_CODE) + 1) begin
+                    wait(current_state == DTVREF_SET_VREF);
+                    entered_states[3] = 1;
+                    wait(current_state == DTVREF_RX_D2C_PT);
+                    entered_states[4] = 1;
+                    wait(current_state == DTVREF_LOG_RESULT);
+                    entered_states[5] = 1;
+                end
+                wait(current_state == DTVREF_CALC_APPLY);
+                entered_states[6] = 1;
+                wait(current_state == DTVREF_END_REQ);
+                entered_states[7] = 1;
+                wait(current_state == DTVREF_END_RESP);
+                entered_states[8] = 1;
+                wait(current_state == TO_RXDESKEW);
+                entered_states[9] = 1;
+                wait(current_state == DTVREF_IDLE);
+                entered_states[10] = 1;
+            end
         join
 
         lclk_counter_run_flag           = 0;
@@ -172,6 +225,7 @@ module unit_DATATRAINVREF_tb ();
         intf.tb_wrong_sb_msg_en         = 0;
         intf.datatraincenter1_fail_flag = 0;
         intf.valtraincenter_fail_flag   = 0;
+        entered_states                  = 0;
         @(posedge lclk); #1step;
     endtask
 
@@ -180,7 +234,7 @@ module unit_DATATRAINVREF_tb ();
 
     initial begin
         reset();
-        $monitor("%10t ps: State=(%s)", $realtime(), current_state.name());
+        $monitor("%10t ps: State=(%s)", $realtime(), monitor_current_state.name());
 
         // ─ 1: Happy path ──────────────────────────────────────────────────
         $display("\n==> Scenario %0d: Happy Path", scenario++);
@@ -211,7 +265,7 @@ module unit_DATATRAINVREF_tb ();
         // ─ 6: Partner TRAINERROR ─────────────────────────────────────────
         $display("\n==> Scenario %0d: Partner TRAINERROR", scenario++);
         start_test(.wrong_sb_after(50_000),
-                   .wrong_msg(TRAINERROR_Entry_req), .expect_trainerror(1'b1));
+            .wrong_msg(TRAINERROR_Entry_req), .expect_trainerror(1'b1));
         reset();
 
         // ─ 7: All-fail (single-code window + hole) → fail_flag=1 ─────────
@@ -234,7 +288,7 @@ module unit_DATATRAINVREF_tb ();
             current_vref_max = max_candidate[6:0];
             // All-fail only if single-code window AND hole injected (impossible here since range >= 5)
             start_test(.expect_fail_flag(inject_hole_at_quarter &&
-                (current_vref_min == current_vref_max)));
+                    (current_vref_min == current_vref_max)));
             reset();
         end
 

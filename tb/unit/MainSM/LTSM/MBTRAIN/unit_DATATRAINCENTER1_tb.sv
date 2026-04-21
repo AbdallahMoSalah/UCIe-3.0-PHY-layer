@@ -37,10 +37,29 @@ module unit_DATATRAINCENTER1_tb ();
         DTC1_END_REQ     = unit_DATATRAINCENTER1_inst.DTC1_END_REQ    ,
         DTC1_END_RESP    = unit_DATATRAINCENTER1_inst.DTC1_END_RESP   ,
         TO_DATATRAINVREF = unit_DATATRAINCENTER1_inst.TO_DATATRAINVREF,
-        TO_TRAINERROR    = unit_DATATRAINCENTER1_inst.TO_TRAINERROR
+        TO_TRAINERROR    = unit_DATATRAINCENTER1_inst.TO_TRAINERROR   ,
+        Continue_Repeating_The_Last_3_States = 4'hF  // Shown in transcript instead of repeating S3/S4/S5
     } fsm_state_t;
-    fsm_state_t current_state;
+    fsm_state_t current_state, monitor_current_state;
     assign current_state = fsm_state_t'(unit_DATATRAINCENTER1_inst.current_state);
+
+    // ── Suppress sweep-loop repetition in transcript ──────────────────────
+    // once all 11 entered_states bits are set (S0-S5 all seen), collapse the
+    // repeating S3/S4/S5 loop into a single "Continue_Repeating_The_Last_3_States"
+    // label in the $monitor output.
+    logic first_loop;
+    reg [10:0] entered_states;
+
+    always @(posedge lclk or negedge rst_n) begin
+        if (!lclk) first_loop = 1;
+        else if (entered_states[10:0] == 11'b000_0011_1111) first_loop = 0;
+        else first_loop = 1;
+    end
+
+    assign monitor_current_state =
+        (current_state == TO_TRAINERROR) ? TO_TRAINERROR :
+        ((entered_states[10:0] == 11'b000_0011_1111) && !first_loop) ?
+        Continue_Repeating_The_Last_3_States : current_state;
 
     // Clock
     initial begin lclk = 0; forever #(LCLK_PERIOD/2) lclk = ~lclk; end
@@ -76,8 +95,8 @@ module unit_DATATRAINCENTER1_tb ();
                 // Pass if phase_code is within [center-half, center+half]
                 intf.tb_perlane_err[l] =
                     (intf.phy_tx_pi_phase_ctrl < (pass_center[l] - eye_half[l]) ||
-                     intf.phy_tx_pi_phase_ctrl > (pass_center[l] + eye_half[l])) ?
-                     1'b1 : 1'b0;
+                        intf.phy_tx_pi_phase_ctrl > (pass_center[l] + eye_half[l])) ?
+                    1'b1 : 1'b0;
             end
         end
     end
@@ -102,7 +121,6 @@ module unit_DATATRAINCENTER1_tb ();
         #10; rst_n = 1;
     endtask
 
-    // ── Counters ─────────────────────────────────────────────────────────
     integer lclk_counter = 0, success_count = 0, fail_count = 0;
     reg     lclk_counter_run_flag = 0;
     always @(posedge lclk or negedge rst_n) begin
@@ -120,6 +138,7 @@ module unit_DATATRAINCENTER1_tb ();
             input logic    expect_trainerror        = 1'b0
         );
         lclk_counter_run_flag = 1;
+        entered_states = 0;
 
         fork : TEST_EXEC
             begin
@@ -133,13 +152,13 @@ module unit_DATATRAINCENTER1_tb ();
                     $stop;
                 end
                 if (!expect_trainerror && intf.trainerror_req &&
-                    !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
+                        !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
                     repeat(5) $display("\t\t *** ERROR *** unexpected TRAINERROR!");
                     $stop;
                 end
                 if (!expect_trainerror && intf.datatraincenter1_fail_flag != expect_fail_flag) begin
                     repeat(5) $display("\t\t *** ERROR *** fail_flag=%0b expected=%0b",
-                        intf.datatraincenter1_fail_flag, expect_fail_flag);
+                            intf.datatraincenter1_fail_flag, expect_fail_flag);
                     $stop;
                 end
 
@@ -168,12 +187,41 @@ module unit_DATATRAINCENTER1_tb ();
                 for (int i = 0; i < abort_after; i++) @(posedge lclk);
                 intf.tb_wait_timeout = 1;
             end
+
+            // Track FSM transitions to feed entered_states bitmask
+            begin : DTC1_STATE_MONITOR
+                wait(current_state == DTC1_IDLE);
+                entered_states[0] = 1;
+                wait(current_state == DTC1_START_REQ);
+                entered_states[1] = 1;
+                wait(current_state == DTC1_START_RESP);
+                entered_states[2] = 1;
+                repeat((MAX_PHASE_CODE - MIN_PHASE_CODE) + 1) begin
+                    wait(current_state == DTC1_SET_PHASE);
+                    entered_states[3] = 1;
+                    wait(current_state == DTC1_TX_D2C_PT);
+                    entered_states[4] = 1;
+                    wait(current_state == DTC1_LOG_RESULT);
+                    entered_states[5] = 1;
+                end
+                wait(current_state == DTC1_CALC_APPLY);
+                entered_states[6] = 1;
+                wait(current_state == DTC1_END_REQ);
+                entered_states[7] = 1;
+                wait(current_state == DTC1_END_RESP);
+                entered_states[8] = 1;
+                wait(current_state == TO_DATATRAINVREF);
+                entered_states[9] = 1;
+                wait(current_state == DTC1_IDLE);
+                entered_states[10] = 1;
+            end
         join
 
         lclk_counter_run_flag    = 0;
         intf.tb_wait_timeout     = 0;
         intf.tb_wrong_sb_msg_en  = 0;
         all_lanes_fail           = 0;
+        entered_states           = 0;
         @(posedge lclk); #1step;
     endtask
 
@@ -183,7 +231,7 @@ module unit_DATATRAINCENTER1_tb ();
 
     initial begin
         reset();
-        $monitor("%10t ps: State=(%s)", $realtime(), current_state.name());
+        $monitor("%10t ps: State=(%s)", $realtime(), monitor_current_state.name());
 
         // ─── Scenario 1: Happy path — all lanes eye center at PI=32/half=10 ──
         $display("\n==> Scenario %0d: Happy Path", scenario++);
@@ -210,8 +258,8 @@ module unit_DATATRAINCENTER1_tb ();
         // ─── Scenario 4: Partner TRAINERROR msg ──────────────────────────
         $display("\n==> Scenario %0d: Partner TRAINERROR msg", scenario++);
         start_test(.wrong_sb_after(50_000),
-                   .wrong_msg(TRAINERROR_Entry_req),
-                   .expect_trainerror(1'b1));
+            .wrong_msg(TRAINERROR_Entry_req),
+            .expect_trainerror(1'b1));
         reset();
 
         // ─── Scenarios 5-34: Randomized per-lane eye positions ────────────
