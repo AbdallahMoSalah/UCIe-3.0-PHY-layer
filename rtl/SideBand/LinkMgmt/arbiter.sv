@@ -1,9 +1,9 @@
 // ============================================================================
 // Module Name: arbiter
-// Description: Round-Robin Arbiter for Link Management Unit.
-//              Arbitrates between RDI and LTSM message FIFOs to send data
-//              to the Main Link Controller. Implements flow control using
-//              the LINK_ready handshake signal.
+// Description: Round-Robin Arbiter for the Link Management Unit.
+//              Arbitrates between LTSM (88-bit) and RDI (9-bit) message FIFOs
+//              to feed the Sideband Packetizer. Implements flow control 
+//              using the LINK_ready handshake signal.
 // ============================================================================
 
 module arbiter (
@@ -11,20 +11,22 @@ module arbiter (
     input  logic         clk,
     input  logic         reset_n,
 
-    // Main Controller Interface (Handshake)
-    input  logic         LINK_ready,      // Backpressure from Main Controller 
-    output logic [127:0] LINK_msg,        // Outgoing link message 
-    output logic         LINK_msg_valid,  // Valid signal for the outgoing link message 
+    // Packetizer Interface (Handshake)
+    input  logic         LINK_ready,      // Backpressure: Ready signal from Packetizer
+    output logic [63:0]  msg_data,        // Message payload (64-bit)
+    output logic [15:0]  msg_info,        // Message metadata/info (16-bit)
+    output logic [7:0]   msg_n,           // Message number/subcode (8-bit)
+    output logic         vld,             // Handshake: Valid signal for outgoing message
 
-    // RDI FIFO Interface
-    input  logic [127:0] rdi_msg_fifo,    // RDI message data 
-    input  logic         rdi_not_empty,   // RDI FIFO valid (not empty) 
-    output logic         rdi_pop,         // Read enable to RDI FIFO 
+    // RDI FIFO Interface (9-bit Status/Request)
+    input  logic [8:0]   rdi_msg_fifo,    // RDI message: {stall_bit, msg_no}
+    input  logic         rdi_not_empty,   // FIFO Status: Data available
+    output logic         rdi_pop,         // Control: Read enable to RDI FIFO 
 
-    // LTSM FIFO Interface
-    input  logic [127:0] ltsm_msg_fifo,   // LTSM message data 
-    input  logic         ltsm_not_empty,  // LTSM FIFO valid (not empty) 
-    output logic         ltsm_pop         // Read enable to LTSM FIFO 
+    // LTSM FIFO Interface (88-bit Link Management)
+    input  logic [87:0]  ltsm_msg_fifo,   // LTSM message: {data, info, msg_no}
+    input  logic         ltsm_not_empty,  // FIFO Status: Data available
+    output logic         ltsm_pop         // Control: Read enable to LTSM FIFO 
 );
 
     // ====================================================================
@@ -123,10 +125,12 @@ module arbiter (
     always_comb begin
         // 1. Default Values: Crucial for purely combinational logic
         // to avoid unwanted latches.
-        LINK_msg       = 128'b0;
-        LINK_msg_valid = 1'b0;
-        rdi_pop        = 1'b0;
-        ltsm_pop       = 1'b0;
+        msg_data = 64'b0;
+        msg_info = 16'b0;
+        msg_n    = 8'b0;
+        vld      = 1'b0;
+        rdi_pop  = 1'b0;
+        ltsm_pop = 1'b0;
 
         case (current_state)
             ST_IDLE: begin
@@ -134,9 +138,12 @@ module arbiter (
             end
 
             ST_READ_LTSM: begin
-                // Route LTSM data to the Link Controller and assert valid
-                LINK_msg       = ltsm_msg_fifo; 
-                LINK_msg_valid = 1'b1;          
+                // Extract fields from 88-bit LTSM message:
+                // [87:24] -> data, [23:8] -> info, [7:0] -> msg_no
+                msg_data = ltsm_msg_fifo[87:24];
+                msg_info = ltsm_msg_fifo[23:8];
+                msg_n    = ltsm_msg_fifo[7:0];
+                vld      = 1'b1;          
 
                 // Handshake logic: Only pop the FIFO if the Link Controller
                 // is ready to consume the data in this clock cycle.
@@ -146,9 +153,12 @@ module arbiter (
             end
 
             ST_READ_RDI: begin
-                // Route RDI data to the Link Controller and assert valid
-                LINK_msg       = rdi_msg_fifo; 
-                LINK_msg_valid = 1'b1;         
+                // Extract fields from 9-bit RDI message:
+                // [8] -> stall flag (mapped to info[0]), [7:0] -> msg_no
+                msg_data = 64'b0;
+                msg_info = {15'b0, rdi_msg_fifo[8]}; 
+                msg_n    = rdi_msg_fifo[7:0];
+                vld      = 1'b1;         
 
                 // Handshake logic: Only pop the FIFO if the Link Controller
                 // is ready to consume the data in this clock cycle.
@@ -162,5 +172,6 @@ module arbiter (
             end
         endcase
     end
+
 
 endmodule
