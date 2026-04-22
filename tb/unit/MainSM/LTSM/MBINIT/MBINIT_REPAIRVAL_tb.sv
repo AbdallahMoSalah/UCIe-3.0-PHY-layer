@@ -105,15 +105,20 @@ always @(posedge clk) begin
         MBINIT_REPAIRVAL_init_resp: 
             send_msg(MBINIT_REPAIRVAL_init_resp, 16'h0);
         
-
-        // S3
+        // S2
+        MBINIT_REPAIRVAL_pattern_req: 
+            send_msg(MBINIT_REPAIRVAL_pattern_req, 16'h0);
+        MBINIT_REPAIRVAL_pattern_resp: 
+            send_msg(MBINIT_REPAIRVAL_pattern_resp, 16'h0);
+            
+        // S4
         MBINIT_REPAIRVAL_result_req: 
             send_msg(MBINIT_REPAIRVAL_result_req, 16'h0);       
         MBINIT_REPAIRVAL_result_resp: 
             send_msg(MBINIT_REPAIRVAL_result_resp, 16'h0001); // pass
         
 
-        // S4
+        // S6
         MBINIT_REPAIRVAL_done_req: 
             send_msg(MBINIT_REPAIRVAL_done_req, 16'h0);
         MBINIT_REPAIRVAL_done_resp: 

@@ -152,7 +152,7 @@ end
 always_comb begin
     next_state = current_state;
 
-    if(timeout_error)
+    if(mb_repairval_error)
         next_state = MB_S0_IDLE;
 
     case(current_state)
