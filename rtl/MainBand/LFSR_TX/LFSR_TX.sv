@@ -1,4 +1,4 @@
-module LFSR_Transmitter #(
+module LFSR_TX #(
     parameter WIDTH = 32 // Parameter for signal width
 )(
     input logic i_clk,                      // Clock signal
