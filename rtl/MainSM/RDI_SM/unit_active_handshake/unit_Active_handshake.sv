@@ -10,7 +10,8 @@ module unit_active_handshake (
     input  logic pm_exit,
     input  msg_no_e message_receive,          // Received active request from peer
     input  logic Active_handshake_strt, // Signal to start the active handshake
-    
+    input logic inband_pres,            // In-band presence signal
+
     output msg_no_e Active_message_send,          // Sent active request to peer
     output logic Active_handshake_done  // Indicator that handshake has completed
 );
@@ -38,92 +39,87 @@ module unit_active_handshake (
     state_t state = IDLE;
     flow_t  flow  = none;
     logic   req_r = 1'b0; // Latches peer requests that arrive during IDLE
-    
+    logic rsp_r=1'b0;
     always @(posedge lclk) begin
         // Latch incoming request
         if (message_receive == RDI_ACTIVE_REQ) begin
             req_r <= 1'b1;
         end
+        if (message_receive == RDI_ACTIVE_RSP) begin
+            rsp_r <= 1'b1;
+        end
     end
     always @(posedge lclk) begin
         case (state)
             IDLE: begin
-                if (Active_handshake_strt) begin
-                    if (~req_r || pm_exit) begin
-                        // Normal start: send our request
-                        state <= SEND_REQ;
-                        Active_message_send <= RDI_ACTIVE_REQ;
-                    end else if (req_r && ~pm_exit) begin
-                        // Peer beat us to the punch: prioritize sending response
-                        state <= SEND_RESP;
-                        Active_message_send <= RDI_ACTIVE_RSP;
-                        flow  <= flow2;
-                        req_r <= 1'b0;
-                    end
-                end
+               if (Active_handshake_strt && (~req_r || pm_exit)) begin
+                state <=SEND_REQ;
+                Active_message_send <= RDI_ACTIVE_REQ;
+               end
+               else if (Active_handshake_strt && req_r && ~pm_exit) begin
+                    state <= SEND_RESP;
+                    Active_message_send <= RDI_ACTIVE_RSP;
+                    flow  <= flow1;
+               end
             end
 
             SEND_REQ: begin
-                // Automatically proceed to wait for messages after sending req
                 Active_message_send <= NOP;
                 state <= CHECK_MSG;
             end
 
             CHECK_MSG: begin
-                // Wait to receive the peer's response or a conflicting request
-
-                if (message_receive == RDI_ACTIVE_RSP && (flow != flow1) && (flow != flow2)) begin
-                    // Got peer's req; keep waiting for their resp, update flow
-                    state <= CHECK_MSG;
-                    flow  <= flow0;
-                end
-
-                if (message_receive == RDI_ACTIVE_RSP && ((flow == flow2) || (flow == flow1))) begin
-                    // Received response in flow2 scenario -> we are done
-                    state <= DONE;
-                end
-
-                if (req_r && (flow != flow0)&&Active_handshake_done) begin
-                    // Conflicting req received -> need to send response
+                if (rsp_r && flow != flow1) begin
+                    state <=  CHECK_MSG;
+                    flow <= flow0;
+                    rsp_r<=0;
+                end 
+                else if (req_r && inband_pres && flow == flow0) begin
                     state <= SEND_RESP;
                     Active_message_send <= RDI_ACTIVE_RSP;
-                    flow  <= flow1;
-                    req_r <= 1'b0;
+                    req_r<=0;
                 end
-
-                if (req_r && (flow == flow0)) begin
-                    // Received request in default flow -> need to send response
+                else if (req_r && inband_pres && flow != flow0) begin
                     state <= SEND_RESP;
                     Active_message_send <= RDI_ACTIVE_RSP;
-                    req_r <= 1'b0;
+                    flow <= flow2;
+                    req_r<=0;
+                end
+                else if (rsp_r && flow == flow1) begin
+                    state <=  DONE;
+                    rsp_r<=0;
                 end
             end
 
             SEND_RESP: begin
-                // After sending our response, determine next step based on flow history
-                if (flow == flow0) begin
-                    state <= DONE;
-                end
-
+                Active_message_send <= NOP;
                 if (flow == flow1) begin
-                    state <= CHECK_MSG;
-                end
-
-                if (flow == flow2) begin
-                    // Received our response while finishing flow2 resolution -> send our req
-                    state <= SEND_REQ;
+                    state <=  SEND_REQ;
                     Active_message_send <= RDI_ACTIVE_REQ;
+                    req_r<=0;
+                end
+                else if (flow == flow0) begin
+                    state <=  DONE;
+                end
+                else if (flow == flow2 && rsp_r) begin
+                    state <=  DONE;
+                    rsp_r<=0;
                 end
             end
 
             DONE: begin
-                // Transition gracefully back to IDLE
+                req_r<=1'b0;
+                rsp_r<=1'b0;
+                Active_message_send <= NOP;
                 state <= IDLE;
-                flow  <= none;
+                flow <= none;
             end
 
             default: begin
-                state <= IDLE;
+               state <= IDLE;
+               flow <= none;
+               req_r<=1'b0;
+               rsp_r<=1'b0;
             end
         endcase
     end

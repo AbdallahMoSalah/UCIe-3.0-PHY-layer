@@ -13,14 +13,15 @@ module unit_retrain_state (
     input  logic           EN,                      // Enable from top-level RDI SM
     input  logic           lp_linkerror,            // Link error flag from Adapter
     input  RDI_state       lp_state_req,            // Requested RDI state from Adapter
-    input  msg_no_e        message_receive,          // Received message from peer
+    input  msg_no_e        message_receive,         // Received message from peer
     input  logic           Active_handshake_done,   // Active handshake sub-SM done flag
     input  LTSM_state_e    state_sts,               // Current LTSM stable state (top-level SM)
     input  logic           rst_n,                   // Asynchronous active-low reset
+    input  logic           pm_exit,                 // pm exit
 
     output RDI_state       next_state,              // Next RDI main state on exit
     output logic           Active_handshake_strt,   // Start strobe for Active handshake sub-SM
-    output msg_no_e        message_send              // RDI message to send to peer
+    output msg_no_e        message_send             // RDI message to send to peer
 );
 
     // -------------------------------------------------------------------------
@@ -98,7 +99,7 @@ module unit_retrain_state (
                         next_state <= Active;
                     end else if (state_sts == LINKINIT && lp_state_req == Nop) begin
                         cs <= nop_rcvd;
-                    end else if (lp_state_req == Active && state_sts == LINKINIT) begin
+                    end else if (lp_state_req == Active) begin
                         cs                    <= active_hs;
                         Active_handshake_strt <= 1'b1;
                     end

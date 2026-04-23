@@ -1,35 +1,70 @@
-`timescale 1ns / 1ps
+`timescale 1ns/1ps
 
 import UCIe_pkg::*;
 
-module unit_active_handshake_tb;
+module wrapper_handshake_logic_tb();
 
     // ===============
     // Signals
     // ===============
-    logic    lclk;
-    logic    pm_exit;
-    logic    inband_pres;
-    logic    Active_handshake_strt;
+    logic lclk;
+    
+    // Inputs
+    logic lp_clk_ack;
+    logic clk_handshake_strt;
+    
+    logic lp_awak_req;
+    logic ungating_done;
+    
+    logic lp_stallack;
+    logic stall_req;
 
-    // DUT enum ports
+    logic Active_handshake_strt;
     msg_no_e message_receive;
-    msg_no_e Active_message_send;
+    logic pm_exit;
+    logic inband_pres;
 
-    // DUT output
+    // Outputs
+    logic pl_clk_req;
+    logic clk_handshake_done;
+    
+    logic pl_awak_ack;
+    logic ungating_req;
+    
+    logic pl_stallreq;
+    logic stall_done;
+
     logic Active_handshake_done;
+    msg_no_e Active_message_send;
 
     // ===============
     // DUT Instantiation
     // ===============
-    unit_active_handshake uut (
-        .inband_pres          (inband_pres),
-        .lclk                 (lclk),
-        .pm_exit              (pm_exit),
-        .message_receive      (message_receive),
+    wrapper_handshake_logic dut (
+        .lclk(lclk),
+        .pm_exit(pm_exit),
+        
+        .lp_clk_ack(lp_clk_ack),
+        .clk_handshake_strt(clk_handshake_strt),
+        
+        .lp_awak_req(lp_awak_req),
+        .ungating_done(ungating_done),
+        
+        .lp_stallack(lp_stallack),
+        .stall_req(stall_req),
+        
+        .inband_pres(inband_pres),
         .Active_handshake_strt(Active_handshake_strt),
-        .Active_message_send  (Active_message_send),
-        .Active_handshake_done(Active_handshake_done)
+        .message_receive(message_receive),
+        
+        .pl_clk_req(pl_clk_req),
+        .clk_handshake_done(clk_handshake_done),
+        .pl_awak_ack(pl_awak_ack),
+        .ungating_req(ungating_req),
+        .pl_stallreq(pl_stallreq),
+        .stall_done(stall_done),
+        .Active_handshake_done(Active_handshake_done),
+        .Active_message_send(Active_message_send)
     );
 
     // ===============
@@ -61,15 +96,63 @@ module unit_active_handshake_tb;
     // Test Sequence
     // ===============
     initial begin
+        $display("========================================");
+        $display("Starting wrapper_handshake_logic Testbench");
+        $display("========================================");
+
         // Initialize inputs
+        lp_clk_ack = 0;
+        clk_handshake_strt = 0;
+        lp_awak_req = 0;
+        ungating_done = 0;
+        lp_stallack = 0;
+        stall_req = 0;
+        Active_handshake_strt = 0;
         message_receive = NOP;
         pm_exit = 0;
-        Active_handshake_strt = 0;
-        inband_pres = 0;
+        inband_pres=0;
+        // Let system settle
+        repeat(2) @(posedge lclk);
         
-        // Wait for global reset / initialization
-        #100;
+        $display("\n--- Test 1: CLK Handshake ---");
+        @(negedge lclk);
+        clk_handshake_strt = 1;
+        wait(pl_clk_req);
+        @(negedge lclk);
+        lp_clk_ack = 1;
+        wait(clk_handshake_done);
+        @(negedge lclk);
+        clk_handshake_strt = 0;
+        lp_clk_ack = 0;
+        $display("CLK Handshake Done");
 
+        $display("\n--- Test 2: AWAKE Handshake ---");
+        @(negedge lclk);
+        lp_awak_req = 1;
+        wait(ungating_req);
+        @(negedge lclk);
+        ungating_done = 1;
+        wait(pl_awak_ack);
+        @(negedge lclk);
+        lp_awak_req = 0;
+        ungating_done = 0;
+        $display("AWAKE Handshake Done");
+
+        $display("\n--- Test 3: STALL Handshake ---");
+        @(negedge lclk);
+        stall_req = 1;
+        wait(pl_stallreq);
+        @(negedge lclk);
+        lp_stallack = 1;
+        wait(stall_done);
+        @(negedge lclk);
+        stall_req = 0;
+        wait(!stall_done);
+        @(negedge lclk);
+        lp_stallack = 0;
+        $display("STALL Handshake Done");
+
+        $display("\n--- Test 4: Active Handshake ---");
         // ---------------------------------------------------
         // Scenario 1: flow2
         // ---------------------------------------------------
@@ -106,7 +189,7 @@ module unit_active_handshake_tb;
             begin
                 rcv_msg(1);
                 wait(Active_handshake_done == 1'b1);
-                $display("[%0t] %s handshake done", $time, uut.flow.name());
+                $display("[%0t] %s handshake done", $time, dut.u4.flow.name());
                 inband_pres=0;
             end
             
@@ -156,7 +239,7 @@ module unit_active_handshake_tb;
         fork
             begin
                 wait(Active_handshake_done == 1'b1);
-                $display("[%0t] %s handshake done", $time, uut.flow.name());
+                $display("[%0t] %s handshake done", $time, dut.u4.flow.name());
                 inband_pres=0;
             end
             
@@ -205,7 +288,7 @@ module unit_active_handshake_tb;
             begin
                 rcv_msg(1);
                 wait(Active_handshake_done == 1'b1);
-                $display("[%0t] %s handshake done", $time, uut.flow.name());
+                $display("[%0t] %s handshake done", $time, dut.u4.flow.name());
                 inband_pres=0;
             end
             
@@ -219,21 +302,12 @@ module unit_active_handshake_tb;
         @(negedge lclk);
         
         end_handshake();
-        $display("\n========================================");
-        $display("TEST COMPLETED!");
-        $display("========================================");
+ 
+    $display("\n========================================");
+    $display("TEST COMPLETED!");
+    $display("========================================");
 
-        $finish;
+        $stop;
     end
-
-    // ===============
-    // Monitor
-    // ===============
- /*   initial begin
-        $monitor("[%0t] state=%s flow=%s | Strt=%b | msg_rcv=%s msg_snd=%s | Done=%b",
-                 $time,
-                 uut.state.name(), uut.flow.name(),
-                 Active_handshake_strt, message_receive.name(), Active_message_send.name(), Active_handshake_done);
-    end*/
 
 endmodule
