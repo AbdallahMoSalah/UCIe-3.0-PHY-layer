@@ -1,5 +1,5 @@
 // =============================================================================
-// Module      : Link_Mgmt_Demux
+// Module      : Training_Mgmt_Demux
 // Description : Specialized demultiplexer for UCIe Link Management RX messages.
 //               Routes messages to either RDI or LTSM interfaces based on
 //               the decoded message number.
@@ -7,7 +7,7 @@
 
 import UCIe_pkg::*;
 
-module Link_Mgmt_Demux (
+module Training_Mgmt_Demux (
     // Inputs from DePacketizer
     input  msg_no_e      rx_msg_no_raw,
     input  logic [15:0]  rx_msginfo_raw,

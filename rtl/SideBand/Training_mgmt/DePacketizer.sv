@@ -506,7 +506,7 @@ module DePacketizer (
 
             msg_no_out <= msg_no_comb;
             stall_rcvd <= is_stall;
-            vld_r <=1; // Indicate that the message is valid and ready to be sent
+            vld_r <=1; // Indicate that the message is valid and rdy to be sent
             msginfo_r <= header_in.msg.MsgInfo;  
             payload_r <= msg_in [127:64];
         end else begin

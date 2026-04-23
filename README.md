@@ -51,7 +51,7 @@ rtl/
  │
  ├── SideBand/              # Sideband digital path
  │    ├── common/           # Sideband-specific packages
- │    └── LinkMgmt/         # Packetizer / DePacketizer / Link blocks
+ │    └── Training_mgmt/    # Packetizer / DePacketizer / Link blocks
  │
  ├── MainBand/              # Mainband data path
  │    ├── MAPPER/           # Data mapping logic

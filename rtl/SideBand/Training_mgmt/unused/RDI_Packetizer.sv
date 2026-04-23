@@ -8,9 +8,9 @@ module RDI_Packetizer (
     input sb_rdi_msg_no_e RDI_msg_no_send,
     input logic stall_send,
     input logic RDI_vld_send,
-    output logic RDI_ready, // Indicates that the packetizer is ready to accept a new message from RDI_SM
+    output logic RDI_rdy, // Indicates that the packetizer is rdy to accept a new message from RDI_SM
 
-    input logic push_ready,  // Indicates that the fifo is ready to accept a new message (!= full)
+    input logic push_rdy,  // Indicates that the fifo is rdy to accept a new message (!= full)
     output logic [127:0] RDI_msg,
     output logic RDI_vld_out
 );
@@ -64,16 +64,16 @@ module RDI_Packetizer (
         if (!rst_n) begin
             RDI_vld_out <= 1'b0;  // No valid message on reset
             header_reg  <= '0;  // Clear header on reset
-        end else if (RDI_vld_send && push_ready) begin
+        end else if (RDI_vld_send && push_rdy) begin
             header_reg  <= header_next;
-            RDI_vld_out <= 1'b1;  // Indicate that the message is valid and ready to be sent  
+            RDI_vld_out <= 1'b1;  // Indicate that the message is valid and rdy to be sent  
         end else begin
             RDI_vld_out <= 1'b0;  // No valid message if not sending
         end
     end
 
 
-    assign RDI_ready = push_ready; // Packetizer is ready to accept a new message if the fifo is ready
+    assign RDI_rdy = push_rdy; // Packetizer is rdy to accept a new message if the fifo is rdy
 
     // ---------------------------
     // Output mapping

@@ -211,7 +211,7 @@ Examples:
 
 ```
 [RDI] Fix packet header alignment
-[SB] Add timeout handling in LinkMgmt
+[SB] Add timeout handling in Training_mgmt
 [TB] Add directed reset test
 ```
 

@@ -502,11 +502,11 @@ module LTSM_DE (
             stall_rcvd <= 1'b0;
             payload_r <= 64'b0;
             msginfo_r <= 16'b0;
-        end else if(LINK_vld_rcvd && !error_flag) begin
+        end else if(trn_vld_rcvd && !error_flag) begin
 
             msg_no_out <= msg_no_comb;
             stall_rcvd <= is_stall;
-            ltsm_vld_r <=1; // Indicate that the message is valid and ready to be sent
+            ltsm_vld_r <=1; // Indicate that the message is valid and rdy to be sent
             msginfo_r <= header_in.msg.MsgInfo;  
             payload_r <= ltsm_msg_in [127:64];
         end else begin

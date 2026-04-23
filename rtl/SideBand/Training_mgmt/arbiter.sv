@@ -3,7 +3,7 @@
 // Description: Round-Robin Arbiter for the Link Management Unit.
 //              Arbitrates between LTSM (88-bit) and RDI (9-bit) message FIFOs
 //              to feed the Sideband Packetizer. Implements flow control 
-//              using the LINK_ready handshake signal.
+//              using the trn_rdy handshake signal.
 // ============================================================================
 
 module arbiter (
@@ -12,7 +12,7 @@ module arbiter (
     input  logic         reset_n,
 
     // Packetizer Interface (Handshake)
-    input  logic         LINK_ready,      // Backpressure: Ready signal from Packetizer
+    input  logic         trn_rdy,      // Backpressure: Rdy signal from Packetizer
     output logic [63:0]  msg_data,        // Message payload (64-bit)
     output logic [15:0]  msg_info,        // Message metadata/info (16-bit)
     output logic [7:0]   msg_n,           // Message number/subcode (8-bit)
@@ -78,7 +78,7 @@ module arbiter (
 
             ST_READ_LTSM: begin
                 // Wait for the Link Controller to accept the data
-                if (LINK_ready) begin 
+                if (trn_rdy) begin 
                     // Round-Robin: Switch to RDI if it has pending data
                     if (rdi_not_empty) begin
                         next_state = ST_READ_RDI; 
@@ -96,7 +96,7 @@ module arbiter (
 
             ST_READ_RDI: begin
                 // Wait for the Link Controller to accept the data
-                if (LINK_ready) begin
+                if (trn_rdy) begin
                     // Round-Robin: Switch to LTSM if it has pending data
                     if (ltsm_not_empty) begin
                         next_state = ST_READ_LTSM; 
@@ -146,8 +146,8 @@ module arbiter (
                 vld      = 1'b1;          
 
                 // Handshake logic: Only pop the FIFO if the Link Controller
-                // is ready to consume the data in this clock cycle.
-                if (LINK_ready) begin
+                // is rdy to consume the data in this clock cycle.
+                if (trn_rdy) begin
                     ltsm_pop = 1'b1;
                 end
             end
@@ -161,8 +161,8 @@ module arbiter (
                 vld      = 1'b1;         
 
                 // Handshake logic: Only pop the FIFO if the Link Controller
-                // is ready to consume the data in this clock cycle.
-                if (LINK_ready) begin
+                // is rdy to consume the data in this clock cycle.
+                if (trn_rdy) begin
                     rdi_pop = 1'b1;
                 end
             end

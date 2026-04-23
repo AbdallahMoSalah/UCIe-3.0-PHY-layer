@@ -5,8 +5,8 @@ module RDI_DePacketizer(
     input logic rst_n,
 
     // From link control
-    input logic [127:0] LINK_msg_rcvd,
-    input logic LINK_vld_rcvd,
+    input logic [127:0] trn_msg_rcvd,
+    input logic trn_vld_rcvd,
     output sb_rdi_msg_no_e RDI_msg_no_rcvd,
     output logic stall_rcvd,
     output logic RDI_vld_rcvd
@@ -37,7 +37,7 @@ module RDI_DePacketizer(
         RDI_msg_no_rcvd_next = NOP;
         stall_rcvd_next      = 1'b0;
 
-        header = LINK_msg_rcvd[63:0];
+        header = trn_msg_rcvd[63:0];
 
         cp_calc = ^header.raw[61:0];
 
@@ -79,11 +79,11 @@ module RDI_DePacketizer(
             RDI_msg_no_rcvd <= NOP;
             stall_rcvd <= 1'b0;
 
-        end else if(LINK_vld_rcvd && !error) begin
+        end else if(trn_vld_rcvd && !error) begin
 
             RDI_msg_no_rcvd <= RDI_msg_no_rcvd_next;
             stall_rcvd <= stall_rcvd_next;
-            RDI_vld_rcvd <=1; // Indicate that the message is valid and ready to be sent  
+            RDI_vld_rcvd <=1; // Indicate that the message is valid and rdy to be sent  
         end else begin
             RDI_vld_rcvd <= 1'b0; 
             RDI_msg_no_rcvd <= NOP;

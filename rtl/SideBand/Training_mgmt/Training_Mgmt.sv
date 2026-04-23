@@ -1,5 +1,5 @@
 // =============================================================================
-// Module      : Link_Mgmt
+// Module      : Training_Mgmt
 // Description : Top-level for UCIe Sideband Link Management.
 //               Integrates TX arbitration, packetization, and RX decoding.
 //               Uses asynchronous FIFOs for Main SM clock domain crossing.
@@ -8,7 +8,7 @@
 import sb_pkg::*;
 import UCIe_pkg::*;
 
-module Link_Mgmt #(
+module Training_Mgmt #(
     parameter int FIFO_ADDR_WIDTH = 4  // Depth = 16 entries
 )(
     // Clock and Reset
@@ -23,11 +23,13 @@ module Link_Mgmt #(
     input  logic [ 7:0]  RDI_msg_no_send,
     input  logic         stall_send,
     input  logic         RDI_vld_send,
-    output logic         RDI_ready,
+    output logic         RDI_rdy,
 
-    input  logic [87:0]  LTSM_msg,
-    input  logic         LTSM_vld,
-    output logic         LTSM_ready,
+    input  logic [ 7:0]  ltsm_msg_n_send,
+    input  logic [63:0]  msg_data_send,
+    input  logic [15:0]  msg_info_send,
+    input  logic         ltsm_vld_send,
+    output logic         ltsm_rdy,
 
     // -------------------------------------------------------------------------
     // Main SM RX Interface (clk_sb)
@@ -44,12 +46,12 @@ module Link_Mgmt #(
     // -------------------------------------------------------------------------
     // External Link Interface (clk_sb)
     // -------------------------------------------------------------------------
-    output logic [127:0] Link_msg_send,
-    output logic         Link_vld_send,
-    input  logic         Link_ready,       // Backpressure from Link Controller
+    output logic [127:0] trn_msg_send,
+    output logic         trn_vld_send,
+    input  logic         trn_rdy,       // Backpressure from Link Controller
 
-    input  logic [127:0] Link_msg_rcvd,
-    input  logic         Link_vld_rcvd
+    input  logic [127:0] trn_msg_rcvd,
+    input  logic         trn_vld_rcvd
 );
 
     // -------------------------------------------------------------------------
@@ -71,7 +73,7 @@ module Link_Mgmt #(
     logic [15:0] arb_msg_info;
     logic [ 7:0] arb_msg_n;
     logic        arb_vld;
-    logic        packetizer_ready;
+    logic        packetizer_rdy;
 
     // DePacketizer Outputs
     msg_no_e     rx_msg_no_raw;
@@ -92,10 +94,10 @@ module Link_Mgmt #(
     ) u_ltsm_tx_fifo (
         .W_CLK   (clk_main),
         .WRST_N  (rst_main_n),
-        .WINC    (LTSM_vld),
-        .WR_DATA (LTSM_msg),
+        .WINC    (ltsm_vld_send),
+        .WR_DATA ({msg_data_send, msg_info_send, ltsm_msg_n_send}),
         .WFULL   (),
-        .WREADY  (LTSM_ready),
+        .WREADY  (ltsm_rdy),
 
         .R_CLK   (clk_sb),
         .RRST_N  (rst_sb_n),
@@ -117,7 +119,7 @@ module Link_Mgmt #(
         .WINC    (RDI_vld_send),
         .WR_DATA ({stall_send, RDI_msg_no_send}),
         .WFULL   (),
-        .WREADY  (RDI_ready),
+        .WREADY  (RDI_rdy),
 
         .R_CLK   (clk_sb),
         .RRST_N  (rst_sb_n),
@@ -145,7 +147,7 @@ module Link_Mgmt #(
         .ltsm_pop       (ltsm_pop),
 
         // Handshake
-        .LINK_ready     (packetizer_ready),
+        .trn_rdy     (packetizer_rdy),
         
         // To Packetizer
         .msg_data       (arb_msg_data),
@@ -168,10 +170,10 @@ module Link_Mgmt #(
         .stall_send     (arb_msg_info[0]), 
 
         // External Link
-        .Link_ready     (Link_ready),
-        .Link_msg_send  (Link_msg_send),
-        .Link_vld_send  (Link_vld_send),
-        .ready          (packetizer_ready)
+        .trn_rdy     (trn_rdy),
+        .trn_msg_send  (trn_msg_send),
+        .trn_vld_send  (trn_vld_send),
+        .rdy          (packetizer_rdy)
     );
 
     // -------------------------------------------------------------------------
@@ -181,8 +183,8 @@ module Link_Mgmt #(
     DePacketizer u_depacketizer (
         .clk        (clk_sb),
         .rst_n      (rst_sb_n),
-        .msg_in     (Link_msg_rcvd),
-        .vld_in     (Link_vld_rcvd),
+        .msg_in     (trn_msg_rcvd),
+        .vld_in     (trn_vld_rcvd),
         
         // Decoded Outputs
         .msg_no_out (rx_msg_no_raw),
@@ -193,7 +195,7 @@ module Link_Mgmt #(
     );
 
     // Instantiate Specialized Demux
-    Link_Mgmt_Demux u_demux (
+    Training_Mgmt_Demux u_demux (
         // Inputs from DePacketizer
         .rx_msg_no_raw    (rx_msg_no_raw),
         .rx_msginfo_raw   (rx_msginfo_raw),

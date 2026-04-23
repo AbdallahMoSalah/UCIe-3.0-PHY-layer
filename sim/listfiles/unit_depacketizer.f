@@ -5,7 +5,7 @@ rtl/SideBand/common/msg_codec_pkg.sv
 tb/unit/sideband/depacketizer/DePacketizer_tb_pkg.sv
 
 # DUT
-rtl/SideBand/LinkMgmt/DePacketizer.sv
+rtl/SideBand/Training_mgmt/DePacketizer.sv
 
 # Testbench
 tb/unit/sideband/depacketizer/DePacketizer_tb.sv
