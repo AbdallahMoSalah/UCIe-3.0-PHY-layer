@@ -14,8 +14,8 @@ module Reg_Access_FSM
     // Handshake with Top Level / RDI_CONTROL
     // -----------------------------------------------------------------------
     input  logic         reg_vld,        // Valid request from RDI
-    output logic         reg_rdy,        // Ready to accept new request
-    input  logic         completion_rdy, // TX is ready to accept completion
+    output logic         reg_rdy,        // Rdy to accept new request
+    input  logic         completion_rdy, // TX is rdy to accept completion
 
     // -----------------------------------------------------------------------
     // From Reg_DePacketizer (Control Path Only)
@@ -30,7 +30,7 @@ module Reg_Access_FSM
     // -----------------------------------------------------------------------
     output logic         rd_en,          // Read enable
     output logic         wr_en,          // Write enable
-    input  logic         rdata_vld,      // Register file read-data ready
+    input  logic         rdata_vld,      // Register file read-data rdy
     input  logic         rf_addr_err,
 
     // -----------------------------------------------------------------------
@@ -111,7 +111,7 @@ always_comb begin
         end
 
         GEN: begin
-            // Handshake with completion_gen: wait until it's ready
+            // Handshake with completion_gen: wait until it's rdy
             if (completion_rdy)
                 next_state = IDLE;
         end
@@ -133,7 +133,7 @@ always_comb begin
     case (current_state)
 
         IDLE: begin
-            reg_rdy = 1'b1; // Ready to receive when idle
+            reg_rdy = 1'b1; // Rdy to receive when idle
         end
 
         // DECODE: Outputs remain at default (0)

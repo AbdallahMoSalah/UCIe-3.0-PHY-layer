@@ -43,9 +43,9 @@ module Reg_DePacketizer
     // -----------------------------------------------------------------------
     // Incoming SB request packet (latched by whoever feeds this block)
     // -----------------------------------------------------------------------
-    input  logic [127:0] pkt_in,     // Full 128-bit SB packet
-    input  logic         pkt_vld,    // Packet is valid / latched
-    input  logic         reg_rdy,    // Ready to accept new request
+    input  logic [127:0] reg_msg,     // Full 128-bit SB packet
+    input  logic         reg_vld,    // Packet is valid / latched
+    input  logic         reg_rdy,    // Rdy to accept new request
 
     // -----------------------------------------------------------------------
     // Control outputs → Reg_Access_FSM
@@ -61,12 +61,12 @@ module Reg_DePacketizer
     output logic [24:0]  rf_addr,       // {space, RL[3:0], offset[19:0]}
     output logic [7:0]   rf_be,         // Byte enables  (from header[21:14])
     output logic         rf_is_64b_access,  // 1 for 64-bit opcodes
-    output logic [63:0]  rf_wdata,      // Write payload (pkt_in[127:64])
+    output logic [63:0]  rf_wdata,      // Write payload (reg_msg[127:64])
 
     // -----------------------------------------------------------------------
     // Raw header latch → Completion_gen
     // -----------------------------------------------------------------------
-    output logic [63:0]  Original_Header   // header[63:0], latched at pkt_vld
+    output logic [63:0]  Original_Header   // header[63:0], latched at reg_vld
 );
 
 // ---------------------------------------------------------------------------
@@ -77,8 +77,8 @@ logic [127:0] latched_pkt;
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
         latched_pkt <= '0;
-    else if (pkt_vld && reg_rdy)
-        latched_pkt <= pkt_in;
+    else if (reg_vld && reg_rdy)
+        latched_pkt <= reg_msg;
 end
 
 // ---------------------------------------------------------------------------
