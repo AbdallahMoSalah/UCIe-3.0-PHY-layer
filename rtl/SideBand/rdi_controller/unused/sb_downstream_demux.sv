@@ -18,7 +18,7 @@ module sb_downstream_demux (
     // ==========================================
     input  logic [127:0] rdi_msg,       // Incoming 128-bit payload
     input  logic         rdi_vld,       // Incoming valid signal
-    output logic         rdi_ready,     // Upstream backpressure (ready)
+    output logic         rdi_rdy,     // Upstream backpressure (rdy)
 
     // ==========================================
     // 2. Out-of-Band Control Signal (From RDI_SM)
@@ -30,14 +30,14 @@ module sb_downstream_demux (
     // ==========================================
     output logic [127:0] reg_msg,       // Local targeted payload
     output logic         reg_vld,       // Local valid signal
-    input  logic         reg_ready,     // Downstream local backpressure
+    input  logic         reg_rdy,     // Downstream local backpressure
 
     // ==========================================
     // 4. Remote Egress Interface (To Link_Controller)
     // ==========================================
-    output logic [127:0] Adapter_msg_send,  // Remote targeted payload
-    output logic         Adapter_vld_send,  // Remote valid signal
-    input  logic         Adapter_ready      // Downstream remote backpressure
+    output logic [127:0] adapter_msg_send,  // Remote targeted payload
+    output logic         adapter_vld_send,  // Remote valid signal
+    input  logic         adapter_rdy      // Downstream remote backpressure
 );
 
     // ==========================================
@@ -90,17 +90,17 @@ module sb_downstream_demux (
     // Broadcast the data bus to both egress ports to avoid unnecessary muxing logic.
     // The 'valid' signals act as the actual datapath enables (Valid Gating).
     assign reg_msg          = rdi_msg;
-    assign Adapter_msg_send = rdi_msg;
+    assign adapter_msg_send = rdi_msg;
     //valid gating
 
     assign reg_vld          = route_to_local_reg  ? rdi_vld : 1'b0;
-    assign Adapter_vld_send = ~route_to_local_reg ? rdi_vld : 1'b0;
+    assign adapter_vld_send = ~route_to_local_reg ? rdi_vld : 1'b0;
 
     // ==========================================
     // Flow Control / Backpressure Propagation
     // ==========================================
-    // Multiplex the downstream 'ready' signal back to the ingress port 
+    // Multiplex the downstream 'rdy' signal back to the ingress port 
     // strictly based on the active routing decision.
-    assign rdi_ready = route_to_local_reg ? reg_ready : Adapter_ready;
+    assign rdi_rdy = route_to_local_reg ? reg_rdy : adapter_rdy;
 
 endmodule

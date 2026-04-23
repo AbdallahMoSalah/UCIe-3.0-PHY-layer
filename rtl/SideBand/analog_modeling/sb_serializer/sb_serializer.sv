@@ -12,7 +12,7 @@ module sb_serializer #(
     // Parallel interface
     input  logic [DATA_WIDTH-1:0] tx_parallel_data,
     input  logic                  tx_data_valid,
-    output logic                  tx_ready,
+    output logic                  tx_rdy,
 
     // Serial output
     output logic tx_serial_out,
@@ -60,7 +60,7 @@ always_ff @(posedge clk_parallel or negedge rst_n) begin
         buf_full     <= 0;
     end
     else begin
-        if(tx_data_valid && tx_ready) begin
+        if(tx_data_valid && tx_rdy) begin
             parallel_reg <= tx_parallel_data;
             buf_full     <= 1;
         end
@@ -70,7 +70,7 @@ always_ff @(posedge clk_parallel or negedge rst_n) begin
     end
 end
 
-assign tx_ready = !buf_full;
+assign tx_rdy = !buf_full;
 
 ////////////////////////////////////////////////////////////
 // SYNC: buf_full → SERIAL DOMAIN
@@ -276,7 +276,7 @@ endmodule
     // Parallel interface
     input  logic [DATA_WIDTH-1:0] tx_parallel_data,
     input  logic                  tx_data_valid,
-    output logic                  tx_ready,
+    output logic                  tx_rdy,
 
     // Serial output
     output logic tx_serial_out,
@@ -319,7 +319,7 @@ always_ff @(posedge clk_parallel or negedge rst_n) begin
         data_vld_reg <= '0;
     end
 
-    else if(tx_data_valid && tx_ready) begin
+    else if(tx_data_valid && tx_rdy) begin
         parallel_reg <= tx_parallel_data;
         data_vld_reg <= 1;
     end
@@ -462,7 +462,7 @@ assign tx_serial_out = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
 // READY SIGNAL
 ////////////////////////////////////////////////////////////
 
-assign tx_ready = !(data_vld_reg);
+assign tx_rdy = !(data_vld_reg);
 
 
 ////////////////////////////////////////////////////////////

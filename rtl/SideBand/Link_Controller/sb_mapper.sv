@@ -8,10 +8,10 @@ module sb_mapper (
     input  logic         word_vld_send,
 
     // From SerDes
-    input  logic         ser_ready,
+    input  logic         ser_rdy,
 
     // Backpressure to Arbiter
-    output logic         mapper_ready,
+    output logic         mapper_rdy,
 
     // To SerDes
     output logic [63:0]  msg_send,
@@ -73,7 +73,7 @@ module sb_mapper (
 
     logic arb_fire;
 
-    assign arb_fire = word_vld_send && mapper_ready;
+    assign arb_fire = word_vld_send && mapper_rdy;
 
     // ---------------------------------------------------------
     // FSM State Register
@@ -115,7 +115,7 @@ module sb_mapper (
             end
 
             SEND_SECOND_HALF: begin
-                if (ser_ready)
+                if (ser_rdy)
                     next_state = IDLE;
             end
 
@@ -133,7 +133,7 @@ module sb_mapper (
         
         msg_vld_send    = 1'b0;
         msg_send        = '0;
-        mapper_ready    = 1'b0;
+        mapper_rdy    = 1'b0;
 
         case (current_state)
 
@@ -142,7 +142,7 @@ module sb_mapper (
             //--------------------------------
             IDLE: begin
 
-                mapper_ready = ser_ready;
+                mapper_rdy = ser_rdy;
 
                 if (word_vld_send) begin
                     msg_send  = msg_word_send[63:0];

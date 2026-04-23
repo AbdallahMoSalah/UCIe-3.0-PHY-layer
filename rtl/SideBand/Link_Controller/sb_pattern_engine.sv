@@ -13,10 +13,10 @@ module sb_pattern_engine (
     // mapper
     input  logic [63:0] mapper_data,
     input  logic        mapper_valid,
-    output logic        mapper_ready,
+    output logic        mapper_rdy,
 
     // serializer
-    input  logic        ser_ready,
+    input  logic        ser_rdy,
 
     output logic [63:0] ser_data,
     output logic        ser_valid
@@ -105,7 +105,7 @@ always_comb begin
             if(!pattern_mode)
                 next_state = MAPPER;
 
-            else if((iter_cnt == 3) && ser_valid && ser_ready)
+            else if((iter_cnt == 3) && ser_valid && ser_rdy)
                 next_state = DONE_HOLD;
         end
 
@@ -129,7 +129,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         iter_cnt <= 0;
 
     else if(state == COUNT_4) begin
-        if(ser_valid && ser_ready) begin
+        if(ser_valid && ser_rdy) begin
             if(iter_cnt == 3)
                 iter_cnt <= 0;
             else
@@ -197,10 +197,10 @@ always_comb begin
 end
 
 ////////////////////////////////////////////////////////////
-// mapper_ready
+// mapper_rdy
 ////////////////////////////////////////////////////////////
 
-assign mapper_ready = (state == MAPPER) && ser_ready;
+assign mapper_rdy = (state == MAPPER) && ser_rdy;
 
 ////////////////////////////////////////////////////////////
 // done signal (latched by state)
@@ -255,10 +255,10 @@ endmodule
     // mapper interface
     input  logic [63:0] mapper_data,
     input  logic        mapper_valid,
-    output logic        mapper_ready,
+    output logic        mapper_rdy,
 
     // serializer handshake
-    input  logic        ser_ready,
+    input  logic        ser_rdy,
 
     // serializer interface
     output logic [63:0] ser_data,
@@ -284,7 +284,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
     else begin
 
-        if(pattern_mode && send_4_iter && ser_ready && ser_valid && (iter_cnt != 4)) begin
+        if(pattern_mode && send_4_iter && ser_rdy && ser_valid && (iter_cnt != 4)) begin
             iter_cnt <= iter_cnt + 1;
         end
 
@@ -335,9 +335,9 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 ////////////////////////////////////////////////////////////
-// Mapper ready
+// Mapper rdy
 ////////////////////////////////////////////////////////////
 
-assign mapper_ready = (!pattern_mode) && (!start_pat_req) && ser_ready;
+assign mapper_rdy = (!pattern_mode) && (!start_pat_req) && ser_rdy;
 
 endmodule */

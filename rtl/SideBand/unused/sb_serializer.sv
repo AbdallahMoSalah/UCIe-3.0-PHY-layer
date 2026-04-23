@@ -11,7 +11,7 @@ module sb_serializer #(
     // Parallel interface
     input  logic [DATA_WIDTH-1:0] tx_parallel_data,
     input  logic                  tx_data_valid,
-    output logic                  tx_ready,
+    output logic                  tx_rdy,
 
     // Serial output
     output logic tx_serial_out,
@@ -119,7 +119,7 @@ module sb_serializer #(
     else begin
 
       // load new packet
-      if (tx_ready && tx_data_valid) shift_reg <= tx_parallel_data;
+      if (tx_rdy && tx_data_valid) shift_reg <= tx_parallel_data;
       // normal shifting
       else if (state == SHIFT) shift_reg <= {1'b0, shift_reg[DATA_WIDTH-1:1]};
 
@@ -137,20 +137,20 @@ module sb_serializer #(
   end
 
   ////////////////////////////////////////////////////////////
-  // Ready Signal
+  // Rdy Signal
   ////////////////////////////////////////////////////////////
 
   always_comb begin
 
-    tx_ready = 0;
+    tx_rdy = 0;
 
     case (state)
 
-      IDLE: tx_ready = 1;
+      IDLE: tx_rdy = 1;
 
-      SHIFT: if (bit_cnt == DATA_WIDTH - 1 && pmo_en) tx_ready = 1;  // allows PMO
+      SHIFT: if (bit_cnt == DATA_WIDTH - 1 && pmo_en) tx_rdy = 1;  // allows PMO
 
-      GAP: if (bit_cnt == GAP_WIDTH - 1) tx_ready = 1;
+      GAP: if (bit_cnt == GAP_WIDTH - 1) tx_rdy = 1;
 
     endcase
 

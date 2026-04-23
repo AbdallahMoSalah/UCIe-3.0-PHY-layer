@@ -8,11 +8,11 @@ module rdi_de_aggregator
     // Interface with Arbiter
     input  sb_packet_t  pl_msg,
     input  logic        pl_msg_vld,
-    output logic        pl_msg_ready,
+    output logic        pl_msg_rdy,
 
     // Interface with Link/PHY layer
     output logic        traffic_req,
-    input  logic        traffic_ready,
+    input  logic        traffic_rdy,
     output logic [31:0] pl_cfg,
     output logic        pl_cfg_vld
 );
@@ -112,7 +112,7 @@ module rdi_de_aggregator
             end 
 
             WAIT_READY: begin
-                if(traffic_ready) begin
+                if(traffic_rdy) begin
                     next_state = OUTPUT_STATE;
                 end
             end
@@ -132,7 +132,7 @@ module rdi_de_aggregator
 
     end
 
-    assign pl_msg_ready = (state == IDLE) || (state == OUTPUT_STATE && chunk_cnt == expected_chunks);
+    assign pl_msg_rdy = (state == IDLE) || (state == OUTPUT_STATE && chunk_cnt == expected_chunks);
     assign traffic_req  = (state == WAIT_READY);
 
 
@@ -170,7 +170,7 @@ module rdi_de_aggregator
             WAIT_READY:
             ///////////////////////////////////////
             begin
-                if (traffic_ready) begin
+                if (traffic_rdy) begin
                     chunk_cnt  <= 1;
                     pl_cfg_vld <= 1'b1;
                     // Send out the first chunk
@@ -186,9 +186,9 @@ module rdi_de_aggregator
             ///////////////////////////////////////
             begin
                 if(chunk_cnt == expected_chunks) begin
-                    // Last chunk was already sent out in the previous cycle
+                    // Last chunk was alrdy sent out in the previous cycle
                     if(pl_msg_vld) begin
-                        // Back to back consecutive packets: buffer and wait for ready
+                        // Back to back consecutive packets: buffer and wait for rdy
                         msg_reg         <= pl_msg;
                         expected_chunks <= next_expected_chunks;
                     end

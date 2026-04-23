@@ -4,17 +4,17 @@ module sb_priority_arbiter #(
     // High Priority Input Interface
     input  logic [DATA_WIDTH-1:0] hip_msg,
     input  logic                  hip_vld,
-    output logic                  hip_ready,
+    output logic                  hip_rdy,
 
     // Low Priority Input Interface
     input  logic [DATA_WIDTH-1:0] lop_msg,
     input  logic                  lop_vld,
-    output logic                  lop_ready,
+    output logic                  lop_rdy,
 
     // Arbitrated Output Interface
     output logic [DATA_WIDTH-1:0] out_msg,
     output logic                  out_vld,
-    input  logic                  out_ready
+    input  logic                  out_rdy
 );
     
     always_comb begin
@@ -29,8 +29,8 @@ module sb_priority_arbiter #(
             out_vld = lop_vld;
         end
 
-        hip_ready = out_ready && hip_vld;
-        lop_ready = out_ready && lop_vld && !hip_vld;
+        hip_rdy = out_rdy && hip_vld;
+        lop_rdy = out_rdy && lop_vld && !hip_vld;
     end
 
 endmodule

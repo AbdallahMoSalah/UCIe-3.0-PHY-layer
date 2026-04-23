@@ -2,11 +2,13 @@ module Link_Controller (
     //tx
     input   logic         clk,
     input   logic         rst_n,
-    input   logic [127:0] Link_msg_send,
-    input   logic         Link_vld_send,
-    input   logic [127:0] Adapter_msg_send,
-    input   logic         Adapter_vld_send,
-    input   logic         ser_ready,
+    input   logic [127:0] trn_msg_send,
+    input   logic         trn_vld_send,
+    output  logic         trn_rdy,
+
+    input   logic [127:0] adapter_msg_send,
+    input   logic         adapter_vld_send,
+    output  logic         adapter_rdy,
 
     
     input   logic         pattern_mode,
@@ -15,21 +17,20 @@ module Link_Controller (
 
     output  logic         four_iter_done,
 
+    input   logic         ser_rdy,
     output  logic [63:0]  ser_data_send,
     output  logic         ser_vld_send,
     
-    output  logic         Adapter_ready,
-    output  logic         Link_ready,
     //rx
     output  logic         det_pat_rcvd,
 
     input   logic  [63:0] des_data_rcvd,
     input   logic         des_vld_rcvd,
 
-    output  logic [127:0] Adapter_msg_rcvd,
-    output  logic         Adapter_vld_rcvd,
-    output  logic [127:0] LINK_msg_rcvd,
-    output  logic         Link_valid_rcvd
+    output  logic [127:0] adapter_msg_rcvd,
+    output  logic         adapter_vld_rcvd,
+    output  logic [127:0] trn_msg_rcvd,
+    output  logic         trn_vld_rcvd
 
 );
 
@@ -39,7 +40,7 @@ logic word_vld_rcvd;
 
 logic word_vld_send;
 logic [127:0] msg_word_send;
-logic mapper_ready;
+logic mapper_rdy;
 
 logic [63:0]  msg_send;
 logic         msg_vld_send;
@@ -52,24 +53,24 @@ logic         msg_vld_rcvd;
 sb_priority_arbiter #(
     .DATA_WIDTH(128)
 ) u_Link_Arbiter (
-    .hip_msg           ( Link_msg_send     ),
-    .hip_vld           ( Link_vld_send     ),
-    .hip_ready         ( Link_ready        ),
-    .lop_msg           ( Adapter_msg_send  ),
-    .lop_vld           ( Adapter_vld_send  ),
-    .lop_ready         ( Adapter_ready     ),
+    .hip_msg           ( trn_msg_send     ),
+    .hip_vld           ( trn_vld_send     ),
+    .hip_rdy         ( trn_rdy        ),
+    .lop_msg           ( adapter_msg_send  ),
+    .lop_vld           ( adapter_vld_send  ),
+    .lop_rdy         ( adapter_rdy     ),
     .out_msg           ( msg_word_send     ),
     .out_vld           ( word_vld_send     ),
-    .out_ready         ( mapper_ready      )
+    .out_rdy         ( mapper_rdy      )
 );
 
 LINK_Demux u_LINK_Demux(
     .msg_word_rcvd    (  msg_word_rcvd     ),
     .word_vld_rcvd    (  word_vld_rcvd     ),
-    .Adapter_msg_rcvd (  Adapter_msg_rcvd  ),
-    .Adapter_vld_rcvd (  Adapter_vld_rcvd  ),
-    .Link_msg_rcvd    (  LINK_msg_rcvd     ),
-    .Link_vld_rcvd    (  Link_valid_rcvd   )
+    .adapter_msg_rcvd (  adapter_msg_rcvd  ),
+    .adapter_vld_rcvd (  adapter_vld_rcvd  ),
+    .trn_msg_rcvd    (  trn_msg_rcvd     ),
+    .trn_vld_rcvd    (  trn_vld_rcvd   )
 );
 
 sb_mapper u_sb_mapper(
@@ -77,8 +78,8 @@ sb_mapper u_sb_mapper(
     .rst_n          ( rst_n          ),
     .msg_word_send  ( msg_word_send  ),
     .word_vld_send  ( word_vld_send  ),
-    .ser_ready      ( msg_path_ready ),
-    .mapper_ready   ( mapper_ready   ),
+    .ser_rdy      ( msg_path_rdy ),
+    .mapper_rdy   ( mapper_rdy   ),
     .msg_send       ( msg_send       ),
     .msg_vld_send   ( msg_vld_send   )
 );
@@ -114,8 +115,8 @@ sb_pattern_engine u_sb_pattern_engine(
     .four_iter_done ( four_iter_done ),
     .mapper_data    ( msg_send       ),
     .mapper_valid   ( msg_vld_send   ),
-    .mapper_ready   ( msg_path_ready ),
-    .ser_ready      ( ser_ready      ),
+    .mapper_rdy   ( msg_path_rdy ),
+    .ser_rdy      ( ser_rdy      ),
     .ser_data       ( ser_data_send  ),
     .ser_valid      ( ser_vld_send   )
 );

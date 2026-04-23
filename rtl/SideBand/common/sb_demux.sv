@@ -20,7 +20,7 @@
 //
 //  Notes
 //  ─────
-//  • Pure combinational — no ready / backpressure signals.
+//  • Pure combinational — no rdy / backpressure signals.
 //  • Data is broadcast; only the selected port's vld is asserted.
 //  • No internal routing logic — all decode is done externally via sel.
 // =============================================================================

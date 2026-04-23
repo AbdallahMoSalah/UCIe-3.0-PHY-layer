@@ -7,9 +7,9 @@
 //  ─── Interfaces ─────────────────────────────────────────────────────────────
 //
 //    ADAPTER  side  : 32-bit RDI chunks  (lp_cfg / pl_cfg)
-//    LINK CTL side  : 128-bit SB packets (Adapter_msg_rcvd / Adapter_msg_send)
+//    LINK CTL side  : 128-bit SB packets (adapter_msg_rcvd / adapter_msg_send)
 //    REG_ACCESS     : 128-bit SB packets (reg_msg / completion_msg)
-//    RDI_SM         : traffic_req / traffic_ready / phy_in_reset
+//    RDI_SM         : traffic_req / traffic_rdy / phy_in_reset
 //
 //  ─── Downstream path (Adapter ─→ Link / Reg_Access) ────────────────────────
 //
@@ -28,13 +28,13 @@
 //                             hp ─ FIFO arbiter output  ─────────────────────┐
 //                             lp ─ completion_msg from Reg_Access             │
 //                                             │                               │
-//                         Adapter_msg_send / Adapter_vld_send ──→ Link_Ctrl  │
+//                         adapter_msg_send / adapter_vld_send ──→ Link_Ctrl  │
 //                                                                             │
 //    pl_cfg_crd ←── dfifo_req_rinc  (credit returned when req sent to link) ─┘
 //
 //  ─── Upstream path (Link / Reg_Access ─→ Adapter) ──────────────────────────
 //
-//    Adapter_msg_rcvd / Adapter_vld_rcvd  (128-bit from Link Controller)
+//    adapter_msg_rcvd / adapter_vld_rcvd  (128-bit from Link Controller)
 //         │
 //    sb_fifo_demux                split req vs completion
 //        ├──→ RDI_ctrl_up_req_FIFO   (lp)
@@ -71,29 +71,29 @@ module RDI_control
     // =========================================================================
     //  Link Controller interface  (128-bit assembled SB packets)
     // =========================================================================
-    input  logic [127:0] Adapter_msg_rcvd,   // Upstream:   Link → RDI_Control
-    input  logic         Adapter_vld_rcvd,
+    input  logic [127:0] adapter_msg_rcvd,   // Upstream:   Link → RDI_Control
+    input  logic         adapter_vld_rcvd,
 
-    output logic [127:0] Adapter_msg_send,   // Downstream: RDI_Control → Link
-    output logic         Adapter_vld_send,
-    input  logic         Adapter_ready,      // Back-pressure from Link Controller
+    output logic [127:0] adapter_msg_send,   // Downstream: RDI_Control → Link
+    output logic         adapter_vld_send,
+    input  logic         adapter_rdy,      // Back-pressure from Link Controller
 
     // =========================================================================
     //  Reg_Access interface  (128-bit SB packets)
     // =========================================================================
     output logic [127:0] reg_msg,            // Request  → Reg_Access
     output logic         reg_vld,
-    input  logic         reg_ready,
+    input  logic         reg_rdy,
 
     input  logic [127:0] completion_msg,     // Completion ← Reg_Access
     input  logic         completion_vld,
-    output logic         completion_ready,
+    output logic         completion_rdy,
 
     // =========================================================================
     //  RDI_SM interface
     // =========================================================================
     output logic         traffic_req,        // Upstream traffic pending (to RDI_SM)
-    input  logic         traffic_ready,      // SM grants upstream send window
+    input  logic         traffic_rdy,      // SM grants upstream send window
     input  logic         phy_in_reset        // Link/Soft Reset → route all requests locally (UR)
 );
 
@@ -143,7 +143,7 @@ logic         no_crd;
 // Named to match rdi_de_aggregator port names directly
 logic [127:0] pl_msg;
 logic         pl_msg_vld;
-logic         pl_msg_ready;
+logic         pl_msg_rdy;
 
 // ── sb_demux #2 output: comp vs req split ──────────────────────────────
 logic [127:0] dmx_req_data;    // port 0 → down_req_FIFO
@@ -164,7 +164,7 @@ logic         dfifo_comp_rinc;
 // ── sb_priority_arbiter #1 output (downstream FIFO arbiter) ──────────────────
 logic [127:0] down_arb_msg;
 logic         down_arb_vld;
-logic         down_arb_ready;
+logic         down_arb_rdy;
 
 // =============================================================================
 //  ─── DOWNSTREAM PATH ────────────────────────────────────────────────────────
@@ -253,15 +253,15 @@ sb_priority_arbiter #(
 ) u_down_arb (
     .hip_msg   (dfifo_comp_rdata),
     .hip_vld   (dfifo_comp_rvalid),
-    .hip_ready (dfifo_comp_rinc),
+    .hip_rdy (dfifo_comp_rinc),
 
     .lop_msg   (dfifo_req_rdata),
     .lop_vld   (dfifo_req_rvalid),
-    .lop_ready (dfifo_req_rinc),
+    .lop_rdy (dfifo_req_rinc),
 
     .out_msg   (down_arb_msg),
     .out_vld   (down_arb_vld),
-    .out_ready (down_arb_ready)
+    .out_rdy (down_arb_rdy)
 );
 
 // Credit: one pl_cfg_crd pulse per downstream request sent to the Link Controller.
@@ -272,22 +272,22 @@ assign pl_cfg_crd = dfifo_req_rinc;
 // Acts as the downstream Router: takes the single arbitrated output from
 // u_down_arb and routes it based on reset flag and dstid:
 //   reset || LOCAL_PHY  → reg_msg / reg_vld  → Reg_Access
-//   otherwise           → Adapter_msg_send   → Link Controller
+//   otherwise           → adapter_msg_send   → Link Controller
 rdi_router u_rdi_router (
     .rst_n           (rst_n),
     .reset           (phy_in_reset),
 
     .rdi_msg         (down_arb_msg),
     .rdi_vld         (down_arb_vld),
-    .rdi_ready       (down_arb_ready),   // backpressure → u_down_arb out_ready
+    .rdi_rdy       (down_arb_rdy),   // backpressure → u_down_arb out_rdy
 
     .reg_msg         (reg_msg),
     .reg_vld         (reg_vld),
-    .reg_ready       (reg_ready),
+    .reg_rdy       (reg_rdy),
 
-    .Adapter_msg_send(Adapter_msg_send),
-    .Adapter_vld_send(Adapter_vld_send),
-    .Adapter_ready   (Adapter_ready)
+    .adapter_msg_send(adapter_msg_send),
+    .adapter_vld_send(adapter_vld_send),
+    .adapter_rdy   (adapter_rdy)
 );
 
 
@@ -298,24 +298,24 @@ rdi_router u_rdi_router (
 
 // ─── 6. u_up_merge_arb  (arb #2)  ──────────────────────────────────────────────
 // Arbitrates incoming Link traffic with local Reg_Access completions:
-//   hp = Adapter_msg_rcvd  (Link Controller — always wins)
+//   hp = adapter_msg_rcvd  (Link Controller — always wins)
 //   lp = completion_msg    (Reg_Access — fills gaps in link traffic)
 // Merged output feeds the decoder + demux split.
-// out_ready tied 1'b1: decoder is combinational, FIFOs never full by design.
+// out_rdy tied 1'b1: decoder is combinational, FIFOs never full by design.
 sb_priority_arbiter #(
     .DATA_WIDTH (128)
 ) u_up_merge_arb (
-    .hip_msg   (Adapter_msg_rcvd),
-    .hip_vld   (Adapter_vld_rcvd),
-    .hip_ready (),                       // Link Controller is free-running; unused
+    .hip_msg   (adapter_msg_rcvd),
+    .hip_vld   (adapter_vld_rcvd),
+    .hip_rdy (),                       // Link Controller is free-running; unused
 
     .lop_msg   (completion_msg),
     .lop_vld   (completion_vld),
-    .lop_ready (completion_ready),       // ← driven here; Reg_Access backpressure
+    .lop_rdy (completion_rdy),       // ← driven here; Reg_Access backpressure
 
     .out_msg   (merge_arb_msg),
     .out_vld   (merge_arb_vld),
-    .out_ready (1'b1)                    // decoder + FIFOs always ready
+    .out_rdy (1'b1)                    // decoder + FIFOs always rdy
 );
 
 // ─── 7a. rdi_comp_req_decoder  (upstream instance) ──────────────────────────────
@@ -406,15 +406,15 @@ sb_priority_arbiter #(
 ) u_up_fifo_arb (
     .hip_msg   (ufifo_comp_rdata),
     .hip_vld   (ufifo_comp_rvalid),
-    .hip_ready (ufifo_comp_rinc),
+    .hip_rdy (ufifo_comp_rinc),
 
     .lop_msg   (ufifo_req_rdata),
     .lop_vld   (ufifo_req_rvalid & ~no_crd),   // credit gate
-    .lop_ready (ufifo_req_rinc),
+    .lop_rdy (ufifo_req_rinc),
 
     .out_msg   (pl_msg),
     .out_vld   (pl_msg_vld),
-    .out_ready (pl_msg_ready)
+    .out_rdy (pl_msg_rdy)
 );
 
 // ─── 11. rdi_de_aggregator ───────────────────────────────────────────────────
@@ -424,9 +424,9 @@ rdi_de_aggregator u_de_aggregator (
     .rst_n        (rst_n),
     .pl_msg       (sb_packet_t'(pl_msg)),
     .pl_msg_vld   (pl_msg_vld),
-    .pl_msg_ready (pl_msg_ready),
+    .pl_msg_rdy (pl_msg_rdy),
     .traffic_req  (traffic_req),
-    .traffic_ready(traffic_ready),
+    .traffic_rdy(traffic_rdy),
     .pl_cfg       (pl_cfg),
     .pl_cfg_vld   (pl_cfg_vld)
 );

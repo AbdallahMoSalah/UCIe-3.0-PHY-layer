@@ -8,7 +8,7 @@ module sb_demapper (
 
     // --- Outputs to Demux (Router) ---
     output logic [127:0] msg_word_rcvd, // Reconstructed 64-bit or 128-bit message
-    output logic         word_vld_rcvd  // Asserts when the full packet is ready
+    output logic         word_vld_rcvd  // Asserts when the full packet is rdy
 );
 
     // =========================================================
@@ -69,10 +69,10 @@ module sb_demapper (
             end
             if (msg_vld_rcvd && current_state == IDLE && !is_128bit) begin
                 msg_word_rcvd <= {64'b0, msg_rcvd}; // Pad upper 64-bits with zeros
-                word_vld_rcvd <= 1'b1; // Full 64-bit message is ready
+                word_vld_rcvd <= 1'b1; // Full 64-bit message is rdy
             end else if (msg_vld_rcvd && current_state == WAIT_SECOND_HALF) begin
                 msg_word_rcvd <= {msg_rcvd, first_half_reg}; // Combine halves
-                word_vld_rcvd <= 1'b1; // Full 128-bit message is ready
+                word_vld_rcvd <= 1'b1; // Full 128-bit message is rdy
             end else begin
                 word_vld_rcvd <= 1'b0; // Default: not valid
             end
@@ -86,7 +86,7 @@ module sb_demapper (
                 if (msg_vld_rcvd && is_128bit) begin
                     next_state = WAIT_SECOND_HALF; // Wait for the second half
                 end else if (msg_vld_rcvd && !is_128bit) begin
-                    next_state = IDLE; // Stay in IDLE, 64-bit message is ready immediately
+                    next_state = IDLE; // Stay in IDLE, 64-bit message is rdy immediately
                 end
             end
 

@@ -39,7 +39,7 @@ assign next_shift = {rx_serial_in, shift_reg[DATA_WIDTH-1:1]};
 assign packet_done = (bit_cnt == DATA_WIDTH-1);
 
 ////////////////////////////////////////////////////////////
-// Data ready (same cycle)
+// Data rdy (same cycle)
 ////////////////////////////////////////////////////////////
 
 assign packet_data = next_shift;
