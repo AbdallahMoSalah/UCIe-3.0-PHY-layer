@@ -2,6 +2,7 @@
 //  Reg_Access_FSM (Updated based on New Architecture Diagram)
 //  Central control unit for the SideBand Register-Access block.
 //  * Fully separated from Datapath routing.
+//  * Implements Late Address Error Handling.
 // ===========================================================================
 
 module Reg_Access_FSM
@@ -9,13 +10,14 @@ module Reg_Access_FSM
 (
     input  logic         clk,
     input  logic         rst_n,
+    input  logic         phy_in_reset,   // NEW: Indicates PHY is in Link/Soft Reset
 
     // -----------------------------------------------------------------------
     // Handshake with Top Level / RDI_CONTROL
     // -----------------------------------------------------------------------
     input  logic         reg_vld,        // Valid request from RDI
-    output logic         reg_rdy,        // Rdy to accept new request
-    input  logic         completion_rdy, // TX is rdy to accept completion
+    output logic         reg_rdy,        // Ready to accept new request
+    input  logic         completion_rdy, // TX is ready to accept completion
 
     // -----------------------------------------------------------------------
     // From Reg_DePacketizer (Control Path Only)
@@ -30,8 +32,8 @@ module Reg_Access_FSM
     // -----------------------------------------------------------------------
     output logic         rd_en,          // Read enable
     output logic         wr_en,          // Write enable
-    input  logic         rdata_vld,      // Register file read-data rdy
-    input  logic         rf_addr_err,
+    input  logic         rdata_vld,      // Register file read-data ready
+    input  logic         addr_err_o,     // [FIXED SYNTAX]: Address out of range from RF
 
     // -----------------------------------------------------------------------
     // To Completion_gen
@@ -43,7 +45,7 @@ module Reg_Access_FSM
 // ---------------------------------------------------------------------------
 // State encoding
 // ---------------------------------------------------------------------------
-typedef enum logic [1:0] {
+typedef enum logic[1:0] {
     IDLE     = 2'b00,
     DECODE   = 2'b01,
     EXECUTE  = 2'b10,
@@ -60,15 +62,18 @@ logic error;
 // Opcode classification
 // ---------------------------------------------------------------------------
 always_comb begin
-    is_read = (opcode == SB_32_MEM_READ) || (opcode == SB_32_CFG_READ) || 
-              (opcode == SB_64_MEM_READ) || (opcode == SB_64_CFG_READ);
+    is_read = opcode inside {
+        SB_32_MEM_READ, SB_32_DMS_REG_READ, SB_32_CFG_READ,
+        SB_64_MEM_READ, SB_64_DMS_REG_READ, SB_64_CFG_READ
+    };
 end
 
 // ---------------------------------------------------------------------------
-// Error detection (Added Poison 'ep' flag)
+// Error detection (Early Errors ONLY)
 // ---------------------------------------------------------------------------
 always_comb begin
-    error = parity_err || false_msg || ep || rf_addr_err;
+    //[FIX]: addr_err_o is evaluated later in EXECUTE, so it is removed from here
+    error = parity_err || false_msg || ep || phy_in_reset;
 end
 
 // ---------------------------------------------------------------------------
@@ -90,13 +95,12 @@ always_comb begin
     case (current_state)
 
         IDLE: begin
-            // Wait for a valid request
             if (reg_vld)
                 next_state = DECODE;
         end
 
         DECODE: begin
-            // Fast-Forward on error to GEN UR response
+            // Fast-Forward to GEN if an EARLY error is detected
             if (error)
                 next_state = GEN;
             else
@@ -104,14 +108,13 @@ always_comb begin
         end
 
         EXECUTE: begin
-            // If it's a WRITE (!is_read), exit immediately.
-            // If it's a READ, wait for rdata_vld.
-            if (!is_read || rdata_vld)
+            // [FIX]: Exit immediately if Write, OR if Read data is ready,
+            // OR if the Register File flagged a Late Address Error (addr_err_o)
+            if (!is_read || rdata_vld || addr_err_o)
                 next_state = GEN;
         end
 
         GEN: begin
-            // Handshake with completion_gen: wait until it's rdy
             if (completion_rdy)
                 next_state = IDLE;
         end
@@ -133,10 +136,8 @@ always_comb begin
     case (current_state)
 
         IDLE: begin
-            reg_rdy = 1'b1; // Rdy to receive when idle
+            reg_rdy = 1'b1; 
         end
-
-        // DECODE: Outputs remain at default (0)
 
         EXECUTE: begin
             rd_en = is_read;
@@ -145,8 +146,8 @@ always_comb begin
 
         GEN: begin
             completion_start = 1'b1;
-            // 3'b000 = SC (Success), 3'b001 = UR (Unsupported Request/Error)
-            status = error ? 3'b001 : 3'b000; 
+            // [FIX]: Return UR (001) if there was an Early Error OR a Late Address Error
+            status = (error || addr_err_o) ? 3'b001 : 3'b000; 
         end
 
     endcase
