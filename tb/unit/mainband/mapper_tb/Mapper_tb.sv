@@ -72,11 +72,11 @@ initial begin
 
     generate_pattern();
 
-    run_mode(3'b011, 1);  // x16
-    run_mode(3'b001, 2);  // x8 
-    run_mode(3'b010, 2);  // x8
-    run_mode(3'b100, 4);  // x4 group 
-    run_mode(3'b101, 4);  // x4 group 
+    run_mode(3'b011, 4);  // x16 
+    run_mode(3'b001, 8);  // x8 
+    run_mode(3'b010, 8);  // x8
+    run_mode(3'b100, 16);  // x4 group 
+    run_mode(3'b101, 16);  // x4 group 
 
     #20;
 
@@ -134,6 +134,7 @@ input integer cycle;
 
 reg [WIDTH-1:0] expected [0:15];
 integer j;
+integer cycle_mod;
 
 begin
     for (j = 0; j < 16; j = j + 1)
@@ -158,12 +159,13 @@ begin
     // x8 MODE (lanes 0–7)
     // ==============================
     3'b001: begin
+        cycle_mod = cycle % 2;
         for (j = 0; j < 8; j = j + 1)
             expected[j] = {
-                i_in_data[(j + cycle*32)*8 +: 8],
-                i_in_data[(j+8 + cycle*32)*8 +: 8],
-                i_in_data[(j+16 + cycle*32)*8 +: 8],
-                i_in_data[(j+24 + cycle*32)*8 +: 8]
+                i_in_data[(j + cycle_mod*32)*8 +: 8],
+                i_in_data[(j+8 + cycle_mod*32)*8 +: 8],
+                i_in_data[(j+16 + cycle_mod*32)*8 +: 8],
+                i_in_data[(j+24 + cycle_mod*32)*8 +: 8]
             };
     end
 
@@ -171,12 +173,13 @@ begin
     // x8 MODE (lanes 8–15)
     // ==============================
     3'b010: begin
+        cycle_mod = cycle % 2;
         for (j = 8; j < 16; j = j + 1)
             expected[j] = {
-                i_in_data[(j-8 + cycle*32)*8 +: 8],
-                i_in_data[(j-8+8 + cycle*32)*8 +: 8],
-                i_in_data[(j-8+16 + cycle*32)*8 +: 8],
-                i_in_data[(j-8+24 + cycle*32)*8 +: 8]
+                i_in_data[(j-8 + cycle_mod*32)*8 +: 8],
+                i_in_data[(j-8+8 + cycle_mod*32)*8 +: 8],
+                i_in_data[(j-8+16 + cycle_mod*32)*8 +: 8],
+                i_in_data[(j-8+24 + cycle_mod*32)*8 +: 8]
             };
     end
 
@@ -184,12 +187,13 @@ begin
     // x4 MODE (lanes 0–3)
     // ==============================
     3'b100: begin
+        cycle_mod = cycle % 4;
         for (j = 0; j < 4; j = j + 1)
             expected[j] = {
-                i_in_data[(j + cycle*16)*8 +: 8],
-                i_in_data[(j+4 + cycle*16)*8 +: 8],
-                i_in_data[(j+8 + cycle*16)*8 +: 8],
-                i_in_data[(j+12 + cycle*16)*8 +: 8]
+                i_in_data[(j + cycle_mod*16)*8 +: 8],
+                i_in_data[(j+4 + cycle_mod*16)*8 +: 8],
+                i_in_data[(j+8 + cycle_mod*16)*8 +: 8],
+                i_in_data[(j+12 + cycle_mod*16)*8 +: 8]
             };
     end
 
@@ -197,12 +201,13 @@ begin
     // x4 MODE (lanes 4–7)
     // ==============================
     3'b101: begin
+        cycle_mod = cycle % 4;
         for (j = 4; j < 8; j = j + 1)
             expected[j] = {
-                i_in_data[(j-4 + cycle*16)*8 +: 8],
-                i_in_data[(j-4+4 + cycle*16)*8 +: 8],
-                i_in_data[(j-4+8 + cycle*16)*8 +: 8],
-                i_in_data[(j-4+12 + cycle*16)*8 +: 8]
+                i_in_data[(j-4 + cycle_mod*16)*8 +: 8],
+                i_in_data[(j-4+4 + cycle_mod*16)*8 +: 8],
+                i_in_data[(j-4+8 + cycle_mod*16)*8 +: 8],
+                i_in_data[(j-4+12 + cycle_mod*16)*8 +: 8]
             };
     end
 
