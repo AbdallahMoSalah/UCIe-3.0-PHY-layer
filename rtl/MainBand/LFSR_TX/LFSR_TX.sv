@@ -47,7 +47,7 @@ module LFSR_TX #(
 
     // Counters
     reg [6:0] counter_lfsr;        // 7-bit counter (0 to 127)
-    reg [5:0] counter_per_lane;    // 6-bit counter (0 to 63)
+    reg [5:0] counter_per_lane;    // 6-bit counter (0 to 63) 
 
     // Lane IDs with prepended and appended 1010
     localparam LANE_ID_0  = 16'b1010_00000000_1010;
@@ -699,7 +699,7 @@ module LFSR_TX #(
 
         end
         else begin
-            o_lane_0 <= 0; o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;
+            o_lane_0 <= 0; o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;   //check
             o_lane_4 <= 0; o_lane_5 <= 0; o_lane_6 <= 0; o_lane_7 <= 0;
             o_lane_8 <= 0; o_lane_9 <= 0; o_lane_10 <= 0; o_lane_11 <= 0;
             o_lane_12 <= 0; o_lane_13 <= 0; o_lane_14 <= 0; o_lane_15 <= 0;
@@ -1268,7 +1268,7 @@ module LFSR_TX #(
                                   
                                 end
                             end
-                               DEGRADE_LANES_4_TO_7: begin         //stop here 22/4
+                               DEGRADE_LANES_4_TO_7: begin         
                               if (lane_reversal_enabled) begin
                                     o_lane_4 <= {tx_lfsr_lane_3, o_lane_3_23} ^ i_lane_3;
                                     o_lane_5 <= {tx_lfsr_lane_2, o_lane_2_23} ^ i_lane_2;
@@ -1485,7 +1485,7 @@ module LFSR_TX #(
                             if (counter_per_lane == 63) begin
                                 counter_per_lane <= 0;
                                 o_Lfsr_tx_done <= 1;
-                                valid_frame_en <= 0;
+                                valid_frame_en <= 0;  
                             end else begin
                                 if (lane_reversal_enabled) begin
                                     o_lane_0 <= {LANE_ID_15, LANE_ID_15};
