@@ -293,19 +293,23 @@ module RDI_SM_tb;
                 begin
                     wait(pl_state_sts == Active);
                     $display("State is Active, success");
+                    $display("=========================================================================");
+            $display("================== Link bring up is done successfully ===================");
+            $display("=========================================================================");
+            $display("                                 =======   ");
+            $display("                                | ^   ^ |  ");
+            $display("                                |   =   |  ");
+            $display("                                | \\___/ |  ");
+            $display("                                 =======   ");
+            $display("                          TEST PASSED, War is ended ^_^    ");
                 end
                 begin 
                     repeat(20)@(posedge lclk);
                     $error("State is not Active ");
+
                 end
             join_any
             disable fork;
-            
-            $display("=========================================================================");
-            $display("================== Link bring up is done successfully ===================");
-            $display("=========================================================================");
-            
-            
             
             repeat(20) @(posedge lclk);
             $display("Simulation complete.");
