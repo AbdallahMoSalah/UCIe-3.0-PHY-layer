@@ -1,12 +1,15 @@
 module unit_stall_handshake(
-    input lp_stallack, lclk, stall_req, 
+    input lp_stallack, lclk, stall_req, rst_n,
     output pl_stallreq, stall_done
 );
 
 typedef enum logic [1:0] { IDLE, STALLREQ, STALLACK, STALLDONE } state;
-state STALL_state= IDLE;
+state STALL_state;
 
-always @(posedge lclk) begin
+always @(posedge lclk or negedge rst_n) begin
+    if (!rst_n) begin
+        STALL_state <= IDLE;
+    end else begin
     case (STALL_state)
     IDLE:begin
         if (stall_req) begin
@@ -30,6 +33,7 @@ always @(posedge lclk) begin
     end
     default: STALL_state<=IDLE;
     endcase
+    end
 end
 
 assign pl_stallreq = (STALL_state == STALLREQ)||(STALL_state ==STALLACK);

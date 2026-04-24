@@ -2,7 +2,9 @@ import UCIe_pkg::*;
 
 module unit_msg_handler(
     input logic lclk, 
+    input logic rst_n,
     input msg_no_e Active_message_send,
+    input msg_no_e Message_send,
     input logic valid_r,
     input msg_no_e Link_Mgmt_Msg_Received,
 
@@ -13,13 +15,19 @@ module unit_msg_handler(
     typedef enum logic [2:0] {IDLE, LnkMsgS, LnkMsgR, ActvHsS} state;
     state cs=IDLE;
 
-    always @(posedge lclk) begin
-        case (cs)
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (~rst_n) begin
+            cs <= IDLE;
+            valid_s <= 1'b0;
+            Link_Mgmt_Msg_Send <= NOP;
+            Message_receive <= NOP; 
+        end else
+            case (cs)
             //------------------------------------------------------
             // IDLE State
             //------------------------------------------------------
             IDLE: begin
-                if (Message_send != NOTHING) begin//transition to LnkMsgS
+                if (Message_send != NOP) begin//transition to LnkMsgS
                     cs <= LnkMsgS;
                     valid_s <= 1'b1;
                     Link_Mgmt_Msg_Send <= Message_send;
@@ -30,7 +38,7 @@ module unit_msg_handler(
                     Message_receive <= Link_Mgmt_Msg_Received;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (Active_message_send != NOTHING) begin //transition to ActvHsS
+                else if (Active_message_send != NOP) begin //transition to ActvHsS
                     cs <= ActvHsS;
                     if (Active_message_send == RDI_ACTIVE_REQ) begin
                         Link_Mgmt_Msg_Send <= RDI_ACTIVE_REQ;
@@ -46,7 +54,7 @@ module unit_msg_handler(
             // Link Layer Message Send
             //------------------------------------------------------
             LnkMsgS: begin
-                if (Message_send != NOTHING) begin//transition to LnkMsgS
+                if (Message_send != NOP) begin//transition to LnkMsgS
                     cs <= LnkMsgS;
                     valid_s <= 1'b1;
                     Link_Mgmt_Msg_Send <= Message_send;
@@ -57,7 +65,7 @@ module unit_msg_handler(
                     Message_receive <= Link_Mgmt_Msg_Received;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (Active_message_send != NOTHING) begin //transition to ActvHsS
+                else if (Active_message_send != NOP) begin //transition to ActvHsS
                     cs <= ActvHsS;
                     if (Active_message_send == RDI_ACTIVE_REQ) begin
                         Link_Mgmt_Msg_Send <= RDI_ACTIVE_REQ;
@@ -72,17 +80,15 @@ module unit_msg_handler(
                 else begin //transition to IDLE
                     cs <= IDLE;
                     valid_s <= 1'b0;
-                    Link_Mgmt_Msg_Send <= NOTHING;
-                    Message_receive <= NOTHING;
-                    Active_req_r <= 1'b0;
-                    Active_resp_r <= 1'b0;
+                    Link_Mgmt_Msg_Send <= NOP;
+                    Message_receive <= NOP;
                 end 
             end
             //------------------------------------------------------
             // Link Layer Message Receive
             //------------------------------------------------------
             LnkMsgR: begin
-                if (Message_send != NOTHING) begin//transition to LnkMsgS
+                if (Message_send != NOP) begin//transition to LnkMsgS
                     cs <= LnkMsgS;
                     valid_s <= 1'b1;
                     Link_Mgmt_Msg_Send <= Message_send;
@@ -93,7 +99,7 @@ module unit_msg_handler(
                     Message_receive <= Link_Mgmt_Msg_Received;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (Active_message_send != NOTHING) begin //transition to ActvHsS
+                else if (Active_message_send != NOP) begin //transition to ActvHsS
                     cs <= ActvHsS;
                     if (Active_message_send == RDI_ACTIVE_REQ) begin
                         Link_Mgmt_Msg_Send <= RDI_ACTIVE_REQ;
@@ -108,17 +114,15 @@ module unit_msg_handler(
                 else begin //transition to IDLE
                     cs <= IDLE;
                     valid_s <= 1'b0;
-                    Link_Mgmt_Msg_Send <= NOTHING;
-                    Message_receive <= NOTHING;
-                    Active_req_r <= 1'b0;
-                    Active_resp_r <= 1'b0;
+                    Link_Mgmt_Msg_Send <= NOP;
+                    Message_receive <= NOP;
                 end 
             end
             //------------------------------------------------------
             // Active Handshake Send
             //------------------------------------------------------
             ActvHsS: begin
-                if (Message_send != NOTHING) begin//transition to LnkMsgS
+                if (Message_send != NOP) begin//transition to LnkMsgS
                     cs <= LnkMsgS;
                     valid_s <= 1'b1;
                     Link_Mgmt_Msg_Send <= Message_send;
@@ -129,9 +133,9 @@ module unit_msg_handler(
                     Message_receive <= Link_Mgmt_Msg_Received;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (Active_message_send != NOTHING) begin //transition to ActvHsS
+                else if (Active_message_send != NOP) begin //transition to ActvHsS
                     cs <= ActvHsS;
-                    if (Active_req_s == 1'b1) begin
+                    if (Active_message_send == RDI_ACTIVE_REQ) begin
                         Link_Mgmt_Msg_Send <= RDI_ACTIVE_REQ;
                         valid_s <= 1'b1;
                     end
@@ -144,10 +148,8 @@ module unit_msg_handler(
                 else begin //transition to IDLE
                     cs <= IDLE;
                     valid_s <= 1'b0;
-                    Link_Mgmt_Msg_Send <= NOTHING;
-                    Message_receive <= NOTHING;
-                    Active_req_r <= 1'b0;
-                    Active_resp_r <= 1'b0;
+                    Link_Mgmt_Msg_Send <= NOP;
+                    Message_receive <= NOP;
                 end 
             end
         endcase

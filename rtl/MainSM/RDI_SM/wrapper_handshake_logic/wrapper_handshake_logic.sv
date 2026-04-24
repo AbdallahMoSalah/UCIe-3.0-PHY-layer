@@ -2,7 +2,7 @@ import UCIe_pkg::*;
 
 module wrapper_handshake_logic(
     input  logic lclk,
-    
+    input  logic rst_n,
     // AWAKE Handshake
     input  logic lp_awak_req,
     input  logic ungating_done,
@@ -34,6 +34,7 @@ module wrapper_handshake_logic(
         .lp_clk_ack(lp_clk_ack),
         .clk_handshake_strt(clk_handshake_strt),
         .lclk(lclk),
+        .rst_n(rst_n),
         .pl_clk_req(pl_clk_req),
         .clk_handshake_done(clk_handshake_done)
     );
@@ -42,6 +43,7 @@ module wrapper_handshake_logic(
         .lp_awak_req(lp_awak_req),
         .ungating_done(ungating_done),
         .lclk(lclk),
+        .rst_n(rst_n),
         .pl_awak_ack(pl_awak_ack),
         .ungating_req(ungating_req)
     );
@@ -49,6 +51,7 @@ module wrapper_handshake_logic(
     unit_stall_handshake u3 (
         .lp_stallack(lp_stallack),
         .lclk(lclk),
+        .rst_n(rst_n),
         .stall_req(stall_req), 
         .pl_stallreq(pl_stallreq),
         .stall_done(stall_done)
@@ -56,6 +59,7 @@ module wrapper_handshake_logic(
 
     unit_active_handshake u4 (
         .lclk(lclk),
+        .rst_n(rst_n),
         .pm_exit(pm_exit),
         .message_receive(message_receive),
         .Active_handshake_strt(Active_handshake_strt),

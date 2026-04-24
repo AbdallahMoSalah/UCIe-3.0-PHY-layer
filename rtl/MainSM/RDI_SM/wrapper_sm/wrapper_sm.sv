@@ -140,7 +140,8 @@ module wrapper_sm(
         .state_sts(state_sts),
         .next_state(Retrain_next_state),
         .Active_handshake_strt(Retrain_Active_handshake_strt),
-        .message_send(Retrain_message_send)
+        .message_send(Retrain_message_send),
+        .pm_exit(pm_exit)
     );
 
     // L1 State Module

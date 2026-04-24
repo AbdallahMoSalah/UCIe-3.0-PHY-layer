@@ -1,14 +1,17 @@
 module unit_awak_handshake (
-    input lp_awak_req, ungating_done, lclk,
+    input lp_awak_req, ungating_done, lclk, rst_n,
     output pl_awak_ack, ungating_req
 );
 
 typedef enum bit [1:0] {IDLE, UNGATING, ACK} state;
-state AWAK_cs=IDLE;
+state AWAK_cs;
 
 //next state logic 
-    always @(posedge lclk) begin
-        case (AWAK_cs)
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            AWAK_cs <= IDLE;
+        end else begin
+            case (AWAK_cs)
             IDLE:begin
                 if (lp_awak_req)
                     AWAK_cs<=UNGATING;
@@ -22,6 +25,7 @@ state AWAK_cs=IDLE;
                     AWAK_cs<=IDLE;
             end
         endcase
+        end
     end
 
     //output logic

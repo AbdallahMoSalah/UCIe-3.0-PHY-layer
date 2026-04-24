@@ -1,17 +1,32 @@
 import RDI_SM_pkg::*;
 module unit_signal_transition_detector(
-    input logic lclk, phyinrecenter, inband_pres, trainerror, clk_handshake_done,
-    input RDI_state rdi_state_sts,
-    output logic pl_phyinrecenter, pl_inband_pres, pl_trainerror, signal_transition,
+    input  logic lclk,
+    input  logic rst_n,
+    input  logic phyinrecenter, 
+    input  logic inband_pres, 
+    input  logic trainerror, 
+    input  logic clk_handshake_done,
+    input  RDI_state rdi_state_sts,
+    output logic pl_phyinrecenter, 
+    output logic pl_inband_pres, 
+    output logic pl_trainerror, 
+    output logic signal_transition,
     output RDI_state pl_state_sts
 );
     
-    typedef enum { IDLE, CLK_HANDSHAKE } state;
+    typedef enum logic { IDLE, CLK_HANDSHAKE } state;
 
     state cs;
 
-    always @(posedge lclk) begin
-        case (cs)
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (~rst_n) begin
+            cs <= IDLE;
+            pl_phyinrecenter <= 0;
+            pl_inband_pres <= 0;
+            pl_trainerror <= 0;
+            pl_state_sts <= Reset;
+        end else
+            case (cs)
             IDLE: begin
                 if ((phyinrecenter !== pl_phyinrecenter) || 
                     (inband_pres !== pl_inband_pres) || 

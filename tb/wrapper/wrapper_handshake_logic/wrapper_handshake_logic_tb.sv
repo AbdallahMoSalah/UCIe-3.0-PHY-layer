@@ -8,7 +8,7 @@ module wrapper_handshake_logic_tb();
     // Signals
     // ===============
     logic lclk;
-    
+    logic rst_n;
     // Inputs
     logic lp_clk_ack;
     logic clk_handshake_strt;
@@ -42,6 +42,8 @@ module wrapper_handshake_logic_tb();
     // ===============
     wrapper_handshake_logic dut (
         .lclk(lclk),
+        .rst_n(rst_n),
+
         .pm_exit(pm_exit),
         
         .lp_clk_ack(lp_clk_ack),
@@ -92,6 +94,12 @@ module wrapper_handshake_logic_tb();
         message_receive = NOP;  
     endtask
 
+    task rst_dut();
+        rst_n = 0;
+        @(negedge lclk);
+        rst_n = 1;
+    endtask
+
     // ===============
     // Test Sequence
     // ===============
@@ -111,6 +119,10 @@ module wrapper_handshake_logic_tb();
         message_receive = NOP;
         pm_exit = 0;
         inband_pres=0;
+
+        // apply reset to all handshakes
+        rst_dut();
+
         // Let system settle
         repeat(2) @(posedge lclk);
         
@@ -127,6 +139,7 @@ module wrapper_handshake_logic_tb();
         $display("CLK Handshake Done");
 
         $display("\n--- Test 2: AWAKE Handshake ---");
+        rst_dut();
         @(negedge lclk);
         lp_awak_req = 1;
         wait(ungating_req);

@@ -1,14 +1,17 @@
 module unit_clk_handshake(
-    input lp_clk_ack, clk_handshake_strt, lclk,
+    input lp_clk_ack, clk_handshake_strt, lclk, rst_n,
     output pl_clk_req, clk_handshake_done
 );
     
 typedef enum bit [1:0] {IDLE, REQ, DONE} state;
-state CLK_cs=IDLE;
+state CLK_cs;
 
 //next state logic 
-    always @(posedge lclk) begin
-        case (CLK_cs)
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            CLK_cs <= IDLE;
+        end else begin
+            case (CLK_cs)
             IDLE:begin
                 if (clk_handshake_strt)
                     CLK_cs=REQ;
@@ -28,6 +31,7 @@ state CLK_cs=IDLE;
                     CLK_cs=DONE;
             end
         endcase
+        end
     end
 
     //output logic

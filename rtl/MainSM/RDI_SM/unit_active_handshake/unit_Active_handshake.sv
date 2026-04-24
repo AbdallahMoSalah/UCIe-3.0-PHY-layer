@@ -6,6 +6,7 @@
  */
  import UCIe_pkg::*;
 module unit_active_handshake (
+    input  logic rst_n,
     input  logic lclk,                  // Local clock
     input  logic pm_exit,
     input  msg_no_e message_receive,          // Received active request from peer
@@ -49,7 +50,14 @@ module unit_active_handshake (
             rsp_r <= 1'b1;
         end
     end
-    always @(posedge lclk) begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= IDLE;
+            flow <= none;
+            req_r <= 1'b0;
+            rsp_r <= 1'b0;
+            Active_message_send <= NOP;
+        end else begin
         case (state)
             IDLE: begin
                if (Active_handshake_strt && (~req_r || pm_exit)) begin
@@ -122,6 +130,7 @@ module unit_active_handshake (
                rsp_r<=1'b0;
             end
         endcase
+        end
     end
 
     // Combinational assignments for output signals based entirely on current state
