@@ -37,7 +37,6 @@ module unit_signal_transition_detector(
                     cs <= IDLE;
                 end
             end
-
             CLK_HANDSHAKE: begin
                 if (clk_handshake_done) begin
                     cs <= IDLE;
@@ -52,6 +51,5 @@ module unit_signal_transition_detector(
             default: cs <= IDLE;
         endcase
     end
-
     assign signal_transition = (cs == CLK_HANDSHAKE);
 endmodule

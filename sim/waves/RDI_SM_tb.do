@@ -3,14 +3,14 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate -divider -height 50 RDI_SM_Interface
 add wave -noupdate /RDI_SM_tb/dut/lclk
 add wave -noupdate /RDI_SM_tb/dut/rst_n
+add wave -noupdate /RDI_SM_tb/dut/pl_clk_req
 add wave -noupdate /RDI_SM_tb/dut/lp_clk_ack
 add wave -noupdate /RDI_SM_tb/dut/lp_awak_req
+add wave -noupdate /RDI_SM_tb/dut/pl_awak_ack
+add wave -noupdate /RDI_SM_tb/dut/pl_stallreq
 add wave -noupdate /RDI_SM_tb/dut/lp_stallack
 add wave -noupdate /RDI_SM_tb/dut/lp_state_req
 add wave -noupdate /RDI_SM_tb/dut/lp_linkerror
-add wave -noupdate /RDI_SM_tb/dut/pl_clk_req
-add wave -noupdate /RDI_SM_tb/dut/pl_stallreq
-add wave -noupdate /RDI_SM_tb/dut/pl_awak_ack
 add wave -noupdate /RDI_SM_tb/dut/pl_trainerror
 add wave -noupdate /RDI_SM_tb/dut/pl_inband_pres
 add wave -noupdate /RDI_SM_tb/dut/pl_phyinrecenter
@@ -53,27 +53,26 @@ add wave -noupdate -divider -height 50 Handshake_logic_Interface
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/lclk
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/rst_n
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/lp_awak_req
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/ungating_done
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pl_awak_ack
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/ungating_req
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/lp_stallack
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/ungating_done
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/stall_req
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pl_stallreq
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/stall_done
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pl_stallreq
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/lp_stallack
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/Active_handshake_strt
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/message_receive
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pm_exit
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/inband_pres
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/Active_handshake_done
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/message_receive
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/Active_message_send
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/clk_handshake_strt
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/clk_handshake_done
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/lp_clk_ack
 add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pl_clk_req
-add wave -noupdate /RDI_SM_tb/dut/handshake_logic/clk_handshake_done
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/pm_exit
+add wave -noupdate /RDI_SM_tb/dut/handshake_logic/inband_pres
 add wave -noupdate -divider -height 50 Gating_logic_Interface
 add wave -noupdate /RDI_SM_tb/dut/gating_logic/lclk
 add wave -noupdate /RDI_SM_tb/dut/gating_logic/rst_n
-add wave -noupdate /RDI_SM_tb/dut/gating_logic/pl_phyinrecenter
 add wave -noupdate /RDI_SM_tb/dut/gating_logic/pl_clk_req
 add wave -noupdate /RDI_SM_tb/dut/gating_logic/ungating_req
 add wave -noupdate /RDI_SM_tb/dut/gating_logic/pl_state_sts
@@ -113,10 +112,10 @@ add wave -noupdate /RDI_SM_tb/dut/msg_handler/Link_Mgmt_Msg_Send
 add wave -noupdate /RDI_SM_tb/dut/msg_handler/Message_receive
 add wave -noupdate /RDI_SM_tb/dut/msg_handler/cs
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {10759 ps} 0}
+WaveRestoreCursors {{Cursor 1} {53000 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 324
-configure wave -valuecolwidth 100
+configure wave -valuecolwidth 167
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
 configure wave -snapdistance 10
@@ -129,4 +128,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {40501 ps}
+WaveRestoreZoom {0 ps} {182434 ps}

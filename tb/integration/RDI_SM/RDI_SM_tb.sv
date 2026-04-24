@@ -143,7 +143,34 @@ module RDI_SM_tb;
         UCIe_Link_DVSEC_UCIe_Link_Status_17to11    = 4'h0;
         UCIe_Link_DVSEC_UCIe_Link_Status_10to7     = 4'h0;
     endtask
-
+    
+    //==========================================================================
+    //Task for checking clk handshake
+    // =========================================================================
+    task check_clk_handshake();
+        fork
+            begin
+                wait(pl_clk_req);
+                $display("clk handshake starts correctly");
+                
+                @(negedge lclk);
+                lp_clk_ack = 1'b1;//sending the ack to complete the handshake
+                
+                wait(~pl_clk_req);
+                @(negedge lclk);
+                lp_clk_ack = 1'b0;//removing the ack to indicate the completion of handshake
+                $display("clk handshake done correctly");
+            end
+            begin
+                repeat(20) @(negedge lclk);
+                $error("clk handshake not done correctly");
+            end
+        join_any
+        disable fork;
+    endtask
+    
+    //==========================================================================
+    //Task for checking clk handshake
     // =========================================================================
     // Test Sequence
     // =========================================================================
@@ -157,8 +184,14 @@ module RDI_SM_tb;
         $display("\n========================================");
         $display("RDI_SM integration TB initialized");
         $display("========================================\n");
-
-        // Test 1 :Bring up link
+        
+        // ==========================================================================
+        // ========================= Test 1 :Bring up link ==========================
+        // ==========================================================================
+        $display("=========================================================================");
+        $display("======================== Link bring up starts ===========================");
+        $display("=========================================================================");
+            
             //a. awak handshake first
             lp_awak_req = 1'b1;
             fork
@@ -193,22 +226,90 @@ module RDI_SM_tb;
                 end
             join_any
             disable fork;
-            #30 
-            /*
+            
             //c. Training is done, check for pl_inband_pres
+            @(negedge lclk);
+            $display("Time=%0t: Training is done, wait for pl_inband_pres to be high", $time);
             state_sts=LINKINIT;
+            
+            check_clk_handshake();//clk handshake check
+            
+            fork
+                begin
+                    wait(pl_inband_pres);
+                    $display("pl_inband_pres is high, success");
+                end
+                begin 
+                    repeat(20)@(negedge lclk);
+                    $error("pl_inband_pres is low, failure");
+                end
+            join_any
+            disable fork;
 
-            #10;
+            //d. NOP to Active transition
+            $display("Time=%0t: NOP to Active transition, wait for Active handshake", $time);
             @(negedge lclk);
             lp_state_req = Nop;
-        @(negedge lclk) lp_state_req =Active;
-        */
-        repeat(20) @(posedge lclk);
-        $display("Simulation complete.");
-        $stop;
-    end
-    // =========================================================================
-    // Monitor Changes
-    // =========================================================================
+            @(negedge lclk) 
+            lp_state_req =Active;
+            fork
+                begin
+                    wait (Link_Mgmt_Msg_Send == RDI_ACTIVE_REQ); //request is sent
+                    $display("Active handshake is started successfully, Active req sent");
+                    wait(Link_Mgmt_Msg_Send == NOP);
+                    @(negedge lclk);
+                    Link_Mgmt_Msg_Receive = RDI_ACTIVE_RSP;//response is recieved
+                    valid_r = 1'b1;
+                    $display("Active response is recieved");
+                    @(negedge lclk);
+                    Link_Mgmt_Msg_Receive = NOP;
+                    valid_r = 1'b0;
+                    @(negedge lclk);
+                    Link_Mgmt_Msg_Receive = RDI_ACTIVE_REQ;//request is recieved
+                    valid_r = 1'b1;
+                    $display("Active req is recieved");
+                    @(negedge lclk);
+                    Link_Mgmt_Msg_Receive = NOP;//request is removed
+                    valid_r = 1'b0;
+
+                    wait (Link_Mgmt_Msg_Send == RDI_ACTIVE_RSP);//response is sent
+                    $display("Active response is sent");
+                    @(negedge lclk);
+
+                    wait(dut.handshake_logic.Active_handshake_done == 1'b1)
+                    $display("Active handshake is done successfully");                
+                end
+
+                begin
+                    repeat(10) @(negedge lclk);
+                    $error("Active Handshake not completed successfully"); 
+                end    
+            join_any
+            disable fork;
+            
+            //e. check for clk handshake then, check for state of the RDI_SM is Active
+            check_clk_handshake();//clk handshake check
+            fork
+                begin
+                    wait(pl_state_sts == Active);
+                    $display("State is Active, success");
+                end
+                begin 
+                    repeat(20)@(posedge lclk);
+                    $error("State is not Active ");
+                end
+            join_any
+            disable fork;
+            
+            $display("=========================================================================");
+            $display("================== Link bring up is done successfully ===================");
+            $display("=========================================================================");
+            
+            
+            
+            repeat(20) @(posedge lclk);
+            $display("Simulation complete.");
+            $stop;
+        end
 
 endmodule
