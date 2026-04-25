@@ -1199,7 +1199,7 @@ module LFSR_TX #(
 
                 end
 
-                PATTERN_LFSR: begin
+                PATTERN_LFSR: begin // broblrm 
                     {o_lane_0_23, tx_lfsr_lane_0} <= next_lfsr_state(tx_lfsr_lane_0);
                     {o_lane_1_23, tx_lfsr_lane_1} <= next_lfsr_state(tx_lfsr_lane_1);
                     {o_lane_2_23, tx_lfsr_lane_2} <= next_lfsr_state(tx_lfsr_lane_2);
