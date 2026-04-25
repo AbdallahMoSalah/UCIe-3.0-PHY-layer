@@ -72,10 +72,12 @@ module LFSR_TX #(
     ----------------------------------------*/
     reg [1:0] current_state;
     reg [1:0] i_state_reg;
-    logic i_state_changed = (i_state_reg != i_state);
+    //logic i_state_changed = (i_state_reg != i_state);
+    logic i_state_changed;
     /*----------------------------------------
      * FSM logic
     ----------------------------------------*/
+    assign i_state_changed = (i_state_reg != i_state)? 1 : 0;
     always @ (posedge i_clk or negedge i_rst_n) begin
         if (~i_rst_n) begin
             current_state <= IDLE;
@@ -107,10 +109,18 @@ module LFSR_TX #(
                  * PATTERN_LFSR state
                 -----------------------------------------*/
                 PATTERN_LFSR: begin
-                    if (&counter_lfsr) begin // counter_lfsr = 7'd127
+                    if (scramble_en) begin
+                   if (i_state == IDLE) begin
+                    current_state <= IDLE;
+                   end else begin
+                    current_state <= PATTERN_LFSR;
+                   end   
+                    end else begin
+                         if (&counter_lfsr) begin // counter_lfsr = 7'd127
                         current_state <= IDLE;
                     end else begin
                         current_state <= PATTERN_LFSR;
+                    end
                     end
                 end
                 /*-----------------------------------------
@@ -211,7 +221,7 @@ module LFSR_TX #(
             o_Lfsr_tx_done <= 0;
             valid_frame_en <= 0;
             lane_reversal_enabled <= 0;
-            o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;
+            o_lane_0 <= 0; o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;
             o_lane_4 <= 0; o_lane_5 <= 0; o_lane_6 <= 0; o_lane_7 <= 0;
             o_lane_8 <= 0; o_lane_9 <= 0; o_lane_10 <= 0; o_lane_11 <= 0;
             o_lane_12 <= 0; o_lane_13 <= 0; o_lane_14 <= 0; o_lane_15 <= 0;
@@ -699,7 +709,7 @@ module LFSR_TX #(
 
         end
         else begin
-            o_lane_0 <= 0; o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;   //check
+            o_lane_0 <= 0; o_lane_1 <= 0; o_lane_2 <= 0; o_lane_3 <= 0;   
             o_lane_4 <= 0; o_lane_5 <= 0; o_lane_6 <= 0; o_lane_7 <= 0;
             o_lane_8 <= 0; o_lane_9 <= 0; o_lane_10 <= 0; o_lane_11 <= 0;
             o_lane_12 <= 0; o_lane_13 <= 0; o_lane_14 <= 0; o_lane_15 <= 0;
@@ -1199,7 +1209,7 @@ module LFSR_TX #(
 
                 end
 
-                PATTERN_LFSR: begin // broblrm 
+                PATTERN_LFSR: begin
                     {o_lane_0_23, tx_lfsr_lane_0} <= next_lfsr_state(tx_lfsr_lane_0);
                     {o_lane_1_23, tx_lfsr_lane_1} <= next_lfsr_state(tx_lfsr_lane_1);
                     {o_lane_2_23, tx_lfsr_lane_2} <= next_lfsr_state(tx_lfsr_lane_2);
