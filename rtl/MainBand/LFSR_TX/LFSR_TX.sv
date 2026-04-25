@@ -72,7 +72,8 @@ module LFSR_TX #(
     ----------------------------------------*/
     reg [1:0] current_state;
     reg [1:0] i_state_reg;
-    logic i_state_changed = (i_state_reg != i_state);
+    //logic i_state_changed = (i_state_reg != i_state);
+    logic i_state_changed;
     /*----------------------------------------
      * FSM logic
     ----------------------------------------*/
