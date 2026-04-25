@@ -23,15 +23,12 @@
     </mxGraphModel>
   </diagram>
   <diagram name="RDI SM" id="0zx_4OyKMFc60EdN4bbP">
-    <mxGraphModel dx="8374" dy="3033" grid="1" gridSize="10" guides="1" tooltips="1" connect="0" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
+    <mxGraphModel dx="4235" dy="649" grid="1" gridSize="10" guides="1" tooltips="1" connect="0" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="XJSP3yd383L1JSZ86TTz-6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontColor=light-dark(#000000, #171e25);labelBackgroundColor=none;fillColor=#EBF3FB;strokeColor=#EBF3BF;" value="" vertex="1">
           <mxGeometry height="880" width="2800" x="-2080" y="440" as="geometry" />
-        </mxCell>
-        <mxCell id="PnhskCp8ZdivoVwDi9fx-112" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00CC00;strokeColor=light-dark(#000000,#446E2C);labelBackgroundColor=#00CC00;strokeWidth=1;shadow=0;glass=0;" value="" vertex="1">
-          <mxGeometry height="580" width="780" x="-120" y="500" as="geometry" />
         </mxCell>
         <mxCell id="PnhskCp8ZdivoVwDi9fx-113" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#99BADD;strokeColor=#006EAF;labelBackgroundColor=none;fontColor=light-dark(#000000, #171e25);" value="&lt;font style=&quot;font-size: 23px;&quot;&gt;AWAKE&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 23px;&quot;&gt;Handshake&lt;/font&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="180" width="180" x="-60" y="560" as="geometry" />
@@ -587,7 +584,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="uJEeKDuGrS4aUjZhJcKb-3" edge="1" parent="1" style="endArrow=block;strokeWidth=1.5;labelBackgroundColor=default;fontColor=light-dark(#000000, #171e25);entryX=0.001;entryY=0.2;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.998;exitY=0.322;exitDx=0;exitDy=0;exitPerimeter=0;" value="Link Mgmt Msg Receive [4:0]">
-          <mxGeometry relative="1" x="-0.0544" as="geometry">
+          <mxGeometry relative="1" x="0.0626" y="-10" as="geometry">
             <mxPoint as="offset" />
             <mxPoint x="-2341.64" y="819.96" as="sourcePoint" />
             <mxPoint x="-1999.7599999999998" y="820" as="targetPoint" />
@@ -653,9 +650,6 @@
         </mxCell>
         <mxCell id="XJSP3yd383L1JSZ86TTz-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3B3B3;strokeColor=#314354;labelBackgroundColor=none;fontColor=light-dark(#000000, #171e25);" value="&lt;font style=&quot;font-size: 50px;&quot;&gt;SB&lt;/font&gt;" vertex="1">
           <mxGeometry height="1180" width="320" x="-2660" y="440" as="geometry" />
-        </mxCell>
-        <mxCell id="rKfJwZcQd4fgjnuFCH3H-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 23px; color: rgb(0, 0, 0);&quot;&gt;Handshake Logic&lt;/font&gt;" vertex="1">
-          <mxGeometry height="30" width="190" x="-80" y="1040" as="geometry" />
         </mxCell>
         <mxCell id="rKfJwZcQd4fgjnuFCH3H-6" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
@@ -724,7 +718,7 @@
         </mxCell>
         <mxCell id="C2r8acJvxvJ2BMHDsQHf-10" connectable="0" parent="C2r8acJvxvJ2BMHDsQHf-8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Active_message_send" vertex="1">
           <mxGeometry relative="1" x="0.1108" as="geometry">
-            <mxPoint x="-20" y="-64" as="offset" />
+            <mxPoint x="-30" y="-64" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="BQ6N5GPVy7SlxFQbZJzl-1" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=0.001;exitY=0.654;exitDx=0;exitDy=0;exitPerimeter=0;" value="">
@@ -918,11 +912,6 @@
             <mxPoint x="-44.70999999999998" y="2060" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="dGDpTkz409w41ySGONW5-82" connectable="0" parent="dGDpTkz409w41ySGONW5-81" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="pl_trainerror" vertex="1">
-          <mxGeometry relative="1" x="-0.8105" y="-2" as="geometry">
-            <mxPoint x="392" y="-1075" as="offset" />
-          </mxGeometry>
-        </mxCell>
         <mxCell id="dGDpTkz409w41ySGONW5-83" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;fontColor=light-dark(#000000, #171e25);edgeStyle=orthogonalEdgeStyle;" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
             <Array as="points">
@@ -942,11 +931,6 @@
             <mxPoint x="394" y="-1038" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="dGDpTkz409w41ySGONW5-86" connectable="0" parent="dGDpTkz409w41ySGONW5-83" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=default;fontColor=light-dark(#000000, #171e25);" value="pl_inband_pres" vertex="1">
-          <mxGeometry relative="1" x="0.04" y="-1" as="geometry">
-            <mxPoint x="390" y="-1000" as="offset" />
-          </mxGeometry>
-        </mxCell>
         <mxCell id="dGDpTkz409w41ySGONW5-87" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;fontColor=light-dark(#000000, #171e25);edgeStyle=orthogonalEdgeStyle;" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
             <Array as="points" />
@@ -962,11 +946,6 @@
         <mxCell id="dGDpTkz409w41ySGONW5-89" connectable="0" parent="dGDpTkz409w41ySGONW5-87" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;fontColor=light-dark(#000000, #171e25);" value="&lt;div style=&quot;text-align: start;&quot;&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry relative="1" x="0.12" y="-2" as="geometry">
             <mxPoint x="394" y="-1038" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="dGDpTkz409w41ySGONW5-90" connectable="0" parent="dGDpTkz409w41ySGONW5-87" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=default;fontColor=light-dark(#000000, #171e25);" value="pl_phinrecenter" vertex="1">
-          <mxGeometry relative="1" x="0.04" y="-1" as="geometry">
-            <mxPoint x="393" y="-1006" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="dGDpTkz409w41ySGONW5-91" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=light-dark(#0066CC,#EDEDED);strokeColor=default;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=#FFFFFF;" value="&lt;font style=&quot;font-size: 23px;&quot;&gt;Siganl Transition&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 23px;&quot;&gt;Detector&lt;/font&gt;&lt;/div&gt;" vertex="1">
@@ -5822,7 +5801,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="a2RBVwPy5nmWmIxlAYJW" name="Active state">
-    <mxGraphModel dx="1872" dy="1230" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
+    <mxGraphModel dx="2890" dy="1676" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />

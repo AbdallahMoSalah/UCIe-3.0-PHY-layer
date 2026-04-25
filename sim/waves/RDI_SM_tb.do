@@ -111,8 +111,19 @@ add wave -noupdate /RDI_SM_tb/dut/msg_handler/valid_s
 add wave -noupdate /RDI_SM_tb/dut/msg_handler/Link_Mgmt_Msg_Send
 add wave -noupdate /RDI_SM_tb/dut/msg_handler/Message_receive
 add wave -noupdate /RDI_SM_tb/dut/msg_handler/cs
+add wave -noupdate -radix unsigned /RDI_SM_tb/dut/sm/u_unit_Timer/CLK_FREQ
+add wave -noupdate -radix unsigned /RDI_SM_tb/dut/sm/u_unit_Timer/T16MS_LIMIT
+add wave -noupdate -radix unsigned /RDI_SM_tb/dut/sm/u_unit_Timer/T1US_LIMIT
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/lclk
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/rst_n
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/start_time_16ms
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/start_time_1us
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/time_16ms
+add wave -noupdate /RDI_SM_tb/dut/sm/u_unit_Timer/time_1us
+add wave -noupdate -radix unsigned /RDI_SM_tb/dut/sm/u_unit_Timer/counter_16ms
+add wave -noupdate -radix unsigned /RDI_SM_tb/dut/sm/u_unit_Timer/counter_1us
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {53000 ps} 0}
+WaveRestoreCursors {{Cursor 1} {983273 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 324
 configure wave -valuecolwidth 167
@@ -128,4 +139,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {182434 ps}
+WaveRestoreZoom {956735 ps} {1139169 ps}

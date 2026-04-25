@@ -19,8 +19,8 @@ module unit_Timer #(
 
     // Calculate cycle counts based on clock frequency
     // Using real arithmetic for precision before casting to integer
-    localparam int T16MS_LIMIT = int'(16e-3*real'(CLK_FREQ));
-    localparam int T1US_LIMIT  = int'(1e-6*real'(CLK_FREQ));
+    localparam int T16MS_LIMIT = int'(16e-3*real'(CLK_FREQ))-1;
+    localparam int T1US_LIMIT  = int'(1e-6*real'(CLK_FREQ))-1;
 
     // Internal counters
     logic [31:0] counter_16ms;

@@ -199,14 +199,16 @@ module unit_active_state(
                 end
 
                 Wait: begin
-                    start_1us_timer<=1'b0;
+
                     if ((lp_state_req==L_1) || (lp_state_req==L_2))begin
                         cs<=stall_handshake;
                         stall_req<=1'b1;
+                        start_1us_timer<=1'b0;
                     end 
                     else if (timeout_1us) begin
                         cs<=send_pmnak_resp;
                         message_send<=RDI_PMNAK_RSP;
+                        start_1us_timer<=1'b0;
                     end
                 end
 
