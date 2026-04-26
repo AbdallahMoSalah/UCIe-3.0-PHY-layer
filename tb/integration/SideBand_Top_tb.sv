@@ -139,13 +139,13 @@ module SideBand_Top_tb;
     // Clock Generation
     // =========================================================================
     initial clk_main = 0;
-    always #(CLK_MAIN_PERIOD/2) clk_main = ~clk_main;
+    always #5.0 clk_main = ~clk_main; // 10ns
 
     initial clk_sb = 0;
-    always #(CLK_SB_PERIOD/2) clk_sb = ~clk_sb;
+    always #1.25 clk_sb = ~clk_sb; // 2.5ns
 
     initial sb_pll_clock = 0;
-    always #(PLL_CLK_PERIOD/2) sb_pll_clock = ~sb_pll_clock;
+    always #0.3125 sb_pll_clock = ~sb_pll_clock; // 0.625ns
 
     // Connect remote clock to our forwarded clock for loopback (or generate separately)
     assign RXCKSB = TXCKSB;
@@ -191,38 +191,56 @@ module SideBand_Top_tb;
         // Let clocks align and logic settle
         #100;
         
-        // Very basic test: Enable Pattern Mode
+        // =========================================================
+        // Pattern Sequence Test
+        // =========================================================
+        $display("[%0t] TEST: Starting pattern test sequence", $time);
+
         @(posedge clk_sb);
         pattern_mode = 1;
-        start_pat_req =1;
+        start_pat_req = 1;
         send_4_iter = 0;
-    
-        #(CLK_SB_PERIOD*100);   
-        start_pat_req = 0;
+        pmo_en = 1;
+        $display("[%0t] pattern_mode=1, start_pat_req=1, pmo_en=1", $time);
         
-        // Wait to see if det_pat_rcvd goes high due to loopback
-        #(CLK_SB_PERIOD*500);
+        // Wait for pattern detected
+        fork
+            begin
+                wait(det_pat_rcvd == 1'b1);
+                $display("[%0t] det_pat_rcvd asserted! Pattern detected on RX side", $time);
+            end
+            begin
+                #(CLK_SB_PERIOD*1000);
+                $display("[%0t] TIMEOUT waiting for det_pat_rcvd", $time);
+                $display("Debug: tx_serial_out=%b, RXCKSB=%b, ser_valid=%b, des_vld_rcvd=%b", 
+                         tx_serial_out, RXCKSB, dut.u_link_controller.ser_vld_send, dut.u_link_controller.des_vld_rcvd);
+                $stop;
+            end
+        join_any
         
-        if (det_pat_rcvd) begin
-            $display("SUCCESS: Pattern detected in loopback mode.");
-        end else begin
-            $display("WARNING: Pattern not detected within timeout. Check loopback / serialization.");
-        end
+        // Now send 4 iterations
+        @(posedge clk_sb);
+        send_4_iter = 1;
+        $display("[%0t] send_4_iter=1", $time);
 
-        // Another simple test: trigger an LTSM message to send
-        @(posedge clk_main);
-        ltsm_vld_send = 1;
-        ltsm_msg_n_send = 8'hA5; // dummy msg
-        msg_data_send = 64'hDEADBEEF_01234567;
-        
-        @(posedge clk_main);
-        ltsm_vld_send = 0;
-        
-        repeat(100) @(posedge clk_main);
-        
-        $display("Test finished.");
+        // Wait for four iterations done
+        wait(four_iter_done == 1'b1);
+        $display("[%0t] four_iter_done asserted! 4 iterations complete", $time);
+
+        // Turn off pattern mode and go to mapper path
+        @(posedge clk_sb);
+        pattern_mode = 0;
+        start_pat_req = 0;
+        send_4_iter = 0;
+        $display("[%0t] pattern_mode disabled. Switching to mapper path", $time);
+
+        // Wait a few clocks to ensure stable transition
+        repeat(50) @(posedge clk_sb);
+
         $display("----------------------------------------");
-        $finish;
+        $display("TEST PASSED");
+        $display("----------------------------------------");
+        $stop;
     end
 
     // =========================================================================

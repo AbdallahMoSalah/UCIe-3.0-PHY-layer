@@ -75,3 +75,5 @@ clean:
 	rm -f transcript
 	rm -f vsim.wlf
 	rm -f modelsim.ini
+	rm -f *.vcd
+	rm -rf work/

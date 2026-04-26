@@ -8,6 +8,7 @@
 import sb_pkg::*;
 import UCIe_pkg::*;
 
+`timescale 1ns/1ps
 module SideBand_Top #(
     parameter DATA_WIDTH = 64,
     parameter GAP_WIDTH  = 32
@@ -151,10 +152,13 @@ module SideBand_Top #(
         .TXCKSB           (TXCKSB)
     );
 
+    logic RXCKSB_forward = 0;
+    always @(RXCKSB) RXCKSB_forward <= #(SERDES_CLK/2) RXCKSB;
+
     sb_deserializer #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_sb_deserializer (
-        .RXCKSB               (RXCKSB),
+        .RXCKSB               (RXCKSB_forward),
         .clk_parallel         (clk_sb),
         .rst_n                (rst_sb_n),
         .rx_serial_in         (rx_serial_in),
