@@ -18,7 +18,7 @@ package RDI_DePacketizer_tb_pkg;
         rand logic rst_n;
         rand sb_rdi_msg_no_e msg_no;
         rand logic stall;
-        rand logic LINK_vld_rcvd;
+        rand logic trn_vld_rcvd;
 
         testType_t testtype = WITHOUT_RESET;
 
@@ -54,7 +54,7 @@ package RDI_DePacketizer_tb_pkg;
         }
 
         constraint vld_c {
-            LINK_vld_rcvd dist {1:/80, 0:/20};
+            trn_vld_rcvd dist {1:/80, 0:/20};
         }
         constraint op_c {
             error_opcode != SB_MSG_WITHOUT_DATA;
@@ -117,7 +117,7 @@ package RDI_DePacketizer_tb_pkg;
                 exp_msg_no  = NOP;
                 exp_stall   = 0;
             end
-            else if (LINK_vld_rcvd && msg_no != NOP) begin
+            else if (trn_vld_rcvd && msg_no != NOP) begin
 
                 if (affects_decode == 0) begin
                     exp_vld     = 1;

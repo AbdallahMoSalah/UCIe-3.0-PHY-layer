@@ -11,7 +11,7 @@ module sb_serializer_sva
     // Parallel interface
     input  logic [DATA_WIDTH-1:0]    tx_parallel_data,
     input  logic                     tx_data_valid,
-    input logic                     tx_ready,
+    input logic                     tx_rdy,
 
     // Serial output
     input logic                     tx_serial_out,
@@ -25,7 +25,7 @@ module sb_serializer_sva
 property p_valid_hold;
 
 @(posedge clk) disable iff (!rst_n)
-tx_data_valid && !tx_ready |-> $stable(tx_parallel_data);
+tx_data_valid && !tx_rdy |-> $stable(tx_parallel_data);
 
 endproperty
 

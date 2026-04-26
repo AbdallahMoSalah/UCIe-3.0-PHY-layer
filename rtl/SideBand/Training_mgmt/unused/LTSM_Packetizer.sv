@@ -1,5 +1,6 @@
 import sb_pkg::*;
 import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 
 module LTSM_Packetizer (
     input  logic         clk,
@@ -48,14 +49,14 @@ always_comb begin
 
         // subcode mapping
         case (msg_no_send)
-            ACTIVE_REQ, ACTIVE_RSP:         header_comb.msg.MsgSubcode = 8'h01;
-            PMNAK_RSP:                      header_comb.msg.MsgSubcode = 8'h02;
-            L1_REQ, L1_RSP:                 header_comb.msg.MsgSubcode = 8'h04;
-            L2_REQ, L2_RSP:                 header_comb.msg.MsgSubcode = 8'h08;
-            LINK_RESET_REQ, LINK_RESET_RSP: header_comb.msg.MsgSubcode = 8'h09;
-            LINK_ERROR_REQ, LINK_ERROR_RSP: header_comb.msg.MsgSubcode = 8'h0A;
-            RETRAIN_REQ, RETRAIN_RSP:       header_comb.msg.MsgSubcode = 8'h0B;
-            DISABLE_REQ, DISABLE_RSP:       header_comb.msg.MsgSubcode = 8'h0C;
+            RDI_ACTIVE_REQ, RDI_ACTIVE_RSP:         header_comb.msg.MsgSubcode = 8'h01;
+            RDI_PMNAK_RSP:                      header_comb.msg.MsgSubcode = 8'h02;
+            RDI_L1_REQ, RDI_L1_RSP:                 header_comb.msg.MsgSubcode = 8'h04;
+            RDI_L2_REQ, RDI_L2_RSP:                 header_comb.msg.MsgSubcode = 8'h08;
+            RDI_LINK_RESET_REQ, RDI_LINK_RESET_RSP: header_comb.msg.MsgSubcode = 8'h09;
+            RDI_LINK_ERROR_REQ, RDI_LINK_ERROR_RSP: header_comb.msg.MsgSubcode = 8'h0A;
+            RDI_RETRAIN_REQ, RDI_RETRAIN_RSP:       header_comb.msg.MsgSubcode = 8'h0B;
+            RDI_DISABLE_REQ, RDI_DISABLE_RSP:       header_comb.msg.MsgSubcode = 8'h0C;
         endcase
         header_comb.msg.MsgInfo     = stall_send ? 16'hffff : 16'h0000;
   

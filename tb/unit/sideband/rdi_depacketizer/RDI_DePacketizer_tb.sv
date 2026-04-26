@@ -7,8 +7,8 @@ module RDI_DePacketizer_tb;
     logic clk;
     logic rst_n;
 
-    logic [127:0] LINK_msg_rcvd;
-    logic LINK_vld_rcvd;
+    logic [127:0] trn_msg_rcvd;
+    logic trn_vld_rcvd;
 
     sb_rdi_msg_no_e RDI_msg_no_rcvd;
     logic stall_rcvd;
@@ -26,8 +26,8 @@ module RDI_DePacketizer_tb;
     RDI_DePacketizer DUT (
         .clk(clk),
         .rst_n(rst_n),
-        .LINK_msg_rcvd(LINK_msg_rcvd),
-        .LINK_vld_rcvd(LINK_vld_rcvd),
+        .trn_msg_rcvd(trn_msg_rcvd),
+        .trn_vld_rcvd(trn_vld_rcvd),
         .RDI_msg_no_rcvd(RDI_msg_no_rcvd),
         .stall_rcvd(stall_rcvd),
         .RDI_vld_rcvd(RDI_vld_rcvd)
@@ -131,8 +131,8 @@ module RDI_DePacketizer_tb;
 
     task drive();
         rst_n           = obj.rst_n;
-        LINK_msg_rcvd   = obj.LINK_msg;
-        LINK_vld_rcvd   = obj.LINK_vld_rcvd;
+        trn_msg_rcvd   = obj.LINK_msg;
+        trn_vld_rcvd   = obj.trn_vld_rcvd;
     endtask
 
     task apply_reset();

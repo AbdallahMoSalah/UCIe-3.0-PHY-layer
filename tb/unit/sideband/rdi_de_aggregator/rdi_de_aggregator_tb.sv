@@ -10,9 +10,9 @@ module rdi_de_aggregator_tb;
         .rst_n(rdi_de_aggregatorif.rst_n),
         .pl_msg(rdi_de_aggregatorif.pl_msg),
         .pl_msg_vld(rdi_de_aggregatorif.pl_msg_vld),
-        .pl_msg_ready(rdi_de_aggregatorif.pl_msg_ready),
+        .pl_msg_rdy(rdi_de_aggregatorif.pl_msg_rdy),
         .traffic_req(rdi_de_aggregatorif.traffic_req),
-        .traffic_ready(rdi_de_aggregatorif.traffic_ready),
+        .traffic_rdy(rdi_de_aggregatorif.traffic_rdy),
         .pl_cfg(rdi_de_aggregatorif.pl_cfg),
         .pl_cfg_vld(rdi_de_aggregatorif.pl_cfg_vld)
     );

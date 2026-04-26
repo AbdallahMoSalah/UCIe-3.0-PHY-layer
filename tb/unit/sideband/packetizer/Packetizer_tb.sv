@@ -15,12 +15,12 @@ module Packetizer_tb;
   logic [15:0]  msg_info_send;
   msg_no_e      msg_no_send;
   logic         valid_send;
-  logic         LINK_ready;
+  logic         trn_rdy;
   logic         stall_send;
 
   logic [127:0] LINK_msg;
   logic         LINK_vld;
-  logic         ready;
+  logic         rdy;
 
   int pass_count = 0;
   int fail_count = 0;
@@ -36,11 +36,11 @@ Packetizer_class obj = new();
     .msg_info_send  (msg_info_send),
     .msg_no_send    (msg_no_send),
     .valid_send     (valid_send),
-    .LINK_ready     (LINK_ready),
+    .trn_rdy     (trn_rdy),
     .stall_send     (stall_send),
     .LINK_msg       (LINK_msg),
     .LINK_vld       (LINK_vld),
-    .ready          (ready)
+    .rdy          (rdy)
   );
 
 //////////////////////////////////////////////////////////////////
@@ -89,7 +89,7 @@ task automatic drive();
     msg_info_send = obj.msg_info_send;
     msg_no_send   = obj.msg_no_send;
     valid_send    = obj.valid_send;
-    LINK_ready    = obj.LINK_ready;
+    trn_rdy    = obj.trn_rdy;
     stall_send    = obj.stall_send;
 endtask //automatic
 
@@ -98,21 +98,21 @@ task check();
   if (
     (LINK_vld !== obj.exp_vld) ||
     (LINK_msg !== obj.exp_msg) || 
-    (ready !== obj.exp_ready)
+    (rdy !== obj.exp_rdy)
   ) begin
-   $display("FAIL @%0t | vld_exp=%0b vld_dut=%0b | msg_exp=%h msg_dut=%h | valid_send=%0b ready=%0b",
+   $display("FAIL @%0t | vld_exp=%0b vld_dut=%0b | msg_exp=%h msg_dut=%h | valid_send=%0b rdy=%0b",
           $time,
           obj.exp_vld, LINK_vld,
           obj.exp_msg, LINK_msg,
-          valid_send, LINK_ready);
+          valid_send, trn_rdy);
     $display("msgno= %s",msg_no_send);
     $display("exmsgcode=%s,msgcode=%s",obj.hdr.msg.msgcode, dut.header_reg.msg.msgcode);
     $display("exmsgsubcode=%h,msgsubcode=%h",obj.hdr.msg.MsgSubcode, dut.header_reg.msg.MsgSubcode);
     
     fail_count++;
   end else begin
-    //$display("Test Passed: Exp LINK_vld=%b, LINK_msg=%h, ready=%b and got Link_vld=%b, LINK_msg=%h, ready=%b @time=%0t",
-       //   obj.exp_vld, obj.exp_msg, obj.exp_ready, LINK_vld, LINK_msg, ready ,$time);
+    //$display("Test Passed: Exp LINK_vld=%b, LINK_msg=%h, rdy=%b and got Link_vld=%b, LINK_msg=%h, rdy=%b @time=%0t",
+       //   obj.exp_vld, obj.exp_msg, obj.exp_rdy, LINK_vld, LINK_msg, rdy ,$time);
     pass_count++;
   end
 endtask

@@ -13,15 +13,15 @@ class Packetizer_class;
     rand logic valid_send;
     rand logic stall_send;
     
-    rand logic LINK_ready;
+    rand logic trn_rdy;
 
     msg_no_e prev_msg_no_send=NOP;
     logic prev_valid_send=1'b0;
     logic [127:0] prev_msg;
-    logic prev_LINK_ready;
+    logic prev_LINK_rdy;
 
     logic [127:0] exp_msg;
-    logic exp_vld,exp_ready;
+    logic exp_vld,exp_rdy;
     sb_header_u hdr;
 
     
@@ -29,8 +29,8 @@ class Packetizer_class;
         rst_n dist { 1 :/ 80, 0 :/20};
     }
 
-    constraint LINK_ready_constraint{
-        LINK_ready dist { 1 :/ 80, 0 :/ 20};
+    constraint LINK_rdy_constraint{
+        trn_rdy dist { 1 :/ 80, 0 :/ 20};
     }
 
     constraint stall_constraint{
@@ -43,13 +43,13 @@ class Packetizer_class;
     }
 
     constraint msg_no_send_constraint{
-        if(LINK_ready == 0 ){
+        if(trn_rdy == 0 ){
             msg_no_send == prev_msg_no_send;
         }
     }
 
     constraint valid_send_constraint{
-        if(LINK_ready == 0){
+        if(trn_rdy == 0){
             valid_send == prev_valid_send;
         }
         else {
@@ -59,14 +59,14 @@ class Packetizer_class;
 
     function void build_expected();  // Build expected header based on the input message number
         hdr =encode_msg_header(msg_no_send, msg_info_send, msg_data_send, stall_send);
-        exp_ready = LINK_ready;
+        exp_rdy = trn_rdy;
 
         if (rst_n == 1'b0) begin
             exp_msg = 128'h0;
             exp_vld = 1'b0;
         end
         else begin 
-            if (valid_send && LINK_ready) begin
+            if (valid_send && trn_rdy) begin
                 exp_msg = {msg_data_send, hdr};
                 exp_vld = 1'b1;
             end
@@ -78,7 +78,7 @@ class Packetizer_class;
     function void post_randomize();
         prev_msg_no_send = msg_no_send;
         prev_valid_send = valid_send;
-        prev_LINK_ready = LINK_ready;
+        prev_LINK_rdy = trn_rdy;
     endfunction
 
 

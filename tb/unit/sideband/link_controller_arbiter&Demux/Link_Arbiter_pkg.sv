@@ -8,12 +8,12 @@ rand logic LINK_vld;
 rand logic [127:0] adapter_msg;
 rand logic adapter_not_empty;
 
-rand logic mapper_ready;
+rand logic mapper_rdy;
 
 // expected outputs
 logic [127:0] exp_msg;
 logic exp_valid;
-logic exp_LINK_ready;
+logic exp_LINK_rdy;
 logic exp_adapter_rd_en;
 
 function void build_expected();
@@ -27,8 +27,8 @@ sel_adapter = !LINK_vld && adapter_not_empty;
 exp_msg   = sel_link ? LINK_msg : adapter_msg;
 exp_valid = sel_link | sel_adapter ;
 
-exp_LINK_ready    = mapper_ready && sel_link;
-exp_adapter_rd_en = mapper_ready && sel_adapter;
+exp_LINK_rdy    = mapper_rdy && sel_link;
+exp_adapter_rd_en = mapper_rdy && sel_adapter;
 
 endfunction
 

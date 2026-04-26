@@ -52,7 +52,7 @@ package sb_demapper_tb_pkg;
                 pkt = new();
                 assert(pkt.randomize());
 
-                // random valid & ready
+                // random valid & rdy
                 vif.msg_vld_rcvd = pkt.in_valid;
                 
                 if(pkt.in_valid ) begin

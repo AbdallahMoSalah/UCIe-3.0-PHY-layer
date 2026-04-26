@@ -5,9 +5,9 @@ interface sb_mapper_if(input bit clk);
     logic [127:0] msg_word_send;
     logic word_vld_send;
 
-    logic ser_ready;
+    logic ser_rdy;
 
-    logic mapper_ready;
+    logic mapper_rdy;
     logic [63:0] msg_send;
     logic msg_vld_send;
 

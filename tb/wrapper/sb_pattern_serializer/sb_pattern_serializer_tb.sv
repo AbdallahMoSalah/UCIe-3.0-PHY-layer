@@ -36,7 +36,7 @@ logic four_iter_done;
 
 logic [63:0] mapper_data;
 logic mapper_valid;
-logic mapper_ready;
+logic mapper_rdy;
 
 ////////////////////////////////////////////////////////////
 // Serializer Interface
@@ -44,7 +44,7 @@ logic mapper_ready;
 
 logic [63:0] ser_data;
 logic ser_valid;
-logic ser_ready;
+logic ser_rdy;
 
 logic tx_serial_out;
 logic TXCKSB;
@@ -66,9 +66,9 @@ sb_pattern_engine dut_pattern (
 
     .mapper_data(mapper_data),
     .mapper_valid(mapper_valid),
-    .mapper_ready(mapper_ready),
+    .mapper_rdy(mapper_rdy),
 
-    .ser_ready(ser_ready),
+    .ser_rdy(ser_rdy),
 
     .ser_data(ser_data),
     .ser_valid(ser_valid)
@@ -84,7 +84,7 @@ sb_serializer dut_serializer (
 
     .tx_parallel_data(ser_data),
     .tx_data_valid(ser_valid),
-    .tx_ready(ser_ready),
+    .tx_rdy(ser_rdy),
 
     .tx_serial_out(tx_serial_out),
     .TXCKSB(TXCKSB)
@@ -98,7 +98,7 @@ bind sb_serializer sb_serializer_sva SVA_ser (
 
     .tx_parallel_data(tx_parallel_data),
     .tx_data_valid(tx_data_valid),
-    .tx_ready(tx_ready),
+    .tx_rdy(tx_rdy),
 
     .tx_serial_out(tx_serial_out),
     .TXCKSB(TXCKSB)
@@ -122,7 +122,7 @@ int iter_count;
 int prev_count;
 
 always @(posedge clk_parallel) begin
-    if(ser_valid && ser_ready)
+    if(ser_valid && ser_rdy)
         iter_count++;
 end
 
@@ -202,7 +202,7 @@ initial begin
     mapper_data  = $random;
     mapper_valid = 1;
     @(posedge clk_parallel);
-    while(!mapper_ready)
+    while(!mapper_rdy)
         @(posedge clk_parallel);
     
     mapper_valid = 0;

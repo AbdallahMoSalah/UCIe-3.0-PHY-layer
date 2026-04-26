@@ -18,7 +18,7 @@ module arbiter_tb;
     logic         reset_n;
 
     // Main Link Controller Interface
-    logic         LINK_ready;
+    logic         trn_rdy;
     logic [127:0] LINK_msg;
     logic         LINK_msg_valid;
 
@@ -59,7 +59,7 @@ module arbiter_tb;
         // Initialize all inputs to default safe values
         // ----------------------------------------------------------------
         reset_n        = 0;
-        LINK_ready     = 1; // Assume Link Controller is initially ready
+        trn_rdy     = 1; // Assume Link Controller is initially rdy
         rdi_msg_fifo   = 128'b0;
         rdi_not_empty  = 0;
         ltsm_msg_fifo  = 128'b0;

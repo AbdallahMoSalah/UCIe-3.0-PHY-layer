@@ -13,7 +13,7 @@ logic pmo_en;
 
 logic [DATA_WIDTH-1:0] tx_parallel_data;
 logic tx_data_valid;
-logic tx_ready;
+logic tx_rdy;
 
 logic tx_serial_out;
 logic TXCKSB;
@@ -33,7 +33,7 @@ sb_serializer #(
 
 .tx_parallel_data(tx_parallel_data),
 .tx_data_valid(tx_data_valid),
-.tx_ready(tx_ready),
+.tx_rdy(tx_rdy),
 
 .tx_serial_out(tx_serial_out),
 .TXCKSB(TXCKSB)
@@ -69,7 +69,7 @@ task send_packet(input logic [63:0] data);
     tx_parallel_data = data;
     tx_data_valid    = 1;
 
-    wait(tx_ready);
+    wait(tx_rdy);
 
     @(posedge clk_parallel);
 

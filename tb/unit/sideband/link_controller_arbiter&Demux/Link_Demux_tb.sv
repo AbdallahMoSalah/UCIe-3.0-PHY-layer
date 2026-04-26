@@ -7,9 +7,9 @@ import sb_pkg::*;
 logic [127:0] msg_word_rcvd;
 logic         word_valid_r;
 
-logic [127:0] Adapter_msg_rcvd;
+logic [127:0] adapter_msg_rcvd;
 logic         Adapter_valid_r;
-logic [127:0] LINK_msg_rcvd;
+logic [127:0] trn_msg_rcvd;
 logic         LINK_valid_r;
 
 int pass_cnt = 0;
@@ -19,13 +19,13 @@ int fail_cnt = 0;
 // DUT
 ////////////////////////////////////////////////////
 
-LINK_Demux dut (
+LINK_Demux u_LINK_Demux(
     .msg_word_rcvd(msg_word_rcvd),
-    .word_valid_r(word_valid_r),
-    .Adapter_msg_rcvd(Adapter_msg_rcvd),
-    .Adapter_valid_r(Adapter_valid_r),
-    .LINK_msg_rcvd(LINK_msg_rcvd),
-    .LINK_valid_r(LINK_valid_r)
+    .word_vld_rcvd(word_valid_r),
+    .adapter_msg_rcvd(adapter_msg_rcvd),
+    .adapter_vld_rcvd(Adapter_valid_r),
+    .trn_msg_rcvd(trn_msg_rcvd),
+    .trn_vld_rcvd(LINK_valid_r)
 );
 
 ////////////////////////////////////////////////////
@@ -77,9 +77,9 @@ task automatic check_result;
         exp_adapter_valid
     );
 
-    if( LINK_msg_rcvd    !== exp_link_msg     ||
+    if( trn_msg_rcvd    !== exp_link_msg     ||
         LINK_valid_r     !== exp_link_valid   ||
-        Adapter_msg_rcvd !== exp_adapter_msg  ||
+        adapter_msg_rcvd !== exp_adapter_msg  ||
         Adapter_valid_r  !== exp_adapter_valid )
     begin
         $display("❌ FAIL @ %0t", $time);

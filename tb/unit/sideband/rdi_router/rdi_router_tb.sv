@@ -46,15 +46,15 @@ module rdi_router_tb;
     
     logic [127:0] rdi_msg;
     logic         rdi_vld;
-    logic         rdi_ready;
+    logic         rdi_rdy;
     
     logic [127:0] reg_msg;
     logic         reg_vld;
-    logic         reg_ready;
+    logic         reg_rdy;
     
-    logic [127:0] Adapter_msg_send;
-    logic         Adapter_vld_send;
-    logic         Adapter_ready;
+    logic [127:0] adapter_msg_send;
+    logic         adapter_vld_send;
+    logic         adapter_rdy;
 
     // DUT Instantiation
     rdi_router dut (
@@ -63,15 +63,15 @@ module rdi_router_tb;
         
         .rdi_msg(rdi_msg),
         .rdi_vld(rdi_vld),
-        .rdi_ready(rdi_ready),
+        .rdi_rdy(rdi_rdy),
         
         .reg_msg(reg_msg),
         .reg_vld(reg_vld),
-        .reg_ready(reg_ready),
+        .reg_rdy(reg_rdy),
         
-        .Adapter_msg_send(Adapter_msg_send),
-        .Adapter_vld_send(Adapter_vld_send),
-        .Adapter_ready(Adapter_ready)
+        .adapter_msg_send(adapter_msg_send),
+        .adapter_vld_send(adapter_vld_send),
+        .adapter_rdy(adapter_rdy)
     );
 
     int errors = 0;
@@ -95,7 +95,7 @@ module rdi_router_tb;
             // In reset mode
             if (is_req) begin
                 exp_reg_vld = rdi_vld;
-                exp_rdi_rdy = reg_ready;
+                exp_rdi_rdy = reg_rdy;
             end else begin
                 // Drop normal messages / comps
                 exp_adp_vld = 0;
@@ -106,10 +106,10 @@ module rdi_router_tb;
             // Normal mode
             if (dst_id == LOCAL_PHY) begin
                 exp_reg_vld = rdi_vld;
-                exp_rdi_rdy = reg_ready;
+                exp_rdi_rdy = reg_rdy;
             end else begin
                 exp_adp_vld = rdi_vld;
-                exp_rdi_rdy = Adapter_ready;
+                exp_rdi_rdy = adapter_rdy;
             end
         end
 
@@ -118,12 +118,12 @@ module rdi_router_tb;
             $error("[%0t] reg_vld mismatch! Act: %b, Exp: %b", $time, reg_vld, exp_reg_vld);
             errors++;
         end
-        if (Adapter_vld_send !== exp_adp_vld) begin
-            $error("[%0t] Adapter_vld_send mismatch! Act: %b, Exp: %b", $time, Adapter_vld_send, exp_adp_vld);
+        if (adapter_vld_send !== exp_adp_vld) begin
+            $error("[%0t] adapter_vld_send mismatch! Act: %b, Exp: %b", $time, adapter_vld_send, exp_adp_vld);
             errors++;
         end
-        if (rdi_ready !== exp_rdi_rdy) begin
-            $error("[%0t] rdi_ready mismatch! Act: %b, Exp: %b", $time, rdi_ready, exp_rdi_rdy);
+        if (rdi_rdy !== exp_rdi_rdy) begin
+            $error("[%0t] rdi_rdy mismatch! Act: %b, Exp: %b", $time, rdi_rdy, exp_rdi_rdy);
             errors++;
         end
         
@@ -132,8 +132,8 @@ module rdi_router_tb;
             $error("[%0t] reg_msg mismatch! Act: %h, Exp: %h", $time, reg_msg, exp_msg);
             errors++;
         end
-        if (Adapter_msg_send !== exp_msg) begin
-            $error("[%0t] Adapter_msg_send mismatch! Act: %h, Exp: %h", $time, Adapter_msg_send, exp_msg);
+        if (adapter_msg_send !== exp_msg) begin
+            $error("[%0t] adapter_msg_send mismatch! Act: %h, Exp: %h", $time, adapter_msg_send, exp_msg);
             errors++;
         end
     endtask
@@ -152,8 +152,8 @@ module rdi_router_tb;
         reset = 0;
         rdi_msg = 0;
         rdi_vld = 0;
-        reg_ready = 1;
-        Adapter_ready = 1;
+        reg_rdy = 1;
+        adapter_rdy = 1;
         
         #10;
         rst_n = 1;
@@ -164,8 +164,8 @@ module rdi_router_tb;
             
             // Form completely random inputs on every cycle
             reset         = ($urandom() % 100) < 15; // 15% probability of reset state
-            reg_ready     = ($urandom() % 100) < 50; // 50% stall chance
-            Adapter_ready = ($urandom() % 100) < 50; // 50% stall chance
+            reg_rdy     = ($urandom() % 100) < 50; // 50% stall chance
+            adapter_rdy = ($urandom() % 100) < 50; // 50% stall chance
             
             rdi_msg = item.get_msg();
             rdi_vld = ($urandom() % 100) < 80;       // 80% Valid traffic

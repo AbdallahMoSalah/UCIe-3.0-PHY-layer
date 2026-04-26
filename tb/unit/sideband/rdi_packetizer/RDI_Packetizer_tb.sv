@@ -9,8 +9,8 @@ module RDI_Packetizer_tb;
     sb_rdi_msg_no_e RDI_msg_no_send;
     logic stall_send;
     logic RDI_vld_send;
-    logic RDI_ready_send;
-    logic push_ready;
+    logic RDI_rdy_send;
+    logic push_rdy;
     logic [127:0] RDI_msg;
     logic RDI_vld_out;
     
@@ -29,8 +29,8 @@ module RDI_Packetizer_tb;
         .RDI_msg_no_send(RDI_msg_no_send),
         .stall_send(stall_send),
         .RDI_vld_send(RDI_vld_send),
-        .RDI_ready(RDI_ready_send),
-        .push_ready(push_ready),
+        .RDI_rdy(RDI_rdy_send),
+        .push_rdy(push_rdy),
         .RDI_msg(RDI_msg),
         .RDI_vld_out(RDI_vld_out)
     );
@@ -50,7 +50,7 @@ module RDI_Packetizer_tb;
     // Test Sequence
     // ----------------------------------   
     initial begin
-        push_ready   = 1;
+        push_rdy   = 1;
         RDI_vld_send = 0;
         stall_send   = 0;
         apply_reset();
@@ -100,7 +100,7 @@ module RDI_Packetizer_tb;
         RDI_msg_no_send = RDI_Packetizer_object.RDI_msg_no_send;
         stall_send = RDI_Packetizer_object.stall_send;
         RDI_vld_send = RDI_Packetizer_object.RDI_vld_send;
-        push_ready = RDI_Packetizer_object.push_ready;
+        push_rdy = RDI_Packetizer_object.push_rdy;
         
     endtask
 

@@ -8,11 +8,11 @@ package RDI_Packetizer_tb_pkg;
         rand sb_rdi_msg_no_e RDI_msg_no_send;
         rand logic stall_send;
         rand logic RDI_vld_send;
-        rand logic push_ready;
+        rand logic push_rdy;
 
         testType_t testtype = WITHOUT_RESET;
         sb_rdi_msg_no_e Prev_RDI_msg_no_send = NOP;
-        logic Prev_push_ready = 1;
+        logic Prev_push_rdy = 1;
         logic Prev_RDI_vld_send = 0;
 
         sb_header_u exp_hdr;
@@ -40,18 +40,18 @@ package RDI_Packetizer_tb_pkg;
             }
         }
 
-        constraint push_ready_constraint{
-            push_ready dist { 1 :/ 80, 0 :/ 20};
+        constraint push_rdy_constraint{
+            push_rdy dist { 1 :/ 80, 0 :/ 20};
         }
 
         constraint RDI_msg_no_send_constraint{
-            if(Prev_push_ready == 0 ){
+            if(Prev_push_rdy == 0 ){
                 RDI_msg_no_send == Prev_RDI_msg_no_send;
             }
         }
 
         constraint RDI_vld_send_constraint{
-            if(Prev_push_ready == 0  && Prev_RDI_vld_send == 1){
+            if(Prev_push_rdy == 0  && Prev_RDI_vld_send == 1){
                 RDI_vld_send == 1;
             }
             else {
@@ -67,9 +67,9 @@ package RDI_Packetizer_tb_pkg;
         if (!rst_n) begin
             RDI_vld_out_exp = 1'b0;  // No valid message on reset
             exp_hdr  = '0;  // Clear header on reset
-        end else if (RDI_vld_send && push_ready) begin
+        end else if (RDI_vld_send && push_rdy) begin
             exp_hdr  = hdr;
-            RDI_vld_out_exp = 1'b1;  // Indicate that the message is valid and ready to be sent  
+            RDI_vld_out_exp = 1'b1;  // Indicate that the message is valid and rdy to be sent  
         end else begin
             RDI_vld_out_exp = 1'b0;  // No valid message if not sending
         end
@@ -78,7 +78,7 @@ package RDI_Packetizer_tb_pkg;
 
     function void post_randomize();
       Prev_RDI_msg_no_send = RDI_msg_no_send;
-      Prev_push_ready = push_ready;
+      Prev_push_rdy = push_rdy;
       Prev_RDI_vld_send = RDI_vld_send;
     endfunction
 

@@ -6,9 +6,10 @@
 # Packages (لو فيه)
 rtl/SideBand/common/sb_pkg.sv
 rtl/common/UCIe_pkg.sv
+rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv
 
 # DUT
-rtl/SideBand/Training_mgmt/LTSM_Packetizer.sv
+rtl/SideBand/Training_mgmt/unused/LTSM_Packetizer.sv
 
 # Testbench
 tb/unit/sideband/ltsm_packetizer/LTSM_Packetizer_tb.sv

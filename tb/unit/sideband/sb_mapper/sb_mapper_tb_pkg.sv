@@ -6,11 +6,11 @@ package sb_mapper_tb_pkg;
 
         rand bit [127:0] data;
         rand bit in_valid;
-        rand bit in_ready;
-        logic mapper_ready;
+        rand bit in_rdy;
+        logic mapper_rdy;
 
         logic Prev_data = '0;
-        logic Prev_in_ready = 0;
+        logic Prev_in_rdy = 0;
         logic Prev_in_valid = 0;
         
 
@@ -24,7 +24,7 @@ package sb_mapper_tb_pkg;
         }
 
         constraint valid_dist {
-            if(Prev_in_valid && !mapper_ready) {
+            if(Prev_in_valid && !mapper_rdy) {
                 in_valid == 1;
             } 
             else {
@@ -34,13 +34,13 @@ package sb_mapper_tb_pkg;
         }
 
 
-        constraint ready_dist {
-            in_ready dist {1 := 60, 0 := 40};
+        constraint rdy_dist {
+            in_rdy dist {1 := 60, 0 := 40};
         }
 
         function void post_randomize();
             Prev_data = data;
-            Prev_in_ready = in_ready;
+            Prev_in_rdy = in_rdy;
             Prev_in_valid = in_valid;
         endfunction
 
@@ -71,14 +71,14 @@ package sb_mapper_tb_pkg;
                 @(posedge vif.clk);
 
                 
-                pkt.mapper_ready = vif.mapper_ready;
+                pkt.mapper_rdy = vif.mapper_rdy;
                 assert(pkt.randomize());
 
-                // random valid & ready
+                // random valid & rdy
                 vif.word_vld_send <= pkt.in_valid;
-                vif.ser_ready <= pkt.in_ready;
+                vif.ser_rdy <= pkt.in_rdy;
 
-                if(vif.word_vld_send && vif.mapper_ready) begin
+                if(vif.word_vld_send && vif.mapper_rdy) begin
                     vif.msg_word_send <= pkt.data;
                 end
 
@@ -113,7 +113,7 @@ package sb_mapper_tb_pkg;
                 @(posedge vif.clk);
 
                 // input handshake
-                if(vif.word_vld_send && vif.mapper_ready) begin
+                if(vif.word_vld_send && vif.mapper_rdy) begin
 
                     pkt = new();
                     pkt.data = vif.msg_word_send;
@@ -123,7 +123,7 @@ package sb_mapper_tb_pkg;
                 end
 
                 // output handshake
-                if(vif.msg_vld_send && vif.ser_ready) begin
+                if(vif.msg_vld_send && vif.ser_rdy) begin
 
                     ch = new();
                     ch.data = vif.msg_send;

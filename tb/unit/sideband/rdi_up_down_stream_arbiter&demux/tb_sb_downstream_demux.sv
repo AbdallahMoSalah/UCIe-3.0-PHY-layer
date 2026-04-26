@@ -6,7 +6,7 @@ import sb_pkg::*; // Import definitions for enums and structs (Opcodes, DstIDs, 
 // Module      : tb_sb_downstream_demux
 // Description : Directed Testbench for the Downstream Demux block.
 //               Verifies normal routing logic (Opcode/DstID based), 
-//               emergency reset force-routing, and ready/backpressure signals.
+//               emergency reset force-routing, and rdy/backpressure signals.
 // ============================================================================
 
 module tb_sb_downstream_demux();
@@ -18,15 +18,15 @@ module tb_sb_downstream_demux();
     logic [127:0] rdi_msg;
     logic         rdi_vld;
     logic         reset;
-    logic         reg_ready;
-    logic         Adapter_ready;
+    logic         reg_rdy;
+    logic         adapter_rdy;
 
     // DUT Outputs (Responses)
-    logic         rdi_ready;
+    logic         rdi_rdy;
     logic [127:0] reg_msg;
     logic         reg_vld;
-    logic [127:0] Adapter_msg_send;
-    logic         Adapter_vld_send;
+    logic [127:0] adapter_msg_send;
+    logic         adapter_vld_send;
 
     // ==========================================
     // 2. Device Under Test (DUT) Instantiation
@@ -34,14 +34,14 @@ module tb_sb_downstream_demux();
     sb_downstream_demux dut (
         .rdi_msg(rdi_msg),
         .rdi_vld(rdi_vld),
-        .rdi_ready(rdi_ready),
+        .rdi_rdy(rdi_rdy),
         .reset(reset),
         .reg_msg(reg_msg),
         .reg_vld(reg_vld),
-        .reg_ready(reg_ready),
-        .Adapter_msg_send(Adapter_msg_send),
-        .Adapter_vld_send(Adapter_vld_send),
-        .Adapter_ready(Adapter_ready)
+        .reg_rdy(reg_rdy),
+        .adapter_msg_send(adapter_msg_send),
+        .adapter_vld_send(adapter_vld_send),
+        .adapter_rdy(adapter_rdy)
     );
 
     // ==========================================
@@ -63,11 +63,11 @@ module tb_sb_downstream_demux();
 
     // Helper task to automatically verify routing decisions and report Pass/Fail
     task check_routing(input logic exp_reg, input logic exp_adapter, string test_name);
-        if (reg_vld === exp_reg && Adapter_vld_send === exp_adapter)
+        if (reg_vld === exp_reg && adapter_vld_send === exp_adapter)
             $display("[PASS] %s", test_name);
         else
             $error("[FAIL] %s - Expected (Reg_vld:%b, Adapt_vld:%b), Got (Reg_vld:%b, Adapt_vld:%b)", 
-                    test_name, exp_reg, exp_adapter, reg_vld, Adapter_vld_send);
+                    test_name, exp_reg, exp_adapter, reg_vld, adapter_vld_send);
     endtask
 
     // ==========================================
@@ -82,9 +82,9 @@ module tb_sb_downstream_demux();
         rdi_msg = '0;
         rdi_vld = 0;
         reset   = 0;
-        // Assume both downstream destinations are initially ready to accept data
-        reg_ready     = 1; 
-        Adapter_ready = 1; 
+        // Assume both downstream destinations are initially rdy to accept data
+        reg_rdy     = 1; 
+        adapter_rdy = 1; 
         #10;
 
         // --------------------------------------------------------
@@ -122,18 +122,18 @@ module tb_sb_downstream_demux();
         rdi_vld = 0; #10;
 
         // --------------------------------------------------------
-        // Test Case 5: Flow Control (Ready Signal Feedback / Backpressure)
-        // Expected: The upstream 'rdi_ready' should drop to 0 if the targeted downstream block is not ready.
+        // Test Case 5: Flow Control (Rdy Signal Feedback / Backpressure)
+        // Expected: The upstream 'rdi_rdy' should drop to 0 if the targeted downstream block is not rdy.
         // --------------------------------------------------------
-        reg_ready = 1'b0; // Simulate backpressure from Reg_access
+        reg_rdy = 1'b0; // Simulate backpressure from Reg_access
         send_packet(LOCAL_ADAPTER, SB_32_DMS_REG_READ); // Route to Reg_access
         
-        if (rdi_ready === 1'b0)
+        if (rdi_rdy === 1'b0)
             $display("[PASS] TC5: Flow Control (Backpressure) working correctly.");
         else
-            $error("[FAIL] TC5: Flow Control failed. rdi_ready should be 0.");
+            $error("[FAIL] TC5: Flow Control failed. rdi_rdy should be 0.");
         
-        reg_ready = 1'b1; // Restore readiness
+        reg_rdy = 1'b1; // Restore readiness
         rdi_vld = 0; #10;
 
         $display("==================================================");

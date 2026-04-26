@@ -9,7 +9,7 @@ rtl/SideBand/common/msg_codec_pkg.sv
 tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb_pkg.sv
 
 # DUT
-rtl/SideBand/Training_mgmt/RDI_Packetizer.sv
+rtl/SideBand/Training_mgmt/unused/RDI_Packetizer.sv
 
 # Testbench
 tb/unit/sideband/rdi_packetizer/RDI_Packetizer_tb.sv

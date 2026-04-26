@@ -18,13 +18,13 @@ package sb_serializer_tb_pkg;
 
         rand logic [DATA_WIDTH-1:0] tx_parallel_data;
         rand logic tx_data_valid;
-        logic tx_ready;
+        logic tx_rdy;
         state_t Prev_state;
         state_t state;
 
         logic [DATA_WIDTH-1:0] Prev_tx_parallel_data = '0;
         logic Prev_tx_data_valid = 0;
-        logic Prev_tx_ready = 1;
+        logic Prev_tx_rdy = 1;
 
         logic tx_serial_out;
         logic TXCKSB;
@@ -47,7 +47,7 @@ package sb_serializer_tb_pkg;
 
 
         constraint data_send_constraint{
-            if(tx_ready == 1 && Prev_tx_data_valid == 1){
+            if(tx_rdy == 1 && Prev_tx_data_valid == 1){
                 
             }
             else {
@@ -56,7 +56,7 @@ package sb_serializer_tb_pkg;
         }
 
         constraint vld_send_constraint{
-            if(tx_ready == 0 && Prev_tx_data_valid == 1){
+            if(tx_rdy == 0 && Prev_tx_data_valid == 1){
                 tx_data_valid == 1;
             }
             else {
@@ -81,14 +81,14 @@ package sb_serializer_tb_pkg;
                 bins shift = {SHIFT};
             }
             valid_cp : coverpoint tx_data_valid;
-            ready_cp : coverpoint tx_ready;
-            valid_ready : cross valid_cp, ready_cp;
-            valid_ready_state : cross valid_cp, ready_cp, state_cp{
+            rdy_cp : coverpoint tx_rdy;
+            valid_rdy : cross valid_cp, rdy_cp;
+            valid_rdy_state : cross valid_cp, rdy_cp, state_cp{
                 option.cross_auto_bin_max   = 0;
-                bins gap_0_0 = binsof(valid_cp) intersect{0} && binsof(ready_cp) intersect{0} && binsof(state_cp.gap);
-                bins shift_0_0 = binsof(valid_cp) intersect{0} && binsof(ready_cp) intersect{0} && binsof(state_cp.shift);
-                bins idle_1_1 = binsof(valid_cp) intersect{1} && binsof(ready_cp) intersect{1} && binsof(state_cp.idle);
-                bins gap_1_1 = binsof(valid_cp) intersect{1} && binsof(ready_cp) intersect{1} && binsof(state_cp.gap);
+                bins gap_0_0 = binsof(valid_cp) intersect{0} && binsof(rdy_cp) intersect{0} && binsof(state_cp.gap);
+                bins shift_0_0 = binsof(valid_cp) intersect{0} && binsof(rdy_cp) intersect{0} && binsof(state_cp.shift);
+                bins idle_1_1 = binsof(valid_cp) intersect{1} && binsof(rdy_cp) intersect{1} && binsof(state_cp.idle);
+                bins gap_1_1 = binsof(valid_cp) intersect{1} && binsof(rdy_cp) intersect{1} && binsof(state_cp.gap);
             }
 
         endgroup
@@ -107,7 +107,7 @@ package sb_serializer_tb_pkg;
 
         function void post_randomize();
             Prev_tx_parallel_data = tx_parallel_data;
-            Prev_tx_ready = tx_ready;
+            Prev_tx_rdy = tx_rdy;
             Prev_tx_data_valid = tx_data_valid;
         endfunction
 

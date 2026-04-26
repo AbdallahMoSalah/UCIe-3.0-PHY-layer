@@ -8,7 +8,7 @@ initial begin
     clk = 0;
     forever #5 clk = ~clk;  
 end
-assign vif.mapper_ready = dut.u_sb_mapper.mapper_ready;
+assign vif.mapper_rdy = dut.u_sb_mapper.mapper_rdy;
 // Interface Instantiation
 Link_controller_if vif(clk);
 
@@ -19,11 +19,11 @@ Link_controller_if vif(clk);
 Link_Controller dut(
     .clk               ( vif.clk               ),
     .rst_n             ( vif.rst_n             ),
-    .Link_msg_send     ( vif.Link_msg_send     ),
-    .Link_vld_send     ( vif.Link_vld_send     ),
-    .Adapter_msg_send  ( vif.Adapter_msg_send  ),
-    .Adapter_vld_send  ( vif.Adapter_vld_send  ),
-    .ser_ready         ( vif.ser_ready         ),
+    .trn_msg_send     ( vif.trn_msg_send     ),
+    .trn_vld_send     ( vif.trn_vld_send     ),
+    .adapter_msg_send  ( vif.adapter_msg_send  ),
+    .adapter_vld_send  ( vif.adapter_vld_send  ),
+    .ser_rdy         ( vif.ser_rdy         ),
     
     .pattern_mode      ( vif.pattern_mode      ),
     .start_pat_req     ( vif.start_pat_req     ),
@@ -34,18 +34,18 @@ Link_Controller dut(
     .ser_data_send     ( vif.ser_data_send     ),
     .ser_vld_send      ( vif.ser_vld_send      ),
     
-    .Adapter_ready     ( vif.Adapter_ready     ),
-    .Link_ready        ( vif.Link_ready        ),
+    .adapter_rdy     ( vif.adapter_rdy     ),
+    .trn_rdy        ( vif.trn_rdy        ),
 
     .det_pat_rcvd      ( vif.det_pat_rcvd      ),
 
     .des_data_rcvd     ( vif.des_data_rcvd     ),
     .des_vld_rcvd      ( vif.des_vld_rcvd      ),
 
-    .Adapter_msg_rcvd  ( vif.Adapter_msg_rcvd  ),
-    .Adapter_vld_rcvd  ( vif.Adapter_vld_rcvd  ),
-    .LINK_msg_rcvd     ( vif.LINK_msg_rcvd     ),
-    .Link_valid_rcvd   ( vif.Link_valid_rcvd   )
+    .adapter_msg_rcvd  ( vif.adapter_msg_rcvd  ),
+    .adapter_vld_rcvd  ( vif.adapter_vld_rcvd  ),
+    .trn_msg_rcvd     ( vif.trn_msg_rcvd     ),
+    .trn_vld_rcvd   ( vif.trn_vld_rcvd   )
 );
 
 
@@ -79,11 +79,11 @@ initial begin
     vif.pattern_mode = 0;
     vif.start_pat_req = 0;
     vif.send_4_iter = 0;
-    vif.ser_ready = 1;
-    vif.Link_msg_send = 0;
-    vif.Link_vld_send = 0;
-    vif.Adapter_msg_send = 0;
-    vif.Adapter_vld_send = 0;
+    vif.ser_rdy = 1;
+    vif.trn_msg_send = 0;
+    vif.trn_vld_send = 0;
+    vif.adapter_msg_send = 0;
+    vif.adapter_vld_send = 0;
     vif.des_data_rcvd = 0;
     vif.des_vld_rcvd = 0;
     

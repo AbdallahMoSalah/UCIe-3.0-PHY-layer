@@ -3,14 +3,14 @@ package Link_Controller_tb_pkg;
     import sb_pkg::*;
 
     class tx_transaction;
-        rand sb_packet_t Link_msg_send;
-        rand logic       Link_vld_send;
-        rand sb_packet_t Adapter_msg_send;
-        rand logic       Adapter_vld_send;
-        rand logic       ser_ready;
+        rand sb_packet_t trn_msg_send;
+        rand logic       trn_vld_send;
+        rand sb_packet_t adapter_msg_send;
+        rand logic       adapter_vld_send;
+        rand logic       ser_rdy;
 
         // Control and Status
-        logic mapper_ready;
+        logic mapper_rdy;
         logic pattern_mode;
         logic start_pat_req;
         logic send_4_iter;
@@ -29,13 +29,13 @@ package Link_Controller_tb_pkg;
         endfunction
 
         constraint c_basic {
-            ser_ready dist {0 := 80, 1 := 20};
+            ser_rdy dist {0 := 80, 1 := 20};
         }
 
         // Adapter message constraints (Aggregator-like)
         constraint Adapter_msg_c {
-            if (mapper_ready) {
-                Adapter_msg_send.header.msg.opcode inside {
+            if (mapper_rdy) {
+                adapter_msg_send.header.msg.opcode inside {
                     SB_32_MEM_READ               ,
                     SB_32_MEM_WRITE              ,
                     SB_32_DMS_REG_READ           ,
@@ -59,15 +59,15 @@ package Link_Controller_tb_pkg;
                     SB_PRIORITY_MSG2             
                 };
 
-                Adapter_msg_send.header.msg.srcid inside {
+                adapter_msg_send.header.msg.srcid inside {
                     STACK0       ,
                     ADAPTER      ,
                     MNGT_PORT_SRC,
                     STACK1
                 };
 
-                if (Adapter_msg_send.header.msg.srcid == ADAPTER || Adapter_msg_send.header.msg.srcid == MNGT_PORT_SRC) {
-                    Adapter_msg_send.header.msg.dstid inside { 
+                if (adapter_msg_send.header.msg.srcid == ADAPTER || adapter_msg_send.header.msg.srcid == MNGT_PORT_SRC) {
+                    adapter_msg_send.header.msg.dstid inside { 
                         LOCAL_PHY        ,
                         REMOTE_ADAPTER   ,
                         REMOTE_PHY       ,
@@ -75,48 +75,48 @@ package Link_Controller_tb_pkg;
                         MNGT_PORT_DST    
                     };
                 } else {
-                    Adapter_msg_send.header.msg.dstid == LOCAL_PHY;
+                    adapter_msg_send.header.msg.dstid == LOCAL_PHY;
                 }
             }
         }
 
         // Link message constraints (Packetizer-like)
         constraint Link_msg_c {
-            if (mapper_ready) {
-                Link_msg_send.header.msg.opcode inside {SB_MSG_WITHOUT_DATA, SB_MSG_WITH_64_DATA};
-                Link_msg_send.header.msg.srcid == PHY;
-                Link_msg_send.header.msg.dstid == REMOTE_PHY;
+            if (mapper_rdy) {
+                trn_msg_send.header.msg.opcode inside {SB_MSG_WITHOUT_DATA, SB_MSG_WITH_64_DATA};
+                trn_msg_send.header.msg.srcid == PHY;
+                trn_msg_send.header.msg.dstid == REMOTE_PHY;
             }
         }
 
         // Backpressure and Randomization Hold
         constraint backpressure_c {
-            if (!mapper_ready) {
+            if (!mapper_rdy) {
                 // Hold valid if it was 1
-                if (prev_Link_vld) Link_vld_send == 1;
-                if (prev_Adapter_vld) Adapter_vld_send == 1;
+                if (prev_Link_vld) trn_vld_send == 1;
+                if (prev_Adapter_vld) adapter_vld_send == 1;
             } else {
                 // Normal randomization
-                Link_vld_send    dist {1 := 40, 0 := 60};
-                Adapter_vld_send dist {1 := 40, 0 := 60};
+                trn_vld_send    dist {1 := 40, 0 := 60};
+                adapter_vld_send dist {1 := 40, 0 := 60};
             }
         }
 
         function void pre_randomize();
-            if (!mapper_ready) begin
-                Link_msg_send.rand_mode(0);
-                Adapter_msg_send.rand_mode(0);
+            if (!mapper_rdy) begin
+                trn_msg_send.rand_mode(0);
+                adapter_msg_send.rand_mode(0);
             end else begin
-                Link_msg_send.rand_mode(1);
-                Adapter_msg_send.rand_mode(1);
+                trn_msg_send.rand_mode(1);
+                adapter_msg_send.rand_mode(1);
             end
         endfunction
 
         function void post_randomize();
-            prev_Link_msg    = Link_msg_send;
-            prev_Link_vld    = Link_vld_send;
-            prev_Adapter_msg = Adapter_msg_send;
-            prev_Adapter_vld = Adapter_vld_send;
+            prev_Link_msg    = trn_msg_send;
+            prev_Link_vld    = trn_vld_send;
+            prev_Adapter_msg = adapter_msg_send;
+            prev_Adapter_vld = adapter_vld_send;
         endfunction
     endclass
 
@@ -136,10 +136,10 @@ package Link_Controller_tb_pkg;
     endclass
 
     class rx_monitor_pkt;
-        logic [127:0] Adapter_msg_rcvd;
-        logic         Adapter_vld_rcvd;
-        logic [127:0] LINK_msg_rcvd;
-        logic         Link_valid_rcvd;
+        logic [127:0] adapter_msg_rcvd;
+        logic         adapter_vld_rcvd;
+        logic [127:0] trn_msg_rcvd;
+        logic         trn_vld_rcvd;
         logic         det_pat_rcvd;
     endclass
 
@@ -159,20 +159,20 @@ package Link_Controller_tb_pkg;
             pkt = new();
             forever begin
                 @(posedge vif.clk);
-                pkt.mapper_ready = vif.mapper_ready;
+                pkt.mapper_rdy = vif.mapper_rdy;
                 assert(pkt.randomize());
 
                 if ($time < 540) begin
-                    vif.Link_vld_send <= 0;
-                    vif.Adapter_vld_send <= 0;
+                    vif.trn_vld_send <= 0;
+                    vif.adapter_vld_send <= 0;
                 end else begin
-                    vif.Link_vld_send <= pkt.Link_vld_send;
-                    vif.Adapter_vld_send <= pkt.Adapter_vld_send;
+                    vif.trn_vld_send <= pkt.trn_vld_send;
+                    vif.adapter_vld_send <= pkt.adapter_vld_send;
                 end
                 
-                vif.Link_msg_send <= pkt.Link_msg_send;
-                vif.Adapter_msg_send <= pkt.Adapter_msg_send;
-                vif.ser_ready <= pkt.ser_ready;
+                vif.trn_msg_send <= pkt.trn_msg_send;
+                vif.adapter_msg_send <= pkt.adapter_msg_send;
+                vif.ser_rdy <= pkt.ser_rdy;
             end
         endtask
     endclass
@@ -228,22 +228,22 @@ package Link_Controller_tb_pkg;
                 @(posedge vif.clk);
 
                 // Sample TX Side Inputs
-                if (vif.Link_vld_send || vif.Adapter_vld_send || vif.ser_ready || vif.start_pat_req || vif.send_4_iter) begin
+                if (vif.trn_vld_send || vif.adapter_vld_send || vif.ser_rdy || vif.start_pat_req || vif.send_4_iter) begin
                     tx_in = new();
-                    tx_in.Link_msg_send = vif.Link_msg_send;
-                    tx_in.Link_vld_send = vif.Link_vld_send;
-                    tx_in.Adapter_msg_send = vif.Adapter_msg_send;
-                    tx_in.Adapter_vld_send = vif.Adapter_vld_send;
-                    tx_in.ser_ready = vif.ser_ready;
+                    tx_in.trn_msg_send = vif.trn_msg_send;
+                    tx_in.trn_vld_send = vif.trn_vld_send;
+                    tx_in.adapter_msg_send = vif.adapter_msg_send;
+                    tx_in.adapter_vld_send = vif.adapter_vld_send;
+                    tx_in.ser_rdy = vif.ser_rdy;
                     tx_in.pattern_mode = vif.pattern_mode;
                     tx_in.start_pat_req = vif.start_pat_req;
                     tx_in.send_4_iter = vif.send_4_iter;
-                    tx_in.mapper_ready = vif.mapper_ready;
+                    tx_in.mapper_rdy = vif.mapper_rdy;
                     tx_in_mbx.put(tx_in);
                 end
 
                 // Sample TX Side Outputs
-                if (vif.ser_vld_send && vif.ser_ready) begin
+                if (vif.ser_vld_send && vif.ser_rdy) begin
                     tx_out = new();
                     tx_out.ser_data_send = vif.ser_data_send;
                     tx_out.ser_vld_send = vif.ser_vld_send;
@@ -260,12 +260,12 @@ package Link_Controller_tb_pkg;
                 end
 
                 // Sample RX Side Outputs
-                if (vif.Adapter_vld_rcvd || vif.Link_valid_rcvd || vif.det_pat_rcvd) begin
+                if (vif.adapter_vld_rcvd || vif.trn_vld_rcvd || vif.det_pat_rcvd) begin
                     rx_out = new();
-                    rx_out.Adapter_msg_rcvd = vif.Adapter_msg_rcvd;
-                    rx_out.Adapter_vld_rcvd = vif.Adapter_vld_rcvd;
-                    rx_out.LINK_msg_rcvd = vif.LINK_msg_rcvd;
-                    rx_out.Link_valid_rcvd = vif.Link_valid_rcvd;
+                    rx_out.adapter_msg_rcvd = vif.adapter_msg_rcvd;
+                    rx_out.adapter_vld_rcvd = vif.adapter_vld_rcvd;
+                    rx_out.trn_msg_rcvd = vif.trn_msg_rcvd;
+                    rx_out.trn_vld_rcvd = vif.trn_vld_rcvd;
                     rx_out.det_pat_rcvd = vif.det_pat_rcvd;
                     rx_out_mbx.put(rx_out);
                 end
@@ -330,8 +330,8 @@ package Link_Controller_tb_pkg;
                     end
 
                 end else begin
-                    if ((pkt.Link_vld_send || pkt.Adapter_vld_send) && pkt.mapper_ready) begin
-                        winner = pkt.Link_vld_send ? pkt.Link_msg_send : pkt.Adapter_msg_send;
+                    if ((pkt.trn_vld_send || pkt.adapter_vld_send) && pkt.mapper_rdy) begin
+                        winner = pkt.trn_vld_send ? pkt.trn_msg_send : pkt.adapter_msg_send;
                         
                         // Cycle 1: LSB (Header)
                         exp = new();
@@ -365,8 +365,8 @@ package Link_Controller_tb_pkg;
                             pattern_match_cnt++;
                             if (pattern_match_cnt >= 2) begin
                                 exp = new();
-                                exp.Adapter_vld_rcvd = 0;
-                                exp.Link_valid_rcvd = 0;
+                                exp.adapter_vld_rcvd = 0;
+                                exp.trn_vld_rcvd = 0;
                                 exp.det_pat_rcvd = 1;
                                 expected_rx_mbx.put(exp);
                             end
@@ -389,16 +389,16 @@ package Link_Controller_tb_pkg;
                     end
                     
                     exp = new();
-                    exp.Adapter_vld_rcvd = 0;
-                    exp.Link_valid_rcvd = 0;
+                    exp.adapter_vld_rcvd = 0;
+                    exp.trn_vld_rcvd = 0;
                     exp.det_pat_rcvd = 0;
                     // Demux logic based on dstid
                     if (rcvd_pkt.header.msg.dstid == REMOTE_PHY) begin
-                        exp.LINK_msg_rcvd = rcvd_pkt;
-                        exp.Link_valid_rcvd = 1;
+                        exp.trn_msg_rcvd = rcvd_pkt;
+                        exp.trn_vld_rcvd = 1;
                     end else begin
-                        exp.Adapter_msg_rcvd = rcvd_pkt;
-                        exp.Adapter_vld_rcvd = 1;
+                        exp.adapter_msg_rcvd = rcvd_pkt;
+                        exp.adapter_vld_rcvd = 1;
                     end
                     expected_rx_mbx.put(exp);
                 end
@@ -429,12 +429,12 @@ package Link_Controller_tb_pkg;
                 expected_rx_mbx.get(exp);
                 mon.rx_out_mbx.get(wd);
 
-                if (wd.Adapter_vld_rcvd !== exp.Adapter_vld_rcvd || 
-                    wd.Link_valid_rcvd !== exp.Link_valid_rcvd ||
+                if (wd.adapter_vld_rcvd !== exp.adapter_vld_rcvd || 
+                    wd.trn_vld_rcvd !== exp.trn_vld_rcvd ||
                     wd.det_pat_rcvd !== exp.det_pat_rcvd) begin
                     $display("[%0t] Link_Controller RX mismatch exp_vld={A:%0d, L:%0d, P:%0d} got_vld={A:%0d, L:%0d, P:%0d}", 
-                             $time, exp.Adapter_vld_rcvd, exp.Link_valid_rcvd, exp.det_pat_rcvd,
-                             wd.Adapter_vld_rcvd, wd.Link_valid_rcvd, wd.det_pat_rcvd);
+                             $time, exp.adapter_vld_rcvd, exp.trn_vld_rcvd, exp.det_pat_rcvd,
+                             wd.adapter_vld_rcvd, wd.trn_vld_rcvd, wd.det_pat_rcvd);
                     rx_fail++;
                 end else begin
                     rx_pass++;

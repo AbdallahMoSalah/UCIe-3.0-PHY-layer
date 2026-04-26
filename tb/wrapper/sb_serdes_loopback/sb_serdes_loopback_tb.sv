@@ -12,7 +12,7 @@ logic pmo_en;
 // TX side
 logic [DATA_WIDTH-1:0] tx_parallel_data;
 logic tx_data_valid;
-logic tx_ready;
+logic tx_rdy;
 
 // serial link
 logic tx_serial_out;
@@ -49,7 +49,7 @@ sb_serializer serializer (
 
     .tx_parallel_data(tx_parallel_data),
     .tx_data_valid(tx_data_valid),
-    .tx_ready(tx_ready),
+    .tx_rdy(tx_rdy),
 
     .tx_serial_out(tx_serial_out),
     .TXCKSB(TXCKSB)
@@ -75,7 +75,7 @@ bind sb_serializer sb_serializer_sva SVA_ser (
 
     .tx_parallel_data(tx_parallel_data),
     .tx_data_valid(tx_data_valid),
-    .tx_ready(tx_ready),
+    .tx_rdy(tx_rdy),
 
     .tx_serial_out(tx_serial_out),
     .TXCKSB(TXCKSB)
@@ -120,7 +120,7 @@ task send_packet(input logic [63:0] data);
 
     @(negedge clk);
 
-    while(!tx_ready)
+    while(!tx_rdy)
         @(negedge clk);
 
     tx_parallel_data = data;
@@ -266,7 +266,7 @@ endtask
 task send_random(); 
     
     @(negedge clk);
-    obj.tx_ready = tx_ready;
+    obj.tx_rdy = tx_rdy;
     assert(obj.randomize());
     
     rst_n = obj.rst_n;

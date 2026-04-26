@@ -9,7 +9,7 @@ logic clk;
 // LINK
 logic [127:0] LINK_msg;
 logic LINK_vld;
-logic LINK_ready;
+logic trn_rdy;
 
 // adapter
 logic [127:0] adapter_msg;
@@ -17,7 +17,7 @@ logic adapter_not_empty;
 logic adapter_rd_en;
 
 // downstream
-logic mapper_ready;
+logic mapper_rdy;
 
 // outputs
 logic [127:0] msg_word_send;
@@ -32,19 +32,18 @@ Link_Arbiter_tb_class obj = new();
 // DUT
 //////////////////////////////////////////////////
 
-Link_Arbiter dut (
-    .Link_msg_send(LINK_msg),
-    .Link_vld_send(LINK_vld),
-    .Link_ready(LINK_ready),
-
-    .Adapter_msg_send(adapter_msg),
-    .Adapter_vld_send(adapter_not_empty),
-    .Adapter_ready(adapter_rd_en),
-
-    .mapper_ready(mapper_ready),
-
-    .msg_word_send(msg_word_send),
-    .word_vld_send(valid_s)
+sb_priority_arbiter #(
+    .DATA_WIDTH(128)
+) dut (
+    .hip_msg(LINK_msg),
+    .hip_vld(LINK_vld),
+    .hip_rdy(trn_rdy),
+    .lop_msg(adapter_msg),
+    .lop_vld(adapter_not_empty),
+    .lop_rdy(adapter_rd_en),
+    .out_msg(msg_word_send),
+    .out_vld(valid_s),
+    .out_rdy(mapper_rdy)
 );
 
 //////////////////////////////////////////////////
@@ -63,46 +62,46 @@ end
 initial begin
 // send 128-bit message on LINK
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 0;
 LINK_vld = 0;
 adapter_msg = 128'h11111111_11111111_11111111_11111111;
 adapter_not_empty = 0;
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 128'hDEADBEEF_DEADBEEF_DEADBEEF_DEADBEEF;
 LINK_vld = 1;
 adapter_msg = 128'h11111111_11111111_11111111_11111111;
 adapter_not_empty = 0;
 // back to back msg 
 @(posedge clk);
-mapper_ready = 0; 
+mapper_rdy = 0; 
 LINK_msg = 128'hD0000000_D0000000_DE000000_DEADBEEF;
 LINK_vld = 1;
 adapter_msg = 128'h11111111_11111111_11111111_11111111;
 adapter_not_empty = 0;
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 128'hD0000000_D0000000_DE000000_DEADBEEF;
 LINK_vld = 1;
 adapter_msg = 128'h11111111_11111111_11111111_11111111;
 adapter_not_empty = 0;
 //////
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 128'hD0000000_D0000000_DEADBEEF_DEADBEEF;
 LINK_vld = 0;
 adapter_msg = 128'h11111111_11111111_11111111_11111111;
 adapter_not_empty = 0;
 // send adapter msg
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 0;
 LINK_vld = 0;
 adapter_msg = 128'hCAFEBABE_CAFEBABE_CAFEBABE_CAFEBABE;
 adapter_not_empty = 1;
 @(posedge clk);
-mapper_ready = 1; 
+mapper_rdy = 1; 
 LINK_msg = 0;
 LINK_vld = 0;
 adapter_msg = 128'hCAFEBABE_CAFEBABE_CAFEBABE_CAFEBABE;
@@ -136,7 +135,7 @@ task automatic drive();
     adapter_msg       <= obj.adapter_msg;
     adapter_not_empty <= obj.adapter_not_empty;
 
-    mapper_ready      <= obj.mapper_ready;
+    mapper_rdy      <= obj.mapper_rdy;
 
 endtask
 
@@ -151,15 +150,15 @@ task check();
 if (
     (msg_word_send !== obj.exp_msg) ||
     (valid_s       !== obj.exp_valid) ||
-    (LINK_ready    !== obj.exp_LINK_ready) ||
+    (trn_rdy    !== obj.exp_LINK_rdy) ||
     (adapter_rd_en !== obj.exp_adapter_rd_en)
 )
 begin
 
     $display("FAIL @%0t", $time);
 
-    $display("LINK_vld=%0b adapter_vld=%0b mapper_ready=%0b",
-        LINK_vld, adapter_not_empty, mapper_ready);
+    $display("LINK_vld=%0b adapter_vld=%0b mapper_rdy=%0b",
+        LINK_vld, adapter_not_empty, mapper_rdy);
 
     $display("msg_exp=%h msg_dut=%h",
         obj.exp_msg, msg_word_send);
@@ -167,8 +166,8 @@ begin
     $display("valid_exp=%0b valid_dut=%0b",
         obj.exp_valid, valid_s);
 
-    $display("LINK_ready_exp=%0b LINK_ready_dut=%0b",
-        obj.exp_LINK_ready, LINK_ready);
+    $display("LINK_rdy_exp=%0b LINK_rdy_dut=%0b",
+        obj.exp_LINK_rdy, trn_rdy);
 
     $display("adapter_rd_en_exp=%0b adapter_rd_en_dut=%0b",
         obj.exp_adapter_rd_en, adapter_rd_en);

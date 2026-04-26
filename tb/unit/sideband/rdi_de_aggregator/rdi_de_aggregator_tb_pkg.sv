@@ -149,32 +149,32 @@ package rdi_de_aggregator_tb_pkg;
             pkt = new();
             vif.pl_msg_vld = 0;
             vif.pl_msg = '0;
-            vif.traffic_ready = 0;
+            vif.traffic_rdy = 0;
 
             fork
                 // Thread 1: Stimulus Generation
                 forever begin
                     @(negedge vif.clk);
-                    if(vif.pl_msg_ready || !vif.pl_msg_vld) begin
+                    if(vif.pl_msg_rdy || !vif.pl_msg_vld) begin
                         assert(pkt.randomize());
                         vif.pl_msg_vld = pkt.in_valid;
                         vif.pl_msg = pkt.data_drive;
                     end
                 end
 
-                // Thread 2: traffic_ready handshake responder
+                // Thread 2: traffic_rdy handshake responder
                 forever begin
                     @(negedge vif.clk);
-                    // Drive traffic_ready randomly mostly when traffic_req is asserted
+                    // Drive traffic_rdy randomly mostly when traffic_req is asserted
                     if (vif.traffic_req) begin
-                        // Wait random 0-5 cycles to test back-pressure, then pulse ready
+                        // Wait random 0-5 cycles to test back-pressure, then pulse rdy
                         int delay = $urandom_range(0, 3);
                         repeat(delay) @(negedge vif.clk);
-                        vif.traffic_ready = 1'b1;
+                        vif.traffic_rdy = 1'b1;
                         @(negedge vif.clk);
-                        vif.traffic_ready = 1'b0;
+                        vif.traffic_rdy = 1'b0;
                     end else begin
-                        vif.traffic_ready = 1'b0;
+                        vif.traffic_rdy = 1'b0;
                     end
                 end
             join
@@ -208,7 +208,7 @@ package rdi_de_aggregator_tb_pkg;
                 @(posedge vif.clk);
 
                 // input handshake
-                if(vif.pl_msg_vld && vif.pl_msg_ready) begin
+                if(vif.pl_msg_vld && vif.pl_msg_rdy) begin
 
                     pkt = new();
                     pkt.data_drive = sb_packet_t'(vif.pl_msg);

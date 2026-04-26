@@ -10,8 +10,8 @@ module sb_mapper_tb;
         .rst_n(sb_mapperif.rst_n),
         .msg_word_send(sb_mapperif.msg_word_send),
         .word_vld_send(sb_mapperif.word_vld_send),
-        .ser_ready(sb_mapperif.ser_ready),
-        .mapper_ready(sb_mapperif.mapper_ready),
+        .ser_rdy(sb_mapperif.ser_rdy),
+        .mapper_rdy(sb_mapperif.mapper_rdy),
         .msg_send(sb_mapperif.msg_send),
         .msg_vld_send(sb_mapperif.msg_vld_send)
     );
