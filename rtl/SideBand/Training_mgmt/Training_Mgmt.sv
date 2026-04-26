@@ -135,7 +135,7 @@ module Training_Mgmt #(
 
     arbiter u_arbiter (
         .clk            (clk_sb),
-        .rst_n          (rst_sb_n),
+        .reset_n        (rst_sb_n),
         
         // From FIFOs
         .rdi_msg_fifo   (rdi_msg_fifo_rd),

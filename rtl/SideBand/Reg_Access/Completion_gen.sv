@@ -93,8 +93,8 @@ always_comb begin
     cpl_hdr.cpl.status = status;
 
     // Swap srcid/dstid reserved for
-    cpl_hdr.cpl.srcid  = '0;   
-    cpl_hdr.cpl.dstid  = '0;   
+    cpl_hdr.cpl.srcid  = sb_srcid_e'(0);   
+    cpl_hdr.cpl.dstid  = sb_dstid_e'(0);   
 
     // Mirror Byte Enables (BE)
     cpl_hdr.cpl.be     = req_hdr.req.be;

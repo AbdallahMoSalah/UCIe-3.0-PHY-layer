@@ -42,7 +42,7 @@ module rdi_de_aggregator
     // opcode decode
     ////////////////////////////////////////
 
-    assign in_opcode = sb_opcode_e'(pl_msg.header.opcode);
+    assign in_opcode = pl_msg.header.req.opcode;
 
     always_comb begin
 

@@ -85,7 +85,7 @@ end
 // Unpack header fields from the latched packet
 // ---------------------------------------------------------------------------
 sb_header_u hdr;
-assign hdr = 'sb_header_u(latched_pkt[63:0]);   // Header occupies lower 64 bits
+assign hdr = sb_header_u'(latched_pkt[63:0]);   // Header occupies lower 64 bits
 
 // ---------------------------------------------------------------------------
 // Always-comb outputs – decoded purely from latched packet

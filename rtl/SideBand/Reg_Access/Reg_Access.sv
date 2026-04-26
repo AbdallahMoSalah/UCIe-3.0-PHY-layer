@@ -107,7 +107,6 @@ Reg_DePacketizer u_depacketizer (
 Reg_Access_FSM u_fsm (
     .clk             (clk),
     .rst_n           (rst_n),
-    .phy_in_reset    (phy_in_reset),
     // Handshake
     .reg_vld         (reg_vld),
     .reg_rdy         (reg_rdy),
