@@ -161,9 +161,9 @@ module SideBand_Top_tb;
     assign rx_serial_in[1] = tx_serial_out[0];
 
     // =========================================================================
-    // Test Sequence
+    // Test Tasks
     // =========================================================================
-    initial begin
+    task reset_and_init();
         // Initialize inputs
         rst_main_n = 0;
         rst_sb_n = 0;
@@ -201,10 +201,9 @@ module SideBand_Top_tb;
         
         // Let clocks align and logic settle
         #100;
-        
-        // =========================================================
-        // Pattern Sequence Test (Realistic Scenario)
-        // =========================================================
+    endtask
+
+    task run_pattern_sequence();
         $display("[%0t] TEST: Starting realistic pattern test sequence", $time);
 
         @(posedge clk_sb);
@@ -280,6 +279,14 @@ module SideBand_Top_tb;
 
         // Wait a few clocks to ensure stable transition
         repeat(50) @(posedge clk_sb);
+    endtask
+
+    // =========================================================================
+    // Test Sequence
+    // =========================================================================
+    initial begin
+        reset_and_init();
+        run_pattern_sequence();
 
         $display("----------------------------------------");
         $display("TEST PASSED");
