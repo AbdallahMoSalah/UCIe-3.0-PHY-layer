@@ -38,48 +38,82 @@ module ltsm_tb_attachments #(
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     import UCIe_pkg::*;
 
-    reg       rx_sb_msg_valid_reg  ; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
-    reg       tx_sb_msg_valid_pulse; // A register to hold the valid signal for the received SB message, used for generating a pulse of "rx_sb_msg_valid" for one cycle.
-    integer   sb_msg_waiting_time  ; // A counter to track the waiting time for the SB message to be received, used for testing the timeout condition.
+    reg       rx_sb_msg_valid_reg  ; // A register to hold the valid signal for the received SB message.
+    reg       tx_sb_msg_valid_pulse; // Pulse flag for tx_sb_msg_valid, stretched across SB_TX_PULSE_WIDTH lclk cycles.
+    integer   sb_msg_waiting_time  ; // Counts SB clk cycles after activate.
     reg       activate_sb_tx_rx    ;
+    msg_no_e  stable_tx_sb_msg     ; // lclk-registered copy of active TX message, safe to read on any edge.
+    reg       first_sb_clk_edge = 1'b1;
+
+    // Sample the active TX message every lclk cycle into a stable register.
+    // This avoids cross-domain race when the sb_clk block reads it at cycle 127.
+    always @(posedge intf.lclk or negedge intf.rst_n) begin
+        if (!intf.rst_n) begin
+            stable_tx_sb_msg <= NOTHING;
+        end else begin
+            // When rx_pt_en=1: unit_RX_D2C_PT owns SB; else RXDESKEW FSM owns SB.
+            stable_tx_sb_msg <= intf.rx_pt_en ? d2c_mux_in1_if.tx_sb_msg : intf.tx_sb_msg;
+        end
+    end
+
+    reg first_lclk_edge = 1'b1;
+    always @(posedge intf.lclk) begin
+        if (first_lclk_edge) begin
+            //$display("[%0t ps] ltsm_tb_attachments: LCLK is toggling!", $realtime);
+            first_lclk_edge <= 1'b0;
+        end
+        if (tx_sb_msg_valid_pulse) begin
+            //$display("[%0t ps] ltsm_tb_attachments: LCLK domain: tx_sb_msg_valid_pulse=1, stable_tx_sb_msg=%h, intf.tx_sb_msg=%h, d2c_mux_in1_if.tx_sb_msg=%h, rx_pt_en=%b", 
+            //    $realtime, stable_tx_sb_msg, intf.tx_sb_msg, d2c_mux_in1_if.tx_sb_msg, intf.rx_pt_en);
+        end
+    end
+
     always @(posedge sb_clk or negedge intf.rst_n) begin
+        if (first_sb_clk_edge && intf.rst_n) begin
+            //$display("[%0t ps] ltsm_tb_attachments: sb_clk is toggling!", $realtime);
+            first_sb_clk_edge <= 1'b0;
+        end
+
         if(!intf.rst_n) begin
-            // Reset the SB TX signals.
-            rx_sb_msg_valid_reg  <= 1'b0   ;
+            rx_sb_msg_valid_reg            <= 1'b0   ;
             d2c_mux_out_if.rx_sb_msg_valid <= 1'b0   ;
-            sb_msg_waiting_time  <= 0      ;
+            sb_msg_waiting_time            <= 0      ;
             d2c_mux_out_if.rx_sb_msg       <= NOTHING;
-            activate_sb_tx_rx    <= 1'b0   ;
+            activate_sb_tx_rx              <= 1'b0   ;
         end
         else begin
             d2c_mux_out_if.rx_sb_msg_valid <= rx_sb_msg_valid_reg;
 
-
             if(intf.tb_wait_timeout == 1'b0) begin
-                if(tx_sb_msg_valid_pulse == 1'b1) begin
+                // Activate echo-back on the first SB clock where tx_sb_msg_valid_pulse is high.
+                // stable_tx_sb_msg holds the lclk-registered active TX message — safe across domains.
+                if(tx_sb_msg_valid_pulse == 1'b1 && activate_sb_tx_rx == 1'b0 && stable_tx_sb_msg != NOTHING) begin
                     activate_sb_tx_rx <= 1;
                 end
 
                 if(activate_sb_tx_rx == 1'b1) begin
-                    sb_msg_waiting_time <= sb_msg_waiting_time + 1; // Increment the waiting time for the SB message to be received.
+                    sb_msg_waiting_time <= sb_msg_waiting_time + 1;
 
-                    // Wait till the SB MSG Receives the partner MSG:
+                    // Echo the captured stable TX message back as the partner's response:
                     if(sb_msg_waiting_time == 127) begin
-                        rx_sb_msg_valid_reg  <=  1'b1                  ; // Set the valid signal in "rx_sb_msg_valid_reg" to 1 to indicate that the SB message is now valid; also, store the previous value.
-                        d2c_mux_out_if.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en)? intf.tb_wrong_sb_msg : d2c_mux_out_if.tx_sb_msg; // Capture the received SB message.
-                        d2c_mux_out_if.rx_msginfo      <=  intf.tb_rx_msginfo   ; // Capture the received MsgInfo field of the SB message (that is coming from the testbench).
-                        d2c_mux_out_if.rx_data_field   <=  intf.tb_rx_data_field; // Capture the received Data field of the SB message (that is coming from the testbench).
+                        rx_sb_msg_valid_reg            <=  1'b1;
+                        d2c_mux_out_if.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? intf.tb_wrong_sb_msg : stable_tx_sb_msg;
+                        d2c_mux_out_if.rx_msginfo      <=  intf.tb_rx_msginfo   ;
+                        d2c_mux_out_if.rx_data_field   <=  intf.tb_rx_data_field;
                     end
-                    // Set the "rx_sb_msg_valid" signal activated for some times (using SB clk) (ex: 1 cycles):
-                    else if(sb_msg_waiting_time == (127 + 1) ) begin
+                    // Deassert valid after 1 SB clk cycle:
+                    else if(sb_msg_waiting_time == (127 + 1)) begin
                         rx_sb_msg_valid_reg <= 1'b0;
-                        sb_msg_waiting_time <= 0; // Clear the waiting time after the message is received and valid signal is deactivated.
+                        sb_msg_waiting_time <= 0;
                         activate_sb_tx_rx   <= 0;
+                    end
+                    else if (sb_msg_waiting_time == 10 || sb_msg_waiting_time == 50 || sb_msg_waiting_time == 100) begin
+                        //$display("[%0t ps] ltsm_tb_attachments: sb_msg_waiting_time=%0d, stable_tx_sb_msg=%h", $realtime, sb_msg_waiting_time, stable_tx_sb_msg);
                     end
                 end
 
             end else begin
-                rx_sb_msg_valid_reg <= 1'b0; // Clear the valid signal if the tx_sb_msg_valid is not active.
+                rx_sb_msg_valid_reg <= 1'b0;
             end
 
         end
@@ -99,11 +133,14 @@ module ltsm_tb_attachments #(
             tx_sb_msg_valid_pulse_counter <=  '0;
         end
         else begin
-            if(d2c_mux_out_if.tx_sb_msg_valid == 1'b1 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1) begin
+            // Monitor the mux output: covers both RXDESKEW FSM (2'b00) and unit_RX_D2C_PT (2'b01).
+            // In 2'b00: intf.tx_sb_msg_valid is set by the RXDESKEW FSM.
+            // In 2'b01: d2c_mux_in1_if.tx_sb_msg_valid is set by unit_RX_D2C_PT.
+            if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid) == 1'b1 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1) begin
                 tx_sb_msg_valid_pulse <= 1'b1;
                 tx_sb_msg_valid_pulse_counter <= tx_sb_msg_valid_pulse_counter + 1'b1;
             end
-            else if(d2c_mux_out_if.tx_sb_msg_valid == 1'b1) begin
+            else if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid) == 1'b1) begin
                 tx_sb_msg_valid_pulse         <= 1'b0;
                 tx_sb_msg_valid_pulse_counter <=  '0; // Reset so next assertion starts fresh
             end
@@ -143,7 +180,7 @@ module ltsm_tb_attachments #(
         // Here we can add any sequential behavior of the MB control signals if needed for the test scenarios.
         else begin
             // Send the data pattern:
-            if(d2c_mux_out_if.mb_tx_pattern_en) begin
+            if(d2c_mux_out_if.mb_tx_pattern_en || intf.rx_pt_en) begin
                 if(burst_counter != d2c_mux_out_if.mb_tx_burst_count && iter_counter != d2c_mux_out_if.mb_tx_iter_count) begin
                     burst_counter <= burst_counter + 1; // Increment the burst counter when the pattern is enabled (indicating a burst is being sent).
                 end

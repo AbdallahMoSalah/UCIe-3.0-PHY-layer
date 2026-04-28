@@ -25,8 +25,8 @@ module unit_TX_D2C_PT_tb ();
         TX_PT_CLR_ERR_REQ  = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_REQ , // (S3)
         TX_PT_CLR_ERR_RESP = unit_TX_D2C_PT_inst.TX_PT_CLR_ERR_RESP, // (S4)
         TX_PT_PATTERN_GEN  = unit_TX_D2C_PT_inst.TX_PT_PATTERN_GEN , // (S5)
-        TX_PT_RESULTS_REQ  = unit_TX_D2C_PT_inst.TX_PT_RESULTS_REQ  , // (S6)
-        TX_PT_RESULTS_RESP = unit_TX_D2C_PT_inst.TX_PT_RESULTS_RESP , // (S7)
+        TX_PT_RESULTS_REQ  = unit_TX_D2C_PT_inst.TX_PT_RESULTS_REQ , // (S6)
+        TX_PT_RESULTS_RESP = unit_TX_D2C_PT_inst.TX_PT_RESULTS_RESP, // (S7)
         TX_PT_END_REQ      = unit_TX_D2C_PT_inst.TX_PT_END_REQ     , // (S8)
         TX_PT_END_RESP     = unit_TX_D2C_PT_inst.TX_PT_END_RESP    , // (S9)
         TX_PT_DONE         = unit_TX_D2C_PT_inst.TX_PT_DONE        , // (S10)
@@ -50,7 +50,7 @@ module unit_TX_D2C_PT_tb ();
 
     // DUT Instantiation
     unit_TX_D2C_PT unit_TX_D2C_PT_inst (
-        .d2c_if(intf.d2c2substate_mp),
+        .substate_if(intf.d2c2substate_mp),
         .mux_if(intf.d2c2mux_mp)
     );
 
@@ -81,6 +81,8 @@ module unit_TX_D2C_PT_tb ();
         if (!rst_n) begin
             intf.rx_sb_msg_valid <= 0;
             intf.rx_sb_msg       <= msg_no_e'(0);
+            intf.rx_msginfo      <= 16'b0;
+            intf.rx_data_field   <= 64'b0;
             sb_wait_cnt          <= 0;
             last_tx_msg          <= NOTHING;
         end else if (intf.tx_sb_msg != last_tx_msg) begin
@@ -107,8 +109,8 @@ module unit_TX_D2C_PT_tb ();
                 default:                              resp_msg = NOTHING;
             endcase
             intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? msg_no_e'(intf.tb_wrong_sb_msg) : resp_msg;
-            intf.rx_msginfo      <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_req) ? intf.tb_rx_msginfo : intf.tx_msginfo;
-            intf.rx_data_field   <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_req) ? intf.tb_rx_data_field : intf.tx_data_field;
+            intf.rx_msginfo      <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_msginfo : intf.tx_msginfo;
+            intf.rx_data_field   <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_data_field : intf.tx_data_field;
             sb_wait_cnt          <= sb_wait_cnt + 1;
         end else if (sb_wait_cnt > 64) begin
             intf.rx_sb_msg_valid <= 0;
@@ -195,6 +197,8 @@ module unit_TX_D2C_PT_tb ();
         intf.tb_clk_err = 0;
         intf.tb_rx_msginfo = 0;
         intf.tb_rx_data_field = 0;
+        intf.cfg_train4_max_err_thresh_perlane = 0;
+        intf.cfg_train4_max_err_thresh_aggr    = 0;
         repeat(5) @(posedge lclk);
         rst_n = 1;
         repeat(1) @(posedge lclk);
@@ -237,7 +241,7 @@ module unit_TX_D2C_PT_tb ();
         input [1:0]  task_clk_sampling,
         input [2:0]  task_pattern_setup,
         input [1:0]  task_data_pattern_sel,
-        input [1:0]  task_val_pattern_sel,
+        input        task_val_pattern_sel,
         input        task_lfsr_en,
         input        task_pattern_mode,
         input [15:0] task_burst_count,
@@ -320,9 +324,204 @@ module unit_TX_D2C_PT_tb ();
         if (intf.d2c_perlane_err == 16'hBBBB) $display("  MATCH: Per-lane error field received correctly.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane error mismatch!"); fail_count++; $stop; end
 
-        // Randomized Logic (100 iterations)
-        $display("\nStarting 100 Randomized Iterations...");
-        for (int i = 0; i < 100; i++) begin
+        // Scenario 5: VALTRAINCENTER-like config (compare_setup=2, valid-lane mode)
+        $display("\n=========>  Test Scenario (%0d): VALTRAINCENTER Config (Valid Lane). <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0020; // partner val_err=1 at bit[5]
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b010),
+            .task_data_pattern_sel(2'b11), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b0), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd8), .task_idle_count(16'd0),
+            .task_iter_count(16'd128), .task_compare_setup(2'd2)
+        );
+        start_test();
+        if (intf.d2c_val_err == 1'b1 && intf.partner_valtraincenter_fail_flag == 1'b1)
+            $display("  MATCH: Valid-lane fail flag set correctly.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Valid-lane fail flag mismatch!"); fail_count++; $stop; end
+
+        // Scenario 6: DATATRAINCENTER1-like config (compare_setup=0, per-lane mode)
+        $display("\n=========>  Test Scenario (%0d): DATATRAINCENTER1 Config (Per-Lane). <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0000_0000_0000_0004; // lane 2 fail
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b011),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd4096), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+        if (intf.d2c_perlane_err == 16'h0004 && intf.partner_datatraincenter_fail_flag == 1'b1)
+            $display("  MATCH: Per-lane fail flag set correctly for lane 2.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane fail flag mismatch!"); fail_count++; $stop; end
+
+        // Scenario 7: Per-lane ALL PASS (fail_flag must be 0)
+        $display("\n=========>  Test Scenario (%0d): Per-Lane All Pass. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0; // no lane errors
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd50), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+        if (intf.partner_datatraincenter_fail_flag == 1'b0)
+            $display("  MATCH: Per-lane all-pass, fail_flag=0.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane all-pass fail_flag mismatch!"); fail_count++; $stop; end
+
+        // Scenario 8: Aggregate mode pass (bit[4]=0)
+        $display("\n=========>  Test Scenario (%0d): Aggregate Mode Pass. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0000; // bit[4]=0 -> pass
+        intf.tb_rx_data_field = 64'hFFFF; // per-lane irrelevant for aggr mode
+        set_d2c_configuration(
+            .task_clk_sampling(2'b01), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd50), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd1)
+        );
+        start_test();
+        if (intf.partner_datatraincenter_fail_flag == 1'b0)
+            $display("  MATCH: Aggregate pass, fail_flag=0.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Aggregate pass fail_flag mismatch!"); fail_count++; $stop; end
+
+        // Scenario 9: Valid-lane pass (bit[5]=0, fail_flag must be 0)
+        $display("\n=========>  Test Scenario (%0d): Valid Lane Pass. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0000; // bit[5]=0
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b010),
+            .task_data_pattern_sel(2'b11), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b0), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd8), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd2)
+        );
+        start_test();
+        if (intf.partner_valtraincenter_fail_flag == 1'b0)
+            $display("  MATCH: Valid-lane pass, fail_flag=0.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Valid pass fail_flag mismatch!"); fail_count++; $stop; end
+
+        // Scenario 10: Back-to-back without reset
+        $display("\n=========>  Test Scenario (%0d): Back-to-Back #1 (no reset). <=========", test_scenario_no++);
+        // Don't call reset() -- reuse previous state
+        intf.tb_wait_timeout = 0;
+        intf.tb_wrong_sb_msg_en = 0;
+        intf.tb_rx_msginfo    = 16'h0010; // aggr fail
+        intf.tb_rx_data_field = 64'hDEAD;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b10), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b01), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd20), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd1)
+        );
+        start_test();
+        if (intf.partner_datatraincenter_fail_flag == 1'b1 && intf.d2c_aggr_err == 16'h0001)
+            $display("  MATCH: Back-to-back #1 aggr fail correct.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Back-to-back #1 mismatch!"); fail_count++; $stop; end
+
+        $display("\n=========>  Test Scenario (%0d): Back-to-Back #2 (no reset). <=========", test_scenario_no++);
+        intf.tb_rx_msginfo    = 16'h0000;
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd10), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+        if (intf.partner_datatraincenter_fail_flag == 1'b0)
+            $display("  MATCH: Back-to-back #2 all-pass correct.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Back-to-back #2 mismatch!"); fail_count++; $stop; end
+
+        // Scenario 12: Burst mode
+        $display("\n=========>  Test Scenario (%0d): Burst Mode. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b1),
+            .task_burst_count(16'd10), .task_idle_count(16'd5),
+            .task_iter_count(16'd3), .task_compare_setup(2'd0)
+        );
+        start_test();
+
+        // Scenario 13: All lanes fail (0xFFFF)
+        $display("\n=========>  Test Scenario (%0d): All Lanes Fail. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0030; // both val and aggr fail
+        intf.tb_rx_data_field = 64'h0000_0000_0000_FFFF;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd50), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+        if (intf.d2c_perlane_err == 16'hFFFF && intf.partner_datatraincenter_fail_flag == 1'b1)
+            $display("  MATCH: All lanes fail correctly.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("All lanes fail mismatch!"); fail_count++; $stop; end
+
+        // Scenario 14: Single lane fail (lane 15 only)
+        $display("\n=========>  Test Scenario (%0d): Single Lane 15 Fail. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0000_0000_0000_8000;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd50), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+        if (intf.d2c_perlane_err == 16'h8000 && intf.partner_datatraincenter_fail_flag == 1'b1)
+            $display("  MATCH: Lane 15 fail correctly detected.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Lane 15 fail mismatch!"); fail_count++; $stop; end
+
+        // Scenario 15: Clock sampling = Right Edge
+        $display("\n=========>  Test Scenario (%0d): Clock Sampling Right Edge. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b10), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b00), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b1), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd50), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+
+        // Scenario 16: Per-Lane ID pattern
+        $display("\n=========>  Test Scenario (%0d): Per-Lane ID Pattern. <=========", test_scenario_no++);
+        reset();
+        intf.tb_rx_msginfo    = 16'h0;
+        intf.tb_rx_data_field = 64'h0;
+        set_d2c_configuration(
+            .task_clk_sampling(2'b00), .task_pattern_setup(3'b001),
+            .task_data_pattern_sel(2'b01), .task_val_pattern_sel(1'b0),
+            .task_lfsr_en(1'b0), .task_pattern_mode(1'b0),
+            .task_burst_count(16'd2048), .task_idle_count(16'd0),
+            .task_iter_count(16'd1), .task_compare_setup(2'd0)
+        );
+        start_test();
+
+        // Randomized Logic (200 iterations)
+        $display("\nStarting 200 Randomized Iterations...");
+        for (int i = 0; i < 200; i++) begin
             $display("\n=========>  Test Scenario (%0d): Randomized Test. <=========", test_scenario_no++);
             reset();
             intf.tb_wait_timeout    = ($urandom_range(0, 9) == 0); // 10%
@@ -333,13 +532,13 @@ module unit_TX_D2C_PT_tb ();
                 .task_clk_sampling    ($urandom_range(0, 2)),
                 .task_pattern_setup   ($urandom_range(0, 7)),
                 .task_data_pattern_sel($urandom_range(0, 2)),
-                .task_val_pattern_sel ($urandom_range(0, 2)),
+                .task_val_pattern_sel ($urandom_range(0, 1)),
                 .task_lfsr_en         ($urandom_range(0, 1)),
                 .task_pattern_mode    ($urandom_range(0, 1)),
                 .task_burst_count     ($urandom_range(1, 100)),
                 .task_idle_count      ($urandom_range(0, 100)),
                 .task_iter_count      ($urandom_range(1, 10)),
-                .task_compare_setup   ($urandom_range(0, 3))
+                .task_compare_setup   ($urandom_range(0, 2))
             );
             
             intf.tb_aggr_err    = $urandom();
@@ -347,7 +546,6 @@ module unit_TX_D2C_PT_tb ();
             intf.tb_val_err     = $urandom_range(0,1);
             intf.tb_clk_err     = $urandom_range(0,1);
             
-            // Randomize partner results for SB echo
             intf.tb_rx_msginfo    = $urandom();
             intf.tb_rx_data_field = $urandom();
 

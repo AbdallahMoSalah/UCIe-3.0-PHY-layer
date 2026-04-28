@@ -1,6 +1,7 @@
 // This interface file needs these packages before we compile it:
 //      rtl/common/UCIe_pkg.sv
 //      rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
+//      rtl/MainSM/common/LTSM_state_pkg.sv
 
 interface internal_ltsm_if #(
         parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control.
@@ -16,9 +17,9 @@ interface internal_ltsm_if #(
 
     // current and previous states.
     import ltsm_state_n_pkg::state_n_e         ; state_n_e          state_n[3:0]            ; // for RF (to log the last 4 states names). state_n[0]: current state, state_n[1]: previous state, state_n[2]: previous previous state, state_n[3]: previous previous previous state.
-    import ltsm_state_n_pkg::ltsm_ctrl_state_e ; ltsm_ctrl_state_e  current_ltsm_state      ; // for RF (to know the current state)
-    import ltsm_state_n_pkg::mbinit_substate_e ; mbinit_substate_e  current_mbinit_substate ; // for RF (to know the current substate)
-    import ltsm_state_n_pkg::mbtrain_substate_e; mbtrain_substate_e current_mbtrain_substate; // for RF (to know the current substate)
+    import LTSM_state_pkg  ::LTSM_state_e      ; LTSM_state_e       current_ltsm_state      ; // for RF (to know the current unit_LTSM_ctrl state)
+    import ltsm_state_n_pkg::mbinit_substate_e ; mbinit_substate_e  current_mbinit_substate ; // for RF (to know the current unit_MBINIT_ctrl substate)
+    import ltsm_state_n_pkg::mbtrain_substate_e; mbtrain_substate_e current_mbtrain_substate; // for RF (to know the current unit_MBTRAIN_ctrl substate)
 
 
 
@@ -190,7 +191,8 @@ interface internal_ltsm_if #(
     logic [15:0] d2c_perlane_err  ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
     logic        d2c_val_err      ; // The error coming from Valid Lane receiver in MB.
     logic        d2c_clk_err      ; // The error coming from Clock Lane receiver in MB.
-
+    logic        partner_valtraincenter_fail_flag ; // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
+    logic        partner_datatraincenter_fail_flag; // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
 
     //=====================================//
     // Sideband Control Signals:           //
@@ -791,7 +793,10 @@ interface internal_ltsm_if #(
         output  d2c_aggr_err     , // The total calculated Aggregate Errors on Rx.
         output  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
         output  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
-        output  d2c_clk_err        // The error coming from Clock Lane receiver in MB.
+        output  d2c_clk_err      , // The error coming from Clock Lane receiver in MB.
+        output  partner_valtraincenter_fail_flag , // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
+        output  partner_datatraincenter_fail_flag  // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
+        // output  d2c_partner_tx_fail_flag           // Driven by TX D2C PT FSM: overall pass/fail of the partner Tx side based on active compare mode.
     );
 
     //=======================================================================================//
@@ -1449,15 +1454,14 @@ interface internal_ltsm_if #(
         // Fail flags from prior sub-states (used in RXDESKEW_START_RESP and CHOOSE_PRESET).
         input  datatraincenter1_fail_flag, // Used in accumulative_error for EQ preset selection.
         input  valtraincenter_fail_flag  , // Used in accumulative_error and speed-degrade exit.
+        input  partner_valtraincenter_fail_flag , // Used to determine to know if partner needs to exit as fast as possible.
+        input  partner_datatraincenter_fail_flag, // Used to determine to know if partner needs a new Tx EQ Preset.
         output trainerror_req,
         // Re-entry signal: when TO_DTC1 fires, this tells controller to re-enable RXDESKEW
         // after DTC1 completes (loop counter is not reset on IDLE2 entry).
         output datatraincenter1_req, // Request DATATRAINCENTER1 re-entry from RXDESKEW.
-
-        // ======================= //
-        // Negotiated speed input  //
-        // ======================= //
-        input param_negotiated_max_speed, // 0=4GT/s…7=64GT/s — used to gate EQ preset loop.
+        input  current_ltsm_state,   // To know if the current unit_LTSM_ctrl state = RESET or not.
+        input  mb_rx_data_lane_mask, // To know the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
         // ======================= //
         // MB signals.             //
@@ -1472,6 +1476,7 @@ interface internal_ltsm_if #(
         output mb_rx_trk_lane_sel ,
 
         output phy_rx_deskew_ctrl, // Per-lane deskew code (unpacked [15:0] array in interface).
+        input  phy_negotiated_speed, // to know the max link speed.
 
         // ======================= //
         // EQ Preset signals       //

@@ -81,6 +81,10 @@ module unit_RXCLKCAL #() (
     reg [3:0] current_state, next_state, previous_state;
     wire      data_incoherence;
 
+    // To handle the case when the current_state == RXCLKCAL_DONE_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we expect to receive {MBTRAIN.RXCLKCAL done req}.
+    reg [3:0] req_msg_sent_timer;
+    reg       req_msg_rcvd      ;
+
     // This signal prevents SB message glitches whenever the state changes.
     // It is set to 1 for exactly 1 lclk cycle on any state transition,
     // which is the same cycle the output always block drives new values.
@@ -176,7 +180,8 @@ module unit_RXCLKCAL #() (
                 //      Wait for the partner to echo the same message back.
                 // -------------------------------------------------------------------
                 IQ_TCKN_L_SHIFT_REQ: begin
-                    if (rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req && rxclkcal_if.rx_sb_msg_valid == 1'b1)
+                    if ((rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req && rxclkcal_if.rx_sb_msg_valid == 1'b1) ||
+                            (req_msg_rcvd && req_msg_sent_timer == 4'hF)) // To handle the case when the current_state == IQ_TCKN_L_SHIFT_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we haven't received it yet.
                         next_state = IQ_APPLY_TCKN_L_SHIFT;
                     else
                         next_state = IQ_TCKN_L_SHIFT_REQ;
@@ -705,6 +710,33 @@ module unit_RXCLKCAL #() (
         else if (current_state == RXCLKCAL_IDLE) begin
             phy_tx_tckn_shift_reg      <= 5'b0; // Clear on return to IDLE.
             phy_tx_decrement_shift_reg <= 1'b0;
+        end
+    end
+
+
+    // -------------------------------------------------------------------
+    // In (S10) RXCLKCAL_DONE_REQ: we send {MBTRAIN.RXCLKCAL done req} and
+    //       suppose that we receive {MBTRAIN.RXCLKCAL done req} because of the sync.
+    //       The partner may still require another IQ iteration and send {TCKN_L shift req}
+    //       instead of done_req, so we loop back to (S5) IQ_TCKN_L_SHIFT_REQ in that case.
+    //
+    // Here is the problem: when we loop back to (S5) we will wait to receive the
+    //       {TCKN_L shift req} SB Msg again which is impossible because we already received it.
+    //       The {TCKN_L shift req} SB Msg has received but we didn't sent it yet.
+    //       So, the solution is to use a flag to indicate that we received the {TCKN_L shift req}
+    //       SB Msg and we are waiting to make sure the SB sends our req Msg correctly.
+    // -------------------------------------------------------------------
+    always @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin : TCKN_L_SHIFT_REQ_PROC
+        if(!rxclkcal_if.rst_n) begin
+            req_msg_rcvd       <= 1'b1   ;
+            req_msg_sent_timer <= 4'b0000;
+        end
+        else if(current_state == RXCLKCAL_DONE_REQ && (rxclkcal_if.rx_sb_msg_valid && rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req)) begin
+            req_msg_rcvd       <= 1'b1   ;
+            req_msg_sent_timer <= 4'b0000;
+        end
+        else if(current_state == IQ_TCKN_L_SHIFT_REQ) begin
+            req_msg_sent_timer <= req_msg_sent_timer + 1'b1;
         end
     end
 

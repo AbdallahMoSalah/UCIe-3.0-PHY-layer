@@ -108,7 +108,7 @@ module unit_VALTRAINVREF #(
                     if (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_resp && valtrainvref_if.rx_sb_msg_valid == 1'b1) begin
                         // valtraincenter_fail_flag is an INPUT: set by the previous
                         // VALTRAINCENTER sub-state and read here via the interface.
-                        next_state = (valtrainvref_if.valtraincenter_fail_flag) ? VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
+                        next_state = (valtrainvref_if.valtraincenter_fail_flag || d2c_if.d2c_partner_tx_fail_flag) ? VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
                     end else begin
                         next_state = VALTRAINVREF_START_RESP;
                     end

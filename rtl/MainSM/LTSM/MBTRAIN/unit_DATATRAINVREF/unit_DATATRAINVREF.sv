@@ -160,7 +160,7 @@ module unit_DATATRAINVREF #(
 
             // Width of the best (widest) recorded pass window for this lane.
             assign best_range[lane] = (found_pass[lane] == 1'b1) ?
-                                       (best_hi[lane] - best_lo[lane]) : '0;
+                (best_hi[lane] - best_lo[lane]) : '0;
             // Width of the current contiguous pass zone for this lane.
             assign zone_range[lane] = (swept_code_r - zone_min_r[lane]);
 
@@ -168,10 +168,10 @@ module unit_DATATRAINVREF #(
             // then switch to the per-lane optimal midpoint (best_vref_code) afterwards.
             assign dtvref_if.phy_rx_datavref_ctrl[lane] =
                 (current_state == DTVREF_START_REQ  ||
-                 current_state == DTVREF_START_RESP ||
-                 current_state == DTVREF_SET_VREF   ||
-                 current_state == DTVREF_RX_D2C_PT  ||
-                 current_state == DTVREF_LOG_RESULT) ? swept_code_r : best_vref_code[lane];
+                    current_state == DTVREF_START_RESP ||
+                    current_state == DTVREF_SET_VREF   ||
+                    current_state == DTVREF_RX_D2C_PT  ||
+                    current_state == DTVREF_LOG_RESULT) ? swept_code_r : best_vref_code[lane];
         end
     endgenerate
 
@@ -194,7 +194,7 @@ module unit_DATATRAINVREF #(
     always @(*) begin
         if (dtvref_if.timeout_8ms_occured |
                 (dtvref_if.rx_sb_msg == TRAINERROR_Entry_req &&
-                 dtvref_if.rx_sb_msg_valid)) begin
+                    dtvref_if.rx_sb_msg_valid)) begin
             next_state = TO_TRAINERROR;
         end else begin
             case (current_state)
@@ -203,47 +203,46 @@ module unit_DATATRAINVREF #(
                 end
                 DTVREF_START_REQ: begin
                     next_state = (dtvref_if.rx_sb_msg == MBTRAIN_DATATRAINVREF_start_req &&
-                                  dtvref_if.rx_sb_msg_valid) ?
-                                  DTVREF_START_RESP : DTVREF_START_REQ;
+                        dtvref_if.rx_sb_msg_valid) ?
+                        DTVREF_START_RESP : DTVREF_START_REQ;
                 end
                 // SPEC S2 shortcut: if dtc1_fail OR valtraincenter_fail -> skip sweep.
                 DTVREF_START_RESP: begin
                     if (dtvref_if.rx_sb_msg == MBTRAIN_DATATRAINVREF_start_resp &&
                             dtvref_if.rx_sb_msg_valid) begin
-                        next_state = (dtvref_if.datatraincenter1_fail_flag |
-                                      dtvref_if.valtraincenter_fail_flag) ?
-                                      DTVREF_END_REQ : DTVREF_SET_VREF;
+                        next_state = (dtvref_if.datatraincenter1_fail_flag | dtvref_if.valtraincenter_fail_flag | d2c_if.d2c_partner_tx_fail_flag) ?
+                            DTVREF_END_REQ : DTVREF_SET_VREF;
                     end else begin
                         next_state = DTVREF_START_RESP;
                     end
                 end
                 DTVREF_SET_VREF: begin
                     next_state = dtvref_if.analog_settle_time_done ?
-                                 DTVREF_RX_D2C_PT : DTVREF_SET_VREF;
+                        DTVREF_RX_D2C_PT : DTVREF_SET_VREF;
                 end
                 DTVREF_RX_D2C_PT: begin
                     next_state = d2c_if.test_d2c_done ?
-                                 DTVREF_LOG_RESULT : DTVREF_RX_D2C_PT;
+                        DTVREF_LOG_RESULT : DTVREF_RX_D2C_PT;
                 end
                 DTVREF_LOG_RESULT: begin
                     // swept_code_r is incremented in the sequential block.
                     // Transition to CALC_APPLY when the last code has been logged.
                     next_state = (swept_code_r == MAX_VREF_CODE[VW-1:0]) ?
-                                  DTVREF_CALC_APPLY : DTVREF_SET_VREF;
+                        DTVREF_CALC_APPLY : DTVREF_SET_VREF;
                 end
                 DTVREF_CALC_APPLY: begin
                     next_state = dtvref_if.analog_settle_time_done ?
-                                 DTVREF_END_REQ : DTVREF_CALC_APPLY;
+                        DTVREF_END_REQ : DTVREF_CALC_APPLY;
                 end
                 DTVREF_END_REQ: begin
                     next_state = (dtvref_if.rx_sb_msg == MBTRAIN_DATATRAINVREF_end_req &&
-                                  dtvref_if.rx_sb_msg_valid) ?
-                                  DTVREF_END_RESP : DTVREF_END_REQ;
+                        dtvref_if.rx_sb_msg_valid) ?
+                        DTVREF_END_RESP : DTVREF_END_REQ;
                 end
                 DTVREF_END_RESP: begin
                     next_state = (dtvref_if.rx_sb_msg == MBTRAIN_DATATRAINVREF_end_resp &&
-                                  dtvref_if.rx_sb_msg_valid) ?
-                                  TO_RXDESKEW : DTVREF_END_RESP;
+                        dtvref_if.rx_sb_msg_valid) ?
+                        TO_RXDESKEW : DTVREF_END_RESP;
                 end
                 TO_RXDESKEW: begin
                     next_state = dtvref_if.datatrainvref_en ? TO_RXDESKEW : DTVREF_IDLE;
