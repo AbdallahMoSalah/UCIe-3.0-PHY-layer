@@ -49,10 +49,12 @@ always_ff @(posedge clk or negedge rst_n) begin
             if(is_pattern) begin
 
                 if(pattern_cnt == 1) begin
-                    det_pat_rcvd <= 1;
+                    det_pat_rcvd <= 1'b1;
+                    pattern_cnt  <= 2'b0;
                 end
                 else begin
-                    pattern_cnt <= pattern_cnt + 1;
+                    pattern_cnt  <= pattern_cnt + 1'b1;
+                    det_pat_rcvd <= 1'b0;
                 end
 
             end
@@ -61,6 +63,9 @@ always_ff @(posedge clk or negedge rst_n) begin
                 det_pat_rcvd <= 0;
             end
 
+        end
+        else begin
+            det_pat_rcvd <= 0;
         end
 
     end

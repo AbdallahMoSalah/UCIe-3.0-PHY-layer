@@ -1,9 +1,9 @@
 package sb_pkg;
 
-parameter SB_FREQ = 100.0;
+parameter SB_FREQ = 100.0; // MHz
 parameter  SB_CLK = (1000/SB_FREQ);
 
-parameter  SERDES_FREQ = 800.0;
+parameter  SERDES_FREQ = 800.0; // MHz
 parameter  SERDES_CLK = (1000/SERDES_FREQ);
 
   typedef enum logic [4:0] {  //Opcode enum
