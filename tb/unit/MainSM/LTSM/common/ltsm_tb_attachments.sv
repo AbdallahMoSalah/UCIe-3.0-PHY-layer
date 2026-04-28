@@ -51,8 +51,10 @@ module ltsm_tb_attachments #(
         if (!intf.rst_n) begin
             stable_tx_sb_msg <= NOTHING;
         end else begin
-            // When rx_pt_en=1: unit_RX_D2C_PT owns SB; else RXDESKEW FSM owns SB.
-            stable_tx_sb_msg <= intf.rx_pt_en ? d2c_mux_in1_if.tx_sb_msg : intf.tx_sb_msg;
+            // When rx_pt_en=1: unit_RX_D2C_PT owns SB; tx_pt_en=1: unit_TX_D2C_PT owns SB; else RXDESKEW FSM owns SB.
+            stable_tx_sb_msg <= intf.rx_pt_en ? d2c_mux_in1_if.tx_sb_msg : 
+                                intf.tx_pt_en ? d2c_mux_in2_if.tx_sb_msg : 
+                                intf.tx_sb_msg;
         end
     end
 
@@ -136,11 +138,12 @@ module ltsm_tb_attachments #(
             // Monitor the mux output: covers both RXDESKEW FSM (2'b00) and unit_RX_D2C_PT (2'b01).
             // In 2'b00: intf.tx_sb_msg_valid is set by the RXDESKEW FSM.
             // In 2'b01: d2c_mux_in1_if.tx_sb_msg_valid is set by unit_RX_D2C_PT.
-            if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid) == 1'b1 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1) begin
+            // In 2'b10: d2c_mux_in2_if.tx_sb_msg_valid is set by unit_TX_D2C_PT.
+            if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid || d2c_mux_in2_if.tx_sb_msg_valid) == 1'b1 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1) begin
                 tx_sb_msg_valid_pulse <= 1'b1;
                 tx_sb_msg_valid_pulse_counter <= tx_sb_msg_valid_pulse_counter + 1'b1;
             end
-            else if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid) == 1'b1) begin
+            else if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid || d2c_mux_in2_if.tx_sb_msg_valid) == 1'b1) begin
                 tx_sb_msg_valid_pulse         <= 1'b0;
                 tx_sb_msg_valid_pulse_counter <=  '0; // Reset so next assertion starts fresh
             end
