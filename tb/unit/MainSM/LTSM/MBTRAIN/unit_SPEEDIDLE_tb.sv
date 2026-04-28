@@ -48,7 +48,7 @@ module unit_SPEEDIDLE_tb ();
         intf.tb_wait_timeout = 0;
         intf.tb_wrong_sb_msg_en = 0;
         intf.tb_wrong_sb_msg = NOTHING;
-        intf.state_n[1] = ltsm_state_n_pkg::MBTRAIN_DATAVREF;
+        intf.state_n[1] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         intf.param_negotiated_max_speed = 3'b001;
         #10;
         rst_n = 1;
@@ -93,7 +93,7 @@ module unit_SPEEDIDLE_tb ();
                             $display("Fail: Unexpected TRAINERROR");
                             $stop;
                         end
-                    end else if (intf.state_n[1] == ltsm_state_n_pkg::MBTRAIN_LINKSPEED && unit_SPEEDIDLE_inst.internal_phy_negotiated_speed == 3'b000 && !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
+                    end else if (intf.state_n[1] == ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED && unit_SPEEDIDLE_inst.internal_phy_negotiated_speed == 3'b000 && !intf.tb_wait_timeout && !intf.tb_wrong_sb_msg_en) begin
                         fail_count    = fail_count;
                         success_count = success_count + 1;
                         // No timeout needed if we degraded from 000
@@ -136,7 +136,7 @@ module unit_SPEEDIDLE_tb ();
                 wait(current_state == SPEEDIDLE_IDLE);
                 entered_states[0] = 1;
 
-                if (intf.state_n[1] == ltsm_state_n_pkg::MBTRAIN_LINKSPEED && unit_SPEEDIDLE_inst.internal_phy_negotiated_speed == 3'b000) begin
+                if (intf.state_n[1] == ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED && unit_SPEEDIDLE_inst.internal_phy_negotiated_speed == 3'b000) begin
                     // If degrade error, should immediately exit to TO_TRAINERROR
                     wait(current_state == TO_TRAINERROR);
                     entered_states[6] = 1;
@@ -191,26 +191,26 @@ module unit_SPEEDIDLE_tb ();
 
         // Scenario 1: Happy Path from DATAVREF
         $display("\n=========>  Test Scenario (%0d): Happy Path (DATAVREF) <=========", test_scenario_no++);
-        intf.state_n[1] = ltsm_state_n_pkg::MBTRAIN_DATAVREF;
+        intf.state_n[1] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         intf.param_negotiated_max_speed = 3'b010;
         start_test();
 
         // Scenario 2: Error on Degrade (from 4GT/s)
         $display("\n=========>  Test Scenario (%0d): Error on Degrade from 4GT/s <=========", test_scenario_no++);
         reset();
-        intf.state_n[1] = ltsm_state_n_pkg::MBTRAIN_LINKSPEED;
+        intf.state_n[1] = ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED;
         start_test();
 
         // Scenario 3: Timeout Settle
         $display("\n=========>  Test Scenario (%0d): Analog Settle Timeout <=========", test_scenario_no++);
         reset();
-        intf.state_n[1] = ltsm_state_n_pkg::MBTRAIN_DATAVREF;
+        intf.state_n[1] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         start_test(.abort_mb_or_sb_after(20)); // Should timeout
 
         // Scenario 4: Receive TRAINERROR
         $display("\n=========>  Test Scenario (%0d): Receive TRAINERROR SB Msg <=========", test_scenario_no++);
         reset();
-        intf.state_n[1] = ltsm_state_n_pkg::MBTRAIN_DATAVREF;
+        intf.state_n[1] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         start_test(.receive_wrong_sb_msg_after(5), .wrong_sb_msg(TRAINERROR_Entry_req));
 
         if (fail_count == 0) begin

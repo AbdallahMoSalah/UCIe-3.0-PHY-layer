@@ -66,7 +66,11 @@ module unit_TX_D2C_PT  #() (
         if(substate_if.substate_timeout_8ms_occured | (mux_if.rx_sb_msg == TRAINERROR_Entry_req && mux_if.rx_sb_msg_valid == 1'b1)) begin
             // (S11)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
-        end else begin
+        end
+        else if(!substate_if.tx_pt_en) begin
+            next_state = TX_PT_IDLE;
+        end
+        else begin
             case (current_state)
                 // (S0) IDLE state: Wait for the trigger to start the Rx D2C Pattern Test.
                 TX_PT_IDLE: begin
@@ -388,7 +392,7 @@ module unit_TX_D2C_PT  #() (
             // Set the per-lane/aggregate fail flag for data-lane compare modes.
             substate_if.partner_datatraincenter_fail_flag <=
                 (substate_if.d2c_compare_setup == 2'd0) ? |mux_if.rx_data_field[15:0] : // per-lane: any lane failed
-                (substate_if.d2c_compare_setup == 2'd1) ?  mux_if.rx_msginfo[4]        : // aggregate
+                (substate_if.d2c_compare_setup == 2'd1) ?  mux_if.rx_msginfo[4]       : // aggregate
                 1'b0; // not applicable for valid-lane mode
             // Set the valid-lane fail flag for valid-lane compare mode.
             substate_if.partner_valtraincenter_fail_flag <=

@@ -210,7 +210,7 @@ module unit_DATATRAINVREF #(
                 DTVREF_START_RESP: begin
                     if (dtvref_if.rx_sb_msg == MBTRAIN_DATATRAINVREF_start_resp &&
                             dtvref_if.rx_sb_msg_valid) begin
-                        next_state = (dtvref_if.datatraincenter1_fail_flag | dtvref_if.valtraincenter_fail_flag | d2c_if.d2c_partner_tx_fail_flag) ?
+                        next_state = (dtvref_if.valtraincenter_fail_flag | d2c_if.partner_valtraincenter_fail_flag) ?
                             DTVREF_END_REQ : DTVREF_SET_VREF;
                     end else begin
                         next_state = DTVREF_START_RESP;

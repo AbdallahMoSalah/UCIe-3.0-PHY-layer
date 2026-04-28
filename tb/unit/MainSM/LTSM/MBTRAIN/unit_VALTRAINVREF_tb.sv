@@ -133,6 +133,13 @@ module unit_VALTRAINVREF_tb ();
         intf.tb_rx_msginfo         = 16'B0;
         intf.tb_rx_data_field      = 64'B0;
         intf.valtraincenter_fail_flag = 1'b0; // default: previous VALTRAINCENTER succeeded
+
+        // Initialize D2C partner fail flags to 0 at simulation start.
+        // Without this, the signals power up as X, which can propagate into
+        // next-state combinational logic before the TX/RX D2C FSMs perform
+        // their first reset cycle and drive the signals to a known value.
+        intf.partner_valtraincenter_fail_flag  = 1'b0;
+        intf.partner_datatraincenter_fail_flag = 1'b0;
         #10;
         rst_n = 1;
     endtask

@@ -212,10 +212,10 @@ module unit_DATATRAINCENTER1 #(
         dtc1_if.mb_tx_data_lane_sel = 2'b00; // Low
         dtc1_if.mb_tx_val_lane_sel  = 2'b00; // Low
         dtc1_if.mb_tx_trk_lane_sel  = 2'b00; // Low
-        dtc1_if.mb_rx_clk_lane_sel  = 2'b01 ; // Enable
-        dtc1_if.mb_rx_data_lane_sel  = 2'b01 ; // Enable
-        dtc1_if.mb_rx_val_lane_sel  = 2'b01 ; // Enable
-        dtc1_if.mb_rx_trk_lane_sel  = 2'b00 ; // Disable
+        dtc1_if.mb_rx_clk_lane_sel  = 1'b1 ; // Enable
+        dtc1_if.mb_rx_data_lane_sel = 1'b1 ; // Enable
+        dtc1_if.mb_rx_val_lane_sel  = 1'b1 ; // Enable
+        dtc1_if.mb_rx_trk_lane_sel  = 1'b0 ; // Disable
 
         // SB defaults
         dtc1_if.tx_sb_msg_valid = 1'b0   ;

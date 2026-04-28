@@ -63,7 +63,7 @@ module ltsm_tb_attachments #(
             first_lclk_edge <= 1'b0;
         end
         if (tx_sb_msg_valid_pulse) begin
-            //$display("[%0t ps] ltsm_tb_attachments: LCLK domain: tx_sb_msg_valid_pulse=1, stable_tx_sb_msg=%h, intf.tx_sb_msg=%h, d2c_mux_in1_if.tx_sb_msg=%h, rx_pt_en=%b", 
+            //$display("[%0t ps] ltsm_tb_attachments: LCLK domain: tx_sb_msg_valid_pulse=1, stable_tx_sb_msg=%h, intf.tx_sb_msg=%h, d2c_mux_in1_if.tx_sb_msg=%h, rx_pt_en=%b",
             //    $realtime, stable_tx_sb_msg, intf.tx_sb_msg, d2c_mux_in1_if.tx_sb_msg, intf.rx_pt_en);
         end
     end
@@ -320,6 +320,8 @@ module ltsm_tb_attachments #(
                 intf.d2c_perlane_err = to_rx_d2c_if.d2c_perlane_err; // The Per-Lane Errors (Each bit represents one fail Data Lane).
                 intf.d2c_val_err     = to_rx_d2c_if.d2c_val_err    ; // The error coming from Valid Lane receiver in MB.
                 intf.d2c_clk_err     = to_rx_d2c_if.d2c_clk_err    ; // The error coming from Clock Lane receiver in MB.
+                intf.partner_valtraincenter_fail_flag  = to_tx_d2c_if.partner_valtraincenter_fail_flag ;
+                intf.partner_datatraincenter_fail_flag = to_tx_d2c_if.partner_datatraincenter_fail_flag;
 
             end
             2'b10: begin // for TX_D2C_PT
@@ -329,6 +331,8 @@ module ltsm_tb_attachments #(
                 intf.d2c_perlane_err      = to_tx_d2c_if.d2c_perlane_err     ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
                 intf.d2c_val_err          = to_tx_d2c_if.d2c_val_err         ; // The error coming from Valid Lane receiver in MB.
                 intf.d2c_clk_err          = to_tx_d2c_if.d2c_clk_err         ; // The error coming from Clock Lane receiver in MB.
+                intf.partner_valtraincenter_fail_flag  = to_tx_d2c_if.partner_valtraincenter_fail_flag ;
+                intf.partner_datatraincenter_fail_flag = to_tx_d2c_if.partner_datatraincenter_fail_flag;
             end
         endcase
         to_rx_d2c_if.rx_pt_en                     = intf.rx_pt_en                    ;

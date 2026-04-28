@@ -221,12 +221,12 @@ module unit_RX_D2C_PT_tb ();
             begin
                 @(posedge lclk);
                 intf.rx_pt_en <= 1'b1;
-                @(posedge lclk);
-                intf.rx_pt_en <= 1'b0;
-                $display("%10t ps: rx_pt_en pulsed.", $realtime());
+                $display("%10t ps: rx_pt_en asserted.", $realtime());
 
                 // Wait for done or error
                 wait(intf.test_d2c_done || unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR);
+                @(posedge lclk);
+                intf.rx_pt_en <= 1'b0;
                 
                 if (unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR) begin
                     if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin

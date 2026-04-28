@@ -209,10 +209,11 @@ module unit_TX_D2C_PT_tb ();
         $display("%12t ps: Triggering tx_pt_en.", $time);
         @(posedge lclk);
         intf.tx_pt_en = 1;
+        
+        wait(intf.test_d2c_done || intf.d2c_timeout_or_error || state_monitor == TO_TRAINERROR);
         @(posedge lclk);
         intf.tx_pt_en = 0;
         
-        wait(intf.test_d2c_done || intf.d2c_timeout_or_error);
         if (intf.test_d2c_done) begin
             if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
                 repeat(5) $display("\t\t ************************** ERROR **************************");
@@ -220,6 +221,7 @@ module unit_TX_D2C_PT_tb ();
                 fail_count++;
                 $stop;
             end else begin
+                wait(state_monitor == TX_PT_IDLE);
                 $display("%12t ps: Test completed successfully.", $time);
                 success_count++;
             end
@@ -229,6 +231,7 @@ module unit_TX_D2C_PT_tb ();
                 success_count++;
             end else begin
                 repeat(5) $display("\t\t ************************** ERROR **************************");
+                $display("%12t ps: wait unblocked! test_d2c_done=%b, d2c_timeout_or_error=%b, state_monitor=%s, timeout_cnt=%0d, rx_sb_valid=%b, rx_sb_msg=%s", $time, intf.test_d2c_done, intf.d2c_timeout_or_error, state_monitor.name(), timeout_cnt, intf.rx_sb_msg_valid, intf.rx_sb_msg.name());
                 $display("%12t ps: ERROR: Test transitioned to TO_TRAINERROR unexpectedly. <================================= [Error]", $time);
                 fail_count++;
                 $stop;

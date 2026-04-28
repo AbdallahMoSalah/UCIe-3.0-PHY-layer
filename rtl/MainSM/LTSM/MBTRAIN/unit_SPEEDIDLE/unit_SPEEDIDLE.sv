@@ -30,8 +30,8 @@ module unit_SPEEDIDLE #() (
     assign speedidle_if.phy_negotiated_speed = internal_phy_negotiated_speed; // connect the internal wire to the interface.
 
     // Condition to check if speed degrade is not possible because we are already at minimum speed (4 GT/s)
-    wire speed_degrade_error = (speedidle_if.state_n[1] == ltsm_state_n_pkg::MBTRAIN_LINKSPEED ||
-        speedidle_if.state_n[1] == ltsm_state_n_pkg::PHYRETRAIN) &&
+    wire speed_degrade_error = (speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED ||
+        speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_PHYRETRAIN) &&
         (internal_phy_negotiated_speed == 3'b000);
 
     // Current State Logic & Speed memory handling
@@ -46,13 +46,13 @@ module unit_SPEEDIDLE #() (
 
             // Speed logic based on the spec when transitioning from IDLE to processing SPEEDIDLE
             if (current_state == SPEEDIDLE_CONFIG_SPEED) begin
-                if (speedidle_if.state_n[1] == ltsm_state_n_pkg::MBTRAIN_DATAVREF) begin
+                if (speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF) begin
                     internal_phy_negotiated_speed <= speedidle_if.param_negotiated_max_speed;
-                end else if (speedidle_if.state_n[1] == ltsm_state_n_pkg::L1_L2) begin
+                end else if (speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_L1_L2) begin
                     // restore last active speed - assumed retained currently
                     internal_phy_negotiated_speed <= internal_phy_negotiated_speed;
-                end else if (speedidle_if.state_n[1] == ltsm_state_n_pkg::MBTRAIN_LINKSPEED ||
-                        speedidle_if.state_n[1] == ltsm_state_n_pkg::PHYRETRAIN) begin
+                end else if (speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED ||
+                        speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_PHYRETRAIN) begin
                     if (internal_phy_negotiated_speed != 3'b000) begin
                         internal_phy_negotiated_speed <= internal_phy_negotiated_speed - 1'b1;
                     end

@@ -108,7 +108,7 @@ module unit_VALTRAINVREF #(
                     if (valtrainvref_if.rx_sb_msg == MBTRAIN_VALTRAINVREF_start_resp && valtrainvref_if.rx_sb_msg_valid == 1'b1) begin
                         // valtraincenter_fail_flag is an INPUT: set by the previous
                         // VALTRAINCENTER sub-state and read here via the interface.
-                        next_state = (valtrainvref_if.valtraincenter_fail_flag || d2c_if.d2c_partner_tx_fail_flag) ? VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
+                        next_state = (valtrainvref_if.valtraincenter_fail_flag || d2c_if.partner_valtraincenter_fail_flag) ? VALTRAINVREF_END_REQ : VALTRAINVREF_SET_VREF_CODE;
                     end else begin
                         next_state = VALTRAINVREF_START_RESP;
                     end
@@ -211,10 +211,10 @@ module unit_VALTRAINVREF #(
         valtrainvref_if.mb_tx_data_lane_sel = 2'b00; // Low
         valtrainvref_if.mb_tx_val_lane_sel  = 2'b01; // Active
         valtrainvref_if.mb_tx_trk_lane_sel  = 2'b00; // Low
-        valtrainvref_if.mb_rx_clk_lane_sel  = 2'b01 ; // Enabled
-        valtrainvref_if.mb_rx_data_lane_sel  = 2'b00 ; // Disabled
-        valtrainvref_if.mb_rx_val_lane_sel  = 2'b01 ; // Enabled
-        valtrainvref_if.mb_rx_trk_lane_sel  = 2'b00 ; // Disabled
+        valtrainvref_if.mb_rx_clk_lane_sel  = 1'b1 ; // Enabled
+        valtrainvref_if.mb_rx_data_lane_sel = 1'b0 ; // Disabled
+        valtrainvref_if.mb_rx_val_lane_sel  = 1'b1 ; // Enabled
+        valtrainvref_if.mb_rx_trk_lane_sel  = 1'b0 ; // Disabled
 
         // SB TX defaults.
         valtrainvref_if.tx_sb_msg_valid = 1'b0   ;

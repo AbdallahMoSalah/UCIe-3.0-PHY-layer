@@ -97,7 +97,11 @@ module unit_RX_D2C_PT  #() (
         if(substate_if.substate_timeout_8ms_occured | (mux_if.rx_sb_msg == TRAINERROR_Entry_req && mux_if.rx_sb_msg_valid == 1'b1)) begin
             // (S11)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
-        end else begin
+        end
+        else if(!substate_if.rx_pt_en) begin
+            next_state = RX_PT_IDLE;
+        end
+        else begin
             case (current_state)
                 // (S0) IDLE state: Wait for the trigger to start the Rx D2C Pattern Test.
                 RX_PT_IDLE: begin

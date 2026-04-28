@@ -759,7 +759,9 @@ interface internal_ltsm_if #(
         input  d2c_aggr_err        , // The total calculated Aggregate Errors on Rx.
         input  d2c_perlane_err     , // The Per-Lane Errors (Each bit represents one fail Data Lane).
         input  d2c_val_err         , // The error coming from Valid Lane receiver in MB.
-        input  d2c_clk_err           // The error coming from Clock Lane receiver in MB.
+        input  d2c_clk_err         , // The error coming from Clock Lane receiver in MB.
+        input  partner_valtraincenter_fail_flag , // Pass/fail of the partner Tx Valid lane (from RX D2C test FSM).
+        input  partner_datatraincenter_fail_flag  // Pass/fail of the partner Tx Data lanes (from TX D2C test FSM).
     );
 
     // It's the test (Rx/Tx D-to-C point test FSM) prespective (Not the main LTSM states prespective)

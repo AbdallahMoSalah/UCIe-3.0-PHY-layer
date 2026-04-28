@@ -961,11 +961,11 @@ module unit_RXDESKEW #(
     // =======================================================================================================
     // HANDCHECK_PROC
     // =======================================================================================================
-    
+
     // [1] is the previous state msg, [0] is the current state msg.
-    // We need the to compare them to generate just a  pulse (1 lclk cycle) of 'tx_sb_msg_valid' for each message sent. 
+    // We need the to compare them to generate just a  pulse (1 lclk cycle) of 'tx_sb_msg_valid' for each message sent.
     reg  [3:0]         send_sb_msg [1:0] ;
-    
+
     // It represents the tx SB valid signal but with duration = 1 lclk period.
     wire               sb_msg_valid_pulse;
 
@@ -974,13 +974,17 @@ module unit_RXDESKEW #(
     UCIe_pkg::msg_no_e rx_sb_msg_r         ;
     reg [3:0]          rx_msginfo_r        ;
 
-    // The timer that count from 31 to 0 after each SB message sending on our die Tx. 
+    // The timer that count from 31 to 0 after each SB message sending on our die Tx.
     reg  [4:0]         send_timer          ;
+
+    // These signals to store the target state of the FSM to detect when to stop sending SB messages.
+    reg [4:0]          target_state        ;
 
     // The signals that handle the problem of early receiving SB messages.
     wire               is_sb_msg_valid_rcvd;
     UCIe_pkg::msg_no_e rx_sb_msg_rcvd      ;
     wire [3:0]         rx_msginfo_rcvd     ;
+
 
     assign sb_msg_valid_pulse   = (send_sb_msg[1] != send_sb_msg[0]);
     assign is_sb_msg_valid_rcvd = (send_timer != 5'b0                     )?     1'b0     : (rx_sb_msg_valid_r | rxdeskew_if.rx_sb_msg_valid);
@@ -989,14 +993,14 @@ module unit_RXDESKEW #(
 
     // To represent the SB messages that will be discussed to send.
     localparam [3:0]   NO_MSG         = 4'H0,
-                       START_REQ      = 4'H1,
-                       START_RESP     = 4'H2,
-                       PRESET_REQ     = 4'H3,
-                       PRESET_RESP    = 4'H4,
-                       EXIT_DTC1_REQ  = 4'H5,
-                       EXIT_DTC1_RESP = 4'H6,
-                       END_REQ        = 4'H7,
-                       END_RESP       = 4'H8;
+    START_REQ      = 4'H1,
+    START_RESP     = 4'H2,
+    PRESET_REQ     = 4'H3,
+    PRESET_RESP    = 4'H4,
+    EXIT_DTC1_REQ  = 4'H5,
+    EXIT_DTC1_RESP = 4'H6,
+    END_REQ        = 4'H7,
+    END_RESP       = 4'H8;
 
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDCHECK_PROC
         if (rxdeskew_if.rst_n == 1'b0) begin
@@ -1005,7 +1009,7 @@ module unit_RXDESKEW #(
             my_preset_fail_status      <= 1'b0;
             // partner_preset_fail_status <= 1'b0;
         end
-        else if( current_state == RXDESKEW_IDLE && rxdeskew_en)begin
+        else if( current_state == RXDESKEW_IDLE && rxdeskew_if.rxdeskew_en)begin
             {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, START_REQ};
             my_preset_fail_status      <= 1'b0;
             // partner_preset_fail_status <= 1'b0;
@@ -1019,50 +1023,50 @@ module unit_RXDESKEW #(
             if(send_sb_msg[0] == START_REQ) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_start_req;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == START_RESP) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_start_resp;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == PRESET_REQ) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req;
-                rxdeskew_if.tx_sb_msginfo    <= {13'b0, 3'partner_preset};
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= {13'b0, 3'partner_preset};
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == PRESET_RESP) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp;
-                rxdeskew_if.tx_sb_msginfo    <= {15'b0, my_preset_fail_status};
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= {15'b0, my_preset_fail_status};
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == EXIT_DTC1_REQ) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == EXIT_DTC1_RESP) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == END_REQ) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_end_req;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
             else if(send_sb_msg[0] == END_RESP) begin
                 rxdeskew_if.tx_sb_msg_valid  <= sb_msg_valid_pulse;
                 rxdeskew_if.tx_sb_msg        <= MBTRAIN_RXDESKEW_end_resp;
-                rxdeskew_if.tx_sb_msginfo    <= 16'h0;
-                rxdeskew_if.tx_sb_data_field <= 64'h0;
+                rxdeskew_if.tx_msginfo    <= 16'h0;
+                rxdeskew_if.tx_data_field <= 64'h0;
             end
 
             // -----------------------------
@@ -1080,7 +1084,7 @@ module unit_RXDESKEW #(
                     target_state <= (is_high_speed)? RXDESKEW_EQ_PRESET_REQ_RESP : RXDESKEW_SET_CODE;
                 end
                 //---------------------------------------------------------------------------
-                
+
                 // for the partner handcheck.
                 else if(rx_sb_msg_rcvd == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req)begin
                     send_sb_msg [0] <= PRESET_RESP;
@@ -1126,7 +1130,7 @@ module unit_RXDESKEW #(
             end
 
             // Timer that counts from 31 to 0 after each message we send on the SB Tx.
-            // This timer is used for counting the minimum seperation clocks between the message we are sending and the next SB message we will send.  
+            // This timer is used for counting the minimum seperation clocks between the message we are sending and the next SB message we will send.
             if(sb_msg_valid_pulse || (send_timer != 0)) begin
                 send_timer <= send_timer - 1'b1;
             end
@@ -1144,5 +1148,5 @@ module unit_RXDESKEW #(
             end
         end
     end
-                                
+
 endmodule
