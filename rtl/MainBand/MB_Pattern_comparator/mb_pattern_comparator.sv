@@ -1,5 +1,5 @@
 // Module: MB_pattern_comparator
-// Status: Under Editing
+// Status: done 
 // Description: Pattern comparator for MainBand lanes (Per-Lane & Aggregate modes)
 // Author: Mohamed Anwar
 module PATTERN_COMPARATOR #(

@@ -37,6 +37,14 @@ module LFSR_TX_tb;
   wire o_Lfsr_tx_done;
   wire valid_frame_en;
 
+  // Golden Model wires
+  wire [WIDTH-1:0] o_lane_0_g,  o_lane_1_g,  o_lane_2_g,  o_lane_3_g;
+  wire [WIDTH-1:0] o_lane_4_g,  o_lane_5_g,  o_lane_6_g,  o_lane_7_g;
+  wire [WIDTH-1:0] o_lane_8_g,  o_lane_9_g,  o_lane_10_g, o_lane_11_g;
+  wire [WIDTH-1:0] o_lane_12_g, o_lane_13_g, o_lane_14_g, o_lane_15_g;
+  wire o_Lfsr_tx_done_g;
+  wire valid_frame_en_g;
+
   // DUT
   LFSR_TX #(.WIDTH(WIDTH)) dut (
     .i_clk(i_clk),
@@ -67,6 +75,59 @@ module LFSR_TX_tb;
     .o_Lfsr_tx_done(o_Lfsr_tx_done),
     .valid_frame_en(valid_frame_en)
   );
+
+  // Golden Model for self-checking
+  LFSR_TX_GOLD #(.WIDTH(WIDTH)) dut_gold (
+    .i_clk_g(i_clk),
+    .i_rst_n_g(i_rst_n),
+    .i_state_g(i_state),
+    .scramble_en_g(scramble_en),
+    .i_width_deg_lfsr_g(i_width_deg_lfsr),
+    .reversal_en_g(reversal_en),
+
+    .i_lane_0_g(i_lane_0),   .i_lane_1_g(i_lane_1),
+    .i_lane_2_g(i_lane_2),   .i_lane_3_g(i_lane_3),
+    .i_lane_4_g(i_lane_4),   .i_lane_5_g(i_lane_5),
+    .i_lane_6_g(i_lane_6),   .i_lane_7_g(i_lane_7),
+    .i_lane_8_g(i_lane_8),   .i_lane_9_g(i_lane_9),
+    .i_lane_10_g(i_lane_10), .i_lane_11_g(i_lane_11),
+    .i_lane_12_g(i_lane_12), .i_lane_13_g(i_lane_13),
+    .i_lane_14_g(i_lane_14), .i_lane_15_g(i_lane_15),
+
+    .o_lane_0_g(o_lane_0_g),   .o_lane_1_g(o_lane_1_g),
+    .o_lane_2_g(o_lane_2_g),   .o_lane_3_g(o_lane_3_g),
+    .o_lane_4_g(o_lane_4_g),   .o_lane_5_g(o_lane_5_g),
+    .o_lane_6_g(o_lane_6_g),   .o_lane_7_g(o_lane_7_g),
+    .o_lane_8_g(o_lane_8_g),   .o_lane_9_g(o_lane_9_g),
+    .o_lane_10_g(o_lane_10_g), .o_lane_11_g(o_lane_11_g),
+    .o_lane_12_g(o_lane_12_g), .o_lane_13_g(o_lane_13_g),
+    .o_lane_14_g(o_lane_14_g), .o_lane_15_g(o_lane_15_g),
+
+    .o_Lfsr_tx_done_g(o_Lfsr_tx_done_g),
+    .valid_frame_en_g(valid_frame_en_g)
+  );
+
+  // Self-Checking Logic
+  int error_count = 0;
+  always @(negedge i_clk) begin
+    if (i_rst_n) begin
+      if (
+        o_lane_0 !== o_lane_0_g || o_lane_1 !== o_lane_1_g ||
+        o_lane_2 !== o_lane_2_g || o_lane_3 !== o_lane_3_g ||
+        o_lane_4 !== o_lane_4_g || o_lane_5 !== o_lane_5_g ||
+        o_lane_6 !== o_lane_6_g || o_lane_7 !== o_lane_7_g ||
+        o_lane_8 !== o_lane_8_g || o_lane_9 !== o_lane_9_g ||
+        o_lane_10 !== o_lane_10_g || o_lane_11 !== o_lane_11_g ||
+        o_lane_12 !== o_lane_12_g || o_lane_13 !== o_lane_13_g ||
+        o_lane_14 !== o_lane_14_g || o_lane_15 !== o_lane_15_g ||
+        o_Lfsr_tx_done !== o_Lfsr_tx_done_g ||
+        valid_frame_en !== valid_frame_en_g
+      ) begin
+        $display("[%0t] ERROR: Output mismatch detected between RTL and Golden Model!", $time);
+        error_count++;
+      end
+    end
+  end
 
   // Clock: 10 ns period
   initial i_clk = 0;
@@ -155,6 +216,11 @@ module LFSR_TX_tb;
    
 
     // Run PER_LANE_IDE for lanes 0
+    if (error_count == 0)
+      $display("\n======================================================\nSUCCESS: Simulation finished with 0 errors.\n======================================================");
+    else
+      $display("\n======================================================\nFAILURE: Simulation finished with %0d errors.\n======================================================", error_count);
+      
     $stop;
   end
 
