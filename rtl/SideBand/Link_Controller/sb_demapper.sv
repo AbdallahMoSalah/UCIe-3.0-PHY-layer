@@ -98,6 +98,19 @@ module sb_demapper (
 
             default: next_state = IDLE;
         endcase
+/*
+        // DEBUG
+        // synthesis translate_off
+        if (msg_vld_rcvd) begin
+            $display("[%0t] [sb_demapper] msg_vld_rcvd=1 opcode=%b is_128bit=%b current_state=%0d msg_rcvd=%h",
+                     $time, opcode, is_128bit, current_state, msg_rcvd);
+        end
+        if (word_vld_rcvd) begin
+            $display("[%0t] [sb_demapper] Outputting word_vld_rcvd=1 msg_word_rcvd[127:64]=%h [63:0]=%h",
+                     $time, msg_word_rcvd[127:64], msg_word_rcvd[63:0]);
+        end
+        // synthesis translate_on
+*/
     end
 
 endmodule

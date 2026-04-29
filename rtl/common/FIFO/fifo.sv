@@ -141,4 +141,21 @@ module fifo #(
     assign WREADY = ~WFULL;   // writer may push  when WREADY=1
     assign RVALID = ~REMPTY;  // reader may pop   when RVALID=1
 
+/*    // -----------------------------------------------------------------------
+    // Debug Monitors
+    // -----------------------------------------------------------------------
+    // synthesis translate_off
+    always_ff @(posedge W_CLK) begin
+        if (WINC && !WFULL) begin
+            $display("[%0t] [FIFO %m] WRITE waddr=%0d wdata=%h", $time, waddr, WR_DATA);
+        end
+    end
+
+    always_ff @(posedge R_CLK) begin
+        if (RINC && !REMPTY) begin
+            $display("[%0t] [FIFO %m] READ raddr=%0d", $time, raddr);
+        end
+    end
+    // synthesis translate_on
+*/
 endmodule
