@@ -66,7 +66,7 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
     NOOP = 4'b1111
   } sb_rdi_msg_no_e;
  */
-  typedef enum logic [7:0] {
+  typedef enum logic [7:0] {sb_packet_t
     SBINIT_OFFRESET_DOMAIN    = 8'h91,
     RX_TEST_SWEEP_DONE_RESULT = 8'h81,
     SBINIT_REQ_DOMAIN         = 8'h95,

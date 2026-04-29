@@ -230,6 +230,8 @@ assign tx_serial_out = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
 
 logic shift_active;
 
+// Generate forwarded clock only when we will be shifting in the current/next cycle.
+// This perfectly aligns the 64 clock pulses with the valid data on tx_serial_out.
 assign shift_active = (next_state == S_SHIFT);
 
 CLK_GATE forward_clock(
@@ -237,6 +239,22 @@ CLK_GATE forward_clock(
     .CLK_EN(shift_active),
     .GATED_CLK(TXCKSB)
 );
+
+    // synthesis translate_off
+    always_ff @(posedge clk_parallel) begin
+        if (tx_data_valid && tx_rdy)
+            $display("[%0t] [SER %m] PARALLEL LOADED: data=%h", $time, tx_parallel_data);
+        if (pop_event)
+            $display("[%0t] [SER %m] POP EVENT: buf_full->0", $time);
+    end
+
+    always_ff @(posedge clk_serial) begin
+        if (state != next_state)
+            $display("[%0t] [SER %m] STATE TRANSITION: %0s -> %0s | full_sync2=%b pmo_en=%b", $time, state.name(), next_state.name(), full_sync2, pmo_en);
+        if (load_condition)
+            $display("[%0t] [SER %m] LOAD CONDITION TRUE: state=%0s full_sync2=%b bit_cnt=%0d", $time, state.name(), full_sync2, bit_cnt);
+    end
+    // synthesis translate_on
 
 endmodule
 

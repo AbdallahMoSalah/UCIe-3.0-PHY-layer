@@ -53,33 +53,32 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
 
     else begin
         
-
-        ////////////////////////////////////////////////
-        // counter
-        ////////////////////////////////////////////////
-
-        if(packet_done)
+        if(packet_done) begin
             bit_cnt <= '0;
-        else begin
-            ////////////////////////////////////////////////
-            // shift register
-            ////////////////////////////////////////////////
-
-            bit_cnt <= bit_cnt + 1;
+            rx_parallel_data_serial <= next_shift;
+            rx_data_vld_serial      <= ~rx_data_vld_serial;
+            // synthesis translate_off
+            $display("[%0t] [DES %m] PACKET_DONE: output=%h (last_rx=%b)", $time, next_shift, rx_serial_in);
+            // synthesis translate_on
+        end else begin
+            bit_cnt   <= bit_cnt + 1;
             shift_reg <= next_shift;
         end
 
-        ////////////////////////////////////////////////
-        // registered outputs
-        ////////////////////////////////////////////////
-
-        if(packet_done) begin
-            rx_parallel_data_serial <= next_shift;
-            rx_data_vld_serial <= 1;
-        end
-
     end
+end
 
+logic rx_data_vld_serial_sync1, rx_data_vld_serial_sync2, rx_data_vld_serial_sync3;
+always_ff @(posedge clk_parallel or negedge rst_n) begin
+    if(!rst_n) begin
+        rx_data_vld_serial_sync1 <= 0;
+        rx_data_vld_serial_sync2 <= 0;
+        rx_data_vld_serial_sync3 <= 0;
+    end else begin
+        rx_data_vld_serial_sync1 <= rx_data_vld_serial;
+        rx_data_vld_serial_sync2 <= rx_data_vld_serial_sync1;
+        rx_data_vld_serial_sync3 <= rx_data_vld_serial_sync2;
+    end
 end
 
 
@@ -91,12 +90,11 @@ always_ff @(posedge clk_parallel or negedge rst_n) begin
     end
 
     else begin
-        if(rx_data_vld_serial)begin
+        if(rx_data_vld_serial_sync2 != rx_data_vld_serial_sync3) begin
             rx_data_vld <= 1;
             rx_parallel_data_out <= rx_parallel_data_serial;
-            rx_data_vld_serial <= 0;
         end
-        else if(rx_data_vld)begin
+        else begin
             rx_data_vld <= 0;
         end
     end
