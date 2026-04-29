@@ -28,12 +28,12 @@ always_comb begin
     // =====================================================
     // Defaults
     // =====================================================
-    header_comb             = '0;
+    header_comb                 = '0;
     header_comb.msg.dstid       = REMOTE_PHY;
     header_comb.msg.srcid       = PHY;
     header_comb.msg.MsgInfo     = msg_info_send;
-    is_there_data           = 0;
-    is_req = msg_no_send[0];
+    is_there_data               = 0;
+    is_req                      = msg_no_send[0];
 
     // =====================================================
     // RDI DOMAIN
@@ -486,6 +486,11 @@ end
         trn_vld_send <= 1'b1;
         header_reg <= header_comb;
         payload <= msg_data_send;
+        // synthesis translate_off
+        $display("[%0t] [PKT %m] FIRE: msg_no=%h header_raw=%h dstid=%b opcode=%b",
+                 $time, msg_no_send, header_comb.raw,
+                 header_comb.msg.dstid, header_comb.msg.opcode);
+        // synthesis translate_on
     end else begin
         trn_vld_send <= 1'b0;
     end
