@@ -38,8 +38,8 @@ module unit_DATAVREF #(
     TO_SPEEDIDLE           = 4'h9, // (S9)
     TO_TRAINERROR          = 4'hA; // (S10)
 
-    reg [3:0] current_state, next_state, previous_state; // The Current, Next states, and Previous state of the FSM.
-    wire data_incoherence;
+    reg [3:0] current_state, next_state; // The Current, Next states of the FSM.
+    wire is_tx_sb_data_valid;
 
     // ====================================================================
     // Vref sweep data-path registers (per-lane, 16 lanes)
@@ -76,17 +76,15 @@ module unit_DATAVREF #(
 
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    assign data_incoherence = (current_state != previous_state) ? 1'b1 : 1'b0;
+    assign is_tx_sb_data_valid = (current_state == next_state);
 
 
     // Current State Logic of the FSM:
     always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin
         if (!datavref_if.rst_n) begin
             current_state  <= DATAVREF_IDLE;
-            previous_state <= DATAVREF_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state;
         end
     end
 
@@ -232,14 +230,14 @@ module unit_DATAVREF #(
             end
             // (S1) Send & Receive SB Message: {MBTRAIN.DATAVREF start req}
             DATAVREF_START_REQ: begin
-                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg_valid = (is_tx_sb_data_valid)     ; // Tell the SB that the selected message is valid.
                 datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_req; // Tell the Sideband the message that it should to send.
                 datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S2) Send & Receive SB Message: {MBTRAIN.DATAVREF start resp}.
             DATAVREF_START_RESP: begin
-                datavref_if.tx_sb_msg_valid = (!data_incoherence)         ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg_valid = (is_tx_sb_data_valid)      ; // Tell the SB that the selected message is valid.
                 datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_start_resp; // Tell the Sideband the message that it should to send.
                 datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
@@ -260,21 +258,21 @@ module unit_DATAVREF #(
             end
             // (S7) Send & Receive SB Message: {MBTRAIN.DATAVREF end req}
             DATAVREF_END_REQ: begin
-                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg_valid = (is_tx_sb_data_valid)   ; // Tell the SB that the selected message is valid.
                 datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_req; // Tell the Sideband the message that it should to send.
                 datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S8) Send & Receive SB Message: {MBTRAIN.DATAVREF end resp}.
             DATAVREF_END_RESP: begin
-                datavref_if.tx_sb_msg_valid = (!data_incoherence)        ; // Tell the SB that the selected message is valid.
+                datavref_if.tx_sb_msg_valid = (is_tx_sb_data_valid)    ; // Tell the SB that the selected message is valid.
                 datavref_if.tx_sb_msg       = MBTRAIN_DATAVREF_end_resp; // Tell the Sideband the message that it should to send.
                 datavref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 datavref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S9) Next Sub-state
             TO_SPEEDIDLE: begin
-                datavref_if.datavref_done = 1'b1;
+                datavref_if.datavref_done    = 1'b1;
                 datavref_if.timeout_timer_en = 1'b0;   // No more timeout monitoring needed.
             end
             // (S10) TRAINERROR state:

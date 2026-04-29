@@ -3,8 +3,6 @@
 // Purpose : MBTRAIN.RXDESKEW sub-state FSM.
 // It includes the packages:    .\rtl\MainSM\common\LTSM_state_pkg.sv
 //                              .\rtl\MainSM\common\UCIe_pkg.sv
-
-
 module unit_RXDESKEW #(
         parameter MAX_DESKEW_CODE = 7'd127,
         parameter MIN_DESKEW_CODE = 7'd0,
@@ -17,10 +15,8 @@ module unit_RXDESKEW #(
     // ============================================================================
     // Used SB Messages (explicit imports to document all messages used by this FSM)
     // ============================================================================
-
     import LTSM_state_pkg::RESET;
     import UCIe_pkg::msg_no_e   ;
-
     // Imported SB Messages
     import UCIe_pkg::MBTRAIN_RXDESKEW_start_req                                              ;
     import UCIe_pkg::MBTRAIN_RXDESKEW_start_resp                                             ;
@@ -32,8 +28,6 @@ module unit_RXDESKEW #(
     import UCIe_pkg::MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp;
     import UCIe_pkg::TRAINERROR_Entry_req                                                    ;
     import UCIe_pkg::NOTHING                                                                 ;
-
-
     localparam [4:0]
     RXDESKEW_IDLE              = 5'd00, // S0
     RXDESKEW_START_REQ         = 5'd01, // S1
@@ -45,7 +39,6 @@ module unit_RXDESKEW #(
     RXDESKEW_END_REQ           = 5'd07, // S7
     RXDESKEW_END_RESP          = 5'd08, // S8
     TO_DTC2                    = 5'd09, // S9
-
     RXDESKEW_CHOOSE_PRESET     = 5'd10, // S10
     RXDESKEW_PRESET_REQ_RESP   = 5'd11, // S11
     RXDESKEW_LOG_PRESET_RESULT = 5'd12, // S12
@@ -55,26 +48,21 @@ module unit_RXDESKEW #(
     TO_DTC1                    = 5'd16, // S16
     RXDESKEW_IDLE2             = 5'd17, // S17
     TO_TRAINERROR              = 5'd18; // S18
-
-    reg [4:0] current_state, next_state, previous_state;
+    reg [4:0] current_state, next_state;
     wire      is_high_speed;
     assign is_high_speed = (rxdeskew_if.phy_negotiated_speed > SPEED_32G);
-    wire data_incoherence = (current_state != previous_state);
-
+    wire data_incoherence = (current_state != next_state);
     // =========================================================================
     // Rx Deskew Sweep Signals
     // =========================================================================
     localparam DW = $clog2(MAX_DESKEW_CODE + 1);
-
     reg [DW-1:0] swept_code_r;
-
     reg [DW-1:0] zone_min_r [15:0];
     reg [DW-1:0] best_lo    [15:0];
     reg [DW-1:0] best_hi    [15:0];
     reg          found_pass [15:0];
     reg          zone_valid [15:0];
     reg [DW-1:0] best_deskew_code [15:0];
-
     logic [15:0] negotiated_data_lanes;
     always @(*) begin
         case (rxdeskew_if.mb_rx_data_lane_mask)
@@ -87,41 +75,33 @@ module unit_RXDESKEW #(
             default: negotiated_data_lanes = 16'h0000;
         endcase
     end
-
     // Range calculation wires (combinational)
     wire [DW-1:0] best_range [15:0]; // Width of the best recorded pass window per lane
     wire [DW-1:0] zone_range [15:0]; // Width of the current active pass zone per lane
     wire [15:0]   found_pass_bus;    // Packed version of found_pass array for bitwise reduction
-
     genvar lane;
     generate
         for (lane = 0; lane < 16; lane = lane + 1) begin : DESKEW_RANGE_GEN
             assign found_pass_bus[lane] = found_pass[lane];
             assign best_range[lane] = (found_pass[lane] == 1'b1) ? (best_hi[lane] - best_lo[lane]) : '0;
             assign zone_range[lane] = (swept_code_r - zone_min_r[lane]);
-
             assign rxdeskew_if.phy_rx_deskew_ctrl[lane] =
                 (   current_state == RXDESKEW_SET_CODE   ||
                     current_state == RXDESKEW_RX_D2C_PT  ||
                     current_state == RXDESKEW_LOG_RESULT) ? swept_code_r : best_deskew_code[lane];
         end
     endgenerate
-
-
     // =========================================================================
     // Tx EQ Preset & Arc Loop Tracking Signals (High-Speed Only)
     // =========================================================================
     // Tracks the number of preset search loops (max 5 loops to test P0-P5)
     reg [2:0] preset_search_cnt;
-
     // Tracks the number of fine-tuning arcs back to DTC1. Spec limits this to 4.
     // If the partner requests a 5th fine-tuning arc, we trigger TRAINERROR.
     reg [2:0] dtc1_arc_cnt;
-
     // Captures the arrival of the partner's {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} message
     // if received while still in RXDESKEW_END_REQ. The 'req_msg_sent_timer' provides a delay
     // (allowing our own request to be safely transmitted) before consuming the captured message.
-
     // we use them to wait for sending the req message for:
     //         1. {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req}
     //         2. {MBTRAIN.RXDESKEW end req}
@@ -132,11 +112,9 @@ module unit_RXDESKEW #(
     reg        req_msg_rcvd      ; // The Req msg recevied flag
     reg  [3:0] req_msg_sent_timer; // The Req Timer Name.
     wire       req_msg_sent      ; // The Req msg time done flag
-
     // The currently requested local Tx EQ preset (P0=0, ..., P5=5).
     reg [2:0] my_preset;
     reg [2:0] partner_preset;
-
     // send_req[1]: current value. send_req[0]: old value.
     // we use send_req[0] to cause a '0' value on 'tx_sb_msg_valid_r' for
     // (1 lclk) period before sending a {...req} SB message directly.
@@ -148,7 +126,6 @@ module unit_RXDESKEW #(
     reg       my_preset_fail_status;
     reg       handcheck_done       ;
     reg       tx_sb_msg_valid_r    ;
-
     // =========================================================================
     // Preset Evaluation Tracking Signals (High-Speed Only)
     // =========================================================================
@@ -157,48 +134,39 @@ module unit_RXDESKEW #(
     // cumulative eye-margin (sum of best_range[] for all negotiated lanes) is
     // compared against overall_best_total_range. If the current preset wins, all
     // four variables below are overwritten with the winner's data.
-
     // Index of the preset (P0-P5) that produced the widest cumulative eye margin.
     // Initialized to P0; updated by PRESET_EVAL_PROC in LOG_PRESET_RESULT.
     reg [2:0]    best_preset_saved;
-
     // The widest *minimum* eye margin seen so far across all tested presets.
     // This is the running maximum of the weakest-lane margin against which
     // each new preset is compared.
     reg [DW-1:0] overall_best_min_range;
-
     // Per-lane left/right edges of the widest contiguous pass window for the
     // best-so-far preset. Written in PRESET_EVAL_PROC when a new winner is found.
     // Used in DESKEW_TRACKING_PROC (CALC_APPLY) to compute the per-lane midpoint.
     reg [DW-1:0] overall_best_lo    [15:0];
     reg [DW-1:0] overall_best_hi    [15:0];
-
     // Per-lane flag: 1 = at least one passing deskew code was found for this lane
     // under the best-so-far preset. Used in CALC_APPLY to skip lanes with no pass.
     reg          overall_found_pass [15:0];
-
     // Packed wire mirror of overall_found_pass[] needed for bitwise reduction in
     // DESKEW_TRACKING_PROC. Unpacked arrays cannot be used directly in SystemVerilog
     // reduction/bitwise operators, so we pack it through this generate-driven bus.
     wire [15:0]  overall_found_pass_bus;
-
     // Combinational comparator: minimum of best_range[lane] over all negotiated lanes
     // for the *current* preset being swept. Recomputed every cycle. Compared against
     // overall_best_min_range in PRESET_EVAL_PROC at the LOG_PRESET_RESULT state.
     logic [DW-1:0] current_preset_min_range [0:16];
-
     // Fail flag: set in CALC_APPLY if any negotiated lane produced zero passing codes.
     // Exported via the continuous assign below to rxdeskew_if.rxdeskew_fail_flag.
     reg fail_flag_r;
     assign rxdeskew_if.rxdeskew_fail_flag = fail_flag_r;
-
     // req_msg_sent: asserted when req_msg_sent_timer saturates at 4'hF (15 lclk cycles).
     // This confirms our outgoing {req} SB message has been held valid long enough for
     // the Sideband IP to latch it before we exit the current FSM state.
     // Used in RXDESKEW_EXIT_DTC1_REQ, RXDESKEW_END_REQ, and RXDESKEW_PRESET_REQ_RESP
     // as an early-exit guard (see REQ_MSG_RCVD_AND_SENT_PROC for full details).
     assign req_msg_sent = (req_msg_sent_timer == 4'hF);
-
     // Captures the MsgInfo field of a prematurely-consumed SB message.
     // When req_msg_rcvd is set (a message was consumed in a PRIOR state),
     // rx_msginfo is valid for only that one clock cycle. We save it here so
@@ -206,12 +174,10 @@ module unit_RXDESKEW #(
     // (e.g. my_preset = captured_rx_msginfo[2:0]) even after rx_msginfo has
     // gone stale.
     reg [15:0] captured_rx_msginfo;
-
     // Tracks the partner's pass/fail verdict on the preset WE requested.
     // Set from rx_msginfo[0] of the received EQ_Preset_resp. Used together
     // with my_preset_fail_status to determine handcheck_done.
     reg        partner_preset_fail_status;
-
     // =========================================================================
     // overall_found_pass_bus: packed mirror of overall_found_pass[] unpacked array
     // =========================================================================
@@ -221,22 +187,17 @@ module unit_RXDESKEW #(
             assign overall_found_pass_bus[l] = overall_found_pass[l];
         end
     endgenerate
-
-
     // =========================================================================
     // Current State
     // =========================================================================
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin
         if(~rxdeskew_if.rst_n) begin
             current_state  <= RXDESKEW_IDLE;
-            previous_state <= RXDESKEW_IDLE;
         end
         else begin
             current_state  <= next_state   ;
-            previous_state <= current_state;
         end
     end
-
     // =========================================================================
     // Next State
     // =========================================================================
@@ -254,7 +215,6 @@ module unit_RXDESKEW #(
                 RXDESKEW_IDLE: begin
                     next_state = (rxdeskew_if.rxdeskew_en)? RXDESKEW_START_REQ : RXDESKEW_IDLE;
                 end
-
                 // -------------------------------------------------------------
                 // (S1) RXDESKEW_START_REQ: send & receive {MBTRAIN.RXDESKEW start req}.
                 // -------------------------------------------------------------
@@ -265,7 +225,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_START_REQ;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S2) RXDESKEW_START_RESP: send & receive {MBTRAIN.RXDESKEW start resp}.
                 // -------------------------------------------------------------
@@ -283,7 +242,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_START_RESP;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S3) RXDESKEW_SET_CODE: Set code and wait for analog settle timer.
                 // -------------------------------------------------------------
@@ -298,7 +256,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_SET_CODE;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S4) RXDESKEW_RX_D2C_PT: Run Rx init D2C Point test and wait for result.
                 // -------------------------------------------------------------
@@ -310,7 +267,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_RX_D2C_PT;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S5) RXDESKEW_LOG_RESULT: Log the result for current code.
                 // -------------------------------------------------------------
@@ -321,7 +277,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_SET_CODE; // Loop back for next code
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S6) RXDESKEW_CALC_APPLY: Calculates the optimal midpoint deskew code for
                 //          each lane based on logged results and applies it.
@@ -348,7 +303,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_END_REQ;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S7) RXDESKEW_END_REQ: Send and receive {MBTRAIN.RXDESKEW end req}.
                 // -------------------------------------------------------------
@@ -365,7 +319,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_END_REQ;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S8) RXDESKEW_END_RESP: Send and receive {MBTRAIN.RXDESKEW end resp}.
                 // -------------------------------------------------------------
@@ -376,19 +329,16 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_END_RESP;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S9) TO_DTC2: Terminal State
                 // -------------------------------------------------------------
                 TO_DTC2: begin
                     next_state = (rxdeskew_if.rxdeskew_en) ? TO_DTC2 : RXDESKEW_IDLE;
                 end
-
                 //  _________________________________________________________________
                 // ================================================================+'|
                 // High-Speed Tx EQ Preset Loop States                             | |
                 // ================================================================+'
-
                 // -------------------------------------------------------------
                 // (S10) RXDESKEW_CHOOSE_PRESET: Change the Tx EQ Preset that we ask
                 //                               The partner to operate on.
@@ -396,7 +346,6 @@ module unit_RXDESKEW #(
                 RXDESKEW_CHOOSE_PRESET: begin
                     next_state = RXDESKEW_PRESET_REQ_RESP;
                 end
-
                 // -------------------------------------------------------------
                 // (S11) RXDESKEW_PRESET_REQ_RESP: Its logic is in the PRESET_REQ_RESP_PROC block below.
                 //          Here we wait for the hand check of {MBTRAIN.RXDESKEW EQ Preset req} &
@@ -450,7 +399,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_PRESET_REQ_RESP;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S12) RXDESKEW_LOG_PRESET_RESULT: Log the best deskew code result for current preset
                 //                                   and check if we need to continue to next preset.
@@ -463,7 +411,6 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_CHOOSE_PRESET;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S13) RXDESKEW_EXIT_DTC1_REQ:
                 // -------------------------------------------------------------
@@ -476,14 +423,12 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_EXIT_DTC1_REQ;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S14) RXDESKEW_ARC_COUNT
                 // -------------------------------------------------------------
                 RXDESKEW_ARC_COUNT        : begin
                     next_state = RXDESKEW_EXIT_DTC1_RESP;
                 end
-
                 // -------------------------------------------------------------
                 // (S15) RXDESKEW_EXIT_DTC1_RESP
                 // -------------------------------------------------------------
@@ -495,14 +440,12 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_EXIT_DTC1_RESP;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S16) TO_DTC1: Terminal State
                 // -------------------------------------------------------------
                 TO_DTC1: begin
                     next_state = (rxdeskew_if.rxdeskew_en) ? TO_DTC1 : RXDESKEW_IDLE2;
                 end
-
                 // -------------------------------------------------------------
                 // (S17) RXDESKEW_IDLE2
                 // -------------------------------------------------------------
@@ -515,21 +458,18 @@ module unit_RXDESKEW #(
                         next_state = RXDESKEW_IDLE2;
                     end
                 end
-
                 // -------------------------------------------------------------
                 // (S18) TO_TRAINERROR: Terminal State
                 // -------------------------------------------------------------
                 TO_TRAINERROR: begin
                     next_state = (rxdeskew_if.rxdeskew_en) ? TO_TRAINERROR : RXDESKEW_IDLE;
                 end
-
                 default: begin
                     next_state = RXDESKEW_IDLE;
                 end
             endcase
         end
     end
-
     // =========================================================================
     // Deskew Sweep Tracking Logic
     // =========================================================================
@@ -547,7 +487,6 @@ module unit_RXDESKEW #(
             end
         end
     end
-
     // =========================================================================
     // PRESET_MIN_RANGE_PROC: Combinational minimum for current preset margin
     // =========================================================================
@@ -562,7 +501,6 @@ module unit_RXDESKEW #(
                 best_range[l] : current_preset_min_range[l];
         end
     end
-
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : PRESET_EVAL_PROC
         integer i;
         if (!rxdeskew_if.rst_n) begin
@@ -583,7 +521,6 @@ module unit_RXDESKEW #(
                     overall_found_pass[i] <= 1'b0;
                 end
             end
-
             if (current_state == RXDESKEW_LOG_PRESET_RESULT) begin
                 if (current_preset_min_range[16] > overall_best_min_range || preset_search_cnt == 3'd0 || dtc1_arc_cnt > 0) begin
                     overall_best_min_range <= current_preset_min_range[16];
@@ -597,10 +534,8 @@ module unit_RXDESKEW #(
             end
         end
     end
-
     // NOTE: overall_found_pass_bus generate block, fail_flag_r, and their assigns
     // are declared in the consolidated signal declarations section above.
-
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : DESKEW_TRACKING_PROC
         integer i;
         if (!rxdeskew_if.rst_n) begin
@@ -674,7 +609,6 @@ module unit_RXDESKEW #(
             end
         end
     end
-
     // =========================================================================
     // Counters Tracking Logic (Arcs & Preset loops)
     // =========================================================================
@@ -688,19 +622,16 @@ module unit_RXDESKEW #(
                 preset_search_cnt <= 3'd0;
                 dtc1_arc_cnt      <= 3'd0;
             end
-
             // Increment preset search count
             if (current_state == RXDESKEW_LOG_PRESET_RESULT && next_state == RXDESKEW_CHOOSE_PRESET) begin
                 preset_search_cnt <= preset_search_cnt + 1'b1;
             end
-
             // Increment fine-tuning arc count when transitioning to EXIT_DTC1_REQ
             if (next_state == RXDESKEW_EXIT_DTC1_REQ && current_state != RXDESKEW_EXIT_DTC1_REQ) begin
                 dtc1_arc_cnt <= dtc1_arc_cnt + 1'b1;
             end
         end
     end
-
     // =========================================================================
     // Output logic Block:
     // =========================================================================
@@ -708,39 +639,30 @@ module unit_RXDESKEW #(
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
-
         // LTSM -> LTSM signals:
         rxdeskew_if.rxdeskew_done        = 1'b0;
         rxdeskew_if.trainerror_req       = 1'b0;
         rxdeskew_if.datatraincenter1_req = 1'b0;
-
         // Timers:
         rxdeskew_if.timeout_timer_en       = 1'b1; // 8ms timer runs by default in all active states.
         rxdeskew_if.analog_settle_timer_en = 1'b0;
-
         // MB signals: (Mainband)
         // All lanes active by default during training states
         rxdeskew_if.mb_tx_clk_lane_sel  = 2'b01;
         rxdeskew_if.mb_tx_data_lane_sel = 2'b01;
         rxdeskew_if.mb_tx_val_lane_sel  = 2'b01;
         rxdeskew_if.mb_tx_trk_lane_sel  = 2'b01;
-
         rxdeskew_if.mb_rx_clk_lane_sel  = 1'b1; // 1-bit: 1b = Enabled
         rxdeskew_if.mb_rx_data_lane_sel = 1'b1;
         rxdeskew_if.mb_rx_val_lane_sel  = 1'b1;
         rxdeskew_if.mb_rx_trk_lane_sel  = 1'b1;
-
-
-
         // PHY TX EQ Preset
         rxdeskew_if.phy_tx_eq_preset_ctrl = my_preset; // Update PHY with OUR negotiated preset
-
         // SB signals: (Sideband)
         rxdeskew_if.tx_sb_msg_valid = 1'b0   ;
         rxdeskew_if.tx_sb_msg       = NOTHING;
         rxdeskew_if.tx_msginfo      = 16'h0  ;
         rxdeskew_if.tx_data_field   = 64'h0  ;
-
         // Substate-to-D2C Interface:
         d2c_if.rx_pt_en             = 1'b0;
         d2c_if.tx_pt_en             = 1'b0;
@@ -769,7 +691,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.mb_rx_val_lane_sel  = 1'b0;
                 rxdeskew_if.mb_rx_trk_lane_sel  = 1'b0;
             end
-
             // -------------------------------------------------------------
             // (S1) RXDESKEW_START_REQ: send & receive {MBTRAIN.RXDESKEW start req}.
             // -------------------------------------------------------------
@@ -777,7 +698,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_start_req;
             end
-
             // -------------------------------------------------------------
             // (S2) RXDESKEW_START_RESP: send & receive {MBTRAIN.RXDESKEW start resp}.
             // -------------------------------------------------------------
@@ -785,27 +705,23 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_start_resp;
             end
-
             // -------------------------------------------------------------
             // (S3) RXDESKEW_SET_CODE: Set code and wait for analog settle timer.
             // -------------------------------------------------------------
             RXDESKEW_SET_CODE: begin
                 rxdeskew_if.analog_settle_timer_en = 1'b1;
             end
-
             // -------------------------------------------------------------
             // (S4) RXDESKEW_RX_D2C_PT: Run Rx init D2C Point test and wait for result.
             // -------------------------------------------------------------
             RXDESKEW_RX_D2C_PT: begin
                 d2c_if.rx_pt_en = 1'b1;
             end
-
             // -------------------------------------------------------------
             // (S5) RXDESKEW_LOG_RESULT: Log the result for current code.
             // -------------------------------------------------------------
             RXDESKEW_LOG_RESULT: begin
             end
-
             // -------------------------------------------------------------
             // (S6) RXDESKEW_CALC_APPLY: Calculates the optimal midpoint deskew code for
             //          each lane based on logged results and applies it.
@@ -817,7 +733,6 @@ module unit_RXDESKEW #(
             RXDESKEW_CALC_APPLY: begin
                 // Applies calculated optimal value. Next state handled in next_state logic block.
             end
-
             // -------------------------------------------------------------
             // (S7) RXDESKEW_END_REQ: Send and receive {MBTRAIN.RXDESKEW end req}.
             // -------------------------------------------------------------
@@ -825,7 +740,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_end_req;
             end
-
             // -------------------------------------------------------------
             // (S8) RXDESKEW_END_RESP: Send and receive {MBTRAIN.RXDESKEW end resp}.
             // -------------------------------------------------------------
@@ -833,7 +747,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_end_resp;
             end
-
             // -------------------------------------------------------------
             // (S9) TO_DTC2: Terminal State
             // -------------------------------------------------------------
@@ -841,19 +754,16 @@ module unit_RXDESKEW #(
                 rxdeskew_if.rxdeskew_done      = 1'b1;
                 rxdeskew_if.timeout_timer_en   = 1'b0;
             end
-
             //  _________________________________________________________________
             // ================================================================+'|
             // High-Speed Tx EQ Preset Loop States                             | |
             // ================================================================+'
-
             // -------------------------------------------------------------
             // (S10) RXDESKEW_CHOOSE_PRESET: Change the Tx EQ Preset that we ask
             //                               The partner to operate on.
             // -------------------------------------------------------------
             RXDESKEW_CHOOSE_PRESET: begin
             end
-
             // -------------------------------------------------------------
             // (S11) RXDESKEW_PRESET_REQ_RESP: Its logic is in the PRESET_REQ_RESP_PROC below block
             //          Here we wait for the hand check of {MBTRAIN.RXDESKEW EQ Preset req} &
@@ -869,14 +779,12 @@ module unit_RXDESKEW #(
                     rxdeskew_if.tx_msginfo = {15'd0, my_preset_fail_status};
                 end
             end
-
             // -------------------------------------------------------------
             // (S12) RXDESKEW_LOG_PRESET_RESULT: Log the best deskew code result for current preset
             //                                   and check if we need to continue to next preset.
             // -------------------------------------------------------------
             RXDESKEW_LOG_PRESET_RESULT: begin
             end
-
             // -------------------------------------------------------------
             // (S13) RXDESKEW_EXIT_DTC1_REQ:
             // -------------------------------------------------------------
@@ -884,13 +792,11 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req;
             end
-
             // -------------------------------------------------------------
             // (S14) RXDESKEW_ARC_COUNT
             // -------------------------------------------------------------
             RXDESKEW_ARC_COUNT        : begin
             end
-
             // -------------------------------------------------------------
             // (S15) RXDESKEW_EXIT_DTC1_RESP
             // -------------------------------------------------------------
@@ -898,7 +804,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_sb_msg_valid = !data_incoherence;
                 rxdeskew_if.tx_sb_msg       = MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp;
             end
-
             // -------------------------------------------------------------
             // (S16) TO_DTC1: Terminal State
             // -------------------------------------------------------------
@@ -906,13 +811,11 @@ module unit_RXDESKEW #(
                 rxdeskew_if.datatraincenter1_req = 1'b1; // Trigger FSM jump back to DTC1
                 rxdeskew_if.timeout_timer_en     = 1'b0;
             end
-
             // -------------------------------------------------------------
             // (S17) RXDESKEW_IDLE2
             // -------------------------------------------------------------
             RXDESKEW_IDLE2: begin
             end
-
             // -------------------------------------------------------------
             // (S18) TO_TRAINERROR: Terminal State
             // -------------------------------------------------------------
@@ -921,7 +824,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.rxdeskew_done      = 1'b1; // Unblock LTSM
                 rxdeskew_if.timeout_timer_en   = 1'b0;
             end
-
             default: ;
         endcase
     end
@@ -957,40 +859,30 @@ module unit_RXDESKEW #(
 // ===========================================================================================================================================================================================
 // ===========================================================================================================================================================================================
 // ===========================================================================================================================================================================================
-
     // =======================================================================================================
     // HANDCHECK_PROC
     // =======================================================================================================
-
     // [1] is the previous state msg, [0] is the current state msg.
     // We need the to compare them to generate just a  pulse (1 lclk cycle) of 'tx_sb_msg_valid' for each message sent.
     reg  [3:0]         send_sb_msg [1:0] ;
-
     // It represents the tx SB valid signal but with duration = 1 lclk period.
     wire               sb_msg_valid_pulse;
-
     // These signals to store the unexpected reseived SB message in eary time (before we lost it).
     reg                rx_sb_msg_valid_r   ;
     UCIe_pkg::msg_no_e rx_sb_msg_r         ;
     reg [3:0]          rx_msginfo_r        ;
-
     // The timer that count from 31 to 0 after each SB message sending on our die Tx.
     reg  [4:0]         send_timer          ;
-
     // These signals to store the target state of the FSM to detect when to stop sending SB messages.
     reg [4:0]          target_state        ;
-
     // The signals that handle the problem of early receiving SB messages.
     wire               is_sb_msg_valid_rcvd;
     UCIe_pkg::msg_no_e rx_sb_msg_rcvd      ;
     wire [3:0]         rx_msginfo_rcvd     ;
-
-
     assign sb_msg_valid_pulse   = (send_sb_msg[1] != send_sb_msg[0]);
     assign is_sb_msg_valid_rcvd = (send_timer != 5'b0                     )?     1'b0     : (rx_sb_msg_valid_r | rxdeskew_if.rx_sb_msg_valid);
     assign rx_msginfo_rcvd      = (send_timer == 5'b0 && rx_sb_msg_valid_r)? rx_msginfo_r : rxdeskew_if.rx_msginfo[3:0]                      ;
     assign rx_sb_msg_rcvd       = (send_timer == 5'b0 && rx_sb_msg_valid_r)? rx_sb_msg_r  : rxdeskew_if.rx_sb_msg                            ;
-
     // To represent the SB messages that will be discussed to send.
     localparam [3:0]   NO_MSG         = 4'H0,
     START_REQ      = 4'H1,
@@ -1001,7 +893,6 @@ module unit_RXDESKEW #(
     EXIT_DTC1_RESP = 4'H6,
     END_REQ        = 4'H7,
     END_RESP       = 4'H8;
-
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDCHECK_PROC
         if (rxdeskew_if.rst_n == 1'b0) begin
             handcheck_done      <= 1'b0     ;
@@ -1016,7 +907,6 @@ module unit_RXDESKEW #(
         end
         else begin
             send_sb_msg [1] <= send_sb_msg [0];
-
             // -----------------------------
             // For Tx SB Message Check
             // -----------------------------
@@ -1068,7 +958,6 @@ module unit_RXDESKEW #(
                 rxdeskew_if.tx_msginfo    <= 16'h0;
                 rxdeskew_if.tx_data_field <= 64'h0;
             end
-
             // -----------------------------
             // For Rx SB Message Check
             // -----------------------------
@@ -1084,7 +973,6 @@ module unit_RXDESKEW #(
                     target_state <= (is_high_speed)? RXDESKEW_EQ_PRESET_REQ_RESP : RXDESKEW_SET_CODE;
                 end
                 //---------------------------------------------------------------------------
-
                 // for the partner handcheck.
                 else if(rx_sb_msg_rcvd == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req)begin
                     send_sb_msg [0] <= PRESET_RESP;
@@ -1102,7 +990,6 @@ module unit_RXDESKEW #(
                     target_state <= (rx_msginfo_rcvd[0] | my_preset_fail_status) ? RXDESKEW_EQ_PRESET_REQ_RESP : RXDESKEW_SET_CODE;
                 end
                 //---------------------------------------------------------------------------
-
                 // for the partner handcheck.
                 else if(rx_sb_msg_rcvd == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req)begin
                     send_sb_msg [0] <= (arc_iter_cnt != 4)? EXIT_DTC1_RESP : NO_MSG; // To avoid the sending EXIT_DTC1_RESP for the 5th time that may happend when the (current_state = RXDESKEW_END_REQ_RESP) && (arc_iter_cnt = 4)
@@ -1115,7 +1002,6 @@ module unit_RXDESKEW #(
                     target_state <= RXDESKEW_ARC_COUNT;
                 end
                 //---------------------------------------------------------------------------
-
                 // for the partner handcheck.
                 else if(rx_sb_msg_rcvd == MBTRAIN_RXDESKEW_end_req)begin
                     send_sb_msg [0] <= (current_state == RXDESKEW_END_REQ_RESP)? END_RESP : send_sb_msg [0];
@@ -1128,13 +1014,11 @@ module unit_RXDESKEW #(
                 end
                 //---------------------------------------------------------------------------
             end
-
             // Timer that counts from 31 to 0 after each message we send on the SB Tx.
             // This timer is used for counting the minimum seperation clocks between the message we are sending and the next SB message we will send.
             if(sb_msg_valid_pulse || (send_timer != 0)) begin
                 send_timer <= send_timer - 1'b1;
             end
-
             // To seperate between each 2 SB message 31 Clock cycle at least.
             if(send_timer != 0) begin
                 if(rxdeskew_if.rx_sb_msg_valid) begin
@@ -1148,5 +1032,4 @@ module unit_RXDESKEW #(
             end
         end
     end
-
 endmodule

@@ -1335,13 +1335,14 @@ interface internal_ltsm_if #(
 
         // ======================= //
         // LTSM general signals.   //
-        // ======================= //
-        input  datatraincenter1_en, output datatraincenter1_done, output datatraincenter1_fail_flag,
-        output trainerror_req,
+         // ======================= //
+         input  datatraincenter1_en, output datatraincenter1_done, output datatraincenter1_fail_flag,
+         output trainerror_req,
+         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
-        // ======================= //
-        // MB signals.             //
-        // ======================= //
+         // ======================= //
+         // MB signals.             //
+         // ======================= //
         // Lane Behavior Control
         output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
@@ -1520,14 +1521,15 @@ interface internal_ltsm_if #(
 
         // ======================= //
         // LTSM general signals.   //
-        // ======================= //
-        input  datatraincenter2_en, output datatraincenter2_done, output datatraincenter2_fail_flag,
-        output trainerror_req,
+         // ======================= //
+         input  datatraincenter2_en, output datatraincenter2_done, output datatraincenter2_fail_flag,
+         output trainerror_req,
+         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
-        // ======================= //
-        // MB signals.             //
-        // ======================= //
-        // Lane Behavior Control
+         // ======================= //
+         // MB signals.             //
+         // ======================= //
+         // Lane Behavior Control
         output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
         output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).

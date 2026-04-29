@@ -33,12 +33,12 @@ module unit_DATATRAINCENTER2 #(
     );
 
     import UCIe_pkg::msg_no_e;
-    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_start_req ;
-    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_start_resp;
-    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_end_req   ;
-    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_end_resp  ;
-    import UCIe_pkg::TRAINERROR_Entry_req;
-    import UCIe_pkg::NOTHING             ;
+    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_start_req  ; // for {MBTRAIN.DATATRAINCENTER2 start req}
+    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_start_resp ; // for {MBTRAIN.DATATRAINCENTER2 start resp}
+    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_end_req    ; // for {MBTRAIN.DATATRAINCENTER2 end req}
+    import UCIe_pkg::MBTRAIN_DATATRAINCENTER2_end_resp   ; // for {MBTRAIN.DATATRAINCENTER2 end resp}
+    import UCIe_pkg::TRAINERROR_Entry_req                ; // for {TRAINERROR Entry req}
+    import UCIe_pkg::NOTHING                             ; // There is no message to send.
 
     // =====================================================================
     // State encoding
@@ -55,10 +55,10 @@ module unit_DATATRAINCENTER2 #(
     TO_LINKSPEED          = 4'h9, // (S9)  Signal done; wait en de-assert (goes to LINKSPEED next)
     TO_TRAINERROR         = 4'hA; // (S10) Fatal
 
-    reg [3:0] current_state, next_state, previous_state;
+    reg [3:0] current_state, next_state;
 
     // Glitch-guard: do not assert tx_sb_msg_valid on the cycle of a state change.
-    wire data_incoherence = (current_state != previous_state);
+    wire is_sb_data_valid = (current_state == next_state);
 
     // Phase sweep counter width (6-bit to match phy_tx_pi_phase_ctrl)
     localparam PW = $clog2(MAX_PHASE_CODE + 1); // 6
@@ -79,19 +79,39 @@ module unit_DATATRAINCENTER2 #(
     // DTC2 tracks only ONE contiguous window per lane (last widest found),
     // because the PI eye is expected to be unimodal at this stage.
     // (Contrast with VALVREF/DATAVREF which compare old vs new to pick widest.)
-    reg [PW-1:0] best_lo  [NUM_DATA_LANES-1:0];
-    reg [PW-1:0] best_hi  [NUM_DATA_LANES-1:0];
+    reg [PW-1:0] best_lo   [NUM_DATA_LANES-1:0];
+    reg [PW-1:0] best_hi   [NUM_DATA_LANES-1:0];
     reg          found_pass[NUM_DATA_LANES-1:0];
     reg          zone_valid[NUM_DATA_LANES-1:0];
 
     // best_code_r[l] : mid-point applied to PHY for each lane after CALC_APPLY
     reg [PW-1:0] best_code_r [NUM_DATA_LANES-1:0];
 
-    // fail_flag_r : set if ANY lane has no passing code in the sweep
+    // fail_flag_r : set if ANY negotiated lane has no passing code in the sweep
     reg fail_flag_r;
     assign dtc2_if.datatraincenter2_fail_flag = fail_flag_r;
 
+    // ==================================================
+    // MB Lane Control
+    // Convert mb_rx_data_lane_mask (3 bits) to 16-bit negotiated_data_lanes mask.
+    // 000b: None  001b: Lanes 0-7  010b: Lanes 8-15  011b: Lanes 0-15
+    // 100b: Lanes 0-3  101b: Lanes 4-7
+    // ==================================================
+    logic [15:0] negotiated_data_lanes;
+    always @(*) begin
+        case (dtc2_if.mb_rx_data_lane_mask)
+            3'b000:  negotiated_data_lanes = 16'h0000;
+            3'b001:  negotiated_data_lanes = 16'h00FF;
+            3'b010:  negotiated_data_lanes = 16'hFF00;
+            3'b011:  negotiated_data_lanes = 16'hFFFF;
+            3'b100:  negotiated_data_lanes = 16'h000F;
+            3'b101:  negotiated_data_lanes = 16'h00F0;
+            default: negotiated_data_lanes = 16'h0000;
+        endcase
+    end
+
     // any_fail: combinational reduction over found_pass[]
+    // Only consider lanes that are active (negotiated_data_lanes[l]==1).
     genvar g;
     wire any_fail_w;
     wire [NUM_DATA_LANES-1:0] found_pass_bus;
@@ -100,7 +120,8 @@ module unit_DATATRAINCENTER2 #(
             assign found_pass_bus[g] = found_pass[g];
         end
     endgenerate
-    assign any_fail_w = ~(&found_pass_bus); // any lane with found_pass==0 -> fail
+    // A lane is "ok" if it found a pass OR it is not a negotiated lane.
+    assign any_fail_w = ~(&(found_pass_bus | ~negotiated_data_lanes));
 
     // =====================================================================
     // (Block 1) Sequential: current state
@@ -108,10 +129,8 @@ module unit_DATATRAINCENTER2 #(
     always @(posedge dtc2_if.lclk or negedge dtc2_if.rst_n) begin
         if (!dtc2_if.rst_n) begin
             current_state  <= DTC2_IDLE;
-            previous_state <= DTC2_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state;
         end
     end
 
@@ -119,9 +138,7 @@ module unit_DATATRAINCENTER2 #(
     // (Block 2) Combinational: next state
     // =====================================================================
     always @(*) begin
-        if (dtc2_if.timeout_8ms_occured |
-                (dtc2_if.rx_sb_msg == TRAINERROR_Entry_req &&
-                    dtc2_if.rx_sb_msg_valid == 1'b1)) begin
+        if (dtc2_if.timeout_8ms_occured | (dtc2_if.rx_sb_msg == TRAINERROR_Entry_req && dtc2_if.rx_sb_msg_valid == 1'b1)) begin
             next_state = TO_TRAINERROR;
         end else begin
             case (current_state)
@@ -130,13 +147,11 @@ module unit_DATATRAINCENTER2 #(
                         DTC2_START_REQ : DTC2_IDLE;
                 end
                 DTC2_START_REQ: begin
-                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_start_req &&
-                        dtc2_if.rx_sb_msg_valid) ?
+                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_start_req && dtc2_if.rx_sb_msg_valid) ?
                         DTC2_START_RESP : DTC2_START_REQ;
                 end
                 DTC2_START_RESP: begin
-                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_start_resp &&
-                        dtc2_if.rx_sb_msg_valid) ?
+                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_start_resp && dtc2_if.rx_sb_msg_valid) ?
                         DTC2_SET_PHASE : DTC2_START_RESP;
                 end
                 DTC2_SET_PHASE: begin
@@ -158,13 +173,11 @@ module unit_DATATRAINCENTER2 #(
                         DTC2_END_REQ : DTC2_CALC_APPLY;
                 end
                 DTC2_END_REQ: begin
-                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_end_req &&
-                        dtc2_if.rx_sb_msg_valid) ?
+                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_end_req && dtc2_if.rx_sb_msg_valid) ?
                         DTC2_END_RESP : DTC2_END_REQ;
                 end
                 DTC2_END_RESP: begin
-                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_end_resp &&
-                        dtc2_if.rx_sb_msg_valid) ?
+                    next_state = (dtc2_if.rx_sb_msg == MBTRAIN_DATATRAINCENTER2_end_resp && dtc2_if.rx_sb_msg_valid) ?
                         TO_LINKSPEED : DTC2_END_RESP;
                 end
                 TO_LINKSPEED: begin
@@ -230,12 +243,12 @@ module unit_DATATRAINCENTER2 #(
             DTC2_IDLE: dtc2_if.timeout_timer_en = 1'b0;
 
             DTC2_START_REQ: begin
-                dtc2_if.tx_sb_msg_valid = !data_incoherence;
+                dtc2_if.tx_sb_msg_valid = is_sb_data_valid;
                 dtc2_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER2_start_req;
             end
 
             DTC2_START_RESP: begin
-                dtc2_if.tx_sb_msg_valid = !data_incoherence;
+                dtc2_if.tx_sb_msg_valid = is_sb_data_valid;
                 dtc2_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER2_start_resp;
             end
 
@@ -263,12 +276,12 @@ module unit_DATATRAINCENTER2 #(
             end
 
             DTC2_END_REQ: begin
-                dtc2_if.tx_sb_msg_valid = !data_incoherence;
+                dtc2_if.tx_sb_msg_valid = is_sb_data_valid;
                 dtc2_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER2_end_req;
             end
 
             DTC2_END_RESP: begin
-                dtc2_if.tx_sb_msg_valid = !data_incoherence;
+                dtc2_if.tx_sb_msg_valid = is_sb_data_valid;
                 dtc2_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER2_end_resp;
             end
 
@@ -348,8 +361,8 @@ module unit_DATATRAINCENTER2 #(
                     if (!zone_valid[i]) begin
                         // Zone A: entering a fresh contiguous pass region.
                         zone_valid[i] <= 1'b1;
-                        if (!found_pass[i]) begin
-                            // Very first passing code ever: seed the best window.
+                        if (!found_pass[i] && negotiated_data_lanes[i]) begin
+                            // Very first passing code for a negotiated lane: seed the best window.
                             found_pass[i] <= 1'b1;
                             best_lo[i]    <= swept_code_r;
                             best_hi[i]    <= swept_code_r;
@@ -377,8 +390,7 @@ module unit_DATATRAINCENTER2 #(
             // reset/previous value (do not apply a random midpoint).
             for (i = 0; i < NUM_DATA_LANES; i++) begin
                 if (found_pass[i]) begin
-                    best_code_r[i] <=
-                        ({1'b0, best_lo[i]} + {1'b0, best_hi[i]}) >> 1;
+                    best_code_r[i] <= ({1'b0, best_lo[i]} + {1'b0, best_hi[i]}) >> 1;
                 end
                 // else: keep previous best_code_r[i] (defective lane, no update).
             end

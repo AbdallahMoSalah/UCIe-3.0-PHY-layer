@@ -5,14 +5,12 @@
 //           operating speeds > 32 GT/s, runs the IQ phase correction loop.
 //           SB message payloads match UCIe Spec Rev 3.0 Chapter 7 Table 7-9.
 // =============================================================================
-
 module unit_RXCLKCAL #() (
         // ======================= //
         // General signals.        //
         // ======================= //
         internal_ltsm_if.rxclkcal_mp rxclkcal_if
     );
-
     // ============================================================================
     // Used SB Messages (explicit imports to document all messages used by this FSM)
     // ============================================================================
@@ -24,7 +22,6 @@ module unit_RXCLKCAL #() (
     import UCIe_pkg::MBTRAIN_RXCLKCAL_done_resp        ; // Msg Number: d52
     import UCIe_pkg::TRAINERROR_Entry_req              ; // Msg Number: d107
     import UCIe_pkg::NOTHING                           ; // Msg Number: 8'hFF
-
     reg [4:0] phy_tx_tckn_shift_reg     ;
     reg       phy_tx_decrement_shift_reg;
     // ============================================================================
@@ -77,34 +74,26 @@ module unit_RXCLKCAL #() (
     RXCLKCAL_DONE_RESP        = 4'hB,  // (S11): Send & Receive {RXCLKCAL done resp}.
     TO_RXCLKCAL_DONE          = 4'hC,  // (S12): rxclkcal_done = 1; wait for en de-assert.
     TO_TRAINERROR             = 4'hD;  // (S13): trainerror_req = 1; wait for en de-assert.
-
-    reg [3:0] current_state, next_state, previous_state;
-    wire      data_incoherence;
-
+    reg [3:0] current_state, next_state;
     // To handle the case when the current_state == RXCLKCAL_DONE_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we expect to receive {MBTRAIN.RXCLKCAL done req}.
     reg [3:0] req_msg_sent_timer;
     reg       req_msg_rcvd      ;
-
     // This signal prevents SB message glitches whenever the state changes.
     // It is set to 1 for exactly 1 lclk cycle on any state transition,
     // which is the same cycle the output always block drives new values.
     // By masking tx_sb_msg_valid during that cycle we ensure no partial/
     // incoherent message is forwarded to the SB module. (Pattern from TXSELFCAL)
-    assign data_incoherence = (current_state != previous_state) ? 1'b1 : 1'b0;
-
+    wire data_incoherence = (current_state != next_state);
     // ============================================================================
     // Always Block 1 — Sequential Logic: current_state, previous_state
     // ============================================================================
     always @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin
         if (!rxclkcal_if.rst_n) begin
             current_state  <= RXCLKCAL_IDLE;
-            previous_state <= RXCLKCAL_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state;
         end
     end
-
     // ============================================================================
     // Always Block 2 — Combinational Logic: next_state
     // ============================================================================
@@ -124,7 +113,6 @@ module unit_RXCLKCAL #() (
                     if (rxclkcal_if.rxclkcal_en) next_state = RXCLKCAL_START_REQ;
                     else                         next_state = RXCLKCAL_IDLE     ;
                 end
-
                 // -------------------------------------------------------------------
                 // (S1) Both dies send the start request and wait to receive the same
                 //      message from the partner. All Tx lanes are driven Low.
@@ -135,7 +123,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = RXCLKCAL_START_REQ;
                 end
-
                 // -------------------------------------------------------------------
                 // (S2) Both dies drive the forwarded clock active, send the start
                 //      response, and wait to receive the same response.
@@ -146,7 +133,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = RXCLKCAL_START_RESP;
                 end
-
                 // -------------------------------------------------------------------
                 // (S3) Enable Rx clock & track lock circuits, wait for settle timer.
                 //      Decision: speed > 32 GT/s requires IQ calibration loop.
@@ -163,7 +149,6 @@ module unit_RXCLKCAL #() (
                         next_state = RXCLKCAL_CALIBRATE;
                     end
                 end
-
                 // -------------------------------------------------------------------
                 // (S4) Activate phase detector and allow it to settle before the
                 //      first (or next) IQ shift iteration.
@@ -172,7 +157,6 @@ module unit_RXCLKCAL #() (
                     if (rxclkcal_if.analog_settle_time_done) next_state = IQ_TCKN_L_SHIFT_REQ;
                     else                                      next_state = IQ_IDLE;
                 end
-
                 // -------------------------------------------------------------------
                 // (S5) Send & Receive {MBTRAIN.RXCLKCAL TCKN_L shift req}.
                 //      MsgInfo[5:1] = phy_rx_tckn_shift   (magnitude, step = 1/64 UI)
@@ -186,7 +170,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = IQ_TCKN_L_SHIFT_REQ;
                 end
-
                 // -------------------------------------------------------------------
                 // (S6) Apply the shift value that the partner commanded (received in
                 //      rx_msginfo during S5), then wait for the analog settle timer
@@ -196,7 +179,6 @@ module unit_RXCLKCAL #() (
                     if (rxclkcal_if.analog_settle_time_done) next_state = IQ_TCKN_L_SHIFT_RESP;
                     else                                     next_state = IQ_APPLY_TCKN_L_SHIFT;
                 end
-
                 // -------------------------------------------------------------------
                 // (S7) Send and receive the shift response. The response MsgInfo
                 //      carries an out-of-range flag. If our partner reports that our
@@ -213,7 +195,6 @@ module unit_RXCLKCAL #() (
                         next_state = IQ_TCKN_L_SHIFT_RESP;
                     end
                 end
-
                 // -------------------------------------------------------------------
                 // (S8) Re-enable the phase detector and let it observe the clock after
                 //      the shift has been applied. Wait for settle timer.
@@ -222,7 +203,6 @@ module unit_RXCLKCAL #() (
                     if (rxclkcal_if.analog_settle_time_done) next_state = IQ_CHECK_CALIBRATION;
                     else                                     next_state = IQ_OBSERVE_CLK;
                 end
-
                 // -------------------------------------------------------------------
                 // (S9) Check convergence: the PHY reports the residual shift that
                 //      our die's TCKN_L still needs (phy_rx_tckn_shift).
@@ -244,7 +224,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = IQ_TCKN_L_SHIFT_REQ; // Loop back for another iteration.
                 end
-
                 // -------------------------------------------------------------------
                 // (S10) Send & Receive {MBTRAIN.RXCLKCAL done req}.
                 //       The partner may still require another IQ iteration; if it sends
@@ -258,7 +237,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = RXCLKCAL_DONE_REQ;
                 end
-
                 // -------------------------------------------------------------------
                 // (S11) Send & Receive {MBTRAIN.RXCLKCAL done resp}.
                 //       Final handshake: once received, move to the done terminal state.
@@ -269,7 +247,6 @@ module unit_RXCLKCAL #() (
                     else
                         next_state = RXCLKCAL_DONE_RESP;
                 end
-
                 // -------------------------------------------------------------------
                 // (S12) RXCLKCAL complete. Assert rxclkcal_done and stay here while
                 //       the MBTRAIN controller keeps rxclkcal_en asserted. Once it
@@ -278,7 +255,6 @@ module unit_RXCLKCAL #() (
                 TO_RXCLKCAL_DONE: begin
                     next_state = (rxclkcal_if.rxclkcal_en) ? TO_RXCLKCAL_DONE : RXCLKCAL_IDLE;
                 end
-
                 // -------------------------------------------------------------------
                 // (S13) TRAINERROR: Assert trainerror_req. Stay here while
                 //       rxclkcal_en is held high; return to IDLE once de-asserted.
@@ -286,7 +262,6 @@ module unit_RXCLKCAL #() (
                 TO_TRAINERROR: begin
                     next_state = (rxclkcal_if.rxclkcal_en) ? TO_TRAINERROR : RXCLKCAL_IDLE;
                 end
-
                 default: begin
                     // Illegal encoding: treat as TRAINERROR until rxclkcal_en clears.
                     next_state = (rxclkcal_if.rxclkcal_en) ? TO_TRAINERROR : RXCLKCAL_IDLE;
@@ -294,7 +269,6 @@ module unit_RXCLKCAL #() (
             endcase
         end
     end
-
     // ============================================================================
     // Always Block 3 — Combinational Logic: Output Values
     // ============================================================================
@@ -302,19 +276,16 @@ module unit_RXCLKCAL #() (
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
-
         //==========================
         // LTSM -> LTSM signals:
         //==========================
         rxclkcal_if.rxclkcal_done = 1'b0;
         rxclkcal_if.trainerror_req = 1'b0;
-
         //==========================
         // Timers:
         //==========================
         rxclkcal_if.timeout_timer_en       = 1'b1; // 8ms timer runs by default in all active states.
         rxclkcal_if.analog_settle_timer_en = 1'b0;
-
         //=========================
         // MB signals: (Mainband)
         //=========================
@@ -325,17 +296,14 @@ module unit_RXCLKCAL #() (
         rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low (Tx Logical Data Lanes), 01b: active (Tx Logical Data Lanes), 1xb: Tri-state (Tx Logical Data Lanes).
         rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low (Tx Logical Valid Lane), 01b: active (Tx Logical Valid Lane), 1xb: Tri-state (Tx Logical Valid Lane).
         rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low (Tx Logical Track Lane), 01b: active (Tx Logical Track Lane), 1xb: Tri-state (Tx Logical Track Lane).
-
         rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Clock Lane).
         rxclkcal_if.mb_rx_data_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Data Lanes).
         rxclkcal_if.mb_rx_val_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Valid Lane).
         rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Track Lane).
-
         // Setting the pattern configeration for the pattern generator.
         rxclkcal_if.mb_tx_pattern_en      = 1'b0  ; // Enable pattern generator and send the clock immediately.
         rxclkcal_if.mb_tx_pattern_setup   = 3'b100; // Choose "Clock pattern" to send when we enable the pattern generator.
         rxclkcal_if.mb_tx_clk_pattern_sel = 2'd3  ; // Choose clock type: "Clk Mode 2".
-
         //=========================
         // PHY Rx/Tx Analog Controls:
         //=========================
@@ -345,7 +313,6 @@ module unit_RXCLKCAL #() (
         rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift circuit disabled by default.
         rxclkcal_if.phy_tx_tckn_shift        = phy_tx_tckn_shift_reg     ; // No shift applied by default.
         rxclkcal_if.phy_tx_decrement_shift   = phy_tx_decrement_shift_reg; // Default shift direction: later (0b).
-
         //============================
         // SB signals: (Sideband)
         //============================
@@ -354,26 +321,22 @@ module unit_RXCLKCAL #() (
         rxclkcal_if.tx_sb_msg       = NOTHING; // No message to send by default.
         rxclkcal_if.tx_msginfo      = 16'h0  ; // MsgInfo field is 0 by default.
         rxclkcal_if.tx_data_field   = 64'h0  ; // Data field is 0 by default.
-
         case (current_state)
             // -------------------------------------------------------------------
             // (S0) IDLE state: Timer is off; FSM is waiting.
             // -------------------------------------------------------------------
             RXCLKCAL_IDLE: begin
                 rxclkcal_if.timeout_timer_en   = 1'b0 ; // No timeout while idle.
-
                 // Tx lanes: All Low while clock is not yet forwarded.
                 rxclkcal_if.mb_tx_clk_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // Low.
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
-
                 rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00; // disable.
                 rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
                 rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
                 rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00; // disable.
             end
-
             // -------------------------------------------------------------------
             // (S1) Send & Receive {MBTRAIN.RXCLKCAL start req}:
             //   - All Tx lanes are Low: we are not yet forwarding the clock.
@@ -387,17 +350,14 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // Low.
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
-
                 rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // enabled.
                 rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
                 rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
                 rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // enabled.
-
                 // SB:
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send request.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_start_req  ; // Message code.
             end
-
             // -------------------------------------------------------------------
             // (S2) Send & Receive {MBTRAIN.RXCLKCAL start resp}:
             //   - Clock and Track Tx lanes go Active: forwarded clock is now running.
@@ -408,15 +368,12 @@ module unit_RXCLKCAL #() (
                 // Tx lanes: Clock and Track now Active for forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // 01b: Active (Tx Logical Clock Lane).
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // 01b: Active (Tx Logical Track Lane).
-
                 // Enable the pattern generator.
                 rxclkcal_if.mb_tx_pattern_en      = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // SB:
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send response.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_start_resp ; // Message code.
             end
-
             // -------------------------------------------------------------------
             // (S3) Calibrate: Enable Rx clock & track lock, wait for settle timer.
             //   - Rx clock and track lanes are enabled so the analog circuits can
@@ -430,20 +387,16 @@ module unit_RXCLKCAL #() (
                 // Tx: keep forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1; // Enable pattern generator and send the clock immediately.
-
                 // PHY: instruct analog circuits to lock.
                 rxclkcal_if.phy_rx_clock_lock_en = 1'b1;  // Rx clock lock circuit disabled by default. Enable it now.
                 rxclkcal_if.phy_rx_track_lock_en = 1'b1;  // Rx track lock circuit disabled by default. Enable it now.
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
                 // Timer: wait for analog circuits to settle and lock.
                 rxclkcal_if.analog_settle_timer_en = 1'b1;
             end
-
             // -------------------------------------------------------------------
             // (S4) IQ Idle: Activate phase detector and wait for it to settle before
             //   the first measurement. Rx and Tx lanes stay as in RXCLKCAL_CALIBRATE.
@@ -452,20 +405,16 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en         = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: keep lock circuits on and turn on phase detector.
                 rxclkcal_if.phy_rx_clock_lock_en     = 1'b1;  // Rx clock lock circuit disabled by default. Enable it now.
                 rxclkcal_if.phy_rx_track_lock_en     = 1'b1;  // Rx track lock circuit disabled by default. Enable it now.
                 rxclkcal_if.phy_rx_phase_detector_en = 1'b1;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
                 // Timer: wait for the phase detector to stabilise.
                 rxclkcal_if.analog_settle_timer_en = 1'b1;
             end
-
             // -------------------------------------------------------------------
             // (S5) IQ TCKN_L shift request:
             //   - Phase detector is turned OFF (measurement complete for this iter).
@@ -480,16 +429,13 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01;
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01;
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: lock circuits ON, phase detector OFF (observation done).
                 rxclkcal_if.phy_rx_clock_lock_en     = 1'b1;  // Rx clock lock circuit disabled by default. Enable it now.
                 rxclkcal_if.phy_rx_track_lock_en     = 1'b1;  // Rx track lock circuit disabled by default. Enable it now.
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
                 // SB: send shift request with our measured shift payload.
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)              ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_TCKN_L_shift_req; // Message code.
@@ -497,7 +443,6 @@ module unit_RXCLKCAL #() (
                     rxclkcal_if.phy_rx_tckn_shift      , // [5:1]: shift magnitude.
                     rxclkcal_if.phy_rx_decrement_shift}; // [0]: shift direction.
             end
-
             // -------------------------------------------------------------------
             // (S6) Apply the TCKN_L shift commanded by the partner:
             //   - The partner's required shift was received in the MsgInfo of
@@ -512,21 +457,17 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01;
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01;
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: keep lock circuits ON.
                 // PHY: Apply the shift commanded by the partner (from latest rx_msginfo).
                 rxclkcal_if.phy_rx_clock_lock_en     = 1'b1;
                 rxclkcal_if.phy_rx_track_lock_en     = 1'b1;
                 rxclkcal_if.phy_rx_phase_detector_en = 1'b0; // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 rxclkcal_if.phy_tx_tckn_shift_en     = 1'b1; // Activate shift circuit.
-
                 // Timer: wait for shift to settle before measuring the new phase.
                 rxclkcal_if.analog_settle_timer_en = 1'b1;
             end
-
             // -------------------------------------------------------------------
             // (S7) IQ TCKN_L shift response:
             //   - We send and receive: {MBTRAIN.RXCLKCAL TCKN_L shift resp}.
@@ -540,22 +481,18 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01;
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01;
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: keep lock circuits ON.
                 rxclkcal_if.phy_rx_clock_lock_en     = 1'b1;  // Rx clock lock circuit disabled by default. Enable it now.
                 rxclkcal_if.phy_rx_track_lock_en     = 1'b1;  // Rx track lock circuit disabled by default. Enable it now.
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
                 // SB: send shift response with our out-of-range status.
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)                                                       ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_TCKN_L_shift_resp                                        ; // Message code.
                 rxclkcal_if.tx_msginfo      = {15'h0, rxclkcal_if.phy_tx_tckn_shift_out_of_range}                      ; // [0]: our out-of-range flag.
             end
-
             // -------------------------------------------------------------------
             // (S8) Observe clock after shift: re-activate phase detector and wait
             //   for the settle timer so the PHY measures the updated phase offset.
@@ -564,21 +501,16 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01;
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01;
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: re-enable phase detector to measure the new residual offset.
                 rxclkcal_if.phy_rx_clock_lock_en     = 1'b1;
                 rxclkcal_if.phy_rx_track_lock_en     = 1'b1;
                 rxclkcal_if.phy_rx_phase_detector_en = 1'b1;  // Measure the new phase after shift.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
-
                 // Timer: wait for the observation period.
                 rxclkcal_if.analog_settle_timer_en = 1'b1;
             end
-
             // -------------------------------------------------------------------
             // (S9) Check calibration convergence:
             //   - Lane and PHY signals remain active (combinational, no SB action).
@@ -591,19 +523,15 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01;
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01;
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1  ; // Enable pattern generator and send the clock immediately.
-
                 // PHY: lock circuits ON.
                 rxclkcal_if.phy_rx_clock_lock_en = 1'b1;
                 rxclkcal_if.phy_rx_track_lock_en = 1'b1;
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
-
                 // (No SB activity in this state; next-state logic handles the exit.)
             end
-
             // -------------------------------------------------------------------
             // (S10) Send & Receive {MBTRAIN.RXCLKCAL done req}:
             //   - Clock is still forwarded; partner stops forwarding only after
@@ -616,25 +544,20 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding the clock while done handshake is pending.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
-
                 // Rx: keep receivers active until the final handshake completes.
                 rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // Enabled.
                 rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // Enabled.
-
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1; // Keep forwarding the clock pattern.
-
                 // PHY: keep lock circuits ON until the done resp is received.
                 rxclkcal_if.phy_rx_clock_lock_en = 1'b1;
                 rxclkcal_if.phy_rx_track_lock_en = 1'b1;
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // OFF by default.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // OFF by default.
-
                 // SB: send done request.
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)      ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_done_req; // Message code (MsgInfo = 0000h).
             end
-
             // -------------------------------------------------------------------
             // (S11) Send & Receive {MBTRAIN.RXCLKCAL done resp}:
             //   - Per UCIe Spec §4.5.3.4.5 Step 3: partner stops forwarding the
@@ -646,12 +569,10 @@ module unit_RXCLKCAL #() (
                 // Tx: continue forwarding while sending the done response.
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
-
                 // SB: send done response.
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)       ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_done_resp; // Message code (MsgInfo = 0000h).
             end
-
             // -------------------------------------------------------------------
             // (S12) RXCLKCAL Done:
             //   - Assert rxclkcal_done = 1 to inform the MBTRAIN controller.
@@ -665,7 +586,6 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.rxclkcal_done    = 1'b1; // Signal completion to MBTRAIN controller.
                 rxclkcal_if.timeout_timer_en = 1'b0; // No more timeout monitoring needed.
             end
-
             // -------------------------------------------------------------------
             // (S13) TRAINERROR:
             //   - Assert rxclkcal_done = 1 to unblock the MBTRAIN controller.
@@ -678,15 +598,11 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.trainerror_req   = 1'b1; // Request LTSM to enter TRAINERROR state.
                 rxclkcal_if.timeout_timer_en = 1'b0; // Stop timeout monitor so timeout flag can clear.
             end
-
             default: begin
                 // Default case: no outputs changed beyond the safe defaults above.
             end
         endcase
     end
-
-
-
     // ============================================================================
     // Always Block 4 — Sequential Logic: Partner Shift Latch
     // ============================================================================
@@ -712,8 +628,6 @@ module unit_RXCLKCAL #() (
             phy_tx_decrement_shift_reg <= 1'b0;
         end
     end
-
-
     // -------------------------------------------------------------------
     // In (S10) RXCLKCAL_DONE_REQ: we send {MBTRAIN.RXCLKCAL done req} and
     //       suppose that we receive {MBTRAIN.RXCLKCAL done req} because of the sync.
@@ -739,5 +653,4 @@ module unit_RXCLKCAL #() (
             req_msg_sent_timer <= req_msg_sent_timer + 1'b1;
         end
     end
-
 endmodule

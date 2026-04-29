@@ -22,7 +22,6 @@
 //    best_code_r[lane] = (best_lo[lane] + best_hi[lane]) / 2
 //    fail_flag_r = 1 if ANY negotiated lane has found_pass[lane]==0.
 // =============================================================================
-
 module unit_DATATRAINCENTER1 #(
         parameter MAX_PHASE_CODE   = 6'h3F, // Maximum PI phase sweep code (6-bit).
         parameter MIN_PHASE_CODE   = 6'h00, // Minimum PI phase sweep code.
@@ -31,7 +30,6 @@ module unit_DATATRAINCENTER1 #(
         internal_ltsm_if.datatraincenter1_mp dtc1_if,
         internal_ltsm_if.substate2d2c_mp     d2c_if
     );
-
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_DATATRAINCENTER1_start_req ;
     import UCIe_pkg::MBTRAIN_DATATRAINCENTER1_start_resp;
@@ -39,7 +37,6 @@ module unit_DATATRAINCENTER1 #(
     import UCIe_pkg::MBTRAIN_DATATRAINCENTER1_end_resp  ;
     import UCIe_pkg::TRAINERROR_Entry_req;
     import UCIe_pkg::NOTHING             ;
-
     // =====================================================================
     // State encoding
     // =====================================================================
@@ -54,22 +51,16 @@ module unit_DATATRAINCENTER1 #(
     DTC1_END_RESP         = 4'h8, // (S8)  SB: DTC1 end resp
     TO_DATATRAINVREF      = 4'h9, // (S9)  Signal done; wait en de-assert
     TO_TRAINERROR         = 4'hA; // (S10) Fatal
-
-    reg [3:0] current_state, next_state, previous_state;
-
+    reg [3:0] current_state, next_state;
     // Glitch-guard: do not assert tx_sb_msg_valid on the cycle of a state change.
-    wire data_incoherence = (current_state != previous_state);
-
+    wire data_incoherence = (current_state != next_state);
     // Phase sweep counter width (6-bit to match phy_tx_pi_phase_ctrl)
     localparam PW = $clog2(MAX_PHASE_CODE + 1); // 6
-
     // =====================================================================
     // Internal data-path registers (unified naming, same as DATAVREF/VALVREF)
     // =====================================================================
-
     // swept_code_r : current PI phase code being swept (S3-S5 loop)
     reg [PW-1:0] swept_code_r;
-
     // Per-lane eye-map tracking:
     //   zone_valid[l] : 1 while inside a contiguous passing zone (Zone A->B)
     //   found_pass[l] : 1 once any passing code has been seen for lane l
@@ -79,19 +70,35 @@ module unit_DATATRAINCENTER1 #(
     // DTC1 tracks only ONE contiguous window per lane (last widest found),
     // because the PI eye is expected to be unimodal at this stage.
     // (Contrast with VALVREF/DATAVREF which compare old vs new to pick widest.)
-    reg [PW-1:0] best_lo  [NUM_DATA_LANES-1:0];
-    reg [PW-1:0] best_hi  [NUM_DATA_LANES-1:0];
+    reg [PW-1:0] best_lo   [NUM_DATA_LANES-1:0];
+    reg [PW-1:0] best_hi   [NUM_DATA_LANES-1:0];
     reg          found_pass[NUM_DATA_LANES-1:0];
     reg          zone_valid[NUM_DATA_LANES-1:0];
-
     // best_code_r[l] : mid-point applied to PHY for each lane after CALC_APPLY
     reg [PW-1:0] best_code_r [NUM_DATA_LANES-1:0];
-
-    // fail_flag_r : set if ANY lane has no passing code in the sweep
+    // fail_flag_r : set if ANY negotiated lane has no passing code in the sweep
     reg fail_flag_r;
     assign dtc1_if.datatraincenter1_fail_flag = fail_flag_r;
-
+    // ==================================================
+    // MB Lane Control
+    // Convert mb_rx_data_lane_mask (3 bits) to 16-bit negotiated_data_lanes mask.
+    // 000b: None  001b: Lanes 0-7  010b: Lanes 8-15  011b: Lanes 0-15
+    // 100b: Lanes 0-3  101b: Lanes 4-7
+    // ==================================================
+    logic [15:0] negotiated_data_lanes;
+    always @(*) begin
+        case (dtc1_if.mb_rx_data_lane_mask)
+            3'b000:  negotiated_data_lanes = 16'h0000;
+            3'b001:  negotiated_data_lanes = 16'h00FF;
+            3'b010:  negotiated_data_lanes = 16'hFF00;
+            3'b011:  negotiated_data_lanes = 16'hFFFF;
+            3'b100:  negotiated_data_lanes = 16'h000F;
+            3'b101:  negotiated_data_lanes = 16'h00F0;
+            default: negotiated_data_lanes = 16'h0000;
+        endcase
+    end
     // any_fail: combinational reduction over found_pass[]
+    // Only consider lanes that are active (negotiated_data_lanes[l]==1).
     genvar g;
     wire any_fail_w;
     wire [NUM_DATA_LANES-1:0] found_pass_bus;
@@ -100,21 +107,18 @@ module unit_DATATRAINCENTER1 #(
             assign found_pass_bus[g] = found_pass[g];
         end
     endgenerate
-    assign any_fail_w = ~(&found_pass_bus); // any lane with found_pass==0 -> fail
-
+    // A lane is "ok" if it found a pass OR it is not a negotiated lane.
+    assign any_fail_w = ~(&(found_pass_bus | ~negotiated_data_lanes));
     // =====================================================================
     // (Block 1) Sequential: current state
     // =====================================================================
     always @(posedge dtc1_if.lclk or negedge dtc1_if.rst_n) begin
         if (!dtc1_if.rst_n) begin
             current_state  <= DTC1_IDLE;
-            previous_state <= DTC1_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state;
         end
     end
-
     // =====================================================================
     // (Block 2) Combinational: next state
     // =====================================================================
@@ -180,7 +184,6 @@ module unit_DATATRAINCENTER1 #(
             endcase
         end
     end
-
     // =====================================================================
     // (Block 3) Combinational: outputs
     // All interface outputs are driven here; the data-path block below
@@ -192,7 +195,6 @@ module unit_DATATRAINCENTER1 #(
         dtc1_if.trainerror_req         = 1'b0;
         dtc1_if.timeout_timer_en       = 1'b1;
         dtc1_if.analog_settle_timer_en = 1'b0;
-
         // D2C point test defaults
         d2c_if.tx_pt_en             = 1'b0;
         d2c_if.rx_pt_en             = 1'b0;
@@ -206,7 +208,6 @@ module unit_DATATRAINCENTER1 #(
         d2c_if.d2c_idle_count       = 16'd0   ;
         d2c_if.d2c_iter_count       = 16'd1   ;
         d2c_if.d2c_compare_setup    = 2'd0    ; // Per-lane
-
         // MB defaults
         dtc1_if.mb_tx_clk_lane_sel  = 2'b01; // Active
         dtc1_if.mb_tx_data_lane_sel = 2'b00; // Low
@@ -216,77 +217,62 @@ module unit_DATATRAINCENTER1 #(
         dtc1_if.mb_rx_data_lane_sel = 1'b1 ; // Enable
         dtc1_if.mb_rx_val_lane_sel  = 1'b1 ; // Enable
         dtc1_if.mb_rx_trk_lane_sel  = 1'b0 ; // Disable
-
         // SB defaults
         dtc1_if.tx_sb_msg_valid = 1'b0   ;
         dtc1_if.tx_sb_msg       = NOTHING ;
         dtc1_if.tx_msginfo      = 16'h0  ;
         dtc1_if.tx_data_field   = 64'h0  ;
-
         // PHY: drive best_code_r[0] by default (applied after CALC_APPLY).
         dtc1_if.phy_tx_pi_phase_ctrl = best_code_r[0];
-
         case (current_state)
             DTC1_IDLE: dtc1_if.timeout_timer_en = 1'b0;
-
             DTC1_START_REQ: begin
                 dtc1_if.tx_sb_msg_valid = !data_incoherence;
                 dtc1_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER1_start_req;
             end
-
             DTC1_START_RESP: begin
                 dtc1_if.tx_sb_msg_valid = !data_incoherence;
                 dtc1_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER1_start_resp;
             end
-
             DTC1_SET_PHASE: begin
                 // Drive the current sweep code to the PI and wait for analog settle.
                 dtc1_if.phy_tx_pi_phase_ctrl   = swept_code_r;
                 dtc1_if.analog_settle_timer_en = 1'b1;
             end
-
             DTC1_TX_D2C_PT: begin
                 // Hold swept_code_r on PHY while the Tx D2C test runs.
                 dtc1_if.phy_tx_pi_phase_ctrl = swept_code_r;
                 d2c_if.tx_pt_en              = 1'b1;
             end
-
             DTC1_LOG_RESULT: begin
                 // Hold swept_code_r on PHY during the 1-cycle result logging.
                 dtc1_if.phy_tx_pi_phase_ctrl = swept_code_r;
             end
-
             DTC1_CALC_APPLY: begin
                 // best_code_r[0] is already driven as default (apply best center).
                 // Wait for analog settle before accepting the final value.
                 dtc1_if.analog_settle_timer_en = 1'b1;
             end
-
             DTC1_END_REQ: begin
                 dtc1_if.tx_sb_msg_valid = !data_incoherence;
                 dtc1_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER1_end_req;
             end
-
             DTC1_END_RESP: begin
                 dtc1_if.tx_sb_msg_valid = !data_incoherence;
                 dtc1_if.tx_sb_msg       = MBTRAIN_DATATRAINCENTER1_end_resp;
             end
-
             TO_DATATRAINVREF: begin
                 dtc1_if.datatraincenter1_done = 1'b1;
                 dtc1_if.timeout_timer_en      = 1'b0;
             end
-
             TO_TRAINERROR: begin
                 dtc1_if.datatraincenter1_done = 1'b1;
                 dtc1_if.trainerror_req        = 1'b1;
                 dtc1_if.timeout_timer_en      = 1'b0;
             end
-
             default: begin end
         endcase
     end
-
     // =====================================================================
     // Sequential: PI phase sweep counter + per-lane eye-map tracking
     //
@@ -325,7 +311,6 @@ module unit_DATATRAINCENTER1 #(
                 best_code_r[i] <= MIN_PHASE_CODE;
             end
             fail_flag_r <= 1'b0;
-
         end else if (current_state == DTC1_START_REQ) begin
             // (S1) Reset sweep state at the start of every new run.
             // Done in START_REQ so back-to-back activations each get a fresh sweep.
@@ -338,7 +323,6 @@ module unit_DATATRAINCENTER1 #(
                 best_code_r[i] <= MIN_PHASE_CODE;
             end
             fail_flag_r <= 1'b0;
-
         end else if (current_state == DTC1_LOG_RESULT) begin
             // (S5) Per-lane pass/fail logging and swept_code_r increment.
             // d2c_perlane_err[l]==0 -> pass, ==1 -> fail for that lane.
@@ -348,8 +332,8 @@ module unit_DATATRAINCENTER1 #(
                     if (!zone_valid[i]) begin
                         // Zone A: entering a fresh contiguous pass region.
                         zone_valid[i] <= 1'b1;
-                        if (!found_pass[i]) begin
-                            // Very first passing code ever: seed the best window.
+                        if (!found_pass[i] && negotiated_data_lanes[i]) begin
+                            // Very first passing code for a negotiated lane: seed the best window.
                             found_pass[i] <= 1'b1;
                             best_lo[i]    <= swept_code_r;
                             best_hi[i]    <= swept_code_r;
@@ -369,7 +353,6 @@ module unit_DATATRAINCENTER1 #(
             // Advance the sweep counter (saturates at MAX).
             if (swept_code_r != MAX_PHASE_CODE)
                 swept_code_r <= swept_code_r + 1;
-
         end else if (current_state == DTC1_CALC_APPLY) begin
             // (S6) Compute per-lane PI midpoints and record fail flag.
             // Spec: phase_code = (Left_Edge + Right_Edge) / 2 per lane.
@@ -386,5 +369,4 @@ module unit_DATATRAINCENTER1 #(
             fail_flag_r <= any_fail_w;
         end
     end
-
 endmodule

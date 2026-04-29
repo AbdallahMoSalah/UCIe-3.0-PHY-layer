@@ -41,7 +41,6 @@
 //    During sweep (S3-S5): phy_rx_datavref_ctrl[lane] = swept_code_r (shared).
 //    After CALC_APPLY   : phy_rx_datavref_ctrl[lane] = best_vref_code[lane].
 // =============================================================================
-
 module unit_DATATRAINVREF #(
         parameter MAX_VREF_CODE = 7'd127,
         parameter MIN_VREF_CODE = 7'd10
@@ -49,7 +48,6 @@ module unit_DATATRAINVREF #(
         internal_ltsm_if.datatrainvref_mp dtvref_if,
         internal_ltsm_if.substate2d2c_mp  d2c_if
     );
-
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_DATATRAINVREF_start_req ;
     import UCIe_pkg::MBTRAIN_DATATRAINVREF_start_resp;
@@ -57,7 +55,6 @@ module unit_DATATRAINVREF #(
     import UCIe_pkg::MBTRAIN_DATATRAINVREF_end_resp  ;
     import UCIe_pkg::TRAINERROR_Entry_req;
     import UCIe_pkg::NOTHING             ;
-
     // =====================================================================
     // State encoding
     // =====================================================================
@@ -72,17 +69,13 @@ module unit_DATATRAINVREF #(
     DTVREF_END_RESP         = 4'h8,
     TO_RXDESKEW             = 4'h9,
     TO_TRAINERROR           = 4'hA;
-
-    reg [3:0] current_state, next_state, previous_state;
-
+    reg [3:0] current_state, next_state;
     // Glitch-guard: suppress tx_sb_msg_valid on the cycle of a state change.
-    wire data_incoherence = (current_state != previous_state);
-
+    wire data_incoherence = (current_state != next_state);
     // =====================================================================
     // Vref code width
     // =====================================================================
     localparam VW = $clog2(MAX_VREF_CODE + 1); // 7 bits for codes up to 127
-
     // =====================================================================
     // Per-lane Vref sweep data-path registers (mirrors unit_DATAVREF)
     //
@@ -101,24 +94,19 @@ module unit_DATATRAINVREF #(
     //   Zone B: If zone_range[l] > best_range[l]: update best_lo[l]/best_hi[l].
     //   Fail  : zone_valid[l] -> 0.
     // =====================================================================
-
     // Swept Vref code: one counter drives the same Vref to all lanes simultaneously.
     reg [VW-1:0] swept_code_r;
-
     // Per-lane eye-map tracking arrays (one element per data lane).
     reg [VW-1:0] zone_min_r  [15:0]; // start of current contiguous pass zone
     reg [VW-1:0] best_lo     [15:0]; // left  edge of widest pass window
     reg [VW-1:0] best_hi     [15:0]; // right edge of widest pass window
     reg          found_pass  [15:0]; // 1 = at least one passing Vref code seen
     reg          zone_valid  [15:0]; // 1 = currently inside a contiguous pass zone
-
     // Applied per-lane optimal midpoint (written in CALC_APPLY, held afterwards).
     reg [VW-1:0] best_vref_code [15:0];
-
     // fail_flag: asserted if ANY negotiated lane has no passing Vref code at all.
     reg fail_flag_r;
     assign dtvref_if.datatrainvref_fail_flag = fail_flag_r;
-
     // =====================================================================
     // Negotiated data lane mask
     //
@@ -139,7 +127,6 @@ module unit_DATATRAINVREF #(
             default: negotiated_data_lanes = 16'h0000;
         endcase
     end
-
     // =====================================================================
     // Per-lane combinational range helpers (used in Zone B comparison)
     //   best_range[l] = width of the best recorded pass window for lane l.
@@ -147,23 +134,19 @@ module unit_DATATRAINVREF #(
     // =====================================================================
     wire [VW-1:0] best_range [15:0];
     wire [VW-1:0] zone_range [15:0];
-
     // Packed bus that mirrors found_pass[] for reduction operations.
     // (Unpacked arrays cannot be used directly in bitwise/reduction operators.)
     wire [15:0] found_pass_bus;
-
     genvar lane;
     generate
         for (lane = 0; lane < 16; lane = lane + 1) begin : VREF_RANGE_GEN
             // Mirror found_pass[lane] -> found_pass_bus[lane] for reductions.
             assign found_pass_bus[lane] = found_pass[lane];
-
             // Width of the best (widest) recorded pass window for this lane.
             assign best_range[lane] = (found_pass[lane] == 1'b1) ?
                 (best_hi[lane] - best_lo[lane]) : '0;
             // Width of the current contiguous pass zone for this lane.
             assign zone_range[lane] = (swept_code_r - zone_min_r[lane]);
-
             // Drive swept_code_r to PHY during the sweep states (S3-S5),
             // then switch to the per-lane optimal midpoint (best_vref_code) afterwards.
             assign dtvref_if.phy_rx_datavref_ctrl[lane] =
@@ -174,20 +157,16 @@ module unit_DATATRAINVREF #(
                     current_state == DTVREF_LOG_RESULT) ? swept_code_r : best_vref_code[lane];
         end
     endgenerate
-
     // =====================================================================
     // (Block 1) Sequential: current state register
     // =====================================================================
     always @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin
         if (!dtvref_if.rst_n) begin
             current_state  <= DTVREF_IDLE;
-            previous_state <= DTVREF_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state;
         end
     end
-
     // =====================================================================
     // (Block 2) Combinational: next state
     // =====================================================================
@@ -254,7 +233,6 @@ module unit_DATATRAINVREF #(
             endcase
         end
     end
-
     // =====================================================================
     // (Block 3) Combinational: outputs
     //
@@ -266,11 +244,9 @@ module unit_DATATRAINVREF #(
         // LTSM controller signals.
         dtvref_if.datatrainvref_done   = 1'b0;
         dtvref_if.trainerror_req       = 1'b0;
-
         // Timers.
         dtvref_if.timeout_timer_en       = 1'b1;
         dtvref_if.analog_settle_timer_en = 1'b0;
-
         // D2C test configuration (Rx-initiated, Per-Lane comparison).
         d2c_if.rx_pt_en             = 1'b0;
         d2c_if.tx_pt_en             = 1'b0;
@@ -284,7 +260,6 @@ module unit_DATATRAINVREF #(
         d2c_if.d2c_idle_count       = 16'd0;
         d2c_if.d2c_iter_count       = 16'd1;
         d2c_if.d2c_compare_setup    = 2'd0;     // Per-Lane comparison -> d2c_perlane_err[15:0].
-
         // MB lane configuration.
         dtvref_if.mb_tx_clk_lane_sel  = 2'b01; // Active
         dtvref_if.mb_tx_data_lane_sel = 2'b00; // Low until test active
@@ -294,74 +269,60 @@ module unit_DATATRAINVREF #(
         dtvref_if.mb_rx_data_lane_sel  = 2'b01;  // Enable
         dtvref_if.mb_rx_val_lane_sel  = 2'b01;  // Enable (holds valid pattern)
         dtvref_if.mb_rx_trk_lane_sel  = 2'b00;  // Disable
-
         // SB TX defaults.
         dtvref_if.tx_sb_msg_valid = 1'b0   ;
         dtvref_if.tx_sb_msg       = NOTHING ;
         dtvref_if.tx_msginfo      = 16'h0  ;
         dtvref_if.tx_data_field   = 64'h0  ;
-
         case (current_state)
             DTVREF_IDLE: begin
                 dtvref_if.timeout_timer_en = 1'b0;
             end
-
             DTVREF_START_REQ: begin
                 dtvref_if.tx_sb_msg_valid = !data_incoherence;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_start_req;
             end
-
             DTVREF_START_RESP: begin
                 dtvref_if.tx_sb_msg_valid = !data_incoherence;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_start_resp;
             end
-
             DTVREF_SET_VREF: begin
                 // swept_code_r is driven to all PHY lanes by the generate block.
                 // Enable the analog settle timer and wait for it to finish before S4.
                 dtvref_if.analog_settle_timer_en = 1'b1;
             end
-
             DTVREF_RX_D2C_PT: begin
                 // swept_code_r still held on all PHY lanes; launch Rx D2C test.
                 d2c_if.rx_pt_en = 1'b1;
             end
-
             DTVREF_LOG_RESULT: begin
                 // Sequential logic only; see DTVREF_LOG_RESULT_PROC below.
             end
-
             DTVREF_CALC_APPLY: begin
                 // Per-lane best midpoints are driven by the generate block.
                 // Wait for analog settle before accepting the final value.
                 dtvref_if.analog_settle_timer_en = 1'b1;
             end
-
             DTVREF_END_REQ: begin
                 dtvref_if.tx_sb_msg_valid = !data_incoherence;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_end_req;
             end
-
             DTVREF_END_RESP: begin
                 dtvref_if.tx_sb_msg_valid = !data_incoherence;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_end_resp;
             end
-
             TO_RXDESKEW: begin
                 dtvref_if.datatrainvref_done = 1'b1;
                 dtvref_if.timeout_timer_en   = 1'b0;
             end
-
             TO_TRAINERROR: begin
                 dtvref_if.datatrainvref_done = 1'b1;
                 dtvref_if.trainerror_req     = 1'b1;
                 dtvref_if.timeout_timer_en   = 1'b0;
             end
-
             default: begin end
         endcase
     end
-
     // =====================================================================
     // Sequential: Vref sweep counter, per-lane eye-map tracking (LOG_RESULT)
     //
@@ -392,7 +353,6 @@ module unit_DATATRAINVREF #(
                 zone_valid     [i] <= 1'b0;
                 best_vref_code [i] <= MIN_VREF_CODE[VW-1:0];
             end
-
         end else if (current_state == DTVREF_START_REQ) begin
             // (S1) Reset sweep state at the start of each run.
             // Done in START_REQ so back-to-back activations each get a fresh sweep.
@@ -406,7 +366,6 @@ module unit_DATATRAINVREF #(
                 zone_valid     [i] <= 1'b0;
                 best_vref_code [i] <= MIN_VREF_CODE[VW-1:0];
             end
-
         end else if (current_state == DTVREF_LOG_RESULT) begin
             // (S5) Per-lane pass/fail logging, then advance swept_code_r.
             // d2c_perlane_err[l] == 0 -> PASS for lane l.
@@ -418,7 +377,6 @@ module unit_DATATRAINVREF #(
                     if (!zone_valid[i]) begin
                         zone_valid[i]  <= 1'b1;          // mark zone active
                         zone_min_r[i]  <= swept_code_r;  // save zone start
-
                         // First-ever pass for this (negotiated) lane: seed the window.
                         if (!found_pass[i] && negotiated_data_lanes[i]) begin
                             found_pass[i] <= 1'b1;
@@ -440,11 +398,9 @@ module unit_DATATRAINVREF #(
                     zone_valid[i] <= 1'b0;
                 end
             end
-
             // Advance the Vref sweep counter (saturates at MAX).
             if (swept_code_r != MAX_VREF_CODE[VW-1:0])
                 swept_code_r <= swept_code_r + 1;
-
         end else if (current_state == DTVREF_CALC_APPLY) begin
             // (S6) Compute per-lane Vref midpoints and record fail flag.
             // Spec eq.: vref_code = (first_success + last_success) / 2
@@ -456,7 +412,6 @@ module unit_DATATRAINVREF #(
                     best_vref_code[i] <= MIN_VREF_CODE[VW-1:0]; // safe default
                 end
             end
-
             // Fail flag: set if ANY negotiated lane has no passing Vref code.
             // Uses found_pass_bus (packed) so the bitwise NOT and AND are legal.
             // Non-negotiated lane bits are forced to 1 (via ~negotiated_data_lanes)
@@ -464,5 +419,4 @@ module unit_DATATRAINVREF #(
             fail_flag_r <= ~(&(found_pass_bus | (~negotiated_data_lanes)));
         end
     end
-
 endmodule
