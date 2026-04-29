@@ -29,8 +29,12 @@ module sb_priority_arbiter #(
             out_vld = lop_vld;
         end
 
-        hip_rdy = out_rdy && hip_vld;
-        lop_rdy = out_rdy && lop_vld && !hip_vld;
+        // ── Ready signals ────────────────────────────────────────────────────
+        // rdy MUST be independent of vld (standard valid/ready handshake).
+        // hip_rdy: downstream is free (out_rdy=1) and no starvation.
+        // lop_rdy: downstream is free AND no high-priority msg is present.
+        hip_rdy = out_rdy;
+        lop_rdy = out_rdy && !hip_vld;
     end
 
 endmodule
