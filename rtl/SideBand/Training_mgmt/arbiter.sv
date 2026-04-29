@@ -77,38 +77,17 @@ module arbiter (
             end
 
             ST_READ_LTSM: begin
-                // Wait for the Link Controller to accept the data
-                if (trn_rdy) begin 
-                    // Round-Robin: Switch to RDI if it has pending data
-                    if (rdi_not_empty) begin
-                        next_state = ST_READ_RDI; 
-                    end
-                    // Stay in LTSM if RDI is empty but LTSM has more data
-                    else if (ltsm_not_empty) begin
-                        next_state = ST_READ_LTSM; 
-                    end
-                    // Both FIFOs are empty, return to IDLE
-                    else begin
-                        next_state = ST_IDLE; 
-                    end
+                // After each pop, always return to ST_IDLE so the stale
+                // FIFO REMPTY flag can settle before re-reading.
+                if (trn_rdy) begin
+                    next_state = ST_IDLE;
                 end
             end
 
             ST_READ_RDI: begin
-                // Wait for the Link Controller to accept the data
+                // Same fix: return to ST_IDLE after each pop.
                 if (trn_rdy) begin
-                    // Round-Robin: Switch to LTSM if it has pending data
-                    if (ltsm_not_empty) begin
-                        next_state = ST_READ_LTSM; 
-                    end
-                    // Stay in RDI if LTSM is empty but RDI has more data
-                    else if (rdi_not_empty) begin
-                        next_state = ST_READ_RDI; 
-                    end
-                    // Both FIFOs are empty, return to IDLE
-                    else begin
-                        next_state = ST_IDLE; 
-                    end
+                    next_state = ST_IDLE;
                 end
             end
             
@@ -173,5 +152,14 @@ module arbiter (
         endcase
     end
 
+
+    // synthesis translate_off
+    always_ff @(posedge clk) begin
+        if (current_state != next_state)
+            $display("[%0t] [ARBITER %m] STATE TRANSITION: %0s -> %0s | trn_rdy=%b ltsm_not_empty=%b", $time, current_state.name(), next_state.name(), trn_rdy, ltsm_not_empty);
+        if (ltsm_pop)
+            $display("[%0t] [ARBITER %m] POP LTSM: vld=1 trn_rdy=%b msg_n=%h", $time, trn_rdy, msg_n);
+    end
+    // synthesis translate_on
 
 endmodule
