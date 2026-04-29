@@ -489,6 +489,14 @@ module DePacketizer (
 
         endcase
 
+/*        // DEBUG DISPLAY
+        // synthesis translate_off
+        if (vld_in) begin
+            $display("[%0t] [DePacketizer] rst_n=%b vld_in=%b msgcode=%h subcode=%h opcode=%h cp_calc=%b header_cp=%b error_flag=%b msg_no_comb=%h", 
+                     $time, rst_n, vld_in, header_in.msg.msgcode, header_in.msg.MsgSubcode, header_in.msg.opcode, cp_calc, header_in.msg.cp, error_flag, msg_no_comb);
+        end
+        // synthesis translate_on
+*/
     end
 
 
