@@ -194,6 +194,7 @@ module SideBand_Top_tb;
         rst_main_n = 1;
         rst_sb_n = 1;
         phy_in_reset[0] = 0; phy_in_reset[1] = 0;
+        traffic_rdy[0] = 1; traffic_rdy[1] = 1;
         
         #50;
         $display("----------------------------------------");
@@ -203,6 +204,16 @@ module SideBand_Top_tb;
         #100;
     endtask
 
+    initial begin
+        forever begin
+            @(posedge clk_sb);
+            if (dut_inst[1].dut.des_vld_rcvd)
+                $display("[%0t] \033[1;35m[MONITOR]\033[0m Die 1 des_vld_rcvd = 1, des_data_rcvd = %h", $time, dut_inst[1].dut.des_data_rcvd);
+            if (ltsm_vld_rcvd[1])
+                $display("[%0t] \033[1;35m[MONITOR]\033[0m Die 1 ltsm_vld_rcvd = 1", $time);
+        end
+    end
+
     task run_pattern_sequence();
         $display("[%0t] TEST: Starting realistic pattern test sequence", $time);
 
@@ -210,7 +221,7 @@ module SideBand_Top_tb;
         pattern_mode[0] = 1; pattern_mode[1] = 1;
         start_pat_req[0] = 1; start_pat_req[1] = 0; // Only Die 0 starts
         send_4_iter[0] = 0; send_4_iter[1] = 0;
-        pmo_en[0] = 0; pmo_en[1] = 0;
+        pmo_en[0] = 1; pmo_en[1] = 1;
         $display("[%0t] Die 0 starts pattern generation, Die 1 is waiting", $time);
 
         // Now both dies will run concurrently to finish their sequence
@@ -282,14 +293,249 @@ module SideBand_Top_tb;
     endtask
 
     // =========================================================================
+    // Helper Functions & Tasks
+    // =========================================================================
+    function automatic logic [63:0] build_req_header(sb_opcode_e op, sb_dstid_e dst, sb_srcid_e src, logic [23:0] address);
+        sb_header_u hdr;
+        hdr.raw = '0;
+        hdr.req.opcode = op;
+        hdr.req.dstid  = dst;
+        hdr.req.srcid  = src;
+        hdr.req.addr   = address;
+        return hdr.raw;
+    endfunction
+
+    function automatic logic [63:0] build_msg_header(sb_opcode_e op, sb_dstid_e dst, sb_srcid_e src, msg_code_e code);
+        sb_header_u hdr;
+        hdr.raw = '0;
+        hdr.msg.opcode = op;
+        hdr.msg.dstid  = dst;
+        hdr.msg.srcid  = src;
+        hdr.msg.msgcode = code;
+        return hdr.raw;
+    endfunction
+
+    task send_lp_cfg_chunks(input logic [63:0] header, input logic [63:0] payload, input int num_chunks, input int die);
+        @(posedge clk_sb);
+        lp_cfg_vld[die] = 1;
+        lp_cfg[die] = header[31:0];
+        @(posedge clk_sb);
+        lp_cfg[die] = header[63:32];
+        if (num_chunks > 2) begin
+            @(posedge clk_sb);
+            lp_cfg[die] = payload[31:0];
+            if (num_chunks > 3) begin
+                @(posedge clk_sb);
+                lp_cfg[die] = payload[63:32];
+            end
+        end
+        @(posedge clk_sb);
+        lp_cfg_vld[die] = 0;
+    endtask
+
+    // =========================================================================
+    // Verification Sequences
+    // =========================================================================
+
+    task test_training_mgmt_path();
+        $display("\n========================================================");
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_training_mgmt_path", $time);
+        
+        // ========================================================
+        // Link Synchronization Phase (Flush garbage words)
+        // ========================================================
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting Link Synchronization Phase", $time);
+        fork : sync_phase
+            begin
+                // Send 2 dummy 64-bit messages to align sb_demapper on Die 1
+                for (int i=0; i<2; i++) begin
+                    @(posedge clk_main);
+                    ltsm_vld_send[0] = 1;
+                    ltsm_msg_n_send[0] = MBINIT_CAL_Done_req; // 64-bit msg
+                    msg_data_send[0] = '0;
+                    msg_info_send[0] = 16'h4234;
+                    @(posedge clk_main);
+                    ltsm_vld_send[0] = 0;
+                    repeat(20) @(posedge clk_main);
+                end
+            end
+            begin
+                // Ignore the received dummy messages or corrupted garbage
+                repeat(2) begin
+                    wait(ltsm_vld_rcvd[1] == 1'b1);
+                    $display("[%0t] \033[1;36m[DEBUG]\033[0m Link Sync: Discarding dummy msg on Die 1 (msg_no=%h)", $time, ltsm_msg_no_rcvd[1]);
+                    @(posedge clk_main);
+                end
+            end
+        join_any
+        disable sync_phase;
+        
+        repeat(50) @(posedge clk_main);
+
+        // Scenario A: Heavy Load LTSM
+        $display("[%0t] \033[1;34m[INFO]\033[0m Sending Burst LTSM Messages", $time);
+        fork
+            begin
+                for (int i=0; i<4; i++) begin
+                    @(posedge clk_main);
+                    $display("[%0t] [DIE 0] Sending LTSM %0d", $time, i);
+                    ltsm_vld_send[0] = 1;
+                    ltsm_msg_n_send[0] = msg_no_e'(MBINIT_PARAM_configuration_req + i);
+                    msg_data_send[0] = {32'hDEADBEEF, i[31:0]};
+                    msg_info_send[0] = 16'h4234 + i; // dst_id = 2 (REMOTE_PHY)
+                    @(posedge clk_main);
+                    ltsm_vld_send[0] = 0;
+                    @(posedge clk_main); // spacing
+                end
+            end
+            begin
+                for (int i=0; i<4; i++) begin
+                    $display("[%0t] [DIE 1] Waiting for LTSM %0d", $time, i);
+                    @(posedge ltsm_vld_rcvd[1]);
+                    $display("[%0t] \033[1;36m[DEBUG]\033[0m Die 1 received LTSM message (msg_no=%h)", $time, ltsm_msg_no_rcvd[1]);
+                    if (ltsm_msg_no_rcvd[1] != MBINIT_PARAM_configuration_req + i)
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m LTSM mismatch on Die 1: expected %h, got %h", $time, MBINIT_PARAM_configuration_req+i, ltsm_msg_no_rcvd[1]);
+                    else
+                        $display("[%0t] \033[1;32m[SUCCESS]\033[0m LTSM Burst Msg %0d received correctly", $time, i);
+                    @(posedge clk_main);
+                end
+            end
+        join
+
+        // Scenario B: Heavy Load RDI
+        $display("[%0t] \033[1;34m[INFO]\033[0m Sending Burst RDI Messages", $time);
+        fork
+            begin
+                for (int i=0; i<5; i++) begin
+                    @(posedge clk_sb);
+                    RDI_vld_send[0] = 1;
+                    RDI_msg_no_send[0] = 8'h01 + i;
+                    @(posedge clk_sb);
+                    RDI_vld_send[0] = 0;
+                    @(posedge clk_sb); // spacing
+                end
+            end
+            begin
+                for (int i=0; i<5; i++) begin
+                    @(posedge RDI_vld_rcvd[1]);
+                    @(posedge clk_sb);
+                    if (RDI_msg_no_rcvd[1] != 8'h01 + i)
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m RDI mismatch on Die 1: expected %h, got %h", $time, 8'h01+i, RDI_msg_no_rcvd[1]);
+                    else
+                        $display("[%0t] \033[1;32m[SUCCESS]\033[0m RDI Burst Msg %0d received correctly", $time, i);
+                end
+            end
+        join
+
+        repeat(50) @(posedge clk_sb);
+    endtask
+
+    task test_rdi_remote_msgs();
+        logic [63:0] hdr;
+        
+        $display("\n========================================================");
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_rdi_remote_msgs", $time);
+        
+        // Remote register read message
+        hdr = build_req_header(SB_32_CFG_READ, REMOTE_ADAPTER, ADAPTER, 24'h102030);
+        
+        send_lp_cfg_chunks(hdr, 64'h0, 2, 0); // die 0
+        
+        // Wait for pl_cfg_vld on Die 1
+        wait(pl_cfg_vld[1] == 1'b1);
+        @(posedge clk_sb);
+        $display("[%0t] \033[1;32m[SUCCESS]\033[0m Remote RDI message received on Die 1 via pl_cfg", $time);
+        
+        repeat(50) @(posedge clk_sb);
+    endtask
+
+    task test_rdi_local_reg_msgs();
+        logic [63:0] hdr;
+        logic [63:0] payload;
+        
+        $display("\n========================================================");
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_rdi_local_reg_msgs", $time);
+        
+        // Local register write message (64-bit mem write)
+        hdr = build_req_header(SB_64_MEM_WRITE, LOCAL_PHY, ADAPTER, 24'h00AABB);
+        payload = 64'hFEEDFACECAFEBEEF;
+        
+        fork
+            begin
+                send_lp_cfg_chunks(hdr, payload, 4, 0); // 4 chunks for 64-bit payload
+            end
+            begin
+                // Monitor rf_* interface on Die 0
+                wait(wr_en[0] == 1'b1);
+                @(posedge clk_sb);
+                if (rf_addr[0] == 25'h00AABB && rf_wdata[0] == payload)
+                    $display("[%0t] \033[1;32m[SUCCESS]\033[0m Local register write successfully routed to Reg_Access on Die 0", $time);
+                else
+                    $error("[%0t] \033[1;31m[ERROR]\033[0m Local register write mismatch: addr=%h, data=%h", $time, rf_addr[0], rf_wdata[0]);
+            end
+        join
+        
+        repeat(50) @(posedge clk_sb);
+    endtask
+
+    task test_link_controller_arbitration();
+        logic [63:0] hdr;
+        
+        $display("\n========================================================");
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_link_controller_arbitration", $time);
+        
+        hdr = build_msg_header(SB_MSG_WITHOUT_DATA, REMOTE_ADAPTER, ADAPTER, TEST_REQ_DOMAIN);
+        
+        // Send concurrent LTSM and RDI Control Messages from Die 0
+        fork
+            begin
+                // LTSM Message
+                @(posedge clk_sb);
+                ltsm_vld_send[0] = 1;
+                ltsm_msg_n_send[0] = 8'hBB;
+                @(posedge clk_sb);
+                ltsm_vld_send[0] = 0;
+            end
+            begin
+                // Remote Message from Adapter
+                send_lp_cfg_chunks(hdr, 64'h0, 2, 0);
+            end
+        join
+        
+        // Wait for both to arrive on Die 1
+        fork
+            begin
+                wait(ltsm_vld_rcvd[1] == 1'b1);
+                $display("[%0t] \033[1;32m[SUCCESS]\033[0m LTSM message received post-arbitration", $time);
+            end
+            begin
+                wait(pl_cfg_vld[1] == 1'b1);
+                $display("[%0t] \033[1;32m[SUCCESS]\033[0m Adapter remote message received post-arbitration", $time);
+            end
+        join
+        
+        repeat(50) @(posedge clk_sb);
+    endtask
+
+    // =========================================================================
     // Test Sequence
     // =========================================================================
     initial begin
         reset_and_init();
         run_pattern_sequence();
 
+        // Reset pattern mode after scenario
+        @(posedge clk_sb);
+        pattern_mode[0] = 0; pattern_mode[1] = 0;
+        pmo_en[0] = 1; pmo_en[1] = 1;
+
+        test_training_mgmt_path();
+        test_rdi_remote_msgs();
+        test_rdi_local_reg_msgs();
+        test_link_controller_arbitration();
+
         $display("----------------------------------------");
-        $display("TEST PASSED");
+        $display("\033[1;32mTEST PASSED\033[0m");
         $display("----------------------------------------");
         $stop;
     end
