@@ -16,22 +16,27 @@ add wave -noupdate -color Orange /MBINIT_REVERSALMB_tb/dut/retry_done
 add wave -noupdate -color Green /MBINIT_REVERSALMB_tb/dut/majority_success
 
 add wave -noupdate -divider {RX Message Interface}
-add wave -noupdate -color Cyan /MBINIT_REVERSALMB_tb/mb_rx_valid
-add wave -noupdate -color Cyan /MBINIT_REVERSALMB_tb/mb_rx_msg_id
-add wave -noupdate -radix hexadecimal -color Cyan /MBINIT_REVERSALMB_tb/mb_rx_MsgInfo
-add wave -noupdate -radix hexadecimal -color Cyan /MBINIT_REVERSALMB_tb/mb_rx_data_Field
+add wave -noupdate -color Cyan /MBINIT_REVERSALMB_tb/mb_reversal_rx_valid
+add wave -noupdate -color Cyan /MBINIT_REVERSALMB_tb/mb_reversal_rx_msg_id
+add wave -noupdate -radix hexadecimal -color Cyan /MBINIT_REVERSALMB_tb/mb_reversal_rx_MsgInfo
+add wave -noupdate -radix hexadecimal -color Cyan /MBINIT_REVERSALMB_tb/mb_reversal_rx_data_Field
 
 add wave -noupdate -divider {TX Message Interface}
-add wave -noupdate -color Magenta /MBINIT_REVERSALMB_tb/mb_tx_valid
-add wave -noupdate -color Magenta /MBINIT_REVERSALMB_tb/mb_tx_msg_id
-add wave -noupdate -radix hexadecimal -color Magenta /MBINIT_REVERSALMB_tb/mb_tx_MsgInfo
-add wave -noupdate -radix hexadecimal -color Magenta /MBINIT_REVERSALMB_tb/mb_tx_data_Field
+add wave -noupdate -color Magenta /MBINIT_REVERSALMB_tb/mb_reversal_tx_valid
+add wave -noupdate -color Magenta /MBINIT_REVERSALMB_tb/mb_reversal_tx_msg_id
+add wave -noupdate -radix hexadecimal -color Magenta /MBINIT_REVERSALMB_tb/mb_reversal_tx_MsgInfo
+add wave -noupdate -radix hexadecimal -color Magenta /MBINIT_REVERSALMB_tb/mb_reversal_tx_data_Field
 
 add wave -noupdate -divider {Pattern Comparison}
 add wave -noupdate -color Yellow /MBINIT_REVERSALMB_tb/mb_tx_pattern_en
 add wave -noupdate -color Yellow /MBINIT_REVERSALMB_tb/mb_rx_compare_en
 add wave -noupdate -color Green /MBINIT_REVERSALMB_tb/mb_rx_compare_done
 add wave -noupdate -radix hexadecimal -color Red /MBINIT_REVERSALMB_tb/mb_rx_perlane_err
+
+add wave -noupdate -divider {Reversal Output}
+add wave -noupdate -color Orange /MBINIT_REVERSALMB_tb/mb_lane_reversal_req
+add wave -noupdate -color Orange /MBINIT_REVERSALMB_tb/mb_x8_mode_req
+add wave -noupdate -color Orange /MBINIT_REVERSALMB_tb/clear_error_req
 
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}

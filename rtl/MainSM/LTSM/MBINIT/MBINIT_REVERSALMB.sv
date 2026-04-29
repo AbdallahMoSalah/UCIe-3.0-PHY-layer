@@ -11,6 +11,16 @@ expected pattern. The error threshold is always 0 for this test.
     UCIe-S x16 {48'h0, RD_L[15], RD_L[14], …, RD_L[1], RD_L[0]}
     UCIe-S x8  {56'h0, RD_L[7], RD_L[6], …, RD_L[1], RD_L[0]}
 
+    -/-/-/-/-/-/-/-/-/-/-/-//-/-/-/-/-/-/-/-/-/-/-/-/-/-/-//-/-/-/-/-//
+    |     Interface with mainband         |
+    |          NEW SIGNALS                |
+    |  output logic mb_lane_reversal_req, |
+    |  output logic mb_x8_mode_req,       |
+    |  output logic clear_error_req,      |
+    |-------------------------------------|
+        
+    -/-/-/-/-/-/-/-/-/-/-/-//-/-/-/-/-/-/-/-/-/-/-/-/-/-/-//-/-/-/-/-//
+
 */
 
 import UCIe_pkg::*;
@@ -18,6 +28,8 @@ import UCIe_pkg::*;
 module MBINIT_REVERSALMB
 #( parameter int CLK_FRQ_HZ = 800000000)
 (
+    ucie_mb_cap_if.consumer cap_if,
+
     input  logic clk, rst_n,
 
     input  logic mb_reversal_enable,
@@ -48,6 +60,12 @@ module MBINIT_REVERSALMB
 
     input logic [15:0] mb_rx_perlane_err,
     input logic mb_rx_compare_done,
+
+    //new signals to be added to the interface with MB team.
+    output logic mb_lane_reversal_req,
+    output logic mb_x8_mode_req,
+    output logic clear_error_req,
+
     ////////////////////////////////////////////////////
 
     // PHY CONTROL
@@ -88,21 +106,91 @@ typedef enum logic [3:0] {
 state_e current_state, next_state;
 
 ////////////////////////////////////////////////////////
-// Reset flags when there is a retry
+// WIDTH (FROM NEGOTIATION)
 ////////////////////////////////////////////////////////
-/*logic s2_entry;
+logic x8_mode;
+assign x8_mode = cap_if.use_x8_mode;
+assign mb_x8_mode_req = cap_if.use_x8_mode;
 
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        s2_entry <= 0;
-    else
-        s2_entry <= (current_state != MB_S2_ERROR_RESET_REQ) && (next_state == MB_S2_ERROR_RESET_REQ);
-end
-*/
-
+////////////////////////////////////////////////////////
+// S2 Entry
+////////////////////////////////////////////////////////
 logic s2_entry;
 assign s2_entry = (next_state == MB_S2_ERROR_RESET_REQ) && (current_state != MB_S2_ERROR_RESET_REQ);
 
+////////////////////////////////////////////////////////
+// PARNER RESULT
+////////////////////////////////////////////////////////
+logic [15:0] partner_result;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n)
+        partner_result <= 0;
+
+    else if(s2_entry)
+        partner_result <= 0;
+
+    else if(current_state == MB_S4_RESULT_EXCHANGE_RSP && 
+            mb_reversal_rx_valid &&
+            mb_reversal_rx_msg_id == MBINIT_REVERSALMB_result_resp) begin
+        if (x8_mode)
+            partner_result <= {8'b0, mb_reversal_rx_data_Field[7:0]};
+        else
+            partner_result <= mb_reversal_rx_data_Field[15:0];
+    end
+end
+
+////////////////////////////////////////////////////////
+// SUCCESS COUNT
+////////////////////////////////////////////////////////
+logic [4:0] success_count;
+
+always_comb begin
+    success_count = 0;
+
+    if (x8_mode)
+        for (int i = 0; i < 8; i++) 
+            success_count += partner_result[i]; 
+    else 
+        for (int i = 0; i < 16; i++) 
+            success_count += partner_result[i];       
+end
+logic majority_success;
+assign majority_success = x8_mode ? (success_count >= 5 ) : (success_count > 8 );
+
+////////////////////////////////////////////////////////
+// REVERSAL DECISION LOGIC 
+////////////////////////////////////////////////////////
+logic [4:0] normal_success, reversed_success;
+
+always_comb begin
+    normal_success   = 0;
+    reversed_success = 0;
+
+    if (x8_mode) begin
+        for (int i = 0; i < 8; i++) begin
+            normal_success   += partner_result[i];
+            reversed_success += partner_result[7-i];
+        end
+    end 
+    else begin
+        for (int i = 0; i < 16; i++) begin
+            normal_success   += partner_result[i];
+            reversed_success += partner_result[15-i];
+        end
+    end
+end
+
+////////////////////////////////////////////////////////
+// Reset flags when there is a retry
+////////////////////////////////////////////////////////
+assign mb_lane_reversal_req = (current_state == MB_S5_DECISION) && majority_success &&(reversed_success > normal_success);
+assign clear_error_req =
+    // 1) received request from partner (according to the spec)
+    (mb_reversal_rx_valid && mb_reversal_rx_msg_id == MBINIT_REVERSALMB_clear_error_req) ;
+   // ||
+    // 2) local reset
+   // s2_entry;
 ////////////////////////////////////////////////////////
 // DEFAULTS
 ////////////////////////////////////////////////////////
@@ -118,42 +206,13 @@ always_ff @(posedge clk or negedge rst_n) begin
         mb_rx_perlane_result <= 16'h0;
     else if(s2_entry)
         mb_rx_perlane_result <= 16'h0;
-    else
+    else if(current_state == MB_S4_RESULT_EXCHANGE_REQ) // 28/4
         mb_rx_perlane_result <= mb_rx_perlane_err;
 end
 
 logic [63:0] MB_local_result_exchange_data_Field;
 assign MB_local_result_exchange_data_Field = {48'h0, mb_rx_perlane_result};
-////////////////////////////////////////////////////////
-// MAJORITY LOGIC
-////////////////////////////////////////////////////////
-parameter int NUM_LANES = 16;
 
-logic [NUM_LANES-1:0] partner_result;
-logic [$clog2(NUM_LANES+1)-1:0] success_count;
-logic majority_success;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        partner_result <= 0;
-
-    else if(s2_entry)
-        partner_result <= 0;
-
-    else if(current_state == MB_S4_RESULT_EXCHANGE_RSP &&
-            mb_reversal_rx_valid &&
-            mb_reversal_rx_msg_id == MBINIT_REVERSALMB_result_resp)
-        partner_result <= mb_reversal_rx_data_Field[15:0];
-end
-
-always_comb begin
-    success_count = 0;
-    for (int i = 0; i < NUM_LANES; i++) begin
-        success_count += partner_result[i];
-    end
-end
-
-assign majority_success = (success_count > (NUM_LANES/2));
 ////////////////////////////////////////////////////////
 // TIMEOUT
 ////////////////////////////////////////////////////////
@@ -175,26 +234,16 @@ timeout_counter #(
 assign timeout_error = timeout_expired && !mb_reversal_done;
 
 ////////////////////////////////////////////////////////
-// RX FLAGS
+// RETRY LOGIC
 ////////////////////////////////////////////////////////
-
 // To Reset the flages when there is a retry.
 logic retry_done;
-/*logic retry_pulse;
-
-assign retry_pulse =
-    (current_state == MB_S5_DECISION) &&
-    (!majority_success);
-*/
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         retry_done <= 0;
 
     else if(current_state == MB_S5_DECISION && !majority_success && !retry_done)
         retry_done <= 1;
-
-    else if(s2_entry)
-        retry_done <= retry_done;
 
     else if(current_state == MB_S0_IDLE)
         retry_done <= 0;
@@ -224,6 +273,23 @@ logic s6_rsp_sent, s6_rsp_rcvd;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n || retry_start) begin
+
+        // S1
+        s1_req_sent <= 0; s1_rsp_sent <= 0;
+
+        // S2
+        s2_req_sent <= 0; s2_rsp_sent <= 0;
+
+        // S4
+        s4_req_sent <= 0; s4_rsp_sent <= 0;
+
+        // S6
+        s6_req_sent <= 0; s6_rsp_sent <= 0;
+    end
+end
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n || retry_start) begin
         s1_req_rcvd <= 0; s1_rsp_rcvd <= 0;
         s2_req_rcvd <= 0; s2_rsp_rcvd <= 0;
         s4_req_rcvd <= 0; s4_rsp_rcvd <= 0;
@@ -231,24 +297,60 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
     else if(mb_reversal_rx_valid) begin
 
-        case(mb_reversal_rx_msg_id)
+        case(current_state)
 
-        MBINIT_REVERSALMB_init_req:       s1_req_rcvd <= 1;
-        MBINIT_REVERSALMB_init_resp:      s1_rsp_rcvd <= 1;
+        //////////////////////////////////////////////////
+        // S1
+        //////////////////////////////////////////////////
+        MB_S1_READINESS_HANDSHAKE_REQ,
+        MB_S1_READINESS_HANDSHAKE_RSP: begin
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_init_req)
+                s1_req_rcvd <= 1;
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_init_resp)
+                s1_rsp_rcvd <= 1;
+        end
 
-        MBINIT_REVERSALMB_clear_error_req:  s2_req_rcvd <= 1;
-        MBINIT_REVERSALMB_clear_error_resp: s2_rsp_rcvd <= 1;
+        //////////////////////////////////////////////////
+        // S2
+        //////////////////////////////////////////////////
+        MB_S2_ERROR_RESET_REQ,
+        MB_S2_ERROR_RESET_RSP: begin
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_clear_error_req)
+                s2_req_rcvd <= 1;
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_clear_error_resp)
+                s2_rsp_rcvd <= 1;
+        end
 
-        MBINIT_REVERSALMB_result_req:     s4_req_rcvd <= 1;
-        MBINIT_REVERSALMB_result_resp:    s4_rsp_rcvd <= 1;
+        //////////////////////////////////////////////////
+        // S4 
+        //////////////////////////////////////////////////
+        MB_S4_RESULT_EXCHANGE_REQ,
+        MB_S4_RESULT_EXCHANGE_RSP: begin
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_result_req)
+                s4_req_rcvd <= 1;
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_result_resp)
+                s4_rsp_rcvd <= 1;
+        end
 
-        MBINIT_REVERSALMB_done_req:       s6_req_rcvd <= 1;
-        MBINIT_REVERSALMB_done_resp:      s6_rsp_rcvd <= 1;
+        //////////////////////////////////////////////////
+        // S6 
+        //////////////////////////////////////////////////
+        MB_S6_FINALIZE_HANDSHAKE_REQ,
+        MB_S6_FINALIZE_HANDSHAKE_RSP: begin
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_done_req)
+                s6_req_rcvd <= 1;
+            if(mb_reversal_rx_msg_id == MBINIT_REVERSALMB_done_resp)
+                s6_rsp_rcvd <= 1;
+        end
+
+        //////////////////////////////////////////////////
+        // other states 
+        //////////////////////////////////////////////////
+        default: ;
 
         endcase
     end
 end
-
 ////////////////////////////////////////////////////////
 // STATE REG
 ////////////////////////////////////////////////////////
@@ -325,28 +427,20 @@ always_comb begin
 end
 
 ////////////////////////////////////////////////////////
-// RESET TX FLAGS ON S2 ENTRY (FIX BUG)
-////////////////////////////////////////////////////////
-
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n || retry_start) begin
-        s1_req_sent <= 0; s1_rsp_sent <= 0;
-        s2_req_sent <= 0; s2_rsp_sent <= 0;
-        s4_req_sent <= 0; s4_rsp_sent <= 0;
-        s6_req_sent <= 0; s6_rsp_sent <= 0;
-    end
-end
-
-////////////////////////////////////////////////////////
 // TX LOGIC
 ////////////////////////////////////////////////////////
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
         mb_reversal_tx_valid <= 0;
+        mb_reversal_tx_msg_id <= msg_no_e'(0);
+        mb_reversal_tx_MsgInfo <= 16'h0;
+        mb_reversal_tx_data_Field <= 64'h0;
     end
     else begin
         mb_reversal_tx_valid <= 0;
+        mb_reversal_tx_msg_id <= msg_no_e'(0);
+        mb_reversal_tx_MsgInfo <= 16'h0;
+        mb_reversal_tx_data_Field <= 64'h0;
 
         case(current_state)
 
@@ -372,7 +466,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
 
         //////////////////////////////////////////////////
-        // S2 (FIXED)
+        // S2
         //////////////////////////////////////////////////
         MB_S2_ERROR_RESET_REQ:
             if(!s2_req_sent) begin
@@ -452,21 +546,21 @@ assign mb_rx_compare_setup    = 2'b00;
 // PHY CONTROL
 ////////////////////////////////////////////////////////
 always_comb begin
-    mb_tx_valid_status = 0;
-    mb_tx_track_status = 0;
-    mb_tx_clk_status   = 0;
-    mb_tx_data_status  = 0;
+    // default ON
+    mb_tx_valid_status = 1;
+    mb_tx_track_status = 1;
+    mb_tx_clk_status   = 1;
+    mb_tx_data_status  = 1;
 
-    mb_rx_valid_status = 0;
-    mb_rx_track_status = 0;
-    mb_rx_clk_status   = 0;
-    mb_rx_data_status  = 0;
+    mb_rx_valid_status = 1;
+    mb_rx_track_status = 1;
+    mb_rx_clk_status   = 1;
+    mb_rx_data_status  = 1;
 
     if(current_state == MB_S3_PATTERN_TRANSMISSION) begin
+        // pattern active
+        mb_tx_valid_status = 1;
         mb_rx_valid_status = 1;
-        mb_rx_track_status = 1;
-        mb_rx_clk_status   = 1;
-        mb_rx_data_status  = 1;
     end
 end
 

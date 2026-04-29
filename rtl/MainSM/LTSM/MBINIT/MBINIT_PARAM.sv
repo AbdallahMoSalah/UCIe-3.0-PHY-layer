@@ -56,9 +56,23 @@ module MBINIT_PARAM
     // from LTSM
     input  logic mb_param_enable,
 
+    // ===== Interface =====
+    ucie_mb_cap_if.mbinit cap_if,
+
     // to LTSM
     output logic mb_param_done,
     output logic mb_param_error,
+
+    // ===== PHY CONTROL =====
+    output logic mb_tx_valid_status,
+    output logic mb_tx_track_status,
+    output logic mb_tx_clk_status,
+    output logic mb_tx_data_status,
+
+    output logic mb_rx_valid_status,
+    output logic mb_rx_track_status,
+    output logic mb_rx_clk_status,
+    output logic mb_rx_data_status,
 
     // RX from partner
     input  logic mb_param_rx_valid,
@@ -99,8 +113,11 @@ localparam logic [15:0] MB_default_MSG_Info = 16'h0000;
 localparam logic [63:0] MB_default_data_Field = 64'h0000000000000000;
 
 ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
 ///////////////// LOCAL CAPABILITIES ///////////////////
 ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+
 /*
 configuration_req
 64'h0000_0000_0000_6A53
@@ -113,9 +130,15 @@ configuration_req
 [8:4] Vswing = 00101
 [3:0] MaxSpeed = 0011
 */
-logic [63:0] local_capabilities_S1;
-assign local_capabilities_S1 = 64'h0000_0000_0000_6A53;
+logic [63:0] local_capabilities_DataField_S1;
+always_comb begin
+    local_capabilities_DataField_S1 = 64'b0;
 
+    local_capabilities_DataField_S1[15] = cap_if.local_tarr;
+    local_capabilities_DataField_S1[14] = cap_if.local_sbfe;
+    local_capabilities_DataField_S1[13] = cap_if.local_is_x8;   //  width
+    local_capabilities_DataField_S1[3:0]= cap_if.local_max_speed;
+end
 //*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
 /*
@@ -128,51 +151,169 @@ SBFE_req
 [0] MTP = 1
 */
 logic [63:0] local_capabilities_S2;
-assign local_capabilities_S2 = 64'h0000_0000_0000_0013;
 
+always_comb begin
+    local_capabilities_S2 = 64'b0;
+
+    local_capabilities_S2[4] = cap_if.local_l2spd;
+    local_capabilities_S2[3] = cap_if.local_pspt;
+    local_capabilities_S2[2] = cap_if.local_so;
+    local_capabilities_S2[1] = cap_if.local_pmo;
+    local_capabilities_S2[0] = cap_if.local_mtp;
+end
+////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////
 ///////////////// PARTNER CAPABILITIES /////////////////
 ////////////////////////////////////////////////////////
-logic [63:0] partner_capabilities_S1;
-logic [15:0] rsp_msginfo_S1;
+////////////////////////////////////////////////////////
+logic [63:0] partner_capabilities_DataField_S1;
+
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        partner_capabilities_S1 <= 64'h0;
-        rsp_msginfo_S1 <= 0;
-    end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req) begin
-        partner_capabilities_S1 <= mb_param_rx_data_Field;
-        rsp_msginfo_S1 <= mb_param_rx_MsgInfo;
-    end
+    if(!rst_n)
+        partner_capabilities_DataField_S1 <= 64'h0;
+    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req)
+        partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
 end
-  
+// decode
+assign cap_if.partner_tarr       = partner_capabilities_DataField_S1[15];
+assign cap_if.partner_sbfe       = partner_capabilities_DataField_S1[14];
+assign cap_if.partner_is_x8      = partner_capabilities_DataField_S1[13];
+assign cap_if.partner_max_speed  = partner_capabilities_DataField_S1[3:0];
+
 /////////////////////////////////////////////////////////
-logic [63:0] partner_capabilities_S2;
-logic [15:0] rsp_msginfo_S2;
+logic [63:0] partner_capabilities_DataField_S2;
+
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        partner_capabilities_S2 <= 64'h0;
-        rsp_msginfo_S2 <= 0;
+    if(!rst_n)
+        partner_capabilities_DataField_S2 <= 64'h0;
+    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)
+        partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
+end
+// Decode
+assign cap_if.partner_l2spd = partner_capabilities_DataField_S2[4];
+assign cap_if.partner_pspt  = partner_capabilities_DataField_S2[3];
+assign cap_if.partner_so    = partner_capabilities_DataField_S2[2];
+assign cap_if.partner_pmo   = partner_capabilities_DataField_S2[1];
+assign cap_if.partner_mtp   = partner_capabilities_DataField_S2[0];
+
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+/////////////// NEGOTIATED CAP /////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+// ======================================================
+// NEGOTIATION BLOCK
+// ======================================================
+
+logic partner_s1_valid;
+logic partner_s2_valid;
+
+always_comb begin
+    ////////////////////////////////////////////////////////
+    // DEFAULT = LOCAL (safe before partner arrives)
+    ////////////////////////////////////////////////////////
+
+    cap_if.use_x8_mode     = cap_if.local_is_x8;
+    cap_if.negotiated_speed= cap_if.local_max_speed;
+
+    cap_if.negotiated_sbfe = cap_if.local_sbfe;
+    cap_if.negotiated_tarr = cap_if.local_tarr;
+
+    cap_if.negotiated_l2spd= cap_if.local_l2spd;
+    cap_if.negotiated_pspt = cap_if.local_pspt;
+    cap_if.negotiated_so   = cap_if.local_so;
+    cap_if.negotiated_pmo  = cap_if.local_pmo;
+    cap_if.negotiated_mtp  = cap_if.local_mtp;
+
+    ////////////////////////////////////////////////////////
+    // S1 NEGOTIATION (when partner S1 valid)
+    ////////////////////////////////////////////////////////
+
+
+    if (partner_s1_valid) begin
+
+        // WIDTH → MIN (X8 dominates)
+        cap_if.use_x8_mode =
+            cap_if.local_is_x8 | cap_if.partner_is_x8;
+
+        // SPEED → MIN
+        cap_if.negotiated_speed =
+            (cap_if.local_max_speed < cap_if.partner_max_speed) ?
+            cap_if.local_max_speed : cap_if.partner_max_speed;
+
+        // FLAGS → AND
+        cap_if.negotiated_sbfe =
+            cap_if.local_sbfe & cap_if.partner_sbfe;
+
+        cap_if.negotiated_tarr =
+            cap_if.local_tarr & cap_if.partner_tarr;
     end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req) begin
-        partner_capabilities_S2 <= mb_param_rx_data_Field;
-        rsp_msginfo_S2 <= mb_param_rx_MsgInfo;
+
+    ////////////////////////////////////////////////////////
+    // S2 NEGOTIATION (SBFE features)
+    ////////////////////////////////////////////////////////
+    if (partner_s2_valid) begin
+
+        cap_if.negotiated_l2spd =
+            cap_if.local_l2spd & cap_if.partner_l2spd;
+
+        cap_if.negotiated_pspt =
+            cap_if.local_pspt & cap_if.partner_pspt;
+
+        cap_if.negotiated_so =
+            cap_if.local_so & cap_if.partner_so;
+
+        cap_if.negotiated_pmo =
+            cap_if.local_pmo & cap_if.partner_pmo;
+
+        cap_if.negotiated_mtp =
+            cap_if.local_mtp & cap_if.partner_mtp;
     end
+end
+//////////////////////////////////////////////////////////////
+
+logic [63:0] negotiated_capabilities_S1;
+always_comb begin
+    negotiated_capabilities_S1 = 64'b0;
+
+    negotiated_capabilities_S1[15] = cap_if.negotiated_tarr;
+    negotiated_capabilities_S1[14] = cap_if.negotiated_sbfe;
+    negotiated_capabilities_S1[13] = cap_if.use_x8_mode;
+    negotiated_capabilities_S1[3:0]= cap_if.negotiated_speed;
+end
+
+logic [63:0] negotiated_capabilities_S2;
+always_comb begin
+    negotiated_capabilities_S2 = 64'b0;
+
+    negotiated_capabilities_S2[4] = cap_if.negotiated_l2spd;
+    negotiated_capabilities_S2[3] = cap_if.negotiated_pspt;
+    negotiated_capabilities_S2[2] = cap_if.negotiated_so;
+    negotiated_capabilities_S2[1] = cap_if.negotiated_pmo;
+    negotiated_capabilities_S2[0] = cap_if.negotiated_mtp;
 end
 
 ////////////////////////////////////////////////////////
-/////////////// NEGOTIATED CAP //////////////////////////
+//////////////// Partner Entry Detection /////////////////
 ////////////////////////////////////////////////////////
-logic [63:0] negotiated_capabilities_S1;
-assign negotiated_capabilities_S1 = local_capabilities_S1 & partner_capabilities_S1;
 
-logic [63:0] negotiated_capabilities_S2; // = 64'h0000_0000_0000_0012
-assign negotiated_capabilities_S2 = local_capabilities_S2 & partner_capabilities_S2;
+always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n || !mb_param_enable)
+        partner_s1_valid <= 0;
+    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req)
+        partner_s1_valid <= 1;
+end
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n || !mb_param_enable)
+        partner_s2_valid <= 0;
+    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)
+        partner_s2_valid <= 1;
+end
 
 ////////////////////////////////////////////////////////
 //////////////// Entry Detection logic /////////////////
 ////////////////////////////////////////////////////////
-
 logic s1_entry;
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
@@ -301,7 +442,7 @@ always_comb begin
             if(!mb_param_enable || mb_param_error)
                 next_state = MB_S0_IDLE; // Return to idle.
             else if(param_rsp_rcvd) begin
-                if(partner_capabilities_S1[14])
+                if(cap_if.partner_sbfe)
                     next_state = MB_S2_FEATURE_EXCHANGE_REQ ;
                 else
                 next_state = MB_S0_IDLE;
@@ -355,7 +496,7 @@ always_comb begin
             mb_param_tx_valid       = 1'b1;
             mb_param_tx_msg_id      = MBINIT_PARAM_configuration_req;
             mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-            mb_param_tx_data_Field  = local_capabilities_S1;    
+            mb_param_tx_data_Field  = local_capabilities_DataField_S1;    
         end
             end
         MB_S1_PARAM_EXCHANGE_RSP: begin
@@ -393,6 +534,39 @@ always_comb begin
 end
 
 ////////////////////////////////////////////////////////
+// PHY CONTROL
+////////////////////////////////////////////////////////
+
+always_comb begin
+    // TX tri-state
+    mb_tx_valid_status = 0;
+    mb_tx_track_status = 0;
+    mb_tx_clk_status   = 0;
+    mb_tx_data_status  = 0;
+    
+    // RX enabled or permitted to be disabled
+    mb_rx_valid_status = 0;
+    mb_rx_track_status = 0;
+    mb_rx_clk_status   = 0;
+    mb_rx_data_status  = 0;
+
+    if(mb_param_enable && !mb_param_done) begin
+
+    // RX enabled or permitted to be disabled
+    mb_rx_valid_status = 1;
+    mb_rx_track_status = 1;
+    mb_rx_clk_status   = 1;
+    mb_rx_data_status  = 1;
+
+    // TX enabled or permitted to be disabled
+    mb_tx_valid_status = 1;
+    mb_tx_track_status = 1;
+    mb_tx_clk_status   = 1;
+    mb_tx_data_status  = 1;
+end
+end
+
+////////////////////////////////////////////////////////
 /////////////// DONE LOGIC //////////////////////////////
 ////////////////////////////////////////////////////////
 always_ff @( posedge clk , negedge rst_n ) begin
@@ -423,6 +597,8 @@ always_ff @( posedge clk , negedge rst_n ) begin
     mb_param_error <= 1;
     else if(mb_param_rx_valid && current_state == MB_S2_FEATURE_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_resp )
     mb_param_error <= 1;
+    else if(current_state == MB_S0_IDLE)
+    mb_param_error <= 0;
 end
 
 endmodule
