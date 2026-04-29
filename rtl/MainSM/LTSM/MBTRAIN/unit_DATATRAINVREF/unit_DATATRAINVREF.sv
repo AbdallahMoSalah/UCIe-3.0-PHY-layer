@@ -265,10 +265,10 @@ module unit_DATATRAINVREF #(
         dtvref_if.mb_tx_data_lane_sel = 2'b00; // Low until test active
         dtvref_if.mb_tx_val_lane_sel  = 2'b00; // Low
         dtvref_if.mb_tx_trk_lane_sel  = 2'b00; // Low
-        dtvref_if.mb_rx_clk_lane_sel  = 2'b01;  // Enable
-        dtvref_if.mb_rx_data_lane_sel  = 2'b01;  // Enable
-        dtvref_if.mb_rx_val_lane_sel  = 2'b01;  // Enable (holds valid pattern)
-        dtvref_if.mb_rx_trk_lane_sel  = 2'b00;  // Disable
+        dtvref_if.mb_rx_clk_lane_sel  = 1'b1 ;  // Enable
+        dtvref_if.mb_rx_data_lane_sel = 1'b1 ;  // Enable
+        dtvref_if.mb_rx_val_lane_sel  = 1'b1 ;  // Enable (holds valid pattern)
+        dtvref_if.mb_rx_trk_lane_sel  = 1'b0 ;  // Disable
         // SB TX defaults.
         dtvref_if.tx_sb_msg_valid = 1'b0   ;
         dtvref_if.tx_sb_msg       = NOTHING ;
