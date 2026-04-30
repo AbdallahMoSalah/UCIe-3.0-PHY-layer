@@ -58,6 +58,13 @@ interface internal_ltsm_if #(
     logic linkspeed_en       , linkspeed_done       , linkspeed_fail_flag       ; // linkspeed_fail_flag: For MBTRAIN.LINKSPEED FSM state: To report if there was a problem.
     logic repair_en          , repair_done          , repair_req                ;
 
+    // PHY_IN_RETRAIN handshake between PHYRETRAIN state and MBTRAIN.LINKSPEED sub-state.
+    // Spec 4.5.3.4.12: if PHY-retrain set PHY_IN_RETRAIN=1 AND params_changed=1,
+    // LINKSPEED must exit via phy_retrain path instead of the normal done path.
+    logic phyretrain_PHY_IN_RETRAIN; // Input to LINKSPEED: did PHYRETRAIN assert PHY_IN_RETRAIN?
+    logic linkspeed_PHY_IN_RETRAIN ; // Output from LINKSPEED: sampled copy used in EVAL_RESULT decision.
+    logic params_changed           ; // Input to LINKSPEED: did link parameters change during PHYRETRAIN?
+
 
     //=====================================//
     // Control Signals For Timers:         //
@@ -216,10 +223,16 @@ interface internal_ltsm_if #(
     // Register File (RF) Control Signals: //
     //=====================================//
     //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
-    logic  [2:0] cfg_max_link_width; // Max Link Width 0h: x16; 7h: x8
-    logic  [7:4] cfg_max_link_speed; // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
-    logic        cfg_SPMW          ; // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
-    // Note cfg_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
+    // logic  [2:0] cfg_max_link_width; // Max Link Width 0h: x16; 7h: x8
+    // logic  [7:4] cfg_max_link_speed; // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    logic        rf_cap_SPMW          ; // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+    // Note rf_cap_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
+
+
+    //  UCIe Link DVSEC - UCIe Link Control (Offset 10h)
+    logic [3:0] rf_ctrl_target_link_width; // Link Control Register: Target Link Width field. (2: x16; 1: x8; 0:Reserved)
+
+
 
     // // PHY Control (Offset 1004h)
     // input wire         cfg_force_x8_width, // Force x8 Width Mode in a UCIe-S x16 Module (used only for test and debug). This feature can be used only when there is no lane reversal on the UCIe-S x16 link (cfg_lane_reversal = 0).
@@ -555,12 +568,12 @@ interface internal_ltsm_if #(
     //======================================================================================//
 
     //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
-    modport state_rf_offset_c_mp (
-        input  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
-        input  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
-        input  cfg_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
-        // Note cfg_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
-    );
+    // modport state_rf_offset_c_mp (
+    //     input  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
+    //     input  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    //     input  rf_cap_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+    //     // Note rf_cap_SPMW = ((there was a width degrade & cfg_max_link_width is x16) | (cfg_max_link_width is x8) | (cfg_force_x8_width & cfg_lane_reversal))? 1 : 0;
+    // );
 
     // // Training Setup 3 (Offset 1030h)
     // modport state_rf_offset_1030_mp (
@@ -569,10 +582,10 @@ interface internal_ltsm_if #(
 
     // Training Setup 4 (Offset 1050h)
     // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
-    modport state_rf_offset_1050_mp (
-        input  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
-        input  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
-    );
+    // modport state_rf_offset_1050_mp (
+    //     input  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
+    //     input  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
+    // );
 
     // // Current Lane Map Module 0 (Offset 1060h)
     // // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
@@ -582,32 +595,32 @@ interface internal_ltsm_if #(
     // );
 
     // Error Log 0 (Offset 1080h) - (ROS: Read-Only Status driven by PHY)
-    modport state_rf_offset_1080_mp (
-        output log0_state_n              , // Captures the current Link training state machine (LTSM) status.
-        output log0_lane_reversal        , // 1b indicates Lane Reversal was applied within the module.
-        output log0_width_degrade        , // 1b indicates Module width Degrade occurred (Standard package only).
-        output log0_state_n_minus_1      , // Captures the LTSM state before State N was entered.
-        output log0_state_n_minus_2      , // Captures the LTSM state before State (N-1) was entered.
-        output log0_state_n_valid        , // To tell the RF to apply the change on log0_state_n         field.
-        output log0_lane_reversal_valid  , // To tell the RF to apply the change on log0_lane_reversal   field.
-        output log0_width_degrade_valid  , // To tell the RF to apply the change on log0_width_degrade   field.
-        output log0_state_n_minus_1_valid, // To tell the RF to apply the change on log0_state_n_minus_1 field.
-        output log0_state_n_minus_2_valid  // To tell the RF to apply the change on log0_state_n_minus_2 field.
-    );
+    // modport state_rf_offset_1080_mp (
+    //     output log0_state_n              , // Captures the current Link training state machine (LTSM) status.
+    //     output log0_lane_reversal        , // 1b indicates Lane Reversal was applied within the module.
+    //     output log0_width_degrade        , // 1b indicates Module width Degrade occurred (Standard package only).
+    //     output log0_state_n_minus_1      , // Captures the LTSM state before State N was entered.
+    //     output log0_state_n_minus_2      , // Captures the LTSM state before State (N-1) was entered.
+    //     output log0_state_n_valid        , // To tell the RF to apply the change on log0_state_n         field.
+    //     output log0_lane_reversal_valid  , // To tell the RF to apply the change on log0_lane_reversal   field.
+    //     output log0_width_degrade_valid  , // To tell the RF to apply the change on log0_width_degrade   field.
+    //     output log0_state_n_minus_1_valid, // To tell the RF to apply the change on log0_state_n_minus_1 field.
+    //     output log0_state_n_minus_2_valid  // To tell the RF to apply the change on log0_state_n_minus_2 field.
+    // );
 
     // Error Log 1 (Offset 1090h) - (ROS / RW1CS driven by PHY)
-    modport state_rf_offset_1090_mp (
-        output log1_state_n_minus_3           , // Captures the LTSM state before State (N-2) was entered.
-        output log1_state_timeout_occ         , // 1b if a Link Training state or sub-state timed out (Fatal error).
-        output log1_sideband_timeout_occ      , // 1b if a sideband handshake timed out (e.g., > 8ms).
-        output log1_remote_link_error         , // 1b if remote Link partner requested LinkError transition via Sideband.
-        output log1_internal_error            , // 1b if any implementation-specific internal error occurred in the PHY.
-        output log1_state_n_minus_3_valid     , // To tell the RF to apply the change on log1_state_n_minus_3      field.
-        output log1_state_timeout_occ_valid   , // To tell the RF to apply the change on log1_state_timeout_occ    field.
-        output log1_sideband_timeout_occ_valid, // To tell the RF to apply the change on log1_sideband_timeout_occ field.
-        output log1_remote_link_error_valid   , // To tell the RF to apply the change on log1_remote_link_error    field.
-        output log1_internal_error_valid        // To tell the RF to apply the change on log1_internal_error       field.
-    );
+    // modport state_rf_offset_1090_mp (
+    //     output log1_state_n_minus_3           , // Captures the LTSM state before State (N-2) was entered.
+    //     output log1_state_timeout_occ         , // 1b if a Link Training state or sub-state timed out (Fatal error).
+    //     output log1_sideband_timeout_occ      , // 1b if a sideband handshake timed out (e.g., > 8ms).
+    //     output log1_remote_link_error         , // 1b if remote Link partner requested LinkError transition via Sideband.
+    //     output log1_internal_error            , // 1b if any implementation-specific internal error occurred in the PHY.
+    //     output log1_state_n_minus_3_valid     , // To tell the RF to apply the change on log1_state_n_minus_3      field.
+    //     output log1_state_timeout_occ_valid   , // To tell the RF to apply the change on log1_state_timeout_occ    field.
+    //     output log1_sideband_timeout_occ_valid, // To tell the RF to apply the change on log1_sideband_timeout_occ field.
+    //     output log1_remote_link_error_valid   , // To tell the RF to apply the change on log1_remote_link_error    field.
+    //     output log1_internal_error_valid        // To tell the RF to apply the change on log1_internal_error       field.
+    // );
 
 
 
@@ -632,11 +645,11 @@ interface internal_ltsm_if #(
     //          The actual result we agreed upon after training = Status (Offset 14h). (After Link Training)
 
     // UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
-    modport mux_rf_offset_c_mp (
-        output  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
-        output  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
-        output  cfg_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
-    );
+    // modport mux_rf_offset_c_mp (
+    //     output  cfg_max_link_width, // Max Link Width 0h: x16; 7h: x8
+    //     output  cfg_max_link_speed, // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
+    //     output  rf_cap_SPMW            // SPMW (Standard Package Module Width): If 1, indicates the Standard Package Module size is a x8 module, or a x16 module operating in x8 mode (decided at integration time). If 0, indicates x16 Standard Package Module.
+    // );
 
     // // Training Setup 3 (Offset 1030h)
     // modport mux_rf_offset_1030_mp (
@@ -645,10 +658,10 @@ interface internal_ltsm_if #(
 
     // Training Setup 4 (Offset 1050h)
     // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
-    modport mux_rf_offset_1050_mp (
-        output  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
-        output  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
-    );
+    // modport mux_rf_offset_1050_mp (
+    //     output  cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
+    //     output  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
+    // );
 
     // // Current Lane Map Module 0 (Offset 1060h)
     // // Note: Marked as RW in spec, but typically driven by PHY to indicate functional lanes after training.
@@ -1335,14 +1348,14 @@ interface internal_ltsm_if #(
 
         // ======================= //
         // LTSM general signals.   //
-         // ======================= //
-         input  datatraincenter1_en, output datatraincenter1_done, output datatraincenter1_fail_flag,
-         output trainerror_req,
-         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
+        // ======================= //
+        input  datatraincenter1_en, output datatraincenter1_done, output datatraincenter1_fail_flag,
+        output trainerror_req,
+        input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
-         // ======================= //
-         // MB signals.             //
-         // ======================= //
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
         // Lane Behavior Control
         output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
@@ -1521,15 +1534,15 @@ interface internal_ltsm_if #(
 
         // ======================= //
         // LTSM general signals.   //
-         // ======================= //
-         input  datatraincenter2_en, output datatraincenter2_done, output datatraincenter2_fail_flag,
-         output trainerror_req,
-         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
+        // ======================= //
+        input  datatraincenter2_en, output datatraincenter2_done, output datatraincenter2_fail_flag,
+        output trainerror_req,
+        input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
-         // ======================= //
-         // MB signals.             //
-         // ======================= //
-         // Lane Behavior Control
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        // Lane Behavior Control
         output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
         output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
@@ -1585,18 +1598,35 @@ interface internal_ltsm_if #(
         input  linkspeed_en, output linkspeed_done, output linkspeed_fail_flag,
         output trainerror_req,
 
-        // Previous substates fail flags (read-only inputs to decide exit path)
-        input  datatraincenter2_fail_flag,
-        input  datatrainvref_fail_flag   ,
-        input  valtrainvref_fail_flag    ,
-        input  valtraincenter_fail_flag  ,
+        // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)
+        // Sampled once at LINKSPEED_START_REQ; used in EVAL_RESULT to decide
+        // whether to exit via phy_retrain path (if params changed during retrain).
+        input  phyretrain_PHY_IN_RETRAIN, // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
+        output linkspeed_PHY_IN_RETRAIN , // Sampled copy held stable through the sub-state.
+        input  params_changed           , // Were link parameters changed during PHYRETRAIN?
 
-        // Negotiated speed from MBINIT.PARAM
-        input  param_negotiated_max_speed,
+        // // Previous substates fail flags (read-only inputs to decide exit path)
+        // input  datatraincenter2_fail_flag,
+        // input  datatrainvref_fail_flag   ,
+        // input  valtrainvref_fail_flag    ,
+        // input  valtraincenter_fail_flag  ,
+
+        // Negotiated speed from MBTRAIN.SPEEDIDLE
+        input  phy_negotiated_speed,
+
+
+        // ======================= //
+        // RF signals.             //
+        // ======================= //
+        input  rf_cap_SPMW,               // Link Capability Register: Standard Package Module Width bit. (0: x16; 1: x8)
+        input  rf_ctrl_target_link_width, // Link Control Register: Target Link Width field.              (2: x16; 1: x8)
+
 
         // ======================= //
         // MB signals.             //
         // ======================= //
+        input mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit.
+
         // Lane Behavior Control
         output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
         output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
@@ -1610,7 +1640,8 @@ interface internal_ltsm_if #(
         // ======================= //
         // PHY Rx/Tx control       //
         // ======================= //
-        output phy_negotiated_speed, // Drive the agreed link speed to the PHY analog circuits.
+        // (phy_negotiated_speed is an input only)
+        output speedidle_req, output repair_req, output phyretrain_req, output linkinit_req,
 
         // ======================= //
         // SB signals.             //
