@@ -1,258 +1,248 @@
 // =============================================================================
 // Module  : unit_REPAIR
 // Purpose : MBTRAIN.REPAIR sub-state FSM.
-//           Handles lane repair / lane degradation after a LINKSPEED failure:
-//
-//           Two exit paths depending on `linkspeed_fail_flag`:
-//             A) REPAIR path  (linkspeed_fail_flag = 0, normal repair request):
-//                  INIT_REQ → wait for APPLY_REPAIR_RESP → END_REQ/RESP → done
-//             B) DEGRADE path (linkspeed_fail_flag = 1, cannot repair, must degrade lanes):
-//                  INIT_REQ → APPLY_DEGRADE_REQ/RESP → END_REQ/RESP → done
-//
-//           In both paths the FSM starts with a SB init handshake and ends with
-//           a SB end handshake.  After END_RESP the module asserts `repair_done`
-//           and `repair_req` so the MBTRAIN controller can advance.
-//
-//           Fatal conditions (8ms timeout, partner TRAINERROR) → TO_TRAINERROR.
+//           Handles width degradation for Standard Packages (x16 and x8)
+//           after a LINKSPEED failure.
 //
 // UCIe 3.0 Spec Reference: Section 4.5.3.4.13 – MBTRAIN.REPAIR
-//
-// SB messages used:
-//   MBTRAIN_REPAIR_init_req          (B5h/1Bh) – start handshake
-//   MBTRAIN_REPAIR_init_resp         (BAh/1Bh) – start response
-//   MBTRAIN_REPAIR_apply_repair_req  (B5h/1Ch) – partner applies repair (Tx message)
-//   MBTRAIN_REPAIR_apply_repair_resp (BAh/1Ch) – receive repair applied
-//   MBTRAIN_REPAIR_apply_degrade_req (B5h/1Eh) – send degrade lane map
-//   MBTRAIN_REPAIR_apply_degrade_resp(BAh/1Eh) – partner acks degrade
-//   MBTRAIN_REPAIR_end_req           (B5h/1Dh) – end handshake
-//   MBTRAIN_REPAIR_end_resp          (BAh/1Dh) – end response
-//
-// FSM States:
-//   RP_IDLE              (S0)  Wait for repair_en assertion.
-//   RP_INIT_REQ          (S1)  Send & receive: init_req.
-//   RP_INIT_RESP         (S2)  Send & receive: init_resp → branch on linkspeed_fail_flag.
-//   RP_APPLY_REPAIR_REQ  (S3)  Wait for partner's apply_repair_req (partner Tx-drives repair address).
-//   RP_APPLY_DEGRADE_REQ (S4)  Send apply_degrade_req / receive apply_degrade_req.
-//   RP_APPLY_DEGRADE_RESP(S5)  Send apply_degrade_resp / receive apply_degrade_resp.
-//   RP_END_REQ           (S6)  Send & receive: end_req.
-//   RP_END_RESP          (S7)  Send & receive: end_resp → done.
-//   TO_DONE              (S8)  Assert repair_done + repair_req for 1 cycle then idle.
-//   TO_TRAINERROR        (S9)  Fatal: timeout or partner TRAINERROR.
 // =============================================================================
 module unit_REPAIR (
         internal_ltsm_if.repair_mp rp_if
     );
-    import UCIe_pkg::msg_no_e;
-    import UCIe_pkg::MBTRAIN_REPAIR_init_req          ;
-    import UCIe_pkg::MBTRAIN_REPAIR_init_resp         ;
-    import UCIe_pkg::MBTRAIN_REPAIR_apply_repair_req  ;
-    import UCIe_pkg::MBTRAIN_REPAIR_apply_repair_resp ;
-    import UCIe_pkg::MBTRAIN_REPAIR_apply_degrade_req ;
-    import UCIe_pkg::MBTRAIN_REPAIR_apply_degrade_resp;
-    import UCIe_pkg::MBTRAIN_REPAIR_end_req           ;
-    import UCIe_pkg::MBTRAIN_REPAIR_end_resp          ;
-    import UCIe_pkg::TRAINERROR_Entry_req;
-    import UCIe_pkg::NOTHING;
+    import UCIe_pkg::*;
+
     // =========================================================================
     // State encoding
     // =========================================================================
-    localparam RP_IDLE              = 4'h0, // (S0)
-               RP_INIT_REQ          = 4'h1, // (S1) init handshake – request
-               RP_INIT_RESP         = 4'h2, // (S2) init handshake – response
-               RP_APPLY_REPAIR_REQ  = 4'h3, // (S3) wait for partner apply_repair_req (REPAIR path)
-               RP_APPLY_DEGRADE_REQ = 4'h4, // (S4) send apply_degrade_req (DEGRADE path)
-               RP_APPLY_DEGRADE_RESP= 4'h5, // (S5) send/recv apply_degrade_resp
-               RP_END_REQ           = 4'h6, // (S6) end handshake – request
-               RP_END_RESP          = 4'h7, // (S7) end handshake – response
-               TO_DONE              = 4'h8, // (S8) success exit
-               TO_TRAINERROR        = 4'h9; // (S9) fatal exit
+    localparam REPAIR_IDLE         = 4'd0; // S0
+    localparam REPAIR_INIT_REQ     = 4'd1; // S1
+    localparam REPAIR_INIT_RESP    = 4'd2; // S2
+    localparam REPAIR_DEGRADE_REQ  = 4'd3; // S3
+    localparam REPAIR_DEGRADE_RESP = 4'd4; // S4
+    localparam REPAIR_EVAL_RESULT  = 4'd5; // S5
+    localparam REPAIR_END_REQ      = 4'd6; // S6
+    localparam REPAIR_END_RESP     = 4'd7; // S7
+    localparam TO_TXSELFCAL        = 4'd8; // S8
+    localparam TO_TRAINERROR       = 4'd9; // S9
+
     reg [3:0] current_state, next_state;
-    // Glitch-guard: suppress tx_sb_msg_valid on the cycle of a state transition.
-    wire data_incoherence = (current_state != next_state);
+
+    wire is_sb_data_valid = (current_state == next_state);
+
     // =========================================================================
-    // Data-path registers
+    // Active Lanes Calculation
     // =========================================================================
-    // Latch the linkspeed_fail_flag at INIT_REQ so the branch is stable.
-    reg degrade_r;  // 1 = degrade path, 0 = repair path
+    // MB Lane Control
+    // Here is the encoding of "local_tx_lane_map_code" OR "local_rx_lane_map_code" by 3 bits:
+    // 000b:  None (Degrade not possible)
+    // 001b: Logical Lanes 0 to 7
+    // 010b: Logical Lanes 8 to 15
+    // 011b: Logical Lanes 0 to 15
+    // 100b: Logical Lanes 0 to 3
+    // 101b: Logical Lanes 4 to 7
+
+    logic [2:0] local_tx_lane_map_code; // We assign to this signal: the sucessful lanes encoding of our MB Tx Lanes (linkspeed_success_lanes)
+    logic [2:0] local_rx_lane_map_code; // We assign to this signal: the sucessful lanes encoding of our MB Rx Lanes (mb_rx_data_lane_mask)
+
+    assign rp_if.mb_tx_data_lane_mask = local_tx_lane_map_code; // to update the used lanes mask for MB Transmitter side. (on our Die)
+    assign rp_if.mb_rx_data_lane_mask = local_rx_lane_map_code; // to update the used lanes mask for MB Receiver    side. (on our Die)
+
     // =========================================================================
-    // (Block 1) Sequential: current state register
+    // State encoding
+    // =========================================================================
+    always_comb begin
+        // If the current opretional width before degrade was x16:
+        if ((rp_if.rf_cap_SPMW == 1'b0 && rp_if.rf_ctrl_target_link_width == 4'h2) && rp_if.param_UCIe_S_x8 == 1'b0) begin
+            // x16 standard package module
+            if (rp_if.linkspeed_success_lanes == 16'hFFFF)
+                local_tx_lane_map_code = 3'b011; // Logical Lanes 0 to 15
+            else if (rp_if.linkspeed_success_lanes[7:0] == 8'hFF)
+                local_tx_lane_map_code = 3'b001; // Logical Lanes 0 to 7
+            else if (rp_if.linkspeed_success_lanes[15:8] == 8'hFF)
+                local_tx_lane_map_code = 3'b010; // Logical Lanes 8 to 15
+            else
+                local_tx_lane_map_code = 3'b000; // default (degrade not possible)
+
+            // If the current opretional width before degrade was x8:
+        end else if (rp_if.rf_ctrl_target_link_width == 4'h1) begin
+            // x8 standard package module OR x8 Mode
+            if (rp_if.linkspeed_success_lanes[7:0] == 8'hFF)
+                local_tx_lane_map_code = 3'b001; // Logical Lanes 0 to 7
+            else if (rp_if.linkspeed_success_lanes[3:0] == 4'hF)
+                local_tx_lane_map_code = 3'b100; // Logical Lanes 0 to 3
+            else if (rp_if.linkspeed_success_lanes[7:4] == 4'hF)
+                local_tx_lane_map_code = 3'b101; // Logical Lanes 4 to 7
+            else
+                local_tx_lane_map_code = 3'b000; // default (degrade not possible)
+        end
+        else begin
+            local_tx_lane_map_code = 3'b000;
+        end
+    end
+
+    // =========================================================================
+    // Sequential: current state register
     // =========================================================================
     always @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
         if (!rp_if.rst_n) begin
-            current_state  <= RP_IDLE;
+            current_state  <= REPAIR_IDLE;
         end else begin
             current_state  <= next_state;
         end
     end
+
     // =========================================================================
-    // (Block 2) Combinational: next-state logic
+    // Combinational: next-state logic
     // =========================================================================
     always @(*) begin
-        // Global overrides: fatal conditions take priority over normal flow.
         if (rp_if.timeout_8ms_occured |
                 (rp_if.rx_sb_msg == TRAINERROR_Entry_req && rp_if.rx_sb_msg_valid)) begin
             next_state = TO_TRAINERROR;
         end else begin
             case (current_state)
-                // (S0) Wait for enable
-                RP_IDLE: begin
-                    next_state = rp_if.repair_en ? RP_INIT_REQ : RP_IDLE;
+                REPAIR_IDLE: begin
+                    next_state = rp_if.repair_en ? REPAIR_INIT_REQ : REPAIR_IDLE;
                 end
-                // (S1) Send & receive: init_req
-                RP_INIT_REQ: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_init_req &&
-                                  rp_if.rx_sb_msg_valid) ? RP_INIT_RESP : RP_INIT_REQ;
+
+                REPAIR_INIT_REQ: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_init_req) ? REPAIR_INIT_RESP : REPAIR_INIT_REQ;
                 end
-                // (S2) Send & receive: init_resp → branch on degrade_r
-                RP_INIT_RESP: begin
-                    if (rp_if.rx_sb_msg == MBTRAIN_REPAIR_init_resp && rp_if.rx_sb_msg_valid)
-                        next_state = degrade_r ? RP_APPLY_DEGRADE_REQ : RP_APPLY_REPAIR_REQ;
+
+                REPAIR_INIT_RESP: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_init_resp) ? REPAIR_DEGRADE_REQ : REPAIR_INIT_RESP;
+                end
+
+                REPAIR_DEGRADE_REQ: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req) ? REPAIR_EVAL_RESULT : REPAIR_DEGRADE_REQ;
+                end
+
+                REPAIR_EVAL_RESULT: begin
+                    // Wait one cycle to evaluate the degraded map code
+                    if (local_tx_lane_map_code != 3'b000)
+                        next_state = REPAIR_DEGRADE_RESP;
                     else
-                        next_state = RP_INIT_RESP;
+                        next_state = TO_TRAINERROR;
                 end
-                // (S3) REPAIR path: send apply_repair_req (with lane address) and wait
-                //      for partner's apply_repair_req echo back.
-                RP_APPLY_REPAIR_REQ: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_repair_req &&
-                                  rp_if.rx_sb_msg_valid) ? RP_END_REQ : RP_APPLY_REPAIR_REQ;
+
+                REPAIR_DEGRADE_RESP: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_resp) ? REPAIR_END_REQ : REPAIR_DEGRADE_RESP;
                 end
-                // (S4) DEGRADE path: send & receive apply_degrade_req
-                RP_APPLY_DEGRADE_REQ: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req &&
-                                  rp_if.rx_sb_msg_valid) ? RP_APPLY_DEGRADE_RESP : RP_APPLY_DEGRADE_REQ;
+
+                REPAIR_END_REQ: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_end_req) ? REPAIR_END_RESP : REPAIR_END_REQ;
                 end
-                // (S5) DEGRADE path: send & receive apply_degrade_resp
-                RP_APPLY_DEGRADE_RESP: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_resp &&
-                                  rp_if.rx_sb_msg_valid) ? RP_END_REQ : RP_APPLY_DEGRADE_RESP;
+
+                REPAIR_END_RESP: begin
+                    next_state = (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_end_resp) ? TO_TXSELFCAL : REPAIR_END_RESP;
                 end
-                // (S6) End handshake – request
-                RP_END_REQ: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_end_req &&
-                                  rp_if.rx_sb_msg_valid) ? RP_END_RESP : RP_END_REQ;
+
+                TO_TXSELFCAL, TO_TRAINERROR: begin
+                    next_state = rp_if.repair_en ? current_state : REPAIR_IDLE;
                 end
-                // (S7) End handshake – response → done
-                RP_END_RESP: begin
-                    next_state = (rp_if.rx_sb_msg == MBTRAIN_REPAIR_end_resp &&
-                                  rp_if.rx_sb_msg_valid) ? TO_DONE : RP_END_RESP;
-                end
-                // (S8-S9) Terminal states: hold until enable de-asserts, then idle.
-                TO_DONE, TO_TRAINERROR: begin
-                    next_state = rp_if.repair_en ? current_state : RP_IDLE;
-                end
-                default: next_state = rp_if.repair_en ? TO_TRAINERROR : RP_IDLE;
+
+                default: next_state = rp_if.repair_en ? TO_TRAINERROR : REPAIR_IDLE;
             endcase
         end
     end
+
     // =========================================================================
-    // (Block 3) Combinational: output logic
+    // Combinational: output logic
     // =========================================================================
     always @(*) begin
-        // ── Safe defaults (prevent latches) ──────────────────────────────────
+        // ======================= //
+        // LTSM general signals.   //
+        // ======================= //
         rp_if.repair_done            = 1'b0;
-        rp_if.repair_req             = 1'b0;
+        rp_if.txselfcal_req          = 1'b0;
         rp_if.trainerror_req         = 1'b0;
         rp_if.timeout_timer_en       = 1'b1;
-        rp_if.analog_settle_timer_en = 1'b0;
-        // MB lane defaults – keep all lanes active during repair
-        rp_if.mb_tx_clk_lane_sel  = 2'b01; // Clock lane active
-        rp_if.mb_tx_data_lane_sel = 2'b01; // Data lanes active
-        rp_if.mb_tx_val_lane_sel  = 2'b01; // Valid lane active
-        rp_if.mb_tx_trk_lane_sel  = 2'b00; // Track lane low
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        rp_if.mb_tx_clk_lane_sel  = 2'b01; // Clock Diff Low / Simultaneous Low
+        rp_if.mb_tx_data_lane_sel = 2'b00; // Data Low
+        rp_if.mb_tx_val_lane_sel  = 2'b00; // Valid Low
+        rp_if.mb_tx_trk_lane_sel  = 2'b00; // Track Low
         rp_if.mb_rx_clk_lane_sel  = 1'b1 ;
-        rp_if.mb_rx_data_lane_sel = 1'b1 ;
-        rp_if.mb_rx_val_lane_sel  = 1'b1 ;
+        rp_if.mb_rx_data_lane_sel = 1'b0 ;
+        rp_if.mb_rx_val_lane_sel  = 1'b0 ;
         rp_if.mb_rx_trk_lane_sel  = 1'b0 ;
-        // SB defaults
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
         rp_if.tx_sb_msg_valid = 1'b0;
         rp_if.tx_sb_msg       = NOTHING;
         rp_if.tx_msginfo      = 16'h0;
         rp_if.tx_data_field   = 64'h0;
+
         case (current_state)
-            RP_IDLE: begin
+            REPAIR_IDLE: begin
                 rp_if.timeout_timer_en = 1'b0;
             end
-            // (S1) Both sides send init_req simultaneously
-            RP_INIT_REQ: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_INIT_REQ: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_init_req;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
             end
-            // (S2) Both sides send init_resp simultaneously
-            RP_INIT_RESP: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_INIT_RESP: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_init_resp;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
             end
-            // (S3) REPAIR path: drive apply_repair_req (lane address in data_field)
-            //      and wait for the partner's echo of apply_repair_req.
-            RP_APPLY_REPAIR_REQ: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
-                rp_if.tx_sb_msg       = MBTRAIN_REPAIR_apply_repair_req;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'hFFFF_FFFF_FFFF_FFFF; // No repair (FFh per lane)
-            end
-            // (S4) DEGRADE path: send apply_degrade_req (lane-map in msginfo[2:0])
-            RP_APPLY_DEGRADE_REQ: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_DEGRADE_REQ: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_apply_degrade_req;
-                // MsgInfo[2:0]: Standard Package logical lane map (all-zero = no remap for sim)
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
+                rp_if.tx_msginfo      = {13'h0, local_tx_lane_map_code};
             end
-            // (S5) DEGRADE path: send apply_degrade_resp
-            RP_APPLY_DEGRADE_RESP: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_DEGRADE_RESP: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_apply_degrade_resp;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
             end
-            // (S6) Both sides send end_req simultaneously
-            RP_END_REQ: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_EVAL_RESULT: begin
+                // Tri-state Tx lanes and Disable Rx lanes that are not part of the negotiated map.
+                // However, this is just a single cycle, actual disabling will be handled by the mapper.
+            end
+
+            REPAIR_END_REQ: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_end_req;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
             end
-            // (S7) Both sides send end_resp simultaneously
-            RP_END_RESP: begin
-                rp_if.tx_sb_msg_valid = !data_incoherence;
+
+            REPAIR_END_RESP: begin
+                rp_if.tx_sb_msg_valid = is_sb_data_valid;
                 rp_if.tx_sb_msg       = MBTRAIN_REPAIR_end_resp;
-                rp_if.tx_msginfo      = 16'h0;
-                rp_if.tx_data_field   = 64'h0;
             end
-            // (S8) Done: assert repair_done and repair_req to notify MBTRAIN ctrl
-            TO_DONE: begin
+
+            TO_TXSELFCAL: begin
                 rp_if.repair_done      = 1'b1;
-                rp_if.repair_req       = 1'b1;
+                rp_if.txselfcal_req    = 1'b1;
                 rp_if.timeout_timer_en = 1'b0;
             end
-            // (S9) Fatal
+
             TO_TRAINERROR: begin
                 rp_if.trainerror_req   = 1'b1;
                 rp_if.repair_done      = 1'b1;
                 rp_if.timeout_timer_en = 1'b0;
             end
+
             default: begin end
         endcase
     end
-    // =========================================================================
-    // (Block 4) Sequential: data-path — latch degrade flag at INIT_REQ
-    // =========================================================================
-    always @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
+
+    always_ff @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
         if (!rp_if.rst_n) begin
-            degrade_r <= 1'b0;
-        end else begin
-            case (current_state)
-                // Capture linkspeed_fail_flag at the start of the sequence.
-                // If it is set → we must degrade lanes, not repair.
-                RP_INIT_REQ: begin
-                    degrade_r <= rp_if.linkspeed_fail_flag;
-                end
-                default: begin end
-            endcase
+            local_rx_lane_map_code <= 3'b000;
+        end
+        else if (current_state == REPAIR_INIT_RESP) begin
+            local_rx_lane_map_code <= 3'b000;
+        end
+        else if (current_state == REPAIR_DEGRADE_REQ && (rp_if.rx_sb_msg_valid && rp_if.rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req)) begin
+            local_rx_lane_map_code <= rp_if.rx_msginfo[2:0];
         end
     end
 endmodule

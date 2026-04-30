@@ -47,7 +47,7 @@ interface internal_ltsm_if #(
     logic valvref_en         , valvref_done                                     ;
     logic datavref_en        , datavref_done        , datavref_fail_flag        ; // datavref_fail_flag: For MBTRAIN.DATAVREF FSM state: To report if the Data  Vref calibration failed.
     logic speedidle_en       , speedidle_done       , speedidle_req             ;
-    logic txselfcal_en       , txselfcal_done                                   ;
+    logic txselfcal_en       , txselfcal_done       , txselfcal_req                     ;
     logic rxclkcal_en        , rxclkcal_done                                    ;
     logic valtraincenter_en  , valtraincenter_done  , valtraincenter_fail_flag  ; // valtraincenter_fail_flag: For MBTRAIN.VALTRAINCENTER FSM state: To report if there was a fail in calibration.
     logic valtrainvref_en    , valtrainvref_done    , valtrainvref_fail_flag    ; // valtrainvref_fail_flag: For MBTRAIN.VALTRAINVREF FSM state: To report if the Valid Vref calibration failed.
@@ -56,6 +56,7 @@ interface internal_ltsm_if #(
     logic rxdeskew_en        , rxdeskew_done        , rxdeskew_fail_flag        ; // rxdeskew_fail_flag: For MBTRAIN.RXDESKEW FSM state: To report if the per-lane deskew failed.
     logic datatraincenter2_en, datatraincenter2_done, datatraincenter2_fail_flag;
     logic linkspeed_en       , linkspeed_done       , linkspeed_fail_flag       ; // linkspeed_fail_flag: For MBTRAIN.LINKSPEED FSM state: To report if there was a problem.
+    logic [15:0] linkspeed_success_lanes; // From LINKSPEED to REPAIR: indicates the lanes that passed the test.
     logic repair_en          , repair_done          , repair_req                ;
 
     // PHY_IN_RETRAIN handshake between PHYRETRAIN state and MBTRAIN.LINKSPEED sub-state.
@@ -222,6 +223,8 @@ interface internal_ltsm_if #(
     //=====================================//
     // Register File (RF) Control Signals: //
     //=====================================//
+    logic        param_UCIe_S_x8      ; // Parameter to indicate if this is a UCIe-S x8 module.
+
     //  UCIe Link DVSEC - UCIe Link Capability (Offset Ch)
     // logic  [2:0] cfg_max_link_width; // Max Link Width 0h: x16; 7h: x8
     // logic  [7:4] cfg_max_link_speed; // Max Link Speeds = (0h: 4 GT/s; 1h: 8 GT/s; 12h: 4 GT/s; ... ; or 7h: 64 GT/s)
@@ -1610,6 +1613,7 @@ interface internal_ltsm_if #(
         // input  datatrainvref_fail_flag   ,
         // input  valtrainvref_fail_flag    ,
         // input  valtraincenter_fail_flag  ,
+        output linkspeed_success_lanes,
 
         // Negotiated speed from MBTRAIN.SPEEDIDLE
         input  phy_negotiated_speed,
@@ -1676,16 +1680,26 @@ interface internal_ltsm_if #(
         // Timers signals.         //
         // ======================= //
         output timeout_timer_en      , input  timeout_8ms_occured    ,
-        output analog_settle_timer_en, input  analog_settle_time_done,
 
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  repair_en  , output repair_done, output repair_req,
+        input  repair_en  , output repair_done, output txselfcal_req,
         output trainerror_req,
 
-        // Result from LINKSPEED: if set we just degrade, not repair
-        input  linkspeed_fail_flag,
+        // ======================= //
+        // RF signals.             //
+        // ======================= //
+        input  rf_cap_SPMW,               // Link Capability Register: Standard Package Module Width bit. (0: x16; 1: x8)
+        input  rf_ctrl_target_link_width, // Link Control Register: Target Link Width field.              (2: x16; 1: x8)
+        input  param_UCIe_S_x8,
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        input  linkspeed_success_lanes, // To know which lanes succeeded in the previous state.
+        input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit.
+        output mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes) in 3-bit.
 
         // ======================= //
         // MB signals.             //
@@ -1794,7 +1808,7 @@ interface internal_ltsm_if #(
         output valvref_en         , input valvref_done                                           ,
         output datavref_en        , input datavref_done        , input datavref_fail_flag        , // datavref_fail_flag: For MBTRAIN.DATAVREF FSM state: To report if the Data  Vref calibration failed.
         output speedidle_en       , input speedidle_done       , input speedidle_req             ,
-        output txselfcal_en       , input txselfcal_done                                         ,
+        output txselfcal_en       , input txselfcal_done       , input txselfcal_req         ,
         output rxclkcal_en        , input rxclkcal_done                                          ,
         output valtraincenter_en  , input valtraincenter_done  , input valtraincenter_fail_flag  , // valtraincenter_fail_flag: For MBTRAIN.VALTRAINCENTER FSM state: To report if there was a fail in calibration.
         output valtrainvref_en    , input valtrainvref_done                                      ,

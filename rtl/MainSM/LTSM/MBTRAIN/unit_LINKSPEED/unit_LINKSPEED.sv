@@ -427,6 +427,7 @@ module unit_LINKSPEED (
     logic [15:0] negotiated_data_lanes;
     logic [15:0] active_lanes;
     assign active_lanes = negotiated_data_lanes & (~d2c_if.d2c_perlane_err); // All the lanes that passed the D2C test.
+    assign ls_if.linkspeed_success_lanes = active_lanes;
     always @(*) begin
         case(ls_if.mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
@@ -680,9 +681,6 @@ module unit_LINKSPEED (
     //
     // Problem: when the FSM pivots to a higher-priority exit state (e.g. from
     // ERROR_REQ to EXIT_RETRAIN_REQ), it must send a NEW SB message immediately.
-    // However the SB protocol requires a minimum gap of ≥2 SB clock periods
-    // between consecutive changes of the SB Tx data.  Violating this gap causes
-    // "data inconsistency" that the partner may mis-sample.
     //
     // Solution: when tx_sb_msg_valid pulses (= we just sent a new message),
     // LOAD the timer with TIMER_MAX_VALUE (= 2 SB periods in lclk units) and
