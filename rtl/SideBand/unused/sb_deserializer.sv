@@ -6,7 +6,7 @@ module sb_deserializer
     input  logic                     RXCKSB,
     input  logic                     rst_n,
 
-    input  logic                     rx_serial_in,
+    input  logic                     RXDATASB,
 
     // registered outputs
     output logic [DATA_WIDTH-1:0]    rx_parallel_data,
@@ -30,7 +30,7 @@ logic [DATA_WIDTH-1:0] next_shift;
 // Shift calculation (combinational)
 ////////////////////////////////////////////////////////////
 
-assign next_shift = {rx_serial_in, shift_reg[DATA_WIDTH-1:1]};
+assign next_shift = {RXDATASB, shift_reg[DATA_WIDTH-1:1]};
 
 ////////////////////////////////////////////////////////////
 // Packet done detection

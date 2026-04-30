@@ -15,7 +15,7 @@ logic [DATA_WIDTH-1:0] tx_parallel_data;
 logic tx_data_valid;
 logic tx_rdy;
 
-logic tx_serial_out;
+logic TXDATASB;
 logic TXCKSB;
 
 ////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ sb_serializer #(
 .tx_data_valid(tx_data_valid),
 .tx_rdy(tx_rdy),
 
-.tx_serial_out(tx_serial_out),
+.TXDATASB(TXDATASB),
 .TXCKSB(TXCKSB)
 );
 
@@ -88,7 +88,7 @@ always @(posedge clk_serial) begin
 
     if(dut.state == dut.S_SHIFT) begin
 
-        captured_data[bit_index] = tx_serial_out;
+        captured_data[bit_index] = TXDATASB;
         bit_index++;
 
         if(bit_index == DATA_WIDTH) begin

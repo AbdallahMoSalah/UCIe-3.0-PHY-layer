@@ -11,12 +11,12 @@ add wave -noupdate /sb_pattern_serializer_tb/mapper_ready
 add wave -noupdate /sb_pattern_serializer_tb/ser_data
 add wave -noupdate /sb_pattern_serializer_tb/ser_valid
 add wave -noupdate /sb_pattern_serializer_tb/ser_ready
-add wave -noupdate /sb_pattern_serializer_tb/tx_serial_out
+add wave -noupdate /sb_pattern_serializer_tb/TXDATASB
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/pmo_en
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/tx_parallel_data
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/tx_data_valid
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/tx_ready
-add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/tx_serial_out
+add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/TXDATASB
 add wave -noupdate -color Magenta /sb_pattern_serializer_tb/dut_serializer/TXCKSB
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/state
 add wave -noupdate /sb_pattern_serializer_tb/dut_serializer/next_state

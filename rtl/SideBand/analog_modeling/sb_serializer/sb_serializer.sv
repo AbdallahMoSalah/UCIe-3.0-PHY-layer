@@ -15,7 +15,7 @@ module sb_serializer #(
     output logic                  tx_rdy,
 
     // Serial output
-    output logic tx_serial_out,
+    output logic TXDATASB,
 
     // Forwarded clock
     output logic TXCKSB
@@ -222,7 +222,7 @@ end
 // OUTPUT
 ////////////////////////////////////////////////////////////
 
-assign tx_serial_out = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
+assign TXDATASB = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
 
 ////////////////////////////////////////////////////////////
 // FORWARDED CLOCK
@@ -231,7 +231,7 @@ assign tx_serial_out = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
 logic shift_active;
 
 // Generate forwarded clock only when we will be shifting in the current/next cycle.
-// This perfectly aligns the 64 clock pulses with the valid data on tx_serial_out.
+// This perfectly aligns the 64 clock pulses with the valid data on TXDATASB.
 assign shift_active = (next_state == S_SHIFT);
 
 CLK_GATE forward_clock(
@@ -297,7 +297,7 @@ endmodule
     output logic                  tx_rdy,
 
     // Serial output
-    output logic tx_serial_out,
+    output logic TXDATASB,
 
     // Forwarded sideband clock
     output logic TXCKSB
@@ -474,7 +474,7 @@ end
 // SERIAL OUTPUT
 ////////////////////////////////////////////////////////////
 
-assign tx_serial_out = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
+assign TXDATASB = (state == S_SHIFT) ? shift_reg[0] : 1'b0;
 
 ////////////////////////////////////////////////////////////
 // READY SIGNAL

@@ -33,8 +33,8 @@ module SideBand_Top #(
     input  logic         sb_pll_clock, // Used as clk_serial in sb_serializer
     input  logic         RXCKSB,       // Clock from remote serializer
     output logic         TXCKSB,       // Clock forwarded to remote deserializer
-    output logic         tx_serial_out,
-    input  logic         rx_serial_in,
+    output logic         TXDATASB,
+    input  logic         RXDATASB,
 
     // =========================================================================
     // Link Controller: Pattern Generation / Detection
@@ -148,7 +148,7 @@ module SideBand_Top #(
         .tx_parallel_data (ser_data_send),
         .tx_data_valid    (ser_vld_send),
         .tx_rdy           (ser_rdy),
-        .tx_serial_out    (tx_serial_out),
+        .TXDATASB         (TXDATASB),
         .TXCKSB           (TXCKSB)
     );
 
@@ -161,7 +161,7 @@ module SideBand_Top #(
         .RXCKSB               (RXCKSB_forward),
         .clk_parallel         (clk_sb),
         .rst_n                (rst_sb_n),
-        .rx_serial_in         (rx_serial_in),
+        .RXDATASB              (RXDATASB),
         .rx_parallel_data_out (des_data_rcvd),
         .rx_data_vld          (des_vld_rcvd)
     );

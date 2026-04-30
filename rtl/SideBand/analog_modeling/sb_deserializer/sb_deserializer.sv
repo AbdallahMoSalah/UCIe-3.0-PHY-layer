@@ -7,7 +7,7 @@ module sb_deserializer
     input  logic                     clk_parallel,
     input  logic                     rst_n,
 
-    input  logic                     rx_serial_in,
+    input  logic                     RXDATASB,
 
     // registered outputs
     output logic [DATA_WIDTH-1:0]    rx_parallel_data_out,
@@ -30,7 +30,7 @@ logic                     packet_done;
 // Shift calculation 
 ////////////////////////////////////////////////////////////
 
-assign next_shift = {rx_serial_in, shift_reg[DATA_WIDTH-1:1]};
+assign next_shift = {RXDATASB, shift_reg[DATA_WIDTH-1:1]};
 
 ////////////////////////////////////////////////////////////
 // Packet done detection
@@ -58,7 +58,7 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
             rx_parallel_data_serial <= next_shift;
             rx_data_vld_serial      <= ~rx_data_vld_serial;
             // synthesis translate_off
-            $display("[%0t] [DES %m] PACKET_DONE: output=%h (last_rx=%b)", $time, next_shift, rx_serial_in);
+            $display("[%0t] [DES %m] PACKET_DONE: output=%h (last_rx=%b)", $time, next_shift, RXDATASB);
             // synthesis translate_on
         end else begin
             bit_cnt   <= bit_cnt + 1;
