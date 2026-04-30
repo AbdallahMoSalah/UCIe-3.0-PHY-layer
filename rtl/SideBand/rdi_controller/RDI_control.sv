@@ -356,7 +356,7 @@ fifo #(
     .WREADY  (),
 
     .R_CLK   (clk),   .RRST_N  (rst_n),
-    .RINC    (ufifo_req_rinc),
+    .RINC    (ufifo_req_rinc & ~no_crd),
     .RD_DATA (ufifo_req_rdata),
     .REMPTY  (),
     .RVALID  (ufifo_req_rvalid)

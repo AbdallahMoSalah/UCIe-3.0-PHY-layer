@@ -1,3 +1,4 @@
+import sb_pkg::*;
 module sb_priority_arbiter #(
     parameter int DATA_WIDTH = 128
 ) (
@@ -16,7 +17,7 @@ module sb_priority_arbiter #(
     output logic                  out_vld,
     input  logic                  out_rdy
 );
-    
+    sb_packet_t sb_packet;
     always_comb begin
         // Priority 1: High Priority Input
         if (hip_vld) begin
@@ -35,6 +36,19 @@ module sb_priority_arbiter #(
         // lop_rdy: downstream is free AND no high-priority msg is present.
         hip_rdy = out_rdy;
         lop_rdy = out_rdy && !hip_vld;
+   
+   
+   // DEBUG
+// synthesis translate_off
+    sb_packet = out_msg; 
+    if (out_vld) begin
+    $display("[%0t] [sb_priority_arbiter %m] Received Message! dstid=%0s out_msg[127:64]=%h [63:0]=%s", 
+             $time, sb_packet.header.req.dstid, sb_packet.payload, sb_packet.header.req.opcode);
+    end
+// synthesis translate_on
+   
+   
+   
     end
 
 endmodule

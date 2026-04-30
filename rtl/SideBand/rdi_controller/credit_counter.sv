@@ -39,7 +39,7 @@ module credit_counter #(
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            count <= CRD_W'(CRD_INIT);
+            count <= CRD_W'(CRD_INIT-1);
         end else begin
             case ({crd_in, crd_out})
                 // inc only – guard against overflow
