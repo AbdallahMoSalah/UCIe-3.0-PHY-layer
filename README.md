@@ -137,7 +137,7 @@ D:\path\to\UCIe-3.0-PHY-layer\
 
 ### Linux
 
-```
+```bash
 make run   CONFIG=<filelist_name> TOP=<tb_module>
 make debug CONFIG=<filelist_name> TOP=<tb_module>
 make report CONFIG=<filelist_name> TOP=<tb_module>
@@ -146,7 +146,7 @@ make clean
 
 ### Windows (PowerShell)
 
-```
+```powershell
 .\run_sim.ps1 -CONFIG <filelist_name> -TOP <tb_module>
 .\run_sim.ps1 -CONFIG <filelist_name> -TOP <tb_module> -MODE debug
 .\run_sim.ps1 -CONFIG <filelist_name> -TOP <tb_module> -MODE report
@@ -155,14 +155,16 @@ make clean
 
 Simulation behavior is controlled through:
 
-- CONFIG (filelist)
-    
-- TOP (testbench module)
-    
-- MODE (run / debug / report / ci)
-    
-- SEED (default / random / fixed value)
-    
+- **CONFIG**: Filelist name (found in `sim/listfiles/`).
+- **TOP**: Testbench top module name.
+- **MODE**: `run`, `debug`, `report`, or `ci`.
+- **SEED**: `default`, `random`, or a specific value.
+- **SYNTH**: (0 or 1). Set to `1` to disable the `SIMULATION` macro (disables debug logic and SVAs). Default is `0`.
+
+**Example with SYNTH flag:**
+```bash
+make run CONFIG=unit_sb_serializer TOP=sb_serializer_tb SYNTH=1
+```
 
 ---
 
