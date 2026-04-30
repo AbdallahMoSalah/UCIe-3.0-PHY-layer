@@ -1022,7 +1022,7 @@ module unit_RXDESKEW #(
             // To seperate between each 2 SB message 31 Clock cycle at least.
             if(send_timer != 0) begin
                 if(rxdeskew_if.rx_sb_msg_valid) begin
-                    rx_sb_msg_valid_r[0] <= 1'b1;
+                    rx_sb_msg_valid_r <= 1'b1;
                     rx_sb_msg_r          <= rxdeskew_if.rx_sb_msg;
                     rx_msginfo_r[3:0]    <= rxdeskew_if.rx_msginfo[3:0];
                 end
