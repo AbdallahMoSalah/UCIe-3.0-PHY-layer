@@ -268,6 +268,19 @@ Planned documents:
 
 ---
 
+## 👨‍💻 Team Members
+
+- [Abdullah Mohamed Salah](https://www.linkedin.com/in/abdallah-mohamed-salah)
+- [Abdelrahman Adwe Ali](https://www.linkedin.com/in/abdelrhman-adwe/)
+- [Mohamed Elsayed Ebrahim Mohamed](https://www.linkedin.com/in/mohamed-elsayed-eldokhmisy)
+- [Momen Mostafa Mohamed Elzaghawy](https://www.linkedin.com/in/momenelzaghawy)
+- [Mohamed Anwar Abd allatif](https://www.linkedin.com/in/mohammed-anwar-170727279)
+- [Mohamed Adel Abdelaty](http://www.linkedin.com/in/mohamed-adel-9a34b42a7)
+- [Yousef Mohamed Abdelfattah Ibrahim](https://www.linkedin.com/in/yousef-mohamed-abd-el-fattah-3b1a0328b/)
+- [Sondoss Mohammad Hassan Mohammad](https://www.linkedin.com/in/sondoss-hassan-91bb29355/)
+
+---
+
 ## 12. Project Status
 
 This repository is under active development.
