@@ -27,7 +27,7 @@ rtl/SideBand/Link_Controller/sb_pattern_engine.sv
 rtl/SideBand/Link_Controller/Link_Controller.sv
 
 # Training Management
-rtl/SideBand/Training_mgmt/arbiter.sv
+rtl/SideBand/Training_mgmt/roud_robin_arbiter.sv
 rtl/SideBand/Training_mgmt/Packetizer.sv
 rtl/SideBand/Training_mgmt/DePacketizer.sv
 rtl/SideBand/Training_mgmt/Training_Mgmt_Demux.sv

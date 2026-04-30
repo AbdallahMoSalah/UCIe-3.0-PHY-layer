@@ -69,11 +69,12 @@ module Training_Mgmt #(
     logic        rdi_pop;
 
     // Arbiter Outputs
-    logic [63:0] arb_msg_data;
-    logic [15:0] arb_msg_info;
-    logic [ 7:0] arb_msg_n;
-    logic        arb_vld;
-    logic        packetizer_rdy;
+    logic [87:0]  arb_link_data;
+    logic [63:0]  arb_msg_data;
+    logic [15:0]  arb_msg_info;
+    logic [ 7:0]  arb_msg_n;
+    logic         arb_vld;
+    logic         packetizer_rdy;
 
     // DePacketizer Outputs
     msg_no_e     rx_msg_no_raw;
@@ -133,28 +134,34 @@ module Training_Mgmt #(
     // TX Path: Arbiter & Packetizer
     // -------------------------------------------------------------------------
 
-    arbiter u_arbiter (
-        .clk            (clk_sb),
-        .reset_n        (rst_sb_n),
+    // Round-Robin Arbiter Integration
+    RR_arbiter #(
+        .DATA_WIDTH(88)
+    ) u_arbiter (
+        .clk        (clk_sb),
+        .rst_n      (rst_sb_n),
         
-        // From FIFOs
-        .rdi_msg_fifo   (rdi_msg_fifo_rd),
-        .rdi_not_empty  (rdi_fifo_not_empty),
-        .rdi_pop        (rdi_pop),
+        // From LTSM FIFO
+        .ltsm_valid (ltsm_fifo_not_empty),
+        .ltsm_data  (ltsm_msg_fifo_rd),
+        .ltsm_ready (ltsm_pop),
         
-        .ltsm_msg_fifo  (ltsm_msg_fifo_rd),
-        .ltsm_not_empty (ltsm_fifo_not_empty),
-        .ltsm_pop       (ltsm_pop),
+        // From RDI FIFO (Packed into 88 bits)
+        .rdi_valid  (rdi_fifo_not_empty),
+        .rdi_data   ({79'b0, rdi_msg_fifo_rd}),
+        .rdi_ready  (rdi_pop),
 
-        // Handshake
-        .trn_rdy     (packetizer_rdy),
-        
-        // To Packetizer
-        .msg_data       (arb_msg_data),
-        .msg_info       (arb_msg_info),
-        .msg_n          (arb_msg_n),
-        .vld            (arb_vld)
+        // Handshake with Packetizer
+        .link_ready (packetizer_rdy),
+        .link_valid (arb_vld),
+        .link_data  (arb_link_data)
     );
+
+    // Unpack Arbiter Output for Packetizer
+    // Fields: [87:24] -> data, [23:8] -> info, [7:0] -> msg_no
+    assign arb_msg_data = arb_link_data[87:24];
+    assign arb_msg_info = arb_link_data[23:8];
+    assign arb_msg_n    = arb_link_data[7:0];
 
     Packetizer u_packetizer (
         .clk            (clk_sb),
