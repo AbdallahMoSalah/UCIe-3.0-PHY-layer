@@ -8,7 +8,7 @@ module sb_deserializer_sva
     input  logic                     RXCKSB,
     input  logic                     rst_n,
 
-    input  logic                     rx_serial_in,
+    input  logic                     RXDATASB,
 
     // registered outputs
     input logic [DATA_WIDTH-1:0]    rx_parallel_data,

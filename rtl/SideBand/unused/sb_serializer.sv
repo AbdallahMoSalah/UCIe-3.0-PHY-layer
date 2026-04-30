@@ -14,7 +14,7 @@ module sb_serializer #(
     output logic                  tx_rdy,
 
     // Serial output
-    output logic tx_serial_out,
+    output logic TXDATASB,
 
     // Forwarded sideband clock
     output logic TXCKSB
@@ -132,8 +132,8 @@ module sb_serializer #(
   ////////////////////////////////////////////////////////////
 
   always_comb begin
-    if (state == SHIFT) tx_serial_out = shift_reg[0];
-    else tx_serial_out = 1'b0;
+    if (state == SHIFT) TXDATASB = shift_reg[0];
+    else TXDATASB = 1'b0;
   end
 
   ////////////////////////////////////////////////////////////

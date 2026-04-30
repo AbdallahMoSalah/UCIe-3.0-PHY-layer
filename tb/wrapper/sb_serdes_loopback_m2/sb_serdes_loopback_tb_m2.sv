@@ -23,7 +23,7 @@ logic tx_data_valid;
 logic tx_rdy;
 
 // serial link
-logic tx_serial_out;
+logic TXDATASB;
 logic clk_parallel;
 logic TXCKSB;
 logic RXCKSB;
@@ -65,7 +65,7 @@ sb_serializer serializer (
     .tx_data_valid(tx_data_valid),
     .tx_rdy(tx_rdy),
 
-    .tx_serial_out(tx_serial_out),
+    .TXDATASB(TXDATASB),
     .TXCKSB(TXCKSB)
 );
 
@@ -75,7 +75,7 @@ sb_deserializer deserializer (
     .clk_parallel(clk_parallel),
     .rst_n(rst_n),
 
-    .rx_serial_in(tx_serial_out),
+    .RXDATASB(TXDATASB),
 
     .rx_parallel_data_out(rx_parallel_data_out),
     .rx_data_vld(rx_data_vld)
@@ -91,7 +91,7 @@ bind sb_serializer sb_serializer_sva SVA_ser (
     .tx_data_valid(tx_data_valid),
     .tx_rdy(tx_rdy),
 
-    .tx_serial_out(tx_serial_out),
+    .TXDATASB(TXDATASB),
     .TXCKSB(TXCKSB)
 );
 

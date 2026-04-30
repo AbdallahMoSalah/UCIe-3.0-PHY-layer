@@ -6,8 +6,8 @@ add wave -noupdate /sb_serdes_loopback_tb/pmo_en
 add wave -noupdate /sb_serdes_loopback_tb/tx_parallel_data
 add wave -noupdate /sb_serdes_loopback_tb/tx_data_valid
 add wave -noupdate /sb_serdes_loopback_tb/tx_ready
-add wave -noupdate /sb_serdes_loopback_tb/tx_serial_out
-add wave -noupdate /sb_serdes_loopback_tb/deserializer/rx_serial_in
+add wave -noupdate /sb_serdes_loopback_tb/TXDATASB
+add wave -noupdate /sb_serdes_loopback_tb/deserializer/RXDATASB
 add wave -noupdate -color Blue /sb_serdes_loopback_tb/TXCKSB
 add wave -noupdate -color Blue /sb_serdes_loopback_tb/deserializer/RXCKSB
 add wave -noupdate /sb_serdes_loopback_tb/rx_parallel_data

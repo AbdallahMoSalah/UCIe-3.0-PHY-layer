@@ -26,7 +26,7 @@ package sb_serializer_tb_pkg;
         logic Prev_tx_data_valid = 0;
         logic Prev_tx_rdy = 1;
 
-        logic tx_serial_out;
+        logic TXDATASB;
         logic TXCKSB;
  
 

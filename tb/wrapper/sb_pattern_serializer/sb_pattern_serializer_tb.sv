@@ -46,7 +46,7 @@ logic [63:0] ser_data;
 logic ser_valid;
 logic ser_rdy;
 
-logic tx_serial_out;
+logic TXDATASB;
 logic TXCKSB;
 
 ////////////////////////////////////////////////////////////
@@ -86,7 +86,7 @@ sb_serializer dut_serializer (
     .tx_data_valid(ser_valid),
     .tx_rdy(ser_rdy),
 
-    .tx_serial_out(tx_serial_out),
+    .TXDATASB(TXDATASB),
     .TXCKSB(TXCKSB)
 );
 
@@ -100,7 +100,7 @@ bind sb_serializer sb_serializer_sva SVA_ser (
     .tx_data_valid(tx_data_valid),
     .tx_rdy(tx_rdy),
 
-    .tx_serial_out(tx_serial_out),
+    .TXDATASB(TXDATASB),
     .TXCKSB(TXCKSB)
 );
 

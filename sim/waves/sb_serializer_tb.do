@@ -7,7 +7,7 @@ add wave -noupdate /sb_serializer_tb/pmo_en
 add wave -noupdate /sb_serializer_tb/tx_parallel_data
 add wave -noupdate -color Magenta /sb_serializer_tb/tx_data_valid
 add wave -noupdate -color Cyan /sb_serializer_tb/tx_ready
-add wave -noupdate /sb_serializer_tb/tx_serial_out
+add wave -noupdate /sb_serializer_tb/TXDATASB
 add wave -noupdate /sb_serializer_tb/TXCKSB
 add wave -noupdate /sb_serializer_tb/send_packet/data
 add wave -noupdate /sb_serializer_tb/dut/state

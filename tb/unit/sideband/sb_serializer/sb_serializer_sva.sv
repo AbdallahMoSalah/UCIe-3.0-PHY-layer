@@ -14,7 +14,7 @@ module sb_serializer_sva
     input logic                     tx_rdy,
 
     // Serial output
-    input logic                     tx_serial_out,
+    input logic                     TXDATASB,
 
     // Forwarded sideband clock
     input logic                     TXCKSB

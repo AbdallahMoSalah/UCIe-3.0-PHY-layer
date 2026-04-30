@@ -29,8 +29,8 @@ module SideBand_Top_tb;
     
     logic         RXCKSB [2];
     logic         TXCKSB [2];
-    logic         tx_serial_out [2];
-    logic         rx_serial_in [2];
+    logic         TXDATASB [2];
+    logic         RXDATASB [2];
 
     logic         pattern_mode [2];
     logic         start_pat_req [2];
@@ -97,8 +97,8 @@ module SideBand_Top_tb;
                 .sb_pll_clock(sb_pll_clock),
                 .RXCKSB(RXCKSB[i]),
                 .TXCKSB(TXCKSB[i]),
-                .tx_serial_out(tx_serial_out[i]),
-                .rx_serial_in(rx_serial_in[i]),
+                .TXDATASB(TXDATASB[i]),
+                .RXDATASB(RXDATASB[i]),
                 .pattern_mode(pattern_mode[i]),
                 .start_pat_req(start_pat_req[i]),
                 .send_4_iter(send_4_iter[i]),
@@ -155,10 +155,10 @@ module SideBand_Top_tb;
 
     // Connect remote clock to our forwarded clock for loopback (or generate separately)
     assign RXCKSB[0] = TXCKSB[1];
-    assign rx_serial_in[0] = tx_serial_out[1];
+    assign RXDATASB[0] = TXDATASB[1];
 
     assign RXCKSB[1] = TXCKSB[0];
-    assign rx_serial_in[1] = tx_serial_out[0];
+    assign RXDATASB[1] = TXDATASB[0];
 
     // =========================================================================
     // Test Tasks
@@ -221,7 +221,7 @@ module SideBand_Top_tb;
         pattern_mode[0] = 1; pattern_mode[1] = 1;
         start_pat_req[0] = 1; start_pat_req[1] = 0; // Only Die 0 starts
         send_4_iter[0] = 0; send_4_iter[1] = 0;
-        pmo_en[0] = 1; pmo_en[1] = 1;
+        pmo_en[0] = 0; pmo_en[1] = 0;
         $display("[%0t] Die 0 starts pattern generation, Die 1 is waiting", $time);
 
         // Now both dies will run concurrently to finish their sequence

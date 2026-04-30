@@ -18,9 +18,9 @@ add wave -noupdate -group {DUT 0 Status} -color Green /SideBand_Top_tb/det_pat_r
 add wave -noupdate -group {DUT 0 Status} -color Green /SideBand_Top_tb/four_iter_done\[0\]
 
 add wave -noupdate -group {DUT 0 SerDes Links} -color Cyan /SideBand_Top_tb/TXCKSB\[0\]
-add wave -noupdate -group {DUT 0 SerDes Links} -color Cyan /SideBand_Top_tb/tx_serial_out\[0\]
+add wave -noupdate -group {DUT 0 SerDes Links} -color Cyan /SideBand_Top_tb/TXDATASB\[0\]
 add wave -noupdate -group {DUT 0 SerDes Links} -color Magenta /SideBand_Top_tb/RXCKSB\[0\]
-add wave -noupdate -group {DUT 0 SerDes Links} -color Magenta /SideBand_Top_tb/rx_serial_in\[0\]
+add wave -noupdate -group {DUT 0 SerDes Links} -color Magenta /SideBand_Top_tb/RXDATASB\[0\]
 
 add wave -noupdate -group {DUT 0 Link Controller States} /SideBand_Top_tb/dut_inst\[0\]/dut/u_link_controller/state
 add wave -noupdate -group {DUT 0 Link Controller States} /SideBand_Top_tb/dut_inst\[0\]/dut/u_link_controller/next_state
@@ -38,9 +38,9 @@ add wave -noupdate -group {DUT 1 Status} -color Green /SideBand_Top_tb/det_pat_r
 add wave -noupdate -group {DUT 1 Status} -color Green /SideBand_Top_tb/four_iter_done\[1\]
 
 add wave -noupdate -group {DUT 1 SerDes Links} -color Cyan /SideBand_Top_tb/TXCKSB\[1\]
-add wave -noupdate -group {DUT 1 SerDes Links} -color Cyan /SideBand_Top_tb/tx_serial_out\[1\]
+add wave -noupdate -group {DUT 1 SerDes Links} -color Cyan /SideBand_Top_tb/TXDATASB\[1\]
 add wave -noupdate -group {DUT 1 SerDes Links} -color Magenta /SideBand_Top_tb/RXCKSB\[1\]
-add wave -noupdate -group {DUT 1 SerDes Links} -color Magenta /SideBand_Top_tb/rx_serial_in\[1\]
+add wave -noupdate -group {DUT 1 SerDes Links} -color Magenta /SideBand_Top_tb/RXDATASB\[1\]
 
 add wave -noupdate -group {DUT 1 Link Controller States} /SideBand_Top_tb/dut_inst\[1\]/dut/u_link_controller/state
 add wave -noupdate -group {DUT 1 Link Controller States} /SideBand_Top_tb/dut_inst\[1\]/dut/u_link_controller/next_state
