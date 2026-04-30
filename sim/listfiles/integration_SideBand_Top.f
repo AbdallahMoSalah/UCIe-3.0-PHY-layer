@@ -17,6 +17,8 @@ rtl/SideBand/common/sb_priority_arbiter.sv
 # SerDes
 rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv
 rtl/SideBand/analog_modeling/sb_deserializer/sb_deserializer.sv
+rtl/SideBand/analog_modeling/sb_serializer/sb_serializer_sva.sv
+rtl/SideBand/analog_modeling/sb_deserializer/sb_deserializer_sva.sv
 
 # Link Controller
 rtl/SideBand/Link_Controller/sb_mapper.sv

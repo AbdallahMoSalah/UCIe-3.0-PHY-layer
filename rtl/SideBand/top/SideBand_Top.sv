@@ -316,3 +316,30 @@ module SideBand_Top #(
     );
 
 endmodule
+
+`ifdef SIMULATION
+    bind sb_serializer sb_serializer_sva #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .S_GAP_WIDTH(GAP_WIDTH)
+    ) i_sb_serializer_sva (
+        .clk_serial      (clk_serial),
+        .clk_parallel    (clk_parallel),
+        .rst_n           (rst_n),
+        .pmo_en          (pmo_en),
+        .tx_parallel_data(tx_parallel_data),
+        .tx_data_valid   (tx_data_valid),
+        .tx_rdy          (tx_rdy),
+        .TXDATASB        (TXDATASB),
+        .TXCKSB          (TXCKSB)
+    );
+
+    bind sb_deserializer sb_deserializer_sva #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) i_sb_deserializer_sva (
+        .RXCKSB              (RXCKSB),
+        .clk_parallel        (clk_parallel),
+        .rst_n               (rst_n),
+        .rx_parallel_data_out(rx_parallel_data_out),
+        .rx_data_vld         (rx_data_vld)
+    );
+`endif
