@@ -76,8 +76,10 @@ module unit_RXCLKCAL #() (
     TO_TRAINERROR             = 4'hD;  // (S13): trainerror_req = 1; wait for en de-assert.
     reg [3:0] current_state, next_state;
     // To handle the case when the current_state == RXCLKCAL_DONE_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we expect to receive {MBTRAIN.RXCLKCAL done req}.
-    reg [3:0] req_msg_sent_timer;
-    reg       req_msg_rcvd      ;
+    localparam TIMER_MAX_VALUE = 3;
+    localparam TIMER_WIDTH     = $clog2(TIMER_MAX_VALUE + 1'b1);
+    reg [TIMER_WIDTH-1:0] req_msg_sent_timer;
+    reg                   req_msg_rcvd      ;
     // This signal prevents SB message glitches whenever the state changes.
     // It is set to 1 for exactly 1 lclk cycle on any state transition,
     // which is the same cycle the output always block drives new values.
@@ -165,7 +167,7 @@ module unit_RXCLKCAL #() (
                 // -------------------------------------------------------------------
                 IQ_TCKN_L_SHIFT_REQ: begin
                     if ((rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req && rxclkcal_if.rx_sb_msg_valid == 1'b1) ||
-                            (req_msg_rcvd && req_msg_sent_timer == 4'hF)) // To handle the case when the current_state == IQ_TCKN_L_SHIFT_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we haven't received it yet.
+                            (req_msg_rcvd && req_msg_sent_timer == TIMER_MAX_VALUE)) // To handle the case when the current_state == IQ_TCKN_L_SHIFT_REQ and the partner has sent {MBTRAIN.RXCLKCAL TCKN_L shift req} but we haven't received it yet.
                         next_state = IQ_APPLY_TCKN_L_SHIFT;
                     else
                         next_state = IQ_TCKN_L_SHIFT_REQ;
@@ -296,10 +298,10 @@ module unit_RXCLKCAL #() (
         rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low (Tx Logical Data Lanes), 01b: active (Tx Logical Data Lanes), 1xb: Tri-state (Tx Logical Data Lanes).
         rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low (Tx Logical Valid Lane), 01b: active (Tx Logical Valid Lane), 1xb: Tri-state (Tx Logical Valid Lane).
         rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low (Tx Logical Track Lane), 01b: active (Tx Logical Track Lane), 1xb: Tri-state (Tx Logical Track Lane).
-        rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Clock Lane).
-        rxclkcal_if.mb_rx_data_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Data Lanes).
-        rxclkcal_if.mb_rx_val_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Valid Lane).
-        rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00;  // 0b: Disabled (Rx Logical Track Lane).
+        rxclkcal_if.mb_rx_clk_lane_sel  = 1'b0 ; // 0b: Disabled (Rx Logical Clock Lane).
+        rxclkcal_if.mb_rx_data_lane_sel = 1'b0 ; // 0b: Disabled (Rx Logical Data Lanes).
+        rxclkcal_if.mb_rx_val_lane_sel  = 1'b0 ; // 0b: Disabled (Rx Logical Valid Lane).
+        rxclkcal_if.mb_rx_trk_lane_sel  = 1'b0 ; // 0b: Disabled (Rx Logical Track Lane).
         // Setting the pattern configeration for the pattern generator.
         rxclkcal_if.mb_tx_pattern_en      = 1'b0  ; // Enable pattern generator and send the clock immediately.
         rxclkcal_if.mb_tx_pattern_setup   = 3'b100; // Choose "Clock pattern" to send when we enable the pattern generator.
@@ -332,10 +334,10 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // Low.
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
-                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b00; // disable.
-                rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
-                rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
-                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b00; // disable.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 1'b0 ; // disable.
+                rxclkcal_if.mb_rx_data_lane_sel = 1'b0 ; // disable.
+                rxclkcal_if.mb_rx_val_lane_sel  = 1'b0 ; // disable.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 1'b0 ; // disable.
             end
             // -------------------------------------------------------------------
             // (S1) Send & Receive {MBTRAIN.RXCLKCAL start req}:
@@ -350,10 +352,10 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_data_lane_sel = 2'b00; // Low.
                 rxclkcal_if.mb_tx_val_lane_sel  = 2'b00; // Low.
                 rxclkcal_if.mb_tx_trk_lane_sel  = 2'b00; // Low.
-                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // enabled.
-                rxclkcal_if.mb_rx_data_lane_sel  = 2'b00; // disable.
-                rxclkcal_if.mb_rx_val_lane_sel  = 2'b00; // disable.
-                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // enabled.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 1'b1; // enabled.
+                rxclkcal_if.mb_rx_data_lane_sel = 1'b0; // disable.
+                rxclkcal_if.mb_rx_val_lane_sel  = 1'b0; // disable.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 1'b1; // enabled.
                 // SB:
                 rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send request.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_start_req  ; // Message code.
@@ -545,8 +547,8 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
                 // Rx: keep receivers active until the final handshake completes.
-                rxclkcal_if.mb_rx_clk_lane_sel  = 2'b01; // Enabled.
-                rxclkcal_if.mb_rx_trk_lane_sel  = 2'b01; // Enabled.
+                rxclkcal_if.mb_rx_clk_lane_sel  = 1'b1; // Enabled.
+                rxclkcal_if.mb_rx_trk_lane_sel  = 1'b1; // Enabled.
                 // Enable pattern generator.
                 rxclkcal_if.mb_tx_pattern_en = 1'b1; // Keep forwarding the clock pattern.
                 // PHY: keep lock circuits ON until the done resp is received.
@@ -638,19 +640,31 @@ module unit_RXCLKCAL #() (
     //       {TCKN_L shift req} SB Msg again which is impossible because we already received it.
     //       The {TCKN_L shift req} SB Msg has received but we didn't sent it yet.
     //       So, the solution is to use a flag to indicate that we received the {TCKN_L shift req}
-    //       SB Msg and we are waiting to make sure the SB sends our req Msg correctly.
+    //       SB Msg and we are waiting to make sure the SB catches our req Msg correctly.
     // -------------------------------------------------------------------
     always @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin : TCKN_L_SHIFT_REQ_PROC
         if(!rxclkcal_if.rst_n) begin
-            req_msg_rcvd       <= 1'b1   ;
-            req_msg_sent_timer <= 4'b0000;
+            req_msg_rcvd       <= 1'b0               ; // Default: NOT received (flag is only set for late-IQ scenario)
+            req_msg_sent_timer <= {TIMER_WIDTH{1'b0}};
         end
         else if(current_state == RXCLKCAL_DONE_REQ && (rxclkcal_if.rx_sb_msg_valid && rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req)) begin
-            req_msg_rcvd       <= 1'b1   ;
-            req_msg_sent_timer <= 4'b0000;
+            // Late-IQ detected: partner sent TCKN_L_shift_req while we were in DONE_REQ.
+            // Set the flag so that when we loop back to IQ_TCKN_L_SHIFT_REQ, we don't
+            // wait for the partner echo (we already received it).
+            req_msg_rcvd       <= 1'b1               ;
+            req_msg_sent_timer <= {TIMER_WIDTH{1'b0}};
         end
         else if(current_state == IQ_TCKN_L_SHIFT_REQ) begin
+            // Count up while in IQ_TCKN_L_SHIFT_REQ; when req_msg_rcvd is set and
+            // timer reaches TIMER_MAX_VALUE, the next-state logic advances without
+            // waiting for the partner echo.
             req_msg_sent_timer <= req_msg_sent_timer + 1'b1;
+        end
+        else begin
+            // Clear in all other states so the flag doesn't carry over to the next
+            // normal IQ iteration (which MUST wait for the partner echo).
+            req_msg_rcvd       <= 1'b0;
+            req_msg_sent_timer <= {TIMER_WIDTH{1'b0}};
         end
     end
 endmodule
