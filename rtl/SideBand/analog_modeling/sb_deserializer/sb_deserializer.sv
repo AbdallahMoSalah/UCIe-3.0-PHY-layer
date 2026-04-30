@@ -57,9 +57,9 @@ always_ff @(posedge RXCKSB or negedge rst_n) begin
             bit_cnt <= '0;
             rx_parallel_data_serial <= next_shift;
             rx_data_vld_serial      <= ~rx_data_vld_serial;
-            // synthesis translate_off
+            `ifdef SIMULATION
             $display("[%0t] [DES %m] PACKET_DONE: output=%h (last_rx=%b)", $time, next_shift, RXDATASB);
-            // synthesis translate_on
+            `endif
         end else begin
             bit_cnt   <= bit_cnt + 1;
             shift_reg <= next_shift;

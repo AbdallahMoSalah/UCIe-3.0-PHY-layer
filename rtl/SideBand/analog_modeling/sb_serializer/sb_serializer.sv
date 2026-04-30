@@ -240,7 +240,7 @@ CLK_GATE forward_clock(
     .GATED_CLK(TXCKSB)
 );
 
-    // synthesis translate_off
+`ifdef SIMULATION
     always_ff @(posedge clk_parallel) begin
         if (tx_data_valid && tx_rdy)
             $display("[%0t] [SER %m] PARALLEL LOADED: data=%h", $time, tx_parallel_data);
@@ -254,7 +254,7 @@ CLK_GATE forward_clock(
         if (load_condition)
             $display("[%0t] [SER %m] LOAD CONDITION TRUE: state=%0s full_sync2=%b bit_cnt=%0d", $time, state.name(), full_sync2, bit_cnt);
     end
-    // synthesis translate_on
+`endif
 
 endmodule
 
