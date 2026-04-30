@@ -19,6 +19,7 @@ endif
 
 MODE   ?= run
 SEED   ?= default
+SYNTH  ?= 0
 REPORT_EXT ?= txt
 SIM_DO = sim/scripts/run.do
 
@@ -32,6 +33,7 @@ run:
 	             set TOP $(TOP); \
 	             set MODE run; \
 	             set SEED $(SEED); \
+	             set SYNTH $(SYNTH); \
 	             do $(SIM_DO)"
 
 # -----------------------------------------------
@@ -42,6 +44,7 @@ debug:
 	          set TOP $(TOP); \
 	          set MODE debug; \
 	          set SEED $(SEED); \
+	          set SYNTH $(SYNTH); \
 	          do $(SIM_DO)"
 
 # -----------------------------------------------
@@ -53,6 +56,7 @@ report:
 	             set MODE report; \
 				 set REPORT_EXT $(REPORT_EXT); \
 	             set SEED $(SEED); \
+	             set SYNTH $(SYNTH); \
 	             do $(SIM_DO)"
 
 # -----------------------------------------------
@@ -63,7 +67,9 @@ ci:
 	             set TOP $(TOP); \
 	             set MODE ci; \
 	             set SEED $(SEED); \
+	             set SYNTH $(SYNTH); \
 	             do $(SIM_DO)"
+
 
 # -----------------------------------------------
 # Clean Simulation Artifacts

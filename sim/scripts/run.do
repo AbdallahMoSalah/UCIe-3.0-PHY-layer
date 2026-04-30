@@ -39,6 +39,7 @@ if {![info exists TOP]} {
 if {![info exists MODE]}    { set MODE run }
 if {![info exists SEED]}    { set SEED default }
 if {![info exists REPORT_EXT]}    { set REPORT_EXT txt }
+if {![info exists SYNTH]}   { set SYNTH 0 }
 
 puts "--------------------------------------------------"
 puts "PROJECT ROOT = $project_root"
@@ -85,6 +86,10 @@ if {$MODE eq "debug" || $MODE eq "report"} {
     set vlog_flags {-sv +cover -covercells}
 } else {
     set vlog_flags {-sv}
+}
+
+if {$SYNTH == 0} {
+    lappend vlog_flags +define+SIMULATION
 }
 
 set filelist_path "$sim_dir/listfiles/$CONFIG.f"
