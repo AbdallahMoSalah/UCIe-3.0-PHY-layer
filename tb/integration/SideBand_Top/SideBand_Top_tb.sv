@@ -407,10 +407,10 @@ module SideBand_Top_tb;
         fork
             begin
                 for (int i=0; i<5; i++) begin
-                    @(posedge clk_sb);
+                    @(posedge clk_main);
                     RDI_vld_send[0] = 1;
-                    RDI_msg_no_send[0] = 8'h01 + i;
-                    @(posedge clk_sb);
+                    RDI_msg_no_send[0] = 8'h03 + i;
+                    @(posedge clk_main);
                     RDI_vld_send[0] = 0;
                     @(posedge clk_sb); // spacing
                 end
@@ -419,7 +419,7 @@ module SideBand_Top_tb;
                 for (int i=0; i<5; i++) begin
                     @(posedge RDI_vld_rcvd[1]);
                     @(posedge clk_sb);
-                    if (RDI_msg_no_rcvd[1] != 8'h01 + i)
+                    if (RDI_msg_no_rcvd[1] != 8'h03 + i)
                         $error("[%0t] \033[1;31m[ERROR]\033[0m RDI mismatch on Die 1: expected %h, got %h", $time, 8'h01+i, RDI_msg_no_rcvd[1]);
                     else
                         $display("[%0t] \033[1;32m[SUCCESS]\033[0m RDI Burst Msg %0d received correctly", $time, i);
@@ -468,7 +468,7 @@ module SideBand_Top_tb;
                 // Monitor rf_* interface on Die 0
                 wait(wr_en[0] == 1'b1);
                 @(posedge clk_sb);
-                if (rf_addr[0] == 25'h00AABB && rf_wdata[0] == payload)
+                if (rf_addr[0] == 25'h100AABB && rf_wdata[0] == payload)
                     $display("[%0t] \033[1;32m[SUCCESS]\033[0m Local register write successfully routed to Reg_Access on Die 0", $time);
                 else
                     $error("[%0t] \033[1;31m[ERROR]\033[0m Local register write mismatch: addr=%h, data=%h", $time, rf_addr[0], rf_wdata[0]);
@@ -490,10 +490,10 @@ module SideBand_Top_tb;
         fork
             begin
                 // LTSM Message
-                @(posedge clk_sb);
+                @(posedge clk_main);
                 ltsm_vld_send[0] = 1;
-                ltsm_msg_n_send[0] = 8'hBB;
-                @(posedge clk_sb);
+                ltsm_msg_n_send[0] = 8'h00;
+                @(posedge clk_main);
                 ltsm_vld_send[0] = 0;
             end
             begin
