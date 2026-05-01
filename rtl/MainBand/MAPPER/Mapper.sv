@@ -16,7 +16,7 @@ module Mapper #(
     output reg  [WIDTH-1:0] o_lane_8,  o_lane_9,  o_lane_10, o_lane_11,
     output reg  [WIDTH-1:0] o_lane_12, o_lane_13, o_lane_14, o_lane_15,
     output reg              out_scramble_en,
-    output reg              mapper_ready // pl_
+    output reg              mapper_ready // pl_trdy
 );
 
     //============================================================

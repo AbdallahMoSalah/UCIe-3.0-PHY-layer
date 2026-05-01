@@ -10,9 +10,10 @@ module Demapper #(
     input  wire   [WIDTH-1:0] i_lane_8,  i_lane_9,  i_lane_10, i_lane_11,
     input  wire   [WIDTH-1:0] i_lane_12, i_lane_13, i_lane_14, i_lane_15,
     input  wire                     demapper_en,
+    input  wire                     rx_data_valid,
     input  wire [2:0]               i_width_deg_demap,
-    output reg                     pl_valid, 
-    output reg [8*N_BYTES-1:0] o_out_data
+    output reg                      pl_valid, 
+    output reg [8*N_BYTES-1:0]      o_out_data
 );
 
     //============================================================
@@ -35,23 +36,25 @@ module Demapper #(
     localparam CLOCK_CYCLES_8  = NUM_WORDS / 8; //2 cycle
     localparam CLOCK_CYCLES_4  = NUM_WORDS / 4; //4 cycle
 
-    reg [$clog2(CLOCK_CYCLES_4)-1:0] cycle_count;
+    reg [1:0] cycle_count;
 
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
-            cycle_count <= 0;
-            pl_valid <= 0;
+            cycle_count <= 2'd0;
+            pl_valid    <= 1'b0;
             o_out_data  <= 0;
         end
-        else if (demapper_en) begin
-            case (i_width_deg_demap)
+        else begin
+            // Default assignments
+            pl_valid <= 1'b0;
 
-            //====================================================
-            // x16 MODE
-            //====================================================
-            DEGRADE_LANES_0_TO_15: begin
-               // case (cycle_count)
-                 //   0: begin
+            if (demapper_en && rx_data_valid) begin
+                case (i_width_deg_demap)
+
+                //====================================================
+                // x16 MODE
+                //====================================================
+                DEGRADE_LANES_0_TO_15: begin
                         o_out_data <= {
                         i_lane_0[7:0],i_lane_1[7:0],i_lane_2[7:0],i_lane_3[7:0],
                         i_lane_4[7:0],i_lane_5[7:0],i_lane_6[7:0],i_lane_7[7:0],
@@ -72,18 +75,14 @@ module Demapper #(
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24],
                         i_lane_8[31:24],i_lane_9[31:24],i_lane_10[31:24],i_lane_11[31:24],
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
-                 //       default: o_out_data <= 0; 
-               //     end
-             //endcase
-              //  if (cycle_count == CLOCK_CYCLES_16-1) begin
-                    pl_valid <= 1;
-                //    cycle_count <= 0;
-           //     end
-             //   else begin
-               //     cycle_count <= cycle_count + 1;
-                 //   pl_valid    <= 0;
-                //end
-            end
+                    if (cycle_count == CLOCK_CYCLES_16-1) begin
+                        pl_valid    <= 1'b1;
+                        cycle_count <= 2'd0;
+                    end
+                    else begin
+                        cycle_count <= cycle_count + 1;
+                    end
+                end
 
             //====================================================
             // x8 MODE (LANES 0–7)
@@ -117,15 +116,14 @@ module Demapper #(
                         i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
                         default : o_out_data <= 0;
                 endcase
-                 if (cycle_count == CLOCK_CYCLES_8-1) begin
-                    pl_valid <= 1;
-                    cycle_count <= 0;
+                    if (cycle_count == CLOCK_CYCLES_8-1) begin
+                        pl_valid    <= 1'b1;
+                        cycle_count <= 2'd0;
+                    end
+                    else begin
+                        cycle_count <= cycle_count + 1;
+                    end
                 end
-                else begin
-                    cycle_count <= cycle_count + 1;
-                    pl_valid    <= 0;
-                end
-            end
 
             //====================================================
             // x8 MODE (LANES 8–15)
@@ -159,15 +157,14 @@ module Demapper #(
                         i_lane_12[31:24],i_lane_13[31:24],i_lane_14[31:24],i_lane_15[31:24]};
                     default: o_out_data <= 0;   
                 endcase
-                 if (cycle_count == CLOCK_CYCLES_8-1) begin
-                    pl_valid <= 1;
-                    cycle_count <= 0;
+                    if (cycle_count == CLOCK_CYCLES_8-1) begin
+                        pl_valid    <= 1'b1;
+                        cycle_count <= 2'd0;
+                    end
+                    else begin
+                        cycle_count <= cycle_count + 1;
+                    end
                 end
-                else begin
-                    cycle_count <= cycle_count + 1;
-                    pl_valid    <= 0;
-                end
-            end
 
             //====================================================
             // x4 MODES
@@ -195,15 +192,14 @@ module Demapper #(
                                                i_lane_0[31:24],i_lane_1[31:24],i_lane_2[31:24],i_lane_3[31:24]};
                default : o_out_data <= 0;
                 endcase
-              if (cycle_count == CLOCK_CYCLES_4-1) begin
-                    pl_valid <= 1;
-                    cycle_count <= 0;
+                    if (cycle_count == CLOCK_CYCLES_4-1) begin
+                        pl_valid    <= 1'b1;
+                        cycle_count <= 2'd0;
+                    end
+                    else begin
+                        cycle_count <= cycle_count + 1;
+                    end
                 end
-                else begin
-                    cycle_count <= cycle_count + 1;
-                    pl_valid    <= 0;
-                end
-            end
 
             DEGRADE_LANES_4_TO_7: begin
                 case (cycle_count)
@@ -228,23 +224,25 @@ module Demapper #(
                                                i_lane_4[31:24],i_lane_5[31:24],i_lane_6[31:24],i_lane_7[31:24]};
               default : o_out_data <= 0;
                 endcase
-                 if (cycle_count == CLOCK_CYCLES_4-1) begin
-                    pl_valid <= 1;
-                    cycle_count <= 0;
+                    if (cycle_count == CLOCK_CYCLES_4-1) begin
+                        pl_valid    <= 1'b1;
+                        cycle_count <= 2'd0;
+                    end
+                    else begin
+                        cycle_count <= cycle_count + 1;
+                    end
                 end
-                else begin
-                    cycle_count <= cycle_count + 1;
-                    pl_valid    <= 0;
-                end
-            end
 
-            default: begin
-                cycle_count <= 0;
-                pl_valid <= 0;
+                default: begin
+                    cycle_count <= 2'd0;
+                end
+
+                endcase
+            end
+            else if (!demapper_en) begin
+                cycle_count <= 2'd0;
                 o_out_data  <= 0;
             end
-
-            endcase
         end
     end
 
