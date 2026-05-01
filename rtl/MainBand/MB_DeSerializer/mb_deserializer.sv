@@ -8,7 +8,7 @@ module MB_DESERIALIZER #(
     input  wire                   i_ckp,
     input  wire                   i_ckn,
     input  wire                   i_rst_n,
-    input  wire                   ser_valid,
+    input  wire                   ser_valid, 
     input  wire                   ser_data_in,
     output reg  [DATA_WIDTH-1:0]  par_data_out,
     output reg                    de_ser_done
