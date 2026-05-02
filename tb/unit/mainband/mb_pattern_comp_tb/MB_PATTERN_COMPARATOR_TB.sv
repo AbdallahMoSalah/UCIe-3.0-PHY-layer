@@ -7,6 +7,7 @@ module MB_PATTERN_COMPARATOR_TB;
     // Inputs
     reg        i_clk;
     reg        i_rst_n;
+    reg        i_active;
     reg [1:0]  i_type_of_com;
     reg        i_enable_pattern_com;
     reg [15:0] i_max_error_threshold_per_lane_ID;
@@ -20,6 +21,9 @@ module MB_PATTERN_COMPARATOR_TB;
     wire [15:0] o_per_lane_error;
     wire [31:0] o_error_counter;
     wire        o_error_done;
+    
+    // Bypassed Outputs
+    wire [WIDTH-1:0] o_data [0:15];
 
     integer i, iter;
     integer seed = 32'hDEADBEEF;
@@ -30,6 +34,7 @@ module MB_PATTERN_COMPARATOR_TB;
     ) DUT (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
+        .i_active(i_active),
         .i_type_of_com(i_type_of_com),
         .i_enable_pattern_com(i_enable_pattern_com),
         .i_max_error_threshold_per_lane_ID(i_max_error_threshold_per_lane_ID),
@@ -55,7 +60,16 @@ module MB_PATTERN_COMPARATOR_TB;
 
         .o_per_lane_error(o_per_lane_error),
         .o_error_counter(o_error_counter),
-        .o_error_done(o_error_done)
+        .o_error_done(o_error_done),
+        
+        .o_data_0(o_data[0]),   .o_data_1(o_data[1]),
+        .o_data_2(o_data[2]),   .o_data_3(o_data[3]),
+        .o_data_4(o_data[4]),   .o_data_5(o_data[5]),
+        .o_data_6(o_data[6]),   .o_data_7(o_data[7]),
+        .o_data_8(o_data[8]),   .o_data_9(o_data[9]),
+        .o_data_10(o_data[10]), .o_data_11(o_data[11]),
+        .o_data_12(o_data[12]), .o_data_13(o_data[13]),
+        .o_data_14(o_data[14]), .o_data_15(o_data[15])
     );
 
     // Clock gen
@@ -65,6 +79,7 @@ module MB_PATTERN_COMPARATOR_TB;
         // Initialize
         i_clk = 0;
         i_rst_n = 0;
+        i_active = 0;
         i_type_of_com = 2'b01; // LFSR mode
         i_enable_pattern_com = 0;
         i_max_error_threshold_per_lane_ID = 16'd10; // Disable lane if > 10 errors
@@ -156,7 +171,44 @@ module MB_PATTERN_COMPARATOR_TB;
              $display("-> FAILED Test 2! (Expected Aggregate=25, Lane 7 flaged)");
         end
 
+        #50;
+        
+        // ==========================================
+        // TEST 3: ACTIVE MODE BYPASS
+        // ==========================================
+        $display("[%0t] ==== STARTING TEST 3: Active Mode Bypass ====", $time);
+        @(posedge i_clk);
+        i_active = 1;
+        i_enable_pattern_com = 1; // It should NOT compare even if enable is high!
+        
+        // Inject new data to bypass
+        for (i = 0; i < 16; i = i + 1) begin
+            rcv_data[i] = $random(seed);
+            local_gen[i] = ~rcv_data[i]; // Make gen mismatch totally to ensure comparison is OFF
+        end
+        
+        // Let it propagate
+        @(posedge i_clk);
+        @(posedge i_clk);
+        
+        // Verify bypassed data matches rcv_data exactly
+        begin : check_bypass
+            reg bypass_passed;
+            bypass_passed = 1;
+            for (i = 0; i < 16; i = i + 1) begin
+                if (o_data[i] !== rcv_data[i]) begin
+                    $display("-> FAILED Test 3 on Lane %0d! Expected %h, got %h", i, rcv_data[i], o_data[i]);
+                    bypass_passed = 0;
+                end
+            end
+            if (bypass_passed)
+                $display("-> PASSED Test 3! (Active mode bypass verified, comparison disabled)");
+        end
+        
+        i_active = 0;
         #100;
+        
+        $display("\n[%0t] ==== ALL TESTS COMPLETED ====", $time);
         $stop;
     end
 
