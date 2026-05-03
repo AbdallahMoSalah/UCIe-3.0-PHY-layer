@@ -16,8 +16,8 @@ module RESET
     // Control signals
     output logic mb_tx_valid_status , sb_tx_valid_status , sb_rx_valid_status,  // track , valid , data , clk .
     output logic mb_tx_track_status , sb_tx_track_status , sb_rx_track_status,  // track , valid , data , clk .
-    output logic mb_tx_clk_status , sb_tx_clk_status , sb_rx_clk_status,        // track , valid , data , clk .
-    output logic mb_tx_data_status , sb_tx_data_status , sb_rx_data_status,     // track , valid , data , clk .
+    output logic mb_tx_clk_status   , sb_tx_clk_status   , sb_rx_clk_status,    // track , valid , data , clk .
+    output logic mb_tx_data_status  , sb_tx_data_status  , sb_rx_data_status,   // track , valid , data , clk .
     
     //NEW SIGNALS.
     output logic RESET_state_done, 

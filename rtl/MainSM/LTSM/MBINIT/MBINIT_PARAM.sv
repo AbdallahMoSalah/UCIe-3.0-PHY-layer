@@ -587,15 +587,15 @@ always_ff @( posedge clk , negedge rst_n ) begin
 
     else if(timeout_error)
     mb_param_error <= 1;
-    //S1 error.
-    else if(mb_param_rx_valid && current_state == MB_S1_PARAM_EXCHANGE_REQ && mb_param_rx_msg_id != MBINIT_PARAM_configuration_req )
+    //S1 error: allow the previous message (req) while in RSP, since the partner might be 1 cycle behind.
+    else if(mb_param_rx_valid && current_state == MB_S1_PARAM_EXCHANGE_REQ && param_req_rcvd && mb_param_rx_msg_id != MBINIT_PARAM_configuration_req)
     mb_param_error <= 1;
     else if(mb_param_rx_valid && current_state == MB_S1_PARAM_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_configuration_resp)
     mb_param_error <= 1;
     //S2
-    else if(mb_param_rx_valid && current_state == MB_S2_FEATURE_EXCHANGE_REQ && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_req )
+    else if(mb_param_rx_valid && current_state == MB_S2_FEATURE_EXCHANGE_REQ && sbfe_req_rcvd && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_req)
     mb_param_error <= 1;
-    else if(mb_param_rx_valid && current_state == MB_S2_FEATURE_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_resp )
+    else if(mb_param_rx_valid && current_state == MB_S2_FEATURE_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_resp)
     mb_param_error <= 1;
     else if(current_state == MB_S0_IDLE)
     mb_param_error <= 0;

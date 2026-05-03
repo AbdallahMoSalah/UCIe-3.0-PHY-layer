@@ -192,8 +192,8 @@ always_ff @( posedge clk , negedge rst_n ) begin
 
     else if(timeout_error)
     mb_cal_error <= 1;
-    //S1 error.
-    else if(mb_cal_rx_valid && current_state == MB_S1_HANDSHAKE_REQ && mb_cal_rx_msg_id != MBINIT_CAL_Done_req )
+    //S1 error: only flag wrong msg after handshake has started (guard prevents stale PARAM msgs triggering error).
+    else if(mb_cal_rx_valid && current_state == MB_S1_HANDSHAKE_REQ && cal_req_rcvd && mb_cal_rx_msg_id != MBINIT_CAL_Done_req)
     mb_cal_error <= 1;
     else if(mb_cal_rx_valid && current_state == MB_S1_HANDSHAKE_RSP && mb_cal_rx_msg_id != MBINIT_CAL_Done_resp)
     mb_cal_error <= 1;

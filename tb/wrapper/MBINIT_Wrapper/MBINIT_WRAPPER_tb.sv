@@ -79,7 +79,7 @@ module MBINIT_WRAPPER_tb;
         
         .reversalmb_tx_pattern_setup(), .reversalmb_tx_data_pattern_sel(), .reversalmb_rx_compare_setup(),
         .reversalmb_tx_pattern_en(), .reversalmb_rx_compare_en(),
-        .reversalmb_rx_perlane_err(16'h0000), .reversalmb_rx_compare_done(1'b1),
+        .reversalmb_rx_perlane_err(16'hFFFF), .reversalmb_rx_compare_done(1'b1),
         .mb_lane_reversal_req(), .mb_x8_mode_req(), .clear_error_req(),
         
         .repairval_tx_pattern_setup(), .repairval_tx_val_pattern_sel(), .repairval_rx_compare_setup(),
@@ -121,7 +121,7 @@ module MBINIT_WRAPPER_tb;
         
         .reversalmb_tx_pattern_setup(), .reversalmb_tx_data_pattern_sel(), .reversalmb_rx_compare_setup(),
         .reversalmb_tx_pattern_en(), .reversalmb_rx_compare_en(),
-        .reversalmb_rx_perlane_err(16'h0000), .reversalmb_rx_compare_done(1'b1),
+        .reversalmb_rx_perlane_err(16'hFFFF), .reversalmb_rx_compare_done(1'b1),
         .mb_lane_reversal_req(), .mb_x8_mode_req(), .clear_error_req(),
         
         .repairval_tx_pattern_setup(), .repairval_tx_val_pattern_sel(), .repairval_rx_compare_setup(),
@@ -137,6 +137,36 @@ module MBINIT_WRAPPER_tb;
         m_enable = 0;
         p_enable = 0;
         
+        // Drive d2c test interface for REPAIRMB
+        // test_d2c_done=1 simulates instant D2C point test completion
+        // d2c_perlane_err=0 means all lanes pass
+        d2c_if_master.test_d2c_done = 1;
+        d2c_if_master.d2c_perlane_err = 16'h0000;
+        d2c_if_partner.test_d2c_done = 1;
+        d2c_if_partner.d2c_perlane_err = 16'h0000;
+        
+        // Initialize Master capabilities
+        cap_if_master.local_is_x8 = 1'b0;
+        cap_if_master.local_max_speed = 4'b0011;
+        cap_if_master.local_sbfe = 1'b1;
+        cap_if_master.local_tarr = 1'b0;
+        cap_if_master.local_l2spd = 1'b1;
+        cap_if_master.local_pspt = 1'b0;
+        cap_if_master.local_so = 1'b0;
+        cap_if_master.local_pmo = 1'b1;
+        cap_if_master.local_mtp = 1'b1;
+
+        // Initialize Partner capabilities
+        cap_if_partner.local_is_x8 = 1'b0;
+        cap_if_partner.local_max_speed = 4'b0011;
+        cap_if_partner.local_sbfe = 1'b1;
+        cap_if_partner.local_tarr = 1'b0;
+        cap_if_partner.local_l2spd = 1'b1;
+        cap_if_partner.local_pspt = 1'b0;
+        cap_if_partner.local_so = 1'b0;
+        cap_if_partner.local_pmo = 1'b1;
+        cap_if_partner.local_mtp = 1'b1;
+
         repeat(10) @(posedge clk);
         rst_n = 1;
         
