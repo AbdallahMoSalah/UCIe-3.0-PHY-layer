@@ -139,11 +139,11 @@ module ltsm_tb_attachments #(
             // In 2'b00: intf.tx_sb_msg_valid is set by the RXDESKEW FSM.
             // In 2'b01: d2c_mux_in1_if.tx_sb_msg_valid is set by unit_RX_D2C_PT.
             // In 2'b10: d2c_mux_in2_if.tx_sb_msg_valid is set by unit_TX_D2C_PT.
-            if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid || d2c_mux_in2_if.tx_sb_msg_valid) == 1'b1 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1) begin
+            if ((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid || d2c_mux_in2_if.tx_sb_msg_valid) == 1'b1 || (tx_sb_msg_valid_pulse_counter > 0 && tx_sb_msg_valid_pulse_counter != SB_TX_PULSE_WIDTH-1)) begin
                 tx_sb_msg_valid_pulse <= 1'b1;
                 tx_sb_msg_valid_pulse_counter <= tx_sb_msg_valid_pulse_counter + 1'b1;
             end
-            else if((intf.tx_sb_msg_valid || d2c_mux_in1_if.tx_sb_msg_valid || d2c_mux_in2_if.tx_sb_msg_valid) == 1'b1) begin
+            else if (tx_sb_msg_valid_pulse_counter == SB_TX_PULSE_WIDTH-1) begin
                 tx_sb_msg_valid_pulse         <= 1'b0;
                 tx_sb_msg_valid_pulse_counter <=  '0; // Reset so next assertion starts fresh
             end

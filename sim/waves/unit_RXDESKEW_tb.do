@@ -1,32 +1,52 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} /unit_RXDESKEW_tb/rst_n
-add wave -noupdate -expand -group {Clock & Reset} -color {Spring Green} /unit_RXDESKEW_tb/lclk
-add wave -noupdate -expand -group {Control} -color Gold /unit_RXDESKEW_tb/intf/rxdeskew_en
-add wave -noupdate -expand -group {Control} -color Gold /unit_RXDESKEW_tb/intf/rxdeskew_done
-add wave -noupdate -expand -group {Control} -color {Indian Red} /unit_RXDESKEW_tb/intf/rxdeskew_fail_flag
-add wave -noupdate -expand -group {Control} -color Orange /unit_RXDESKEW_tb/intf/datatraincenter1_req
-add wave -noupdate -expand -group {Upstream Flags} -color Orange /unit_RXDESKEW_tb/intf/datatraincenter1_fail_flag
-add wave -noupdate -expand -group {Upstream Flags} -color Orange /unit_RXDESKEW_tb/intf/valtraincenter_fail_flag
-add wave -noupdate -expand -group {Speed} -radix unsigned /unit_RXDESKEW_tb/intf/param_negotiated_max_speed
-add wave -noupdate -expand -group {FSM States} -color Magenta /unit_RXDESKEW_tb/current_state
-add wave -noupdate -expand -group {Deskew Sweep} -color Gold -radix unsigned /unit_RXDESKEW_tb/unit_RXDESKEW_inst/deskew_code
-add wave -noupdate -expand -group {Deskew Sweep} -color Cyan -radix unsigned /unit_RXDESKEW_tb/unit_RXDESKEW_inst/min_deskew
-add wave -noupdate -expand -group {Deskew Sweep} -color Cyan -radix unsigned /unit_RXDESKEW_tb/unit_RXDESKEW_inst/max_deskew
-add wave -noupdate -expand -group {EQ Preset} -color Violet -radix unsigned /unit_RXDESKEW_tb/unit_RXDESKEW_inst/current_eq_preset
-add wave -noupdate -expand -group {EQ Preset} -color Violet -radix unsigned /unit_RXDESKEW_tb/unit_RXDESKEW_inst/dtc1_loop_cnt
-add wave -noupdate -expand -group {EQ Preset} -color Gold /unit_RXDESKEW_tb/unit_RXDESKEW_inst/is_my_preset_new
-add wave -noupdate -expand -group {EQ Preset} -color {Indian Red} /unit_RXDESKEW_tb/unit_RXDESKEW_inst/preset_fail_flag2
-add wave -noupdate -expand -group {D2C Interface} -color Violet /unit_RXDESKEW_tb/intf/rx_pt_en
-add wave -noupdate -expand -group {D2C Interface} -color Violet /unit_RXDESKEW_tb/intf/test_d2c_done
-add wave -noupdate -expand -group {SB Messages} -color Cyan /unit_RXDESKEW_tb/intf/tx_sb_msg
-add wave -noupdate -expand -group {SB Messages} -color Cyan /unit_RXDESKEW_tb/intf/rx_sb_msg
-add wave -noupdate -expand -group {Errors & Alerts} -color Orange /unit_RXDESKEW_tb/intf/timeout_8ms_occured
-add wave -noupdate -expand -group {Errors & Alerts} -color Orange /unit_RXDESKEW_tb/intf/trainerror_req
+add wave -noupdate -divider {FSM State & Control}
+add wave -noupdate /unit_RXDESKEW_tb/dut/current_state
+add wave -noupdate /unit_RXDESKEW_tb/dut/next_state
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/rxdeskew_en
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/rxdeskew_done
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/timeout_timer_en
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/timeout_8ms_occured
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/trainerror_req
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/datatraincenter1_req
+add wave -noupdate /unit_RXDESKEW_tb/dut/is_high_speed
+add wave -noupdate /unit_RXDESKEW_tb/dut/swept_code_r
+
+add wave -noupdate -divider {SB Handshakes}
+add wave -noupdate -radix ascii /unit_RXDESKEW_tb/dut/rxdeskew_if/tx_sb_msg
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/tx_sb_msg_valid
+add wave -noupdate -radix ascii /unit_RXDESKEW_tb/dut/rxdeskew_if/rx_sb_msg
+add wave -noupdate /unit_RXDESKEW_tb/dut/rxdeskew_if/rx_sb_msg_valid
+add wave -noupdate /unit_RXDESKEW_tb/dut/my_preset
+add wave -noupdate /unit_RXDESKEW_tb/dut/partner_preset
+
+add wave -noupdate -divider {D2C Interface}
+add wave -noupdate /unit_RXDESKEW_tb/dut/d2c_if/rx_pt_en
+add wave -noupdate /unit_RXDESKEW_tb/dut/d2c_if/test_d2c_done
+add wave -noupdate /unit_RXDESKEW_tb/dut/d2c_if/d2c_perlane_err
+
+add wave -noupdate -divider {Deskew Tracking & EQ evaluation}
+add wave -noupdate /unit_RXDESKEW_tb/dut/preset_search_cnt
+add wave -noupdate /unit_RXDESKEW_tb/dut/dtc1_arc_cnt
+add wave -noupdate -radix unsigned /unit_RXDESKEW_tb/dut/current_preset_min_range[16]
+add wave -noupdate -radix unsigned /unit_RXDESKEW_tb/dut/overall_best_min_range
+add wave -noupdate /unit_RXDESKEW_tb/dut/best_preset_saved
+add wave -noupdate /unit_RXDESKEW_tb/dut/old_preset_saved
+
 TreeUpdate [SetDefaultTree]
-configure wave -namecolwidth 295
-configure wave -valuecolwidth 197
+WaveRestoreCursors {{Cursor 1} {0 ps} 0}
+configure wave -namecolwidth 300
+configure wave -valuecolwidth 100
+configure wave -justifyvalue left
 configure wave -signalnamewidth 1
-configure wave -timelineunits ps
+configure wave -snapdistance 10
+configure wave -datasetprefix 0
+configure wave -rowmargin 4
+configure wave -childrowmargin 2
+configure wave -gridoffset 0
+configure wave -gridperiod 1
+configure wave -griddelta 40
+configure wave -timeline 0
+configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {10000000 ps}
+WaveRestoreZoom {0 ps} {1000 ns}
