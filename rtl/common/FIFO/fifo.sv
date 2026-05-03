@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // =============================================================================
 // Module      : fifo
 // Description : Generic parameterizable FIFO.

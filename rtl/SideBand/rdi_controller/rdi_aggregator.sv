@@ -123,6 +123,8 @@ module rdi_aggregator
                 end
             end
 
+            default: next_state = IDLE;
+
         endcase
 
     end
@@ -210,11 +212,15 @@ module rdi_aggregator
                             lp_msg_reg  <= {lp_cfg,packet_reg[95 : 0]};
                         end
 
+                        default: ;
+
                     endcase
 
                 end
 
             end
+
+            default: ;
 
             endcase
         end

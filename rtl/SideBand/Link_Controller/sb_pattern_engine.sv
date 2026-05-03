@@ -117,6 +117,9 @@ always_comb begin
                 next_state = MAPPER;
         end
 
+        default:
+            next_state = IDLE;
+
     endcase
 end
 
@@ -167,6 +170,9 @@ always_comb begin
             DONE_HOLD:
                 ser_valid = 0;
 
+            default:
+                ser_valid = 0;
+
         endcase
     end
 end
@@ -215,6 +221,9 @@ always_comb begin
 
     else if(state == DONE_HOLD)
         four_iter_done = 1;
+
+    else
+        four_iter_done = 0;
 
 end
 

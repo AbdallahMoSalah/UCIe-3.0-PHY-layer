@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // =============================================================================
 // Module      : fifo_wptr_full
 // Description : Write-pointer and full-flag logic.

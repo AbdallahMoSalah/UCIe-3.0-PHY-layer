@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 package UCIe_pkg;
 
   typedef enum logic [7:0] {

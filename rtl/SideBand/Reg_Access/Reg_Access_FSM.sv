@@ -116,6 +116,8 @@ always_comb begin
                 next_state = IDLE;
         end
 
+        default: next_state = IDLE;
+
     endcase
 end
 
@@ -148,6 +150,8 @@ always_comb begin
             // 3'b000 = SC (Success), 3'b001 = UR (Unsupported Request/Error)
             status = error ? 3'b001 : 3'b000; 
         end
+
+        default: ;
 
     endcase
 end

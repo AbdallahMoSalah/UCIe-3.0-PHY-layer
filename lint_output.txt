@@ -1,0 +1,148 @@
+%Warning-TIMESCALEMOD: rtl/common/UCIe_pkg.sv:1:9: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    1 | package UCIe_pkg;
+      |         ^~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+                       ... For warning description see https://verilator.org/warn/TIMESCALEMOD?v=5.046
+                       ... Use "/* verilator lint_off TIMESCALEMOD */" and lint_on around source to disable this message.
+%Warning-TIMESCALEMOD: rtl/SideBand/common/sb_pkg.sv:1:9: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    1 | package sb_pkg;
+      |         ^~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/SideBand/common/msg_codec_pkg.sv:1:9: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    1 | package msg_codec_pkg;
+      |         ^~~~~~~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/common/FIFO/fifo_mem.sv:7:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    7 | module fifo_mem #(
+      |        ^~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/common/FIFO/fifo_rptr_empty.sv:8:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    8 | module fifo_rptr_empty #(
+      |        ^~~~~~~~~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/common/FIFO/fifo_sync_2ff.sv:6:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+    6 | module fifo_sync_2ff #(
+      |        ^~~~~~~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/common/FIFO/fifo_wptr_full.sv:11:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+   11 | module fifo_wptr_full #(
+      |        ^~~~~~~~~~~~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-TIMESCALEMOD: rtl/common/FIFO/fifo.sv:20:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+   20 | module fifo #(
+      |        ^~~~
+                       rtl/SideBand/common/sb_demux.sv:28:8: ... Location of module with timescale
+   28 | module sb_demux #(
+      |        ^~~~~~~~
+%Warning-IMPLICIT: rtl/SideBand/Link_Controller/Link_Controller.sv:81:21: Signal definition not found, creating implicitly: 'msg_path_rdy'
+   81 |     .ser_rdy      ( msg_path_rdy ),
+      |                     ^~~~~~~~~~~~
+                   ... For warning description see https://verilator.org/warn/IMPLICIT?v=5.046
+                   ... Use "/* verilator lint_off IMPLICIT */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:132:24: Operator EQ expects 32 or 7 bits on the LHS, but LHS's VARREF 'bit_cnt' generates 6 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  132 |             if(bit_cnt == DATA_WIDTH-1) begin
+      |                        ^~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.046
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:144:24: Operator EQ expects 32 or 6 bits on the LHS, but LHS's VARREF 'gap_cnt' generates 5 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  144 |             if(gap_cnt == GAP_WIDTH-1) begin
+      |                        ^~
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:162:37: Operator EQ expects 32 or 7 bits on the LHS, but LHS's VARREF 'bit_cnt' generates 6 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  162 |     || (state == S_SHIFT && bit_cnt == DATA_WIDTH-1 && pmo_en && full_sync2)
+      |                                     ^~
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:163:36: Operator EQ expects 32 or 6 bits on the LHS, but LHS's VARREF 'gap_cnt' generates 5 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  163 |     || (state == S_GAP  && gap_cnt == GAP_WIDTH-1 && full_sync2);
+      |                                    ^~
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:190:20: Operator EQ expects 32 or 7 bits on the LHS, but LHS's VARREF 'bit_cnt' generates 6 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  190 |         if(bit_cnt == DATA_WIDTH-1)
+      |                    ^~
+%Warning-WIDTHEXPAND: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:202:20: Operator EQ expects 32 or 6 bits on the LHS, but LHS's VARREF 'gap_cnt' generates 5 bits.
+                                                                                        : ... note: In instance 'SideBand_Top.u_sb_serializer'
+  202 |         if(gap_cnt == GAP_WIDTH-1)
+      |                    ^~
+%Warning-UNSIGNED: rtl/SideBand/Training_mgmt/Packetizer.sv:67:26: Comparison is constant due to unsigned arithmetic
+                                                                 : ... note: In instance 'SideBand_Top.u_training_mgmt.u_packetizer'
+   67 |     else if (msg_no_send >= SBINIT_Out_of_Reset && msg_no_send <= SBINIT_done_resp) begin 
+      |                          ^~
+                   ... For warning description see https://verilator.org/warn/UNSIGNED?v=5.046
+                   ... Use "/* verilator lint_off UNSIGNED */" and lint_on around source to disable this message.
+%Warning-CASEINCOMPLETE: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:125:5: Case values incompletely covered (example pattern 0x3)
+  125 |     case(state)
+      |     ^~~~
+                         ... For warning description see https://verilator.org/warn/CASEINCOMPLETE?v=5.046
+                         ... Use "/* verilator lint_off CASEINCOMPLETE */" and lint_on around source to disable this message.
+%Warning-CASEINCOMPLETE: rtl/SideBand/Link_Controller/sb_mapper.sv:109:9: Case values incompletely covered (example pattern 0x2)
+  109 |         case (current_state)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Link_Controller/sb_mapper.sv:138:9: Case values incompletely covered (example pattern 0x2)
+  138 |         case (current_state)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Link_Controller/sb_pattern_engine.sv:69:5: Case values incompletely covered (example pattern 0x5)
+   69 |     case(state)
+      |     ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Link_Controller/sb_pattern_engine.sv:153:9: Case values incompletely covered (example pattern 0x5)
+  153 |         case(state)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/Packetizer.sv:50:9: Case values incompletely covered (example pattern 0x0)
+   50 |         case (msg_no_send)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/Packetizer.sv:71:7: Case values incompletely covered (example pattern 0x3)
+   71 |       case (msg_no_send)
+      |       ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/Packetizer.sv:91:9: Case values incompletely covered (example pattern 0x0)
+   91 |         case (msg_no_send)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/Packetizer.sv:190:9: Case values incompletely covered (example pattern 0x0)
+  190 |         case (msg_no_send)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/Packetizer.sv:402:9: Case values incompletely covered (example pattern 0x0)
+  402 |         case (msg_no_send)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Training_mgmt/DePacketizer.sv:52:9: Case values incompletely covered (example pattern 0x0)
+   52 |         case (header_in.msg.msgcode)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/rdi_controller/rdi_aggregator.sv:97:9: Case values incompletely covered (example pattern 0x3)
+   97 |         case(state)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/rdi_controller/rdi_aggregator.sv:147:13: Case values incompletely covered (example pattern 0x3)
+  147 |             case(state)
+      |             ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/rdi_controller/rdi_de_aggregator.sv:106:9: Case values incompletely covered (example pattern 0x3)
+  106 |         case(state)
+      |         ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/rdi_controller/rdi_de_aggregator.sv:155:13: Case values incompletely covered (example pattern 0x3)
+  155 |             case(state)
+      |             ^~~~
+%Warning-CASEINCOMPLETE: rtl/SideBand/Reg_Access/Reg_Access_FSM.sv:133:5: Case values incompletely covered (example pattern 0x1)
+  133 |     case (current_state)
+      |     ^~~~
+%Warning-LATCH: rtl/SideBand/Link_Controller/sb_pattern_engine.sv:148:1: Latch inferred for signal 'SideBand_Top.ser_vld_send' (not all control paths of combinational always assign a value)
+                                                                       : ... Suggest use of always_latch for intentional latches
+  148 | always_comb begin
+      | ^~~~~~~~~~~
+                ... For warning description see https://verilator.org/warn/LATCH?v=5.046
+                ... Use "/* verilator lint_off LATCH */" and lint_on around source to disable this message.
+%Warning-LATCH: rtl/SideBand/Link_Controller/sb_pattern_engine.sv:209:1: Latch inferred for signal 'four_iter_done' (not all control paths of combinational always assign a value)
+                                                                       : ... Suggest use of always_latch for intentional latches
+  209 | always_comb begin
+      | ^~~~~~~~~~~
+%Error: Exiting due to 34 warning(s)

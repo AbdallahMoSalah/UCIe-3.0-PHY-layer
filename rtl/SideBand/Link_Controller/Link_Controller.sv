@@ -48,6 +48,8 @@ logic         msg_vld_send;
 logic [63:0]  msg_rcvd;
 logic         msg_vld_rcvd;
 
+logic         msg_path_rdy;
+
 
 
 sb_priority_arbiter #(

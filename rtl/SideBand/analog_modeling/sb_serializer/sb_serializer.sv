@@ -101,8 +101,11 @@ typedef enum logic [1:0] {
 state_t state, next_state;
 
 logic [DATA_WIDTH-1:0] shift_reg;
-logic [$clog2(DATA_WIDTH)-1:0] bit_cnt;
-logic [$clog2(GAP_WIDTH)-1:0]  gap_cnt;
+localparam BIT_CNT_WIDTH = $clog2(DATA_WIDTH);
+localparam GAP_CNT_WIDTH = $clog2(GAP_WIDTH);
+
+logic [BIT_CNT_WIDTH-1:0] bit_cnt;
+logic [GAP_CNT_WIDTH-1:0]  gap_cnt;
 
 ////////////////////////////////////////////////////////////
 // STATE REGISTER
@@ -129,7 +132,7 @@ always_comb begin
                 next_state = S_SHIFT;
 
         S_SHIFT:
-            if(bit_cnt == DATA_WIDTH-1) begin
+            if(bit_cnt == BIT_CNT_WIDTH'(DATA_WIDTH-1)) begin
                 if(pmo_en) begin
                     if(full_sync2)
                         next_state = S_SHIFT;
@@ -141,12 +144,15 @@ always_comb begin
             end
 
         S_GAP:
-            if(gap_cnt == GAP_WIDTH-1) begin
+            if(gap_cnt == GAP_CNT_WIDTH'(GAP_WIDTH-1)) begin
                 if(full_sync2)
                     next_state = S_SHIFT;
                 else
                     next_state = S_IDLE;
             end
+
+        default:
+            next_state = S_IDLE;
 
     endcase
 end
@@ -159,8 +165,8 @@ logic load_condition;
 
 assign load_condition =
        (state == S_IDLE  && full_sync2)
-    || (state == S_SHIFT && bit_cnt == DATA_WIDTH-1 && pmo_en && full_sync2)
-    || (state == S_GAP  && gap_cnt == GAP_WIDTH-1 && full_sync2);
+    || (state == S_SHIFT && bit_cnt == BIT_CNT_WIDTH'(DATA_WIDTH-1) && pmo_en && full_sync2)
+    || (state == S_GAP  && gap_cnt == GAP_CNT_WIDTH'(GAP_WIDTH-1) && full_sync2);
 
 ////////////////////////////////////////////////////////////
 // SHIFT REGISTER
@@ -187,7 +193,7 @@ always_ff @(posedge clk_serial or negedge rst_n) begin
     if(!rst_n)
         bit_cnt <= 0;
     else if(state == S_SHIFT) begin
-        if(bit_cnt == DATA_WIDTH-1)
+        if(bit_cnt == BIT_CNT_WIDTH'(DATA_WIDTH-1))
             bit_cnt <= 0;
         else
             bit_cnt <= bit_cnt + 1;
@@ -199,7 +205,7 @@ always_ff @(posedge clk_serial or negedge rst_n) begin
     if(!rst_n)
         gap_cnt <= 0;
     else if(state == S_GAP) begin
-        if(gap_cnt == GAP_WIDTH-1)
+        if(gap_cnt == GAP_CNT_WIDTH'(GAP_WIDTH-1))
             gap_cnt <= 0;
         else
             gap_cnt <= gap_cnt + 1;

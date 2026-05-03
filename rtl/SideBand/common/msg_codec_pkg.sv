@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 package msg_codec_pkg;
     import UCIe_pkg::*;
     import sb_pkg::*;

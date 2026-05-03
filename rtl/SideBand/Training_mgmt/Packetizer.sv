@@ -56,6 +56,7 @@ always_comb begin
             RDI_LINK_ERROR_REQ, RDI_LINK_ERROR_RSP: header_comb.msg.MsgSubcode = 8'h0A;
             RDI_RETRAIN_REQ, RDI_RETRAIN_RSP:       header_comb.msg.MsgSubcode = 8'h0B;
             RDI_DISABLE_REQ, RDI_DISABLE_RSP:       header_comb.msg.MsgSubcode = 8'h0C;
+            default: ;
         endcase
           header_comb.msg.MsgInfo     = stall_send ? 16'hffff : 16'h0000;
 
@@ -64,7 +65,7 @@ always_comb begin
     // =====================================================
     // SBINIT DOMAIN
     // =====================================================
-    else if (msg_no_send >= SBINIT_Out_of_Reset && msg_no_send <= SBINIT_done_resp) begin 
+    else if (msg_no_send <= SBINIT_done_resp) begin 
       if (msg_no_send == SBINIT_Out_of_Reset) header_comb.msg.msgcode = SBINIT_OFFRESET_DOMAIN;
       else if (msg_no_send[0] == 1'b1) header_comb.msg.msgcode = SBINIT_REQ_DOMAIN;
       else header_comb.msg.msgcode = SBINIT_RESP_DOMAIN;
@@ -72,6 +73,7 @@ always_comb begin
         SBINIT_Out_of_Reset: header_comb.msg.MsgSubcode = 8'h00;
         SBINIT_done_req:     header_comb.msg.MsgSubcode = 8'h01;
         SBINIT_done_resp:    header_comb.msg.MsgSubcode = 8'h01;
+        default: ;
       endcase
     end
 
@@ -166,6 +168,7 @@ always_comb begin
             MBINIT_REPAIRMB_apply_degrade_resp:
                 header_comb.msg.MsgSubcode = 8'h14;
 
+            default: ;
         endcase
     end
 
@@ -337,6 +340,7 @@ always_comb begin
             RECAL_track_tx_adjust_resp:
                 header_comb.msg.MsgSubcode = 8'h22;
 
+            default: ;
         endcase
     end
 
@@ -457,6 +461,7 @@ always_comb begin
             End_Rx_Init_D_to_C_eye_sweep_resp:
                 header_comb.msg.MsgSubcode = 8'h0D;
 
+            default: ;
         endcase
     end
     else if (msg_no_send == Rx_Init_D_to_C_sweep_done_with_results) begin

@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // =============================================================================
 // Module      : fifo_rptr_empty
 // Description : Read-pointer and empty-flag logic.

@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // =============================================================================
 // Module      : fifo_mem
 // Description : Dual-port memory array for FIFO.

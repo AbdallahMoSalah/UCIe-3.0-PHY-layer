@@ -128,6 +128,8 @@ module rdi_de_aggregator
                 end
             end
 
+            default: next_state = IDLE;
+
         endcase
 
     end
@@ -206,6 +208,8 @@ module rdi_de_aggregator
                     endcase
                 end
             end
+
+            default: ;
 
             endcase
         end

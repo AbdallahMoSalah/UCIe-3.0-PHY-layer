@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 package sb_pkg;
 
 parameter SB_FREQ = 100.0; // MHz

@@ -119,6 +119,9 @@ module sb_mapper (
                     next_state = IDLE;
             end
 
+            default:
+                next_state = IDLE;
+
         endcase
 
     end
@@ -159,6 +162,12 @@ module sb_mapper (
                 msg_send  = second_half_reg;
                 msg_vld_send = 1'b1;
 
+            end
+
+            default: begin
+                mapper_rdy = 1'b0;
+                msg_send = '0;
+                msg_vld_send = 1'b0;
             end
 
         endcase

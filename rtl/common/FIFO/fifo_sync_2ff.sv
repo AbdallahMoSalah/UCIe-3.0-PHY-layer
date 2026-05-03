@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // =============================================================================
 // Module      : fifo_sync_2ff
 // Description : 2-flop synchronizer for crossing clock domains.

@@ -487,6 +487,7 @@ module DePacketizer (
             end
 
 
+            default: error_flag = 1;
         endcase
 
 /*        // DEBUG DISPLAY
