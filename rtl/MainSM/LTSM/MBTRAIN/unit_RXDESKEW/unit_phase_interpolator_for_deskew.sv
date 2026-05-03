@@ -41,103 +41,108 @@
 // =============================================================================
 
 module unit_phase_interpolator_for_deskew #(
-    parameter MAX_DESKEW_CODE = 7'd127,
-    parameter MIN_DESKEW_CODE = 7'd0  ,
-    // DW is derived from MAX_DESKEW_CODE and exposed as a parameter so it can
-    // be used in the port-list declarations below.
-    parameter DW              = $clog2(MAX_DESKEW_CODE + 1)
-) (
-    // =========================================================================
-    // Clock and Reset
-    // =========================================================================
-    input  logic        lclk ,
-    input  logic        rst_n,
+        parameter MAX_DESKEW_CODE = 7'd127,
+        parameter MIN_DESKEW_CODE = 7'd0  ,
+        // DW is derived from MAX_DESKEW_CODE and exposed as a parameter so it can
+        // be used in the port-list declarations below.
+        parameter DW              = $clog2(MAX_DESKEW_CODE + 1)
+    ) (
+        // =========================================================================
+        // Clock and Reset
+        // =========================================================================
+        input  logic        lclk ,
+        input  logic        rst_n,
 
-    // =========================================================================
-    // Handshake Interface  (driven by unit_RXDESKEW)
-    // =========================================================================
-    // Assert pi_en for the full duration of RXDESKEW_APPLY_SKEW_SWEEP.
-    // De-assert after pi_done or pi_abort is seen.
-    input  logic        pi_en,
-    // One-cycle pulse emitted when RXDESKEW transitions IDLE → START_REQ_RESP.
-    // Used to clear preset-evaluation state at the start of a new session.
-    input  logic        pi_session_start,
+        // =========================================================================
+        // Handshake Interface  (driven by unit_RXDESKEW)
+        // =========================================================================
+        // Assert pi_en for the full duration of RXDESKEW_APPLY_SKEW_SWEEP.
+        // De-assert after pi_done or pi_abort is seen.
+        input  logic        pi_en,
+        // One-cycle pulse emitted when RXDESKEW transitions IDLE → START_REQ_RESP.
+        // Used to clear preset-evaluation state at the start of a new session.
+        input  logic        pi_session_start,
 
-    // =========================================================================
-    // Abort Triggers  (from rxdeskew_if)
-    // =========================================================================
-    input  logic        valtraincenter_fail_flag,
-    input  logic        partner_valtraincenter_fail_flag,
+        // =========================================================================
+        // Abort Triggers  (from rxdeskew_if)
+        // =========================================================================
+        input  logic        valtraincenter_fail_flag,
+        input  logic        partner_valtraincenter_fail_flag,
 
-    // =========================================================================
-    // D2C Point-Test Interface  (from d2c_if, forwarded by unit_RXDESKEW)
-    // =========================================================================
-    input  logic        test_d2c_done,    // asserted when RX D2C PT finishes
-    input  logic [15:0] d2c_perlane_err,  // per-lane error result
+        // =========================================================================
+        // D2C Point-Test Interface  (from d2c_if, forwarded by unit_RXDESKEW)
+        // =========================================================================
+        input  logic        test_d2c_done,    // asserted when RX D2C PT finishes
+        input  logic [15:0] d2c_perlane_err,  // per-lane error result
 
-    // =========================================================================
-    // Lane Configuration  (from unit_RXDESKEW)
-    // =========================================================================
-    // 16-bit bitmask of negotiated (functional) data lanes.
-    input  logic [15:0] negotiated_data_lanes,
-    // High-speed path flag (speed > 32 GT/s).
-    input  logic        is_high_speed,
+        // =========================================================================
+        // Lane Configuration  (from unit_RXDESKEW)
+        // =========================================================================
+        // 3-bit encoding that represents the 16-lanes mask of negotiated (functional) data lanes. (Table 4-9 in the UCIe-3.0-reference)
+        input  logic [2:0] mb_rx_data_lane_mask,
+        // High-speed path flag (speed > 32 GT/s).
+        input  logic        is_high_speed,
 
-    // =========================================================================
-    // Preset Evaluation Inputs  (high-speed path only)
-    // =========================================================================
-    input  logic [2:0]  partner_preset,
-    input  logic        partner_preset_fail_status,
+        // =========================================================================
+        // Preset Evaluation Inputs  (high-speed path only)
+        // =========================================================================
+        input  logic [2:0]  partner_preset,
+        input  logic        partner_preset_fail_status,
 
-    // =========================================================================
-    // Handshake Outputs  (back to unit_RXDESKEW)
-    // =========================================================================
-    // pi_done  — asserted while in PI_WAIT_CLEAR (sweep complete, calc done).
-    output logic        pi_done,
-    // pi_abort — asserted while in PI_ABORT (val-train fail detected).
-    output logic        pi_abort,
-    // pi_in_sweep — 1 during PI_SET_CODE / PI_RX_D2C_PT / PI_LOG_RESULT.
-    //   Drives the phy_rx_deskew_ctrl mux in unit_RXDESKEW.
-    output logic        pi_in_sweep,
+        // =========================================================================
+        // Handshake Outputs  (back to unit_RXDESKEW)
+        // =========================================================================
+        // pi_done  — asserted while in PI_WAIT_CLEAR (sweep complete, calc done).
+        output logic        pi_done,
+        // pi_abort — asserted while in PI_ABORT (val-train fail detected).
+        output logic        pi_abort,
+        // pi_in_sweep — 1 during PI_SET_CODE / PI_RX_D2C_PT / PI_LOG_RESULT.
+        //   Drives the phy_rx_deskew_ctrl mux in unit_RXDESKEW.
+        output logic        pi_in_sweep,
 
-    // =========================================================================
-    // Control Outputs  (forwarded to rxdeskew_if / d2c_if by unit_RXDESKEW)
-    // =========================================================================
-    output logic        pi_analog_settle_timer_en,
-    output logic        pi_rx_pt_en,
-    // Current sweep code (broadcast to phy_rx_deskew_ctrl while pi_in_sweep).
-    output logic [DW-1:0] swept_code_r_out,
+        // =========================================================================
+        // Control Outputs  (forwarded to rxdeskew_if / d2c_if by unit_RXDESKEW)
+        // =========================================================================
+        output logic        pi_analog_settle_timer_en,
+        output logic        pi_rx_pt_en,
+        // Current sweep code (broadcast to phy_rx_deskew_ctrl while pi_in_sweep).
+        output logic [DW-1:0] swept_code_r_out,
 
-    // =========================================================================
-    // Computation Outputs  (per-lane optimal codes, consumed by unit_RXDESKEW)
-    // =========================================================================
-    output logic [DW-1:0] best_deskew_code [15:0],
-    // Fail flag: 1 if any negotiated lane has no passing deskew code.
-    output logic          fail_flag_r,
+        // =========================================================================
+        // Computation Outputs  (per-lane optimal codes, consumed by unit_RXDESKEW)
+        // =========================================================================
+        output logic [DW-1:0] best_deskew_code [15:0],
+        // Fail flag: 1 if any negotiated lane has no passing deskew code.
+        output logic          fail_flag_r,
 
-    // =========================================================================
-    // Preset Evaluation Outputs  (consumed by unit_RXDESKEW FSM decisions)
-    // =========================================================================
-    output logic [DW-1:0] current_preset_min_range_out,
-    output logic [2:0]    best_preset_saved,
-    output logic [DW-1:0] overall_best_min_range,
-    output logic [DW-1:0] overall_best_lo    [15:0],
-    output logic [DW-1:0] overall_best_hi    [15:0],
-    output logic          overall_found_pass [15:0]
-);
+        // =========================================================================
+        // Preset Evaluation Outputs  (consumed by unit_RXDESKEW FSM decisions)
+        // =========================================================================
+        // output logic [DW-1:0] current_preset_min_range_out,
+        output logic [2:0]    best_preset_saved,
+        output logic [DW-1:0] overall_best_min_range
+        // output logic [DW-1:0] overall_best_lo    [15:0],
+        // output logic [DW-1:0] overall_best_hi    [15:0],
+        // output logic          overall_found_pass [15:0]
+    );
+    parameter      IS_HIGHEST_MIN_EDGE_UNIFIED = 1'b0; // I think (0) will be more realistic. for now, I prefer to keep it with 0 tell i ask someone better than me.
+
+    logic [DW-1:0] overall_best_lo    [15:0];
+    logic [DW-1:0] overall_best_hi    [15:0];
+    logic          overall_found_pass [15:0];
 
     // =========================================================================
     // PI FSM State Encoding
     // =========================================================================
     localparam [2:0]
-        PI_IDLE              = 3'd0,  // Wait for pi_en assertion.
-        PI_SET_CODE          = 3'd1,  // Drive swept_code_r; analog settle.
-        PI_RX_D2C_PT         = 3'd2,  // Enable RX D2C PT; wait for done.
-        PI_LOG_RESULT        = 3'd3,  // Log per-lane result; loop or advance.
-        PI_LOG_PRESET_RESULT = 3'd4,  // (HS) Evaluate current preset (1 cycle).
-        PI_CALC_APPLY        = 3'd5,  // Compute midpoint (1 cycle).
-        PI_WAIT_CLEAR        = 3'd6,  // Assert pi_done; wait for pi_en low.
-        PI_ABORT             = 3'd7;  // Assert pi_abort; wait for pi_en low.
+    PI_IDLE              = 3'd0,  // Wait for pi_en assertion.
+    PI_SET_CODE          = 3'd1,  // Drive swept_code_r; analog settle.
+    PI_RX_D2C_PT         = 3'd2,  // Enable RX D2C PT; wait for done.
+    PI_LOG_RESULT        = 3'd3,  // Log per-lane result; loop or advance.
+    PI_LOG_PRESET_RESULT = 3'd4,  // (HS) Evaluate current preset (1 cycle).
+    PI_CALC_APPLY        = 3'd5,  // Compute midpoint (1 cycle).
+    PI_WAIT_CLEAR        = 3'd6,  // Assert pi_done; wait for pi_en low.
+    PI_ABORT             = 3'd7;  // Assert pi_abort; wait for pi_en low.
 
     reg [2:0] pi_state, pi_next;
 
@@ -235,8 +240,8 @@ module unit_phase_interpolator_for_deskew #(
     assign pi_done                  = (pi_state == PI_WAIT_CLEAR);
     assign pi_abort                 = (pi_state == PI_ABORT);
     assign pi_in_sweep              = (pi_state == PI_SET_CODE   ||
-                                       pi_state == PI_RX_D2C_PT  ||
-                                       pi_state == PI_LOG_RESULT);
+            pi_state == PI_RX_D2C_PT  ||
+            pi_state == PI_LOG_RESULT);
     assign pi_analog_settle_timer_en = (pi_state == PI_SET_CODE);
     assign pi_rx_pt_en               = (pi_state == PI_RX_D2C_PT);
 
@@ -274,6 +279,23 @@ module unit_phase_interpolator_for_deskew #(
     wire [15:0] overall_found_pass_bus;
 
     // =========================================================================
+    // Negotiated data lane mask
+    // Converts 3-bit mb_rx_data_lane_mask → 16-bit bitmask of active lanes.
+    // =========================================================================
+    logic [15:0] negotiated_data_lanes;
+    always @(*) begin
+        case (mb_rx_data_lane_mask)
+            3'b000:  negotiated_data_lanes = 16'h0000;
+            3'b001:  negotiated_data_lanes = 16'h00FF;
+            3'b010:  negotiated_data_lanes = 16'hFF00;
+            3'b011:  negotiated_data_lanes = 16'hFFFF;
+            3'b100:  negotiated_data_lanes = 16'h000F;
+            3'b101:  negotiated_data_lanes = 16'h00F0;
+            default: negotiated_data_lanes = 16'h0000;
+        endcase
+    end
+
+    // =========================================================================
     // HIGHEST_MIN_EDGE_PROC: Step 2 — Combinational max(best_lo[]) reduction
     // =========================================================================
     logic [DW-1:0] highest_min_edge_arr [0:16];
@@ -281,9 +303,7 @@ module unit_phase_interpolator_for_deskew #(
         integer l;
         highest_min_edge_arr[0] = '0;
         for (l = 0; l < 16; l = l + 1) begin
-            highest_min_edge_arr[l+1] =
-                (negotiated_data_lanes[l] && found_pass[l] &&
-                 (best_lo[l] > highest_min_edge_arr[l])) ?
+            highest_min_edge_arr[l+1] = (negotiated_data_lanes[l] && found_pass[l] && (best_lo[l] > highest_min_edge_arr[l])) ?
                 best_lo[l] : highest_min_edge_arr[l];
         end
     end
@@ -298,8 +318,7 @@ module unit_phase_interpolator_for_deskew #(
             assign found_pass_bus[lane]         = found_pass[lane];
             assign overall_found_pass_bus[lane] = overall_found_pass[lane];
 
-            assign best_range[lane] = (found_pass[lane] == 1'b1 &&
-                                       best_hi[lane] >= highest_min_edge) ?
+            assign best_range[lane] = (found_pass[lane] == 1'b1 && best_hi[lane] >= highest_min_edge) ?
                 (best_hi[lane] - highest_min_edge) : '0;
         end
     endgenerate
@@ -313,15 +332,12 @@ module unit_phase_interpolator_for_deskew #(
         integer l;
         current_preset_min_range[0] = MAX_DESKEW_CODE[DW-1:0];
         for (l = 0; l < 16; l = l + 1) begin
-            current_preset_min_range[l + 1] =
-                (negotiated_data_lanes[l] && (best_range[l] < current_preset_min_range[l])) ?
+            current_preset_min_range[l + 1] = (negotiated_data_lanes[l] && (best_range[l] < current_preset_min_range[l])) ?
                 best_range[l] : current_preset_min_range[l];
         end
-        if (partner_preset_fail_status)
-            current_preset_min_range[16] = '0;
     end
 
-    assign current_preset_min_range_out = current_preset_min_range[16];
+    // assign current_preset_min_range_out = current_preset_min_range[16];
 
     // =========================================================================
     // PRESET_EVAL_PROC: Sequential — tracks the globally best preset.
@@ -356,12 +372,19 @@ module unit_phase_interpolator_for_deskew #(
                     overall_best_min_range <= current_preset_min_range[16];
                     best_preset_saved      <= partner_preset;
                     for (i = 0; i < 16; i = i + 1) begin
-                        // Store the common lower bound in every overall_best_lo slot.
-                        // CALC_APPLY: midpoint = (overall_best_lo[i] + overall_best_hi[i]) / 2
-                        //                      = (highest_min_edge + best_hi[i]) / 2  (Step 5).
-                        overall_best_lo[i]    <= highest_min_edge;
-                        overall_best_hi[i]    <= best_hi[i];
-                        overall_found_pass[i] <= found_pass[i];
+                        if (IS_HIGHEST_MIN_EDGE_UNIFIED == 1'B1) begin
+                            // Store the common lower bound in every overall_best_lo slot.
+                            // CALC_APPLY: midpoint = (overall_best_lo[i] + overall_best_hi[i]) / 2
+                            //                      = (highest_min_edge + best_hi[i]) / 2  (Step 5).
+                            overall_best_lo[i] <= highest_min_edge;
+                        end
+                        else begin
+                            // CALC_APPLY: midpoint = (overall_best_lo[i] + overall_best_hi[i]) / 2
+                            //                      = (best_lo[i] + best_hi[i]) / 2  (Step 5).
+                            overall_best_lo[i] <= best_lo[i];
+                        end
+                        overall_best_hi[i]     <= best_hi[i];
+                        overall_found_pass[i]  <= found_pass[i];
                     end
                 end
             end

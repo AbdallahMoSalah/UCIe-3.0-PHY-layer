@@ -7,10 +7,11 @@
 module unit_RXDESKEW_tb ();
     import UCIe_pkg::*;
 
-    parameter integer LCLK_PERIOD          = 1000      ;
-    parameter integer TIMEOUT_CYCLES       = 2_000_000 ;
-    parameter integer ANALOG_SETTLE_CYCLES = 10        ;
-
+    parameter integer LCLK_PERIOD              = 1000      ;
+    parameter integer TIMEOUT_CYCLES           = 2_000_000 ;
+    parameter integer ANALOG_SETTLE_CYCLES     = 10        ;
+    parameter integer RANDOMIZATION_ITERATIONS = 300       ;
+    
     reg lclk;
     reg rst_n;
     initial begin lclk = 0; forever #(LCLK_PERIOD/2) lclk = ~lclk; end
@@ -85,7 +86,7 @@ module unit_RXDESKEW_tb ();
     // Print state changes with last-3 received SB message context
     always @(posedge lclk) begin
         if (rst_n && current_state !== prev_printed) begin
-            $display("# %9t ps : State -> \"%-30s\" | last_rx[[0]:%-15s, [1]:%-15s, [2]:%-15s].",
+            $display("# %9t ps : State -> \"%-30s\" | last_rx[ [0]:%-15s, [1]:%-15s, [2]:%-15s].",
                 $realtime(), current_state.name(),
                 get_short_msg_name(rx_msg_log[0]),
                 get_short_msg_name(rx_msg_log[1]),
@@ -111,6 +112,9 @@ module unit_RXDESKEW_tb ();
         else lclk_counter <= 0;
     end
 
+    logic [15:0] tb_narrow_lane_mask;
+    integer      tb_narrow_lane_width;
+
     // =========================================================================
     // Full hardware reset (used only at testbench start and after TRAINERROR)
     // =========================================================================
@@ -129,6 +133,8 @@ module unit_RXDESKEW_tb ();
         intf.mb_rx_data_lane_mask             = 3'b011;
         intf.valtraincenter_fail_flag         = 0;
         intf.partner_valtraincenter_fail_flag = 0;
+        tb_narrow_lane_mask                   = 16'h0000;
+        tb_narrow_lane_width                  = 127;
         tb_speed                              = 3'd2;
         prev_printed                          = RXDESKEW_IDLE;
         rx_msg_log[0]                         = NOTHING;
@@ -148,6 +154,8 @@ module unit_RXDESKEW_tb ();
         intf.tb_wait_timeout    = 0;
         intf.tb_wrong_sb_msg_en = 0;
         intf.valtraincenter_fail_flag = 0;
+        tb_narrow_lane_mask     = 16'h0000;
+        tb_narrow_lane_width    = 127;
         lclk_ctr_en = 0;
         repeat (gap_cycles) @(posedge lclk);
         #1step;
@@ -236,12 +244,31 @@ module unit_RXDESKEW_tb ();
                             unit_RXDESKEW_inst.pi_in_sweep) begin
                         automatic logic [6:0] code   = intf.phy_rx_deskew_ctrl[0];
                         automatic logic [2:0] preset = unit_RXDESKEW_inst.partner_preset;
+                        
+                        // Default eye for all lanes (target or other)
                         if (preset == mock_target_preset &&
                                 code >= mock_target_start && code <= mock_target_end)
-                            intf.tb_perlane_err = 16'h0000 | inject_lane_fail;
+                            intf.tb_perlane_err = 16'h0000;
                         else if (preset != mock_target_preset &&
                                 code >= mock_other_start && code <= mock_other_end)
-                            intf.tb_perlane_err = 16'h0000 | inject_lane_fail;
+                            intf.tb_perlane_err = 16'h0000;
+                        
+                        // Apply lane failures (force error regardless of eye)
+                        intf.tb_perlane_err |= inject_lane_fail;
+
+                        // Support "narrow lane" simulation: if a bit is set in tb_narrow_lane_mask,
+                        // that lane only passes within tb_narrow_lane_range.
+                        for (int i=0; i<16; i++) begin
+                            if (tb_narrow_lane_mask[i]) begin
+                                if (preset == mock_target_preset) begin
+                                    if (code < mock_target_start || code > (mock_target_start + tb_narrow_lane_width))
+                                        intf.tb_perlane_err[i] = 1'b1;
+                                end else begin
+                                    if (code < mock_other_start || code > (mock_other_start + tb_narrow_lane_width))
+                                        intf.tb_perlane_err[i] = 1'b1;
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -464,8 +491,54 @@ module unit_RXDESKEW_tb ();
         run_dtc1_arc_scenario();
         reset();
 
+        
         // =====================================================================
-        // Scenarios 20-50: Fully Randomized tests WITHOUT reset() between runs.
+        // Scenario (20): 4-Arc failure due to lane failure.
+        // We simulate Lane 0 being narrow (failed eye).
+        // To force 4 arcs, we need the "best" preset to improve slightly in each arc.
+        // =====================================================================
+        $display("# =========> Scenario (%0d): Forced 4-Arc Failure (Lane 0 Narrow) <=========", scenario++);
+        begin
+            reset();
+            tb_speed = 3'd7; 
+            intf.tb_rx_msginfo = 16'h0000;
+            
+            // Loop 1: Lane 0 is narrow. Preset 1 is slightly better than others.
+            // P1: L0 width 10. Others: L0 width 5. All other lanes: width 80.
+            // MIN(P1)=10, MIN(others)=5. Best=P1. Loop -> DTC1.
+            tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 10;
+            start_test(.target_preset(1), .target_range_start(0), .target_range_end(80),
+                       .other_range_start(0), .other_range_end(5), .expect_dtc1(1), .expect_dtc2(0));
+            soft_gap(100);
+
+            // Loop 2: Preset 2 is now even better (L0 width 15).
+            tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 15;
+            start_test(.target_preset(2), .target_range_start(0), .target_range_end(80),
+                       .other_range_start(0), .other_range_end(10), .expect_dtc1(1), .expect_dtc2(0));
+            soft_gap(100);
+
+            // Loop 3: Preset 3 is now even better (L0 width 20).
+            tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 20;
+            start_test(.target_preset(3), .target_range_start(0), .target_range_end(80),
+                       .other_range_start(0), .other_range_end(15), .expect_dtc1(1), .expect_dtc2(0));
+            soft_gap(100);
+
+            // Loop 4: Preset 4 is now even better (L0 width 25).
+            tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 25;
+            start_test(.target_preset(4), .target_range_start(0), .target_range_end(80),
+                       .other_range_start(0), .other_range_end(20), .expect_dtc1(1), .expect_dtc2(0));
+            soft_gap(100);
+
+            // Loop 5: MAX_ARC_LIMIT (4) reached. Exit to DTC2 even if P5 is better.
+            tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 30;
+            start_test(.target_preset(5), .target_range_start(0), .target_range_end(80),
+                       .other_range_start(0), .other_range_end(25), .expect_dtc1(0), .expect_dtc2(1));
+        end
+
+        reset();
+
+        // =====================================================================
+        // Scenarios 21 to (RANDOMIZATION_ITERATIONS+21): Fully Randomized tests WITHOUT reset() between runs.
         // Covers:
         // - Random target range width (can be wide or narrow)
         // - Random data lane failures (causing artificially narrow sweeps)
@@ -477,10 +550,10 @@ module unit_RXDESKEW_tb ();
         intf.tb_rx_msginfo = 16'h0000;
         
         begin
-            bit [2:0] last_best_preset = 3'd2; // From Scenario 19 (which picked preset 2)
-            int       tb_arc_cnt       = 0;
+            static bit [2:0] last_best_preset = 3'd2; // From Scenario 19 (which picked preset 2)
+            static int       tb_arc_cnt       = 0;
             
-            for (int s = 20; s <= 100; s++) begin
+            for (int s = 0; s < RANDOMIZATION_ITERATIONS; s++) begin
                 bit [2:0]  rnd_preset;
                 integer    target_range_start, target_range_end, other_range_start, other_range_end, width, other_width;
                 bit        exp_dtc2, exp_dtc1, is_wide;
@@ -570,7 +643,7 @@ module unit_RXDESKEW_tb ();
             );
         end
         end
-        reset();
+
 
         // -------------------------------------------------------------------------
         // Final report

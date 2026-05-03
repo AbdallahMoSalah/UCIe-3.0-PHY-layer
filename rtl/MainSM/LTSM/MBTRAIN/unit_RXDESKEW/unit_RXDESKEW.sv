@@ -1,6 +1,14 @@
 // =============================================================================
 // Module  : unit_RXDESKEW
 // Purpose : MBTRAIN.RXDESKEW sub-state FSM.
+// References:
+//   - UCIe-3.0 specification §4.5.3.4.10 MBTRAIN.RXDESKEW.
+//   - These part is Implemention spesific so, the next TODOs don't have high periority right now...
+// TODO: don't forget to do the next TODO tasks descussed below:
+//       1. what is the next_state when we are receiving RX_D2C_PT messages 
+//          (or receiving {MBTRAIN.RXDESKEW EQ Preset req}  (MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req)
+//          when the current_state = RXDESKEW_EXIT_TO_DTC1_REQ_RESP)
+//       2. The logic that tells unit_RX_D2C_PT: "you are enabled to responce on the received msg".
 // =============================================================================
 module unit_RXDESKEW #(
         parameter MAX_DESKEW_CODE         = 7'd127,
@@ -42,9 +50,7 @@ module unit_RXDESKEW #(
 
     reg [4:0] current_state, next_state;
     wire      is_high_speed;
-    wire      is_tx_sb_msg_valid;
     assign is_high_speed      = (rxdeskew_if.phy_negotiated_speed > SPEED_32G);
-    assign is_tx_sb_msg_valid = (current_state == next_state);
 
     reg       start_handshake_done;
     reg       partner_preset_fail_status_comb;
@@ -56,23 +62,6 @@ module unit_RXDESKEW #(
     // Deskew code bit-width
     // =========================================================================
     localparam DW = $clog2(MAX_DESKEW_CODE + 1);
-
-    // =========================================================================
-    // Negotiated data lane mask
-    // Converts 3-bit mb_rx_data_lane_mask → 16-bit bitmask of active lanes.
-    // =========================================================================
-    logic [15:0] negotiated_data_lanes;
-    always @(*) begin
-        case (rxdeskew_if.mb_rx_data_lane_mask)
-            3'b000:  negotiated_data_lanes = 16'h0000;
-            3'b001:  negotiated_data_lanes = 16'h00FF;
-            3'b010:  negotiated_data_lanes = 16'hFF00;
-            3'b011:  negotiated_data_lanes = 16'hFFFF;
-            3'b100:  negotiated_data_lanes = 16'h000F;
-            3'b101:  negotiated_data_lanes = 16'h00F0;
-            default: negotiated_data_lanes = 16'h0000;
-        endcase
-    end
 
     // =========================================================================
     // unit_phase_interpolator (PI) handshake signals
@@ -91,12 +80,8 @@ module unit_RXDESKEW #(
     // =========================================================================
     logic [DW-1:0] best_deskew_code       [15:0];
     logic          pi_fail_flag_r;
-    logic [DW-1:0] pi_current_preset_min_range;
     logic [2:0]    best_preset_saved;
     logic [DW-1:0] overall_best_min_range;
-    logic [DW-1:0] overall_best_lo [15:0];
-    logic [DW-1:0] overall_best_hi [15:0];
-    logic          overall_found_pass [15:0];
 
     logic [DW-1:0] min_sweep_range;
     assign min_sweep_range                = overall_best_min_range;
@@ -130,7 +115,6 @@ module unit_RXDESKEW #(
     reg [2:0] partner_preset;         // Tx EQ preset we are asking the partner to apply.
     reg       my_preset_fail_status;  // 1 = we could not support the requested preset.
     reg       partner_preset_fail_status; // 1 = partner signalled fail on our preset request.
-    reg       handshake_done;         // Generic handshake completion flag (unused path, kept for symmetry).
 
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin
         if(~rxdeskew_if.rst_n) begin
@@ -252,6 +236,13 @@ module unit_RXDESKEW #(
                     if(exit_to_dtc1_handshake_done) begin
                         next_state = RXDESKEW_ARC_COUNT;
                     end
+
+                    // TODO: before integeration level: make sure to remove the following condition & prevent transition to the state RXDESKEW_CHOOSE_PRESET:
+                    //       For now we leave it because if we remove it the and received this msg (in the condition here) the RTL logic here (of RXDESKEW)
+                    //       will handle and responce with this msg but after that the the next handshake will not happen (of RX_D2C_PT)
+                    //       because this unit_RX_D2C_PT FSM is not designed with ability to response on the received msg only.
+                    //       It's now designed to send req and wait to receive req (which is not happening here because we don't want to send any req here (in current FSM (unit_RXDESKEW))).
+                    // TODO: In case we will edit the D2C Test module, we will have to edit the code below to memorize that (the partner may send EXIT_DTC1_REQ but we have transited to RXDESKEW_CHOOSE_PRESET. we have to remember the EXIT_DTC1_REQ message has been rcvd and determine the next state and the next message we have to send according to that):
                     else if (rxdeskew_if.rx_sb_msg_valid && rxdeskew_if.rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req) begin
                         next_state = RXDESKEW_CHOOSE_PRESET;
                     end
@@ -319,7 +310,7 @@ module unit_RXDESKEW #(
         .test_d2c_done                 (d2c_if.test_d2c_done),
         .d2c_perlane_err               (d2c_if.d2c_perlane_err),
         // Lane config
-        .negotiated_data_lanes         (negotiated_data_lanes),
+        .mb_rx_data_lane_mask          (rxdeskew_if.mb_rx_data_lane_mask),
         .is_high_speed                 (is_high_speed),
         // Preset eval inputs
         .partner_preset                (partner_preset),
@@ -335,12 +326,12 @@ module unit_RXDESKEW #(
         // Computation outputs
         .best_deskew_code              (best_deskew_code),
         .fail_flag_r                   (pi_fail_flag_r),
-        .current_preset_min_range_out  (pi_current_preset_min_range),
+        // .current_preset_min_range_out  (), // Unused at this level
         .best_preset_saved             (best_preset_saved),
-        .overall_best_min_range        (overall_best_min_range),
-        .overall_best_lo               (overall_best_lo),
-        .overall_best_hi               (overall_best_hi),
-        .overall_found_pass            (overall_found_pass)
+        .overall_best_min_range        (overall_best_min_range)
+        // .overall_best_lo               (), // Unused at this level
+        // .overall_best_hi               (), // Unused at this level
+        // .overall_found_pass            ()  // Unused at this level
     );
 
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : COUNTERS_PROC
@@ -470,9 +461,9 @@ module unit_RXDESKEW #(
     end
 
     always_comb begin
-        if(current_state == RXDESKEW_START_REQ_RESP        ||
-                 current_state == RXDESKEW_PRESET_REQ_RESP       ||
-                 current_state == RXDESKEW_EXIT_TO_DTC1_REQ_RESP ||
+        if (    current_state == RXDESKEW_START_REQ_RESP        ||
+                current_state == RXDESKEW_PRESET_REQ_RESP       ||
+                current_state == RXDESKEW_EXIT_TO_DTC1_REQ_RESP ||
                 current_state == RXDESKEW_END_REQ_RESP          ) begin
             // lclk >> sclk: a single edge-detect pulse is sufficient;
             // no periodic retransmit timer is needed.
@@ -480,7 +471,7 @@ module unit_RXDESKEW #(
         end
         else begin
             sb_msg_valid_pulse = 1'b0;
-            end
+        end
 
         case (send_sb_msg[0])
             START_REQ: begin
@@ -528,20 +519,21 @@ module unit_RXDESKEW #(
 
     always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDSHAKE_PROC
         if (rxdeskew_if.rst_n == 1'b0) begin
-            handshake_done      <= 1'b0     ;
             {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, NO_MSG};
             my_preset_fail_status      <= 1'b0;
             partner_preset_fail_status <= 1'b0;
             partner_preset             <= 3'd0;
+            my_preset                  <= 3'd0;
         end
         else if( current_state == RXDESKEW_IDLE && rxdeskew_if.rxdeskew_en)begin
             {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, START_REQ};
             my_preset_fail_status      <= 1'b0;
             partner_preset_fail_status <= 1'b0;
             partner_preset             <= 3'd0;
+            my_preset                  <= 3'd0;
         end
         else begin
-            if( current_state == RXDESKEW_START_REQ_RESP        ||
+            if (    current_state == RXDESKEW_START_REQ_RESP        ||
                     current_state == RXDESKEW_PRESET_REQ_RESP       ||
                     current_state == RXDESKEW_EXIT_TO_DTC1_REQ_RESP ||
                     current_state == RXDESKEW_END_REQ_RESP          ) begin
@@ -571,6 +563,7 @@ module unit_RXDESKEW #(
                 //     send_sb_msg [0] <= send_sb_msg [0]; // No change
                 // end
             end
+
             // pi_abort: val-train fail was detected inside the PI sweep.
             else if (current_state == RXDESKEW_APPLY_SKEW_SWEEP && pi_abort) begin
                 send_sb_msg [0] <= END_REQ;
@@ -598,6 +591,7 @@ module unit_RXDESKEW #(
                     send_sb_msg[0] <= END_REQ;
                 end
             end
+            // TODO: In case we will edit the D2C Test module, we will have to edit the code below to memorize that (the partner may send EXIT_DTC1_REQ but we have transited to RXDESKEW_CHOOSE_PRESET. we have to remember the EXIT_DTC1_REQ message has been rcvd and determine the next state and the next message we have to send according to that):
             else if(rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req && rxdeskew_if.rx_sb_msg_valid)begin
                 send_sb_msg [0] <= (dtc1_arc_cnt != 4)? EXIT_DTC1_RESP : NO_MSG;
             end
@@ -612,4 +606,21 @@ module unit_RXDESKEW #(
             end
         end
     end
+
+    // // TODO: before integeration level: make sure to handle this logic below &
+    // //       solve to problem above (of what is the next_state when we are receiving RX_D2C_PT messages):
+    // always_comb begin
+    //     if( rxdeskew_if.rx_sb_msg_valid && (
+    //         rxdeskew_if.rx_sb_msg == Start_Rx_Init_D_to_C_point_test_req  ||
+    //         rxdeskew_if.rx_sb_msg == Start_Rx_Init_D_to_C_point_test_resp ||
+    //         rxdeskew_if.rx_sb_msg == Rx_Init_D_to_C_Tx_Count_Done_req     ||
+    //         rxdeskew_if.rx_sb_msg == Rx_Init_D_to_C_Tx_Count_Done_resp    ||
+    //         rxdeskew_if.rx_sb_msg == End_Rx_Init_D_to_C_point_test_req    ||
+    //         rxdeskew_if.rx_sb_msg == End_Rx_Init_D_to_C_point_test_resp   ))begin
+    //         rxdeskew_if.rx_pt_recever_en <= 1'b1;
+    //     end
+    //     else begin
+    //         rxdeskew_if.rx_pt_recever_en <= 1'b0;
+    //     end
+    // end
 endmodule
