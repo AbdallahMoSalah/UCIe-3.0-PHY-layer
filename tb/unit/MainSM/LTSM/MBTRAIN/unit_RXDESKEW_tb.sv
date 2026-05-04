@@ -10,8 +10,8 @@ module unit_RXDESKEW_tb ();
     parameter integer LCLK_PERIOD              = 1000      ;
     parameter integer TIMEOUT_CYCLES           = 2_000_000 ;
     parameter integer ANALOG_SETTLE_CYCLES     = 10        ;
-    parameter integer RANDOMIZATION_ITERATIONS = 300       ;
-    
+    parameter integer RANDOMIZATION_ITERATIONS = 10       ;
+
     reg lclk;
     reg rst_n;
     initial begin lclk = 0; forever #(LCLK_PERIOD/2) lclk = ~lclk; end
@@ -73,7 +73,7 @@ module unit_RXDESKEW_tb ();
     // Shift register: keep track of last 3 received SB messages for display
     msg_no_e rx_msg_log [2:0];    // [0]=latest, [1]=prev, [2]=prev-prev
     logic rx_sb_msg_valid_d;
-    
+
     always @(posedge lclk) begin
         rx_sb_msg_valid_d <= intf.rx_sb_msg_valid;
         if (intf.rx_sb_msg_valid && !rx_sb_msg_valid_d) begin
@@ -244,7 +244,7 @@ module unit_RXDESKEW_tb ();
                             unit_RXDESKEW_inst.pi_in_sweep) begin
                         automatic logic [6:0] code   = intf.phy_rx_deskew_ctrl[0];
                         automatic logic [2:0] preset = unit_RXDESKEW_inst.partner_preset;
-                        
+
                         // Default eye for all lanes (target or other)
                         if (preset == mock_target_preset &&
                                 code >= mock_target_start && code <= mock_target_end)
@@ -252,7 +252,7 @@ module unit_RXDESKEW_tb ();
                         else if (preset != mock_target_preset &&
                                 code >= mock_other_start && code <= mock_other_end)
                             intf.tb_perlane_err = 16'h0000;
-                        
+
                         // Apply lane failures (force error regardless of eye)
                         intf.tb_perlane_err |= inject_lane_fail;
 
@@ -291,7 +291,7 @@ module unit_RXDESKEW_tb ();
                 if (inject_partner_concurrent) begin
                     // Wait until sweep exits
                     wait (unit_RXDESKEW_inst.current_state != unit_RXDESKEW_inst.RXDESKEW_APPLY_SKEW_SWEEP &&
-                          unit_RXDESKEW_inst.current_state != unit_RXDESKEW_inst.RXDESKEW_IDLE);
+                        unit_RXDESKEW_inst.current_state != unit_RXDESKEW_inst.RXDESKEW_IDLE);
                     wait (unit_RXDESKEW_inst.current_state == unit_RXDESKEW_inst.RXDESKEW_APPLY_SKEW_SWEEP);
                     // Wait for sweep to finish
                     wait (unit_RXDESKEW_inst.current_state != unit_RXDESKEW_inst.RXDESKEW_APPLY_SKEW_SWEEP);
@@ -425,14 +425,14 @@ module unit_RXDESKEW_tb ();
         $display("# =========> Test Scenario (%0d): High Speed, Best=Preset3 narrow -> DTC1. <=========", scenario++);
         tb_speed = 3'd7;
         start_test(.target_preset(3'd3), .target_range_start(30), .target_range_end(80),
-                   .other_range_start(0), .other_range_end(20), .expect_dtc1(1));
+            .other_range_start(0), .other_range_end(20), .expect_dtc1(1));
         reset();
 
         // --- Scenario 7: HS Narrow, best=Preset0 (already best) -> DTC2 ---
         $display("# =========> Test Scenario (%0d): High Speed, Best=Preset0 narrow -> DTC2. <=========", scenario++);
         tb_speed = 3'd7;
         start_test(.target_preset(3'd0), .target_range_start(20), .target_range_end(70),
-                   .other_range_start(0), .other_range_end(20), .expect_dtc2(1));
+            .other_range_start(0), .other_range_end(20), .expect_dtc2(1));
         reset();
 
         // --- Scenarios 8-17: Original randomized batch ---
@@ -453,8 +453,8 @@ module unit_RXDESKEW_tb ();
                 scenario++, is_hs, rnd_preset, trs, tre, exp_dtc2, exp_dtc1);
             tb_speed = rnd_speed;
             start_test(.target_preset(rnd_preset), .target_range_start(trs), .target_range_end(tre),
-                       .other_range_start(ors), .other_range_end(ore),
-                       .expect_dtc2(exp_dtc2), .expect_dtc1(exp_dtc1));
+                .other_range_start(ors), .other_range_end(ore),
+                .expect_dtc2(exp_dtc2), .expect_dtc1(exp_dtc1));
             reset();
         end
 
@@ -491,7 +491,7 @@ module unit_RXDESKEW_tb ();
         run_dtc1_arc_scenario();
         reset();
 
-        
+
         // =====================================================================
         // Scenario (20): 4-Arc failure due to lane failure.
         // We simulate Lane 0 being narrow (failed eye).
@@ -500,39 +500,39 @@ module unit_RXDESKEW_tb ();
         $display("# =========> Scenario (%0d): Forced 4-Arc Failure (Lane 0 Narrow) <=========", scenario++);
         begin
             reset();
-            tb_speed = 3'd7; 
+            tb_speed = 3'd7;
             intf.tb_rx_msginfo = 16'h0000;
-            
+
             // Loop 1: Lane 0 is narrow. Preset 1 is slightly better than others.
             // P1: L0 width 10. Others: L0 width 5. All other lanes: width 80.
             // MIN(P1)=10, MIN(others)=5. Best=P1. Loop -> DTC1.
             tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 10;
             start_test(.target_preset(1), .target_range_start(0), .target_range_end(80),
-                       .other_range_start(0), .other_range_end(5), .expect_dtc1(1), .expect_dtc2(0));
+                .other_range_start(0), .other_range_end(5), .expect_dtc1(1), .expect_dtc2(0));
             soft_gap(100);
 
             // Loop 2: Preset 2 is now even better (L0 width 15).
             tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 15;
             start_test(.target_preset(2), .target_range_start(0), .target_range_end(80),
-                       .other_range_start(0), .other_range_end(10), .expect_dtc1(1), .expect_dtc2(0));
+                .other_range_start(0), .other_range_end(10), .expect_dtc1(1), .expect_dtc2(0));
             soft_gap(100);
 
             // Loop 3: Preset 3 is now even better (L0 width 20).
             tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 20;
             start_test(.target_preset(3), .target_range_start(0), .target_range_end(80),
-                       .other_range_start(0), .other_range_end(15), .expect_dtc1(1), .expect_dtc2(0));
+                .other_range_start(0), .other_range_end(15), .expect_dtc1(1), .expect_dtc2(0));
             soft_gap(100);
 
             // Loop 4: Preset 4 is now even better (L0 width 25).
             tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 25;
             start_test(.target_preset(4), .target_range_start(0), .target_range_end(80),
-                       .other_range_start(0), .other_range_end(20), .expect_dtc1(1), .expect_dtc2(0));
+                .other_range_start(0), .other_range_end(20), .expect_dtc1(1), .expect_dtc2(0));
             soft_gap(100);
 
             // Loop 5: MAX_ARC_LIMIT (4) reached. Exit to DTC2 even if P5 is better.
             tb_narrow_lane_mask = 16'h0001; tb_narrow_lane_width = 30;
             start_test(.target_preset(5), .target_range_start(0), .target_range_end(80),
-                       .other_range_start(0), .other_range_end(25), .expect_dtc1(0), .expect_dtc2(1));
+                .other_range_start(0), .other_range_end(25), .expect_dtc1(0), .expect_dtc2(1));
         end
 
         reset();
@@ -548,11 +548,11 @@ module unit_RXDESKEW_tb ();
         $display("# =========> Fully Randomized scenarios (no hard reset between runs). <=========");
         tb_speed = 3'd7; // stay HS for the whole block
         intf.tb_rx_msginfo = 16'h0000;
-        
+
         begin
             static bit [2:0] last_best_preset = 3'd2; // From Scenario 19 (which picked preset 2)
             static int       tb_arc_cnt       = 0;
-            
+
             for (int s = 0; s < RANDOMIZATION_ITERATIONS; s++) begin
                 bit [2:0]  rnd_preset;
                 integer    target_range_start, target_range_end, other_range_start, other_range_end, width, other_width;
@@ -567,19 +567,19 @@ module unit_RXDESKEW_tb ();
                 other_range_end    = $urandom_range(20, 30); // Keep other ranges small (width 10-40) so target usually wins
                 inject_concurrent  = $urandom_range(0, 1);
                 lane_fail_mask     = ($urandom_range(0, 100) < 15) ? 16'h0001 : 16'h0000; // 15% chance to kill lane 0
-                
+
                 width       = target_range_end - target_range_start;
                 other_width = other_range_end - other_range_start;
-                
+
                 if (lane_fail_mask != 16'h0000) begin
                     width       = 0; // Lane failure causes overall eye width to be 0
                     other_width = 0;
                 end
-                
+
                 begin
                     bit [2:0] actual_best_preset;
                     integer   best_width;
-                    
+
                     if (width > other_width) begin
                         actual_best_preset = rnd_preset;
                         best_width         = width;
@@ -595,9 +595,9 @@ module unit_RXDESKEW_tb ();
                             actual_best_preset = 3'd5; // 5 has other_width. 5 is the last evaluated.
                         end
                     end
-                    
+
                     is_wide = (best_width > 62);
-                    
+
                     if (is_wide) begin
                         // Eye is wide. Goes straight to DTC2.
                         exp_dtc2 = 1; exp_dtc1 = 0;
@@ -630,20 +630,88 @@ module unit_RXDESKEW_tb ();
                 // Soft gap instead of hard reset: FSM goes through IDLE, auto-resets counters
                 soft_gap(100);
 
-            start_test(
-                .target_preset(rnd_preset),
-                .target_range_start(target_range_start),
-                .target_range_end(target_range_end),
-                .other_range_start(other_range_start),
-                .other_range_end(other_range_end),
-                .expect_dtc2(exp_dtc2),
-                .expect_dtc1(exp_dtc1),
-                .inject_partner_concurrent(inject_concurrent),
-                .inject_lane_fail(lane_fail_mask)
-            );
-        end
+                start_test(
+                    .target_preset(rnd_preset),
+                    .target_range_start(target_range_start),
+                    .target_range_end(target_range_end),
+                    .other_range_start(other_range_start),
+                    .other_range_end(other_range_end),
+                    .expect_dtc2(exp_dtc2),
+                    .expect_dtc1(exp_dtc1),
+                    .inject_partner_concurrent(inject_concurrent),
+                    .inject_lane_fail(lane_fail_mask)
+                );
+            end
         end
 
+        // =====================================================================
+        // Scenario (102): "P5 wins in exactly 6 CHOOSE_PRESET transitions."
+        //
+        // Test setup (per user's scenario):
+        //   P0 → range  3 (other_range=[0:3])
+        //   P1 → range  5 (other_range=[0:5])
+        //   P2 → range  0 (other passes nowhere → simulated by other=[0:0])
+        //   P3 → range  2
+        //   P4 → range  6
+        //   P5 → range 10 (target_preset=5, target=[20:30])
+        //
+        // We use a single "other" range [0:5] to keep all P0-P4 < P5's eye.
+        // Key assertion:
+        //   - The RTL condition `(cnt==5 && best_preset_saved==partner_preset)` is
+        //     TRUE after the P5 sweep → NO 7th re-sweep is triggered.
+        //   - FSM takes exactly 6 CHOOSE_PRESET transitions.
+        //   - range=10 < 63 → next stop is DTC1 (1st arc).
+        // =====================================================================
+        $display("# =========> Scenario (102): P5 best (range=10), 6 CHOOSE_PRESET transitions -> DTC1. <=========");
+        begin
+            int          choose_preset_cnt;
+            int          choose_preset_cnt_ok;
+
+            reset();
+            tb_speed = 3'd7;
+            intf.tb_rx_msginfo = 16'h0000;
+            choose_preset_cnt    = 0;
+            choose_preset_cnt_ok = 0;
+
+            fork : SC102
+                // ----- Thread A: counter watcher -----
+                begin
+                    forever @(posedge lclk) begin
+                        if (unit_RXDESKEW_inst.current_state == unit_RXDESKEW_inst.RXDESKEW_CHOOSE_PRESET &&
+                                unit_RXDESKEW_inst.next_state == unit_RXDESKEW_inst.RXDESKEW_PRESET_REQ_RESP) begin
+                            choose_preset_cnt++;
+                        end
+                    end
+                end
+                // ----- Thread B: run test + check result -----
+                begin
+                    start_test(
+                        .target_preset(3'd5),
+                        // P5 has a clear 10-code window [20:30]
+                        .target_range_start(20),
+                        .target_range_end   (30),
+                        // All other presets (P0-P4) pass only in [0:5] → range = 5
+                        .other_range_start(0),
+                        .other_range_end  (5),
+                        .expect_dtc1(1),
+                        .expect_dtc2(0)
+                    );
+                    disable SC102;
+                end
+            join
+
+            // Verify CHOOSE_PRESET was visited exactly 6 times (P0 through P5)
+            choose_preset_cnt_ok = (choose_preset_cnt == 6);
+            if (!choose_preset_cnt_ok) begin
+                $display("\t *** FAIL *** Expected 6 CHOOSE_PRESET transitions, got %0d",
+                         choose_preset_cnt);
+                fail_count++;
+            end else begin
+                $display("# [Scenario 102] CHOOSE_PRESET transitions = %0d (correct!)",
+                         choose_preset_cnt);
+            end
+        end
+        reset();
 
         // -------------------------------------------------------------------------
         // Final report

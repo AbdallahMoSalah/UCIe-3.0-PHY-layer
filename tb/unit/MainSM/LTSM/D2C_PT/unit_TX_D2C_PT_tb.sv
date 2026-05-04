@@ -29,8 +29,7 @@ module unit_TX_D2C_PT_tb ();
         TX_PT_RESULTS_RESP = unit_TX_D2C_PT_inst.TX_PT_RESULTS_RESP, // (S7)
         TX_PT_END_REQ      = unit_TX_D2C_PT_inst.TX_PT_END_REQ     , // (S8)
         TX_PT_END_RESP     = unit_TX_D2C_PT_inst.TX_PT_END_RESP    , // (S9)
-        TX_PT_DONE         = unit_TX_D2C_PT_inst.TX_PT_DONE        , // (S10)
-        TO_TRAINERROR      = unit_TX_D2C_PT_inst.TO_TRAINERROR       // (S11)
+        TX_PT_DONE         = unit_TX_D2C_PT_inst.TX_PT_DONE          // (S10)
     } fsm_state_t;
 
     fsm_state_t state_monitor;
@@ -50,7 +49,7 @@ module unit_TX_D2C_PT_tb ();
 
     // DUT Instantiation
     unit_TX_D2C_PT unit_TX_D2C_PT_inst (
-        .substate_if(intf.d2c2substate_mp),
+        .substate_if(intf.tx_d2c2substate_mp),
         .mux_if(intf.d2c2mux_mp)
     );
 
@@ -73,9 +72,11 @@ module unit_TX_D2C_PT_tb ();
     // -------------------------------------------------------------------------
     // Internal SB Responder (Echo Model)
     // -------------------------------------------------------------------------
-    integer sb_wait_cnt = 0;
-    msg_no_e resp_msg; // Declare resp_msg
-    msg_no_e last_tx_msg = NOTHING;
+    integer sb_delay_cnt = 0;
+    msg_no_e capture_msg  = NOTHING;
+    reg [15:0] capture_msginfo = 0;
+    reg [63:0] capture_data_field = 0;
+    reg      msg_responded= 0;
 
     always @(posedge sb_clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -83,38 +84,35 @@ module unit_TX_D2C_PT_tb ();
             intf.rx_sb_msg       <= msg_no_e'(0);
             intf.rx_msginfo      <= 16'b0;
             intf.rx_data_field   <= 64'b0;
-            sb_wait_cnt          <= 0;
-            last_tx_msg          <= NOTHING;
-        end else if (intf.tx_sb_msg != last_tx_msg) begin
-            // Whenever the FSM changes the message, reset the responder counter
-            sb_wait_cnt          <= 0;
-            intf.rx_sb_msg_valid <= 0;
-            last_tx_msg          <= intf.tx_sb_msg;
-        end else if (intf.tb_wait_timeout) begin
-            intf.rx_sb_msg_valid <= 0;
-        end else if (intf.tx_sb_msg_valid && sb_wait_cnt < 64) begin
-            sb_wait_cnt <= sb_wait_cnt + 1;
-        end else if (intf.tx_sb_msg_valid && sb_wait_cnt == 64) begin
-            intf.rx_sb_msg_valid <= 1;
-            // Symmetric Handshake Echo Responder
-            case (intf.tx_sb_msg)
-                Start_Tx_Init_D_to_C_point_test_req:  resp_msg = Start_Tx_Init_D_to_C_point_test_req;
-                Start_Tx_Init_D_to_C_point_test_resp: resp_msg = Start_Tx_Init_D_to_C_point_test_resp;
-                LFSR_clear_error_req:                 resp_msg = LFSR_clear_error_req;
-                LFSR_clear_error_resp:                resp_msg = LFSR_clear_error_resp;
-                Tx_Init_D_to_C_results_req:           resp_msg = Tx_Init_D_to_C_results_req;
-                Tx_Init_D_to_C_results_resp:          resp_msg = Tx_Init_D_to_C_results_resp;
-                End_Tx_Init_D_to_C_point_test_req:    resp_msg = End_Tx_Init_D_to_C_point_test_req;
-                End_Tx_Init_D_to_C_point_test_resp:   resp_msg = End_Tx_Init_D_to_C_point_test_resp;
-                default:                              resp_msg = NOTHING;
-            endcase
-            intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? msg_no_e'(intf.tb_wrong_sb_msg) : resp_msg;
-            intf.rx_msginfo      <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_msginfo : intf.tx_msginfo;
-            intf.rx_data_field   <= (intf.tx_sb_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_data_field : intf.tx_data_field;
-            sb_wait_cnt          <= sb_wait_cnt + 1;
-        end else if (sb_wait_cnt > 64) begin
-            intf.rx_sb_msg_valid <= 0;
-            if (!intf.tx_sb_msg_valid) sb_wait_cnt <= 0;
+            sb_delay_cnt         <= 0;
+            capture_msg          <= NOTHING;
+            capture_msginfo      <= 0;
+            capture_data_field   <= 0;
+            msg_responded        <= 0;
+        end else begin
+            if (intf.rx_sb_msg_valid) begin
+                intf.rx_sb_msg_valid <= 0;
+            end
+
+            if (!intf.tx_sb_msg_valid || intf.tx_sb_msg != capture_msg) begin
+                msg_responded <= 0;
+            end
+
+            if (intf.tx_sb_msg_valid && sb_delay_cnt == 0 && !intf.tb_wait_timeout && !msg_responded) begin
+                capture_msg        <= intf.tx_sb_msg;
+                capture_msginfo    <= intf.tx_msginfo;
+                capture_data_field <= intf.tx_data_field;
+                sb_delay_cnt       <= 64; // Respond after 64 cycles
+                msg_responded      <= 1;
+            end else if (sb_delay_cnt > 1 && !intf.tb_wait_timeout) begin
+                sb_delay_cnt <= sb_delay_cnt - 1;
+            end else if (sb_delay_cnt == 1 && !intf.tb_wait_timeout) begin
+                sb_delay_cnt <= 0;
+                intf.rx_sb_msg_valid <= 1;
+                intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? msg_no_e'(intf.tb_wrong_sb_msg) : capture_msg;
+                intf.rx_msginfo      <= (capture_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_msginfo : capture_msginfo;
+                intf.rx_data_field   <= (capture_msg == Tx_Init_D_to_C_results_resp) ? intf.tb_rx_data_field : capture_data_field;
+            end
         end
     end
 
@@ -168,13 +166,13 @@ module unit_TX_D2C_PT_tb ();
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             timeout_cnt <= 0;
-            intf.substate_timeout_8ms_occured <= 0;
+            intf.timeout_8ms_occured <= 0;
         end else if (state_monitor != TX_PT_IDLE && state_monitor != TX_PT_DONE) begin
             timeout_cnt <= timeout_cnt + 1;
-            if (timeout_cnt >= TIMEOUT_LIMIT) intf.substate_timeout_8ms_occured <= 1;
+            if (timeout_cnt >= TIMEOUT_LIMIT) intf.timeout_8ms_occured <= 1;
         end else begin
             timeout_cnt <= 0;
-            intf.substate_timeout_8ms_occured <= 0;
+            intf.timeout_8ms_occured <= 0;
         end
     end
 
@@ -209,49 +207,59 @@ module unit_TX_D2C_PT_tb ();
         $display("%12t ps: Triggering tx_pt_en.", $time);
         @(posedge lclk);
         intf.tx_pt_en = 1;
-        
-        wait(intf.test_d2c_done || intf.d2c_timeout_or_error || state_monitor == TO_TRAINERROR);
-        @(posedge lclk);
-        intf.tx_pt_en = 0;
-        
-        if (intf.test_d2c_done) begin
-            if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
-                repeat(5) $display("\t\t ************************** ERROR **************************");
-                $display("%12t ps: ERROR: Test completed but expected error/timeout. <================================= [Error]", $time);
-                fail_count++;
-                $stop;
-            end else begin
-                wait(state_monitor == TX_PT_IDLE);
-                $display("%12t ps: Test completed successfully.", $time);
-                success_count++;
+
+        fork : test_execution
+            begin
+                wait(intf.test_d2c_done || intf.timeout_8ms_occured);
+                @(posedge lclk);
+                intf.tx_pt_en = 0;
+
+                if (intf.timeout_8ms_occured) begin
+                    if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
+                        $display("%12t ps: Test completed with expected timeout.", $time);
+                        success_count++;
+                    end else begin
+                        repeat(5) $display("\t\t ************************** ERROR **************************");
+                        $display("%12t ps: ERROR: Unexpected timeout occurred.", $time);
+                        fail_count++;
+                        $stop;
+                    end
+                end else if (intf.test_d2c_done) begin
+                    if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
+                        repeat(5) $display("\t\t ************************** ERROR **************************");
+                        $display("%12t ps: ERROR: Test completed but expected timeout.", $time);
+                        fail_count++;
+                        $stop;
+                    end else begin
+                        wait(state_monitor == TX_PT_IDLE);
+                        $display("%12t ps: Test completed successfully.", $time);
+                        success_count++;
+                    end
+                end
+                $display("________________________________(Success count = %0d, Fail count = %0d)________________________________\n", success_count, fail_count);
+                disable test_execution;
             end
-        end else begin
-            if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
-                $display("%12t ps: Test transitioned to TO_TRAINERROR as expected.", $time);
-                success_count++;
-            end else begin
-                repeat(5) $display("\t\t ************************** ERROR **************************");
-                $display("%12t ps: wait unblocked! test_d2c_done=%b, d2c_timeout_or_error=%b, state_monitor=%s, timeout_cnt=%0d, rx_sb_valid=%b, rx_sb_msg=%s", $time, intf.test_d2c_done, intf.d2c_timeout_or_error, state_monitor.name(), timeout_cnt, intf.rx_sb_msg_valid, intf.rx_sb_msg.name());
-                $display("%12t ps: ERROR: Test transitioned to TO_TRAINERROR unexpectedly. <================================= [Error]", $time);
+            begin
+                #2_000_000_000; // Global watchdog 2ms
+                $display("%12t ps: ERROR: Global watchdog timeout.", $time);
                 fail_count++;
-                $stop;
+                disable test_execution;
             end
-        end
-        $display("________________________________(Success count = %0d, Fail count = %0d)________________________________\n", success_count, fail_count);
+        join
     endtask
 
     task set_d2c_configuration(
-        input [1:0]  task_clk_sampling,
-        input [2:0]  task_pattern_setup,
-        input [1:0]  task_data_pattern_sel,
-        input        task_val_pattern_sel,
-        input        task_lfsr_en,
-        input        task_pattern_mode,
-        input [15:0] task_burst_count,
-        input [15:0] task_idle_count,
-        input [15:0] task_iter_count,
-        input [1:0]  task_compare_setup
-    );
+            input [1:0]  task_clk_sampling,
+            input [2:0]  task_pattern_setup,
+            input [1:0]  task_data_pattern_sel,
+            input        task_val_pattern_sel,
+            input        task_lfsr_en,
+            input        task_pattern_mode,
+            input [15:0] task_burst_count,
+            input [15:0] task_idle_count,
+            input [15:0] task_iter_count,
+            input [1:0]  task_compare_setup
+        );
         intf.d2c_clk_sampling     = task_clk_sampling;
         intf.d2c_pattern_setup    = task_pattern_setup;
         intf.d2c_data_pattern_sel = task_data_pattern_sel;
@@ -271,7 +279,7 @@ module unit_TX_D2C_PT_tb ();
         $display("\n========================================");
         $display("  TX_D2C_PT Self-Contained Testbench");
         $display("========================================\n");
-        
+
         // Scenario 1: Basic Happy Path
         $display("\n=========>  Test Scenario (%0d): Happy Path (Continuous Mode). <=========", test_scenario_no++);
         reset();
@@ -323,7 +331,7 @@ module unit_TX_D2C_PT_tb ();
         start_test();
         if (intf.d2c_aggr_err == 16'h0001) $display("  MATCH: Aggregate error bit received correctly.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Aggregate error mismatch!"); fail_count++; $stop; end
-        
+
         if (intf.d2c_perlane_err == 16'hBBBB) $display("  MATCH: Per-lane error field received correctly.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane error mismatch!"); fail_count++; $stop; end
 
@@ -357,9 +365,9 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd0)
         );
         start_test();
-        if (intf.d2c_perlane_err == 16'h0004 && intf.partner_datatraincenter_fail_flag == 1'b1)
-            $display("  MATCH: Per-lane fail flag set correctly for lane 2.");
-        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane fail flag mismatch!"); fail_count++; $stop; end
+        if (intf.d2c_perlane_err == 16'h0004)
+            $display("  MATCH: Per-lane fail detected correctly for lane 2.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane fail mismatch!"); fail_count++; $stop; end
 
         // Scenario 7: Per-lane ALL PASS (fail_flag must be 0)
         $display("\n=========>  Test Scenario (%0d): Per-Lane All Pass. <=========", test_scenario_no++);
@@ -374,9 +382,9 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd0)
         );
         start_test();
-        if (intf.partner_datatraincenter_fail_flag == 1'b0)
-            $display("  MATCH: Per-lane all-pass, fail_flag=0.");
-        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane all-pass fail_flag mismatch!"); fail_count++; $stop; end
+        if (intf.d2c_perlane_err == 16'h0000)
+            $display("  MATCH: Per-lane all-pass.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Per-lane all-pass mismatch!"); fail_count++; $stop; end
 
         // Scenario 8: Aggregate mode pass (bit[4]=0)
         $display("\n=========>  Test Scenario (%0d): Aggregate Mode Pass. <=========", test_scenario_no++);
@@ -391,9 +399,9 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd1)
         );
         start_test();
-        if (intf.partner_datatraincenter_fail_flag == 1'b0)
-            $display("  MATCH: Aggregate pass, fail_flag=0.");
-        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Aggregate pass fail_flag mismatch!"); fail_count++; $stop; end
+        if (intf.d2c_aggr_err == 16'h0000)
+            $display("  MATCH: Aggregate pass.");
+        else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Aggregate pass mismatch!"); fail_count++; $stop; end
 
         // Scenario 9: Valid-lane pass (bit[5]=0, fail_flag must be 0)
         $display("\n=========>  Test Scenario (%0d): Valid Lane Pass. <=========", test_scenario_no++);
@@ -427,7 +435,7 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd1)
         );
         start_test();
-        if (intf.partner_datatraincenter_fail_flag == 1'b1 && intf.d2c_aggr_err == 16'h0001)
+        if (intf.d2c_aggr_err == 16'h0001)
             $display("  MATCH: Back-to-back #1 aggr fail correct.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Back-to-back #1 mismatch!"); fail_count++; $stop; end
 
@@ -442,7 +450,7 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd0)
         );
         start_test();
-        if (intf.partner_datatraincenter_fail_flag == 1'b0)
+        if (intf.d2c_perlane_err == 16'h0000)
             $display("  MATCH: Back-to-back #2 all-pass correct.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Back-to-back #2 mismatch!"); fail_count++; $stop; end
 
@@ -473,7 +481,7 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd0)
         );
         start_test();
-        if (intf.d2c_perlane_err == 16'hFFFF && intf.partner_datatraincenter_fail_flag == 1'b1)
+        if (intf.d2c_perlane_err == 16'hFFFF)
             $display("  MATCH: All lanes fail correctly.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("All lanes fail mismatch!"); fail_count++; $stop; end
 
@@ -490,7 +498,7 @@ module unit_TX_D2C_PT_tb ();
             .task_iter_count(16'd1), .task_compare_setup(2'd0)
         );
         start_test();
-        if (intf.d2c_perlane_err == 16'h8000 && intf.partner_datatraincenter_fail_flag == 1'b1)
+        if (intf.d2c_perlane_err == 16'h8000)
             $display("  MATCH: Lane 15 fail correctly detected.");
         else begin repeat(5) $display("\t\t ************************** ERROR **************************"); $display("Lane 15 fail mismatch!"); fail_count++; $stop; end
 
@@ -530,7 +538,7 @@ module unit_TX_D2C_PT_tb ();
             intf.tb_wait_timeout    = ($urandom_range(0, 9) == 0); // 10%
             intf.tb_wrong_sb_msg_en = ($urandom_range(0, 9) == 0); // 10%
             intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req;
-            
+
             set_d2c_configuration(
                 .task_clk_sampling    ($urandom_range(0, 2)),
                 .task_pattern_setup   ($urandom_range(0, 7)),
@@ -543,12 +551,12 @@ module unit_TX_D2C_PT_tb ();
                 .task_iter_count      ($urandom_range(1, 10)),
                 .task_compare_setup   ($urandom_range(0, 2))
             );
-            
+
             intf.tb_aggr_err    = $urandom();
             intf.tb_perlane_err = $urandom();
             intf.tb_val_err     = $urandom_range(0,1);
             intf.tb_clk_err     = $urandom_range(0,1);
-            
+
             intf.tb_rx_msginfo    = $urandom();
             intf.tb_rx_data_field = $urandom();
 
@@ -562,7 +570,7 @@ module unit_TX_D2C_PT_tb ();
             $display("  ==================  The tests passed  ================== ");
             $display("    ================    Successfully    ================   ");
             $display("      ==============                    ==============     ");
-            $display("        ============================================       \n\n"); 
+            $display("        ============================================       \n\n");
         end else begin
             $display("\n        ============================================       ");
             $display("      ==============                    ==============     ");

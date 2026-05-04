@@ -33,8 +33,7 @@ module unit_RX_D2C_PT_tb ();
         RX_PT_COUNT_DONE_RESP = unit_RX_D2C_PT_inst.RX_PT_COUNT_DONE_RESP,
         RX_PT_END_REQ         = unit_RX_D2C_PT_inst.RX_PT_END_REQ        ,
         RX_PT_END_RESP        = unit_RX_D2C_PT_inst.RX_PT_END_RESP       ,
-        RX_PT_DONE            = unit_RX_D2C_PT_inst.RX_PT_DONE           ,
-        TO_TRAINERROR         = unit_RX_D2C_PT_inst.TO_TRAINERROR
+        RX_PT_DONE            = unit_RX_D2C_PT_inst.RX_PT_DONE
     } fsm_state_t;
 
     fsm_state_t current_state;
@@ -44,8 +43,8 @@ module unit_RX_D2C_PT_tb ();
     // |  -------------------------      (Instance of the RX_D2C_PT module)      ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     unit_RX_D2C_PT unit_RX_D2C_PT_inst (
-        .substate_if(intf.d2c2substate_mp),
-        .mux_if     (intf.d2c2mux_mp    )
+        .substate_if(intf.rx_d2c2substate_mp),
+        .mux_if     (intf.d2c2mux_mp        )
     );
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
@@ -53,30 +52,41 @@ module unit_RX_D2C_PT_tb ();
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     reg [7:0] sb_delay_cnt = 0;
     msg_no_e  echo_msg     = NOTHING;
+    reg       msg_responded= 0;
+
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             intf.rx_sb_msg_valid <= 0;
             intf.rx_sb_msg       <= NOTHING;
             sb_delay_cnt         <= 0;
             echo_msg             <= NOTHING;
-        end else if (intf.tx_sb_msg_valid && sb_delay_cnt == 0 && !intf.tb_wait_timeout) begin
-            echo_msg     <= intf.tx_sb_msg;
-            sb_delay_cnt <= 10; // Respond after 10 cycles
-        end else if (sb_delay_cnt > 1 && !intf.tb_wait_timeout) begin
-            sb_delay_cnt <= sb_delay_cnt - 1;
-            intf.rx_sb_msg_valid <= 0;
-        end else if (sb_delay_cnt == 1 && !intf.tb_wait_timeout) begin
-            sb_delay_cnt <= 0;
-            intf.rx_sb_msg_valid <= 1;
-            if (intf.tb_wrong_sb_msg_en) begin
-                intf.rx_sb_msg <= intf.tb_wrong_sb_msg;
-                $display("%10t ps: SB Echoing WRONG message: %s", $realtime(), intf.tb_wrong_sb_msg.name());
-            end else begin
-                intf.rx_sb_msg <= echo_msg;
-                $display("%10t ps: SB Echoing message: %s", $realtime(), echo_msg.name());
-            end
+            msg_responded        <= 0;
         end else begin
-            intf.rx_sb_msg_valid <= 0;
+            if (intf.rx_sb_msg_valid) begin
+                intf.rx_sb_msg_valid <= 0;
+            end
+
+            if (!intf.tx_sb_msg_valid || intf.tx_sb_msg != echo_msg) begin
+                msg_responded <= 0;
+            end
+
+            if (intf.tx_sb_msg_valid && sb_delay_cnt == 0 && !intf.tb_wait_timeout && !msg_responded) begin
+                echo_msg      <= intf.tx_sb_msg;
+                sb_delay_cnt  <= 10; // Respond after 10 cycles
+                msg_responded <= 1;
+            end else if (sb_delay_cnt > 1 && !intf.tb_wait_timeout) begin
+                sb_delay_cnt <= sb_delay_cnt - 1;
+            end else if (sb_delay_cnt == 1 && !intf.tb_wait_timeout) begin
+                sb_delay_cnt <= 0;
+                intf.rx_sb_msg_valid <= 1;
+                if (intf.tb_wrong_sb_msg_en) begin
+                    intf.rx_sb_msg <= intf.tb_wrong_sb_msg;
+                    $display("%10t ps: SB Echoing WRONG message: %s", $realtime(), intf.tb_wrong_sb_msg.name());
+                end else begin
+                    intf.rx_sb_msg <= echo_msg;
+                    $display("%10t ps: SB Echoing message: %s", $realtime(), echo_msg.name());
+                end
+            end
         end
     end
 
@@ -125,17 +135,17 @@ module unit_RX_D2C_PT_tb ();
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             timeout_cnt <= 0;
-            intf.substate_timeout_8ms_occured <= 0;
-        end else if (intf.tb_wait_timeout) begin
+            intf.timeout_8ms_occured <= 0;
+        end else if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
             if (timeout_cnt < TIMEOUT_LIMIT) begin
                 timeout_cnt <= timeout_cnt + 1;
-                intf.substate_timeout_8ms_occured <= 0;
+                intf.timeout_8ms_occured <= 0;
             end else begin
-                intf.substate_timeout_8ms_occured <= 1;
+                intf.timeout_8ms_occured <= 1;
             end
         end else begin
             timeout_cnt <= 0;
-            intf.substate_timeout_8ms_occured <= 0;
+            intf.timeout_8ms_occured <= 0;
         end
     end
 
@@ -157,7 +167,7 @@ module unit_RX_D2C_PT_tb ();
         intf.tb_wrong_sb_msg           <= NOTHING;
         intf.tb_rx_msginfo             <= 16'b0;
         intf.tb_rx_data_field          <= 64'b0;
-        
+
         // D2C Configuration
         intf.d2c_clk_sampling          <= 0;
         intf.d2c_lfsr_en               <= 0;
@@ -181,19 +191,19 @@ module unit_RX_D2C_PT_tb ();
     // |  -------------------------           (Set D2C Configurations)           ---------------------------  |
     //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
     task set_d2c_configuration (
-        input reg [1:0]  task_clk_sampling        ,
-        input reg [2:0]  task_pattern_setup        ,
-        input reg [1:0]  task_data_pattern_sel     ,
-        input reg        task_val_pattern_sel      ,
-        input reg        task_lfsr_en              ,
-        input reg        task_pattern_mode         ,
-        input reg [15:0] task_burst_count          ,
-        input reg [15:0] task_idle_count           ,
-        input reg [15:0] task_iter_count           ,
-        input reg [1:0]  task_compare_setup        ,
-        input reg [15:0] task_aggr_err_thresh      ,
-        input reg [15:0] task_perlane_err_thresh
-    );
+            input reg [1:0]  task_clk_sampling        ,
+            input reg [2:0]  task_pattern_setup        ,
+            input reg [1:0]  task_data_pattern_sel     ,
+            input reg        task_val_pattern_sel      ,
+            input reg        task_lfsr_en              ,
+            input reg        task_pattern_mode         ,
+            input reg [15:0] task_burst_count          ,
+            input reg [15:0] task_idle_count           ,
+            input reg [15:0] task_iter_count           ,
+            input reg [1:0]  task_compare_setup        ,
+            input reg [15:0] task_aggr_err_thresh      ,
+            input reg [15:0] task_perlane_err_thresh
+        );
         intf.d2c_clk_sampling                  = task_clk_sampling      ;
         intf.d2c_pattern_setup                 = task_pattern_setup      ;
         intf.d2c_data_pattern_sel              = task_data_pattern_sel   ;
@@ -224,17 +234,17 @@ module unit_RX_D2C_PT_tb ();
                 $display("%10t ps: rx_pt_en asserted.", $realtime());
 
                 // Wait for done or error
-                wait(intf.test_d2c_done || unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR);
+                wait(intf.test_d2c_done || intf.timeout_8ms_occured);
                 @(posedge lclk);
                 intf.rx_pt_en <= 1'b0;
-                
-                if (unit_RX_D2C_PT_inst.current_state == TO_TRAINERROR) begin
+
+                if (intf.timeout_8ms_occured) begin
                     if (intf.tb_wait_timeout || intf.tb_wrong_sb_msg_en) begin
-                         $display("%10t ps: Test passed: Error state reached as expected.", $realtime());
-                         success_count++;
+                        $display("%10t ps: Test passed: Timeout/Abort reached as expected.", $realtime());
+                        success_count++;
                     end else begin
-                         $display("%10t ps: Test FAILED: Unexpected TO_TRAINERROR state.", $realtime());
-                         fail_count++;
+                        $display("%10t ps: Test FAILED: Unexpected timeout.", $realtime());
+                        fail_count++;
                     end
                 end else begin
                     wait(current_state == RX_PT_IDLE); // Stay for 1 cycle as per RTL
@@ -286,15 +296,15 @@ module unit_RX_D2C_PT_tb ();
         $display("Scenario 3: Aggregate Compare");
         set_d2c_configuration(
             .task_clk_sampling    (2'b01 ),
-            .task_pattern_setup   (3'b001), 
-            .task_data_pattern_sel(2'b00 ), 
+            .task_pattern_setup   (3'b001),
+            .task_data_pattern_sel(2'b00 ),
             .task_val_pattern_sel (1'b0  ),
             .task_lfsr_en         (1'b1  ),
             .task_pattern_mode    (1'b0  ),
             .task_burst_count     (16'd10),
             .task_idle_count      (16'd0 ),
             .task_iter_count      (16'd1 ),
-            .task_compare_setup   (2'b01 ), 
+            .task_compare_setup   (2'b01 ),
             .task_aggr_err_thresh   (16'h00FF),
             .task_perlane_err_thresh(16'h0000)
         );
@@ -302,7 +312,7 @@ module unit_RX_D2C_PT_tb ();
         start_test();
         reset();
 
-        // Scenario 4: Partner sends TRAINERROR Entry req
+        // Scenario 4: Partner sends TRAINERROR Entry req (Now expecting an abort/timeout since state is removed)
         $display("Scenario 4: Partner sends TRAINERROR Entry req");
         intf.tb_wrong_sb_msg_en = 1;
         intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req;
@@ -320,7 +330,6 @@ module unit_RX_D2C_PT_tb ();
             .task_aggr_err_thresh   (16'h0000),
             .task_perlane_err_thresh(16'h0000)
         );
-        intf.tb_wait_timeout = 1; // Expecting TO_TRAINERROR
         start_test();
         reset();
 
@@ -329,12 +338,12 @@ module unit_RX_D2C_PT_tb ();
         // -----------------------------------------------------------------
         for (int i = 0; i < 100; i++) begin
             $display("\n--- Random Iteration %0d ---", i+1);
-            
+
             // Randomize flags (with lower probability for errors/timeouts to see more "happy" paths)
             intf.tb_wait_timeout    = ($urandom_range(0, 9) == 0); // 10% chance
             intf.tb_wrong_sb_msg_en = ($urandom_range(0, 9) == 0); // 10% chance
-            intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req; 
-            
+            intf.tb_wrong_sb_msg    = TRAINERROR_Entry_req;
+
             set_d2c_configuration(
                 .task_clk_sampling    ($urandom_range(0, 2)),
                 .task_pattern_setup   ($urandom_range(0, 7)),
@@ -349,13 +358,13 @@ module unit_RX_D2C_PT_tb ();
                 .task_aggr_err_thresh   ($urandom()),
                 .task_perlane_err_thresh($urandom())
             );
-            
+
             // Randomize error signals from PHY/MB
             intf.tb_aggr_err    = $urandom();
             intf.tb_perlane_err = $urandom();
             intf.tb_val_err     = $urandom_range(0,1);
             intf.tb_clk_err     = $urandom_range(0,1);
-            
+
             start_test();
             reset();
         end
@@ -366,11 +375,11 @@ module unit_RX_D2C_PT_tb ();
         $display("  Success: %0d", success_count);
         $display("  Fail:    %0d", fail_count);
         $display("========================================\n");
-        
+
         if (fail_count == 0) begin
             $display("CONGRATULATIONS! ALL TESTS PASSED.");
         end
-        
+
         $stop;
     end
 

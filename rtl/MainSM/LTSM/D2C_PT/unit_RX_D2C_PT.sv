@@ -3,7 +3,7 @@ module unit_RX_D2C_PT  #() (
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        internal_ltsm_if.d2c2substate_mp substate_if,
+        internal_ltsm_if.rx_d2c2substate_mp substate_if,
 
         //=====================================//
         // Control Signals for the MB and SB:  //
@@ -27,21 +27,6 @@ module unit_RX_D2C_PT  #() (
     import UCIe_pkg::TRAINERROR_Entry_req                ; // Msg Number: d107
     import UCIe_pkg::NOTHING                             ; // Msg Number: 8'hFF
 
-
-
-
-    // // Sideband message Values:
-    // localparam MSG_START_REQ       = 8'hA0, // From LTSM to SB to request the start of Rx D2C Pattern Test.
-    //            MSG_START_RESP      = 8'hA1, // From SB to LTSM to acknowledge the start of Rx D2C Pattern Test.
-    //            MSG_CLR_ERR_REQ     = 8'hA2, // From LTSM to SB to request clearing of errors in MB before starting pattern generation.
-    //            MSG_CLR_ERR_RESP    = 8'hA3, // From SB to LTSM to acknowledge the clearing of errors in MB.
-    //            MSG_COUNT_DONE_REQ  = 8'hA5, // From LTSM to SB to ask if the pattern generation and error counting is done based on burst_count and iter_count.
-    //            MSG_COUNT_DONE_RESP = 8'hA6, // From SB to LTSM to acknowledge that the pattern generation and error counting is done.
-    //            MSG_END_REQ         = 8'hA7, // From LTSM to SB to request SB to end the pattern test and send results.
-    //            MSG_END_RESP        = 8'hA8, // From SB to LTSM to acknowledge the end of the pattern test and sending of results.
-    //            MSG_TRAINERROR_REQ  = 8'hFF; // From SB to LTSM to indicate that a TRAINERROR condition has occurred on the partner side (e.g., due to timeout or other errors during training).
-
-
     // States names
     localparam RX_PT_IDLE            = 4'h0, // (S0)
     RX_PT_START_REQ       = 4'h1, // (S1)
@@ -53,15 +38,13 @@ module unit_RX_D2C_PT  #() (
     RX_PT_COUNT_DONE_RESP = 4'h7, // (S7)
     RX_PT_END_REQ         = 4'h8, // (S8)
     RX_PT_END_RESP        = 4'h9, // (S9)
-    RX_PT_DONE            = 4'hA, // (S10)
-    TO_TRAINERROR         = 4'hB; // (S11)
+    RX_PT_DONE            = 4'hA; // (S10)
 
-    reg [3:0] current_state, next_state, previous_state; // The Current, Next states, and Previous state of the FSM.
-    wire data_incoherence;
+    reg [3:0] current_state, next_state; // The Current, Next states, and Previous state of the FSM.
+    wire data_valid_pulse;
 
-    // This signal is used to avoid data incoherence possibility when sending signals to SB.
-    // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    assign data_incoherence = (current_state != previous_state) ? 1'b1 : 1'b0;
+    // This signal is used to apply a valid signal for 1 clk as a pulse for the Tx SB data when sending signals to SB accross the Asynchronous FIFO.
+    assign data_valid_pulse = (current_state == next_state);
 
 
     // Log Rx Comparison Results from MB:
@@ -85,20 +68,14 @@ module unit_RX_D2C_PT  #() (
     always @(posedge mux_if.lclk or negedge mux_if.rst_n) begin
         if (!mux_if.rst_n) begin
             current_state  <= RX_PT_IDLE;
-            previous_state <= RX_PT_IDLE;
         end else begin
             current_state  <= next_state;
-            previous_state <= current_state; // We use signal to avoid data incoherence when sending SB messages. It is set to 1 for 1 lclk cycle whenever the state changes, which is when the SB Msg data is updated with new values.
         end
     end
 
     // Next State Logic of the FSM:
     always @(*) begin
-        if(substate_if.substate_timeout_8ms_occured | (mux_if.rx_sb_msg == TRAINERROR_Entry_req && mux_if.rx_sb_msg_valid == 1'b1)) begin
-            // (S11)
-            next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
-        end
-        else if(!substate_if.rx_pt_en) begin
+        if(!substate_if.rx_pt_en) begin
             next_state = RX_PT_IDLE;
         end
         else begin
@@ -157,12 +134,8 @@ module unit_RX_D2C_PT  #() (
                 RX_PT_DONE: begin
                     next_state = (substate_if.rx_pt_en)? RX_PT_DONE : RX_PT_IDLE; // Stay here for 1 lclk cycle.
                 end
-                // (S11) TRAINERROR state:
-                TO_TRAINERROR: begin
-                    next_state = (substate_if.rx_pt_en)? TO_TRAINERROR : RX_PT_IDLE; // Stay here for 1 lclk cycle.
-                end
                 default: begin
-                    next_state =  (substate_if.rx_pt_en)? TO_TRAINERROR : RX_PT_IDLE; // Default case to avoid latches in synthesis.
+                    next_state =  (substate_if.rx_pt_en)? current_state : RX_PT_IDLE; // Default case to avoid latches in synthesis.
                 end
             endcase
         end
@@ -192,7 +165,6 @@ module unit_RX_D2C_PT  #() (
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Clock Sampling Details Group:
         mux_if.mb_tx_clk_sampling_en = 0; // Enable changing Clock sampling/PI phase control state.
-        substate_if.d2c_timeout_or_error = 0; // It will be set to 1 if timeout or error occurs during the test to move to TRAINERROR state.
 
         // Tx Pattern Generator Setup Group:
         mux_if.mb_tx_pattern_setup    = substate_if.d2c_pattern_setup;// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -236,7 +208,7 @@ module unit_RX_D2C_PT  #() (
             // (S1) Send & Receive SB Message: {Start Rx Init D to C point test req}
             RX_PT_START_REQ: begin
                 // For Req MSG sent: (We send these information for inform perpose only).
-                mux_if.tx_sb_msg_valid      = (~data_incoherence); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
+                mux_if.tx_sb_msg_valid      = (data_valid_pulse); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
                 mux_if.tx_sb_msg            = Start_Rx_Init_D_to_C_point_test_req;
                 mux_if.tx_msginfo           = (substate_if.d2c_compare_setup == 1)? {mux_if.cfg_train4_max_err_thresh_aggr}         :    // Send aggregate comparison mode,
                     (substate_if.d2c_compare_setup == 0)? {4'b0, mux_if.cfg_train4_max_err_thresh_perlane}: 0; // Send Per-lane comparison mode, otherwise 0.
@@ -266,7 +238,7 @@ module unit_RX_D2C_PT  #() (
             // (S2) Send & Receive SB Message: {Start Rx Init D to C point test resp}.
             RX_PT_START_RESP: begin
                 // For Resp MSG sent: (We send these information for inform perpose only).
-                mux_if.tx_sb_msg_valid     = (~data_incoherence); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse); // Assert valid only when data incoherence flag is cleared, to avoid sending incorrect messages.
                 mux_if.tx_sb_msg           = Start_Rx_Init_D_to_C_point_test_resp;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // Reserved.
@@ -277,7 +249,7 @@ module unit_RX_D2C_PT  #() (
             end
             // (S3) Send & Receive SB Message: {LFSR clear error req}.
             RX_PT_CLR_ERR_REQ: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = LFSR_clear_error_req;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
@@ -289,7 +261,7 @@ module unit_RX_D2C_PT  #() (
             end
             // (S4) Send & Receive SB Message: {LFSR clear error resp}.
             RX_PT_CLR_ERR_RESP: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = LFSR_clear_error_resp;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
@@ -321,7 +293,7 @@ module unit_RX_D2C_PT  #() (
             end
             // (S6) Send & Receive SB Message {Rx Init D to C Tx count done req}.
             RX_PT_COUNT_DONE_REQ: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = Rx_Init_D_to_C_Tx_Count_Done_req;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
@@ -333,7 +305,7 @@ module unit_RX_D2C_PT  #() (
             end
             // (S7) Send & Receive SB Message: {Rx Init D to C Tx count done resp}.
             RX_PT_COUNT_DONE_RESP: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = Rx_Init_D_to_C_Tx_Count_Done_resp;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
@@ -346,14 +318,14 @@ module unit_RX_D2C_PT  #() (
             end
             // (S8) Send & Receive SB Message: {End Rx Init D to C point test req}.
             RX_PT_END_REQ: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = End_Rx_Init_D_to_C_point_test_req;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
             end
             // (S9) Send & Receive SB Message: {End Rx Init D to C point test resp}.
             RX_PT_END_RESP: begin
-                mux_if.tx_sb_msg_valid     = (~data_incoherence);
+                mux_if.tx_sb_msg_valid     = (data_valid_pulse);
                 mux_if.tx_sb_msg           = End_Rx_Init_D_to_C_point_test_resp;
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
@@ -365,11 +337,6 @@ module unit_RX_D2C_PT  #() (
                 mux_if.tx_msginfo          = 16'b0;
                 mux_if.tx_data_field[63:0] = 64'b0; // No payload.
                 substate_if.test_d2c_done      = 1'b1 ; // Assert the test done signal to tell the external Sub-state the completion of the test.
-            end
-            // (S11) TRAINERROR state:
-            TO_TRAINERROR: begin
-                substate_if.test_d2c_done = 0;
-                substate_if.d2c_timeout_or_error = 1; // Set the timeout or error signal to tell the external Sub-state to move to TRAINERROR state.
             end
             default: begin
                 // Do nothing. Just to avoid latches in synthesis.

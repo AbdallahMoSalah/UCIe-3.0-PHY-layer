@@ -173,12 +173,10 @@ interface internal_ltsm_if #(
     // Control Signals For (Rx init D to C point test) //
     // Control Signals For (Tx init D to C point test) //
     //=================================================//
-    logic substate_timeout_8ms_occured;
     logic        rx_pt_en;
     logic        tx_pt_en;
     logic        test_d2c_done;
     logic [1:0]  d2c_clk_sampling    ;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-    logic        d2c_timeout_or_error; // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
 
     //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
     // Received Tx Pattern Generator Setup Group:
@@ -200,7 +198,6 @@ interface internal_ltsm_if #(
     logic        d2c_val_err      ; // The error coming from Valid Lane receiver in MB.
     logic        d2c_clk_err      ; // The error coming from Clock Lane receiver in MB.
     logic        partner_valtraincenter_fail_flag ; // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
-    logic        partner_datatraincenter_fail_flag; // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
 
     //=====================================//
     // Sideband Control Signals:           //
@@ -747,15 +744,15 @@ interface internal_ltsm_if #(
     // It's LTSM sub-states prespective (Not the test FSM prespective).
     modport substate2d2c_mp(
         // timeout handling.
-        output substate_timeout_8ms_occured,
+        // output substate_timeout_8ms_occured,
 
         output rx_pt_en           , // To enable Rx init Data to Clock Point Test
         output tx_pt_en           , // To enable Tx init Data to Clock Point Test
         input  test_d2c_done      , // To identecate the enabled test (Rx/Tx init Data)
 
         // Clock sampling.
-        output d2c_clk_sampling    ,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-        input  d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+        output d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        // input  d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
 
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
@@ -776,14 +773,13 @@ interface internal_ltsm_if #(
         input  d2c_perlane_err     , // The Per-Lane Errors (Each bit represents one fail Data Lane).
         input  d2c_val_err         , // The error coming from Valid Lane receiver in MB.
         input  d2c_clk_err         , // The error coming from Clock Lane receiver in MB.
-        input  partner_valtraincenter_fail_flag , // Pass/fail of the partner Tx Valid lane (from RX D2C test FSM).
-        input  partner_datatraincenter_fail_flag  // Pass/fail of the partner Tx Data lanes (from TX D2C test FSM).
+        input  partner_valtraincenter_fail_flag   // Pass/fail of the partner Tx Valid lane (from RX D2C test FSM).
     );
 
     // It's the test (Rx/Tx D-to-C point test FSM) prespective (Not the main LTSM states prespective)
     modport d2c2substate_mp(
         // timeout handling.
-        input  substate_timeout_8ms_occured,
+        // input  substate_timeout_8ms_occured,
 
         input  rx_pt_en,
         input  tx_pt_en,
@@ -791,7 +787,7 @@ interface internal_ltsm_if #(
 
         // Clock sampling.
         input  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-        output d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+        // output d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
 
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
@@ -812,14 +808,104 @@ interface internal_ltsm_if #(
         output  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
         output  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
         output  d2c_clk_err      , // The error coming from Clock Lane receiver in MB.
-        output  partner_valtraincenter_fail_flag , // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
-        output  partner_datatraincenter_fail_flag  // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
+        output  partner_valtraincenter_fail_flag   // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
+        // output  partner_datatraincenter_fail_flag  // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
         // output  d2c_partner_tx_fail_flag           // Driven by TX D2C PT FSM: overall pass/fail of the partner Tx side based on active compare mode.
     );
 
+    //  >======<  /////////////////////////////////////////////////////  >======<  //
+    //  >======<  //=================================================//  >======<  //
+    //  >======<  // Control Signals For (Rx init D to C point test) //  >======<  //
+    //  >======<  //=================================================//  >======<  //
+    //  >======<  /////////////////////////////////////////////////////  >======<  //
+
+    // It's the test (Rx D-to-C point test FSM) prespective (Not the main LTSM states prespective)
+    modport rx_d2c2substate_mp(
+        // timeout handling.
+        // input  substate_timeout_8ms_occured,
+
+        input  rx_pt_en,
+        input  tx_pt_en,
+        output test_d2c_done,
+
+        // Clock sampling.
+        input  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        // output d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+        // Received Tx Pattern Generator Setup Group:
+        input  d2c_lfsr_en         , // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
+        input  d2c_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        input  d2c_data_pattern_sel, // Data pattern used during training: LFSR, ID, or all 0.
+        input  d2c_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+
+        // Received Tx Pattern Mode Setup Group:
+        input  d2c_pattern_mode, // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        input  d2c_burst_count , // Burst Count: Indicates the duration of selected pattern (UI count).
+        input  d2c_idle_count  , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        input  d2c_iter_count  , // Iteration Count: Indicates the iteration count of bursts followed by idle.
+
+        // Received Receiver Comparison Setup & Errors
+        input   d2c_compare_setup, // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+        output  d2c_aggr_err     , // The total calculated Aggregate Errors on Rx.
+        output  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
+        output  d2c_clk_err        // The error coming from Clock Lane receiver in MB.
+        // output  partner_valtraincenter_fail_flag , // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
+        // output  partner_datatraincenter_fail_flag  // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
+        // output  d2c_partner_tx_fail_flag           // Driven by TX D2C PT FSM: overall pass/fail of the partner Tx side based on active compare mode.
+    );
+
+    //  >======<  /////////////////////////////////////////////////////  >======<  //
+    //  >======<  //=================================================//  >======<  //
+    //  >======<  // Control Signals For (Tx init D to C point test) //  >======<  //
+    //  >======<  //=================================================//  >======<  //
+    //  >======<  /////////////////////////////////////////////////////  >======<  //
+
+    // It's the test (Tx D-to-C point test FSM) prespective (Not the main LTSM states prespective)
+    modport tx_d2c2substate_mp(
+        // timeout handling.
+        // input  substate_timeout_8ms_occured,
+
+        input  rx_pt_en,
+        input  tx_pt_en,
+        output test_d2c_done,
+
+        // Clock sampling.
+        input  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        // output d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
+
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+        // Received Tx Pattern Generator Setup Group:
+        input  d2c_lfsr_en         , // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
+        input  d2c_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        input  d2c_data_pattern_sel, // Data pattern used during training: LFSR, ID, or all 0.
+        input  d2c_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
+
+        // Received Tx Pattern Mode Setup Group:
+        input  d2c_pattern_mode, // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        input  d2c_burst_count , // Burst Count: Indicates the duration of selected pattern (UI count).
+        input  d2c_idle_count  , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        input  d2c_iter_count  , // Iteration Count: Indicates the iteration count of bursts followed by idle.
+
+        // Received Receiver Comparison Setup & Errors
+        input   d2c_compare_setup, // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
+        output  d2c_aggr_err     , // The total calculated Aggregate Errors on Rx.
+        output  d2c_perlane_err  , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output  d2c_val_err      , // The error coming from Valid Lane receiver in MB.
+        output  d2c_clk_err      , // The error coming from Clock Lane receiver in MB.
+        output  partner_valtraincenter_fail_flag      // From our UCIe die Rx. It represents the fail flags of the partner Tx Valid lane.
+        // output  partner_datatraincenter_fail_flag  // From our UCIe die Rx. It represents the fail flags of the partner Tx Data lanes.
+        // output  d2c_partner_tx_fail_flag           // Driven by TX D2C PT FSM: overall pass/fail of the partner Tx side based on active compare mode.
+    );
+
+    modport current_ltsm_state_mp(input current_ltsm_state);
+
+
     //=======================================================================================//
     // Control Signals from the D2C to the MUX direction: (D2C prespective)                  //
-    // D2C -> MUX                                                                            //
+    // D2C -> MUX (This MUX here means: The MUX that collects all signals from all states to //
+    //             export them to the SB, MB, and RF)                                        //
     //=======================================================================================//
     modport d2c2mux_mp (
         //=====================================//
@@ -906,6 +992,91 @@ interface internal_ltsm_if #(
         input  cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
     );
 
+
+
+    //=======================================================================================//
+    // Control Signals from the MUX to the D2C direction: (MUX (or MB/SB) prespective)                  //
+    // MUX -> D2C                                                                            //
+    //=======================================================================================//
+    modport mux2d2c_mp (
+        //=====================================//
+        // Control Signals for MB:             //
+        //=====================================//
+        //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
+        // Clock Sampling and Shapes Details Group:
+        input mb_tx_clk_sampling_en   , // Enable changing Clock sampling/PI phase control state.
+        input mb_tx_clk_sampling      , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+
+        // Tx Pattern Generator Setup Group:
+        input mb_tx_pattern_en        , // 1: Send pattern immediately, 0: Don't send pattern.
+        input mb_tx_pattern_setup     , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        input mb_tx_data_pattern_sel  , // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+        input mb_tx_val_pattern_sel   , // 0: VALTRAIN pattern, 1: Held Low.
+        input mb_tx_lfsr_en           , // 1: Enable the Tx LFSR, 0: Disable the Tx LFSR.
+        input mb_tx_lfsr_rst          , // 1: Reset the Tx LFSR, 0: Keep the Tx LFSR ready.
+        input mb_rx_lfsr_en           , // 1: Enable the Rx LFSR, 0: Disable the Rx LFSR.
+        input mb_rx_lfsr_rst          , // 1: Reset the Rx LFSR, 0: Keep the Rx LFSR ready.
+
+        // Tx Pattern Mode Setup Group:
+        input mb_tx_pattern_mode      , // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        input mb_tx_burst_count       , // Burst Count: Indicates the duration of selected pattern (UI count).
+        input mb_tx_idle_count        , // IDLE Count: Indicates the duration of low following the burst (UI count).
+        input mb_tx_iter_count        , // Iterations: Indicates the iteration count of bursts followed by idle.
+        output  mb_tx_pattern_count_done, // Asserted (=1) once MB completes the iter_count.
+
+        // Receiver Comparison Setup & Errors
+        input mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
+        input mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
+        input mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
+        input mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+        output  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
+        output  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        output  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
+        output  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
+
+        //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
+        // MB Lane Control
+        // input mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes).
+        // input mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes).
+        // input mb_mapper_en        , // 0: Disable the mapper, 1: Enable the mapper.
+
+        // Lane Behavior Control
+        input mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        input mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        input mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        input mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        input mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        input mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        input mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        input mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+
+
+
+        //=====================================//
+        // Control Signals for SB:             //
+        //=====================================//
+        // For SB TX:
+        input tx_sb_msg_valid, // Tell the SB that the selected message is valid.
+        input tx_sb_msg      , // Tell the Sideband the message that it should to send.
+        input tx_msginfo     , // MsgInfo field of the SB message.
+        input tx_data_field  , // Data field of the SB message.
+
+        // For SB RX:
+        output rx_sb_msg_valid, // Indicates that the sideband message is valid.  This msg is an output of PULSE_GEN module to set it high for 1 lclk cycle.
+        output rx_sb_msg      , // Get the Received SB msg.
+        output rx_msginfo     , // MsgInfo field of the SB message received.
+        output rx_data_field  , // Data field of the SB message.
+
+
+        //=====================================//
+        // Register File (RF) Control Signals: //
+        //=====================================//
+        // Training Setup 4 (Offset 1050h)
+        // Note: 'Repair Lane mask' (Bits 3:0) is omitted as it only applies to Advanced Package.
+        output cfg_train4_max_err_thresh_perlane, // Max error Threshold in per-Lane comparison for error counting.
+        output cfg_train4_max_err_thresh_aggr     // Max error Threshold in aggregate comparison for error counting.
+    );
 
 
     //____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________//
@@ -1474,12 +1645,12 @@ interface internal_ltsm_if #(
         input  datatraincenter1_fail_flag, // Used in accumulative_error for EQ preset selection.
         input  valtraincenter_fail_flag  , // Used in accumulative_error and speed-degrade exit.
         input  partner_valtraincenter_fail_flag , // Used to determine to know if partner needs to exit as fast as possible.
-        input  partner_datatraincenter_fail_flag, // Used to determine to know if partner needs a new Tx EQ Preset.
+        // input  partner_datatraincenter_fail_flag, // Used to determine to know if partner needs a new Tx EQ Preset.
         output trainerror_req,
         // Re-entry signal: when TO_DTC1 fires, this tells controller to re-enable RXDESKEW
         // after DTC1 completes (loop counter is not reset on IDLE2 entry).
         output datatraincenter1_req, // Request DATATRAINCENTER1 re-entry from RXDESKEW.
-        input  current_ltsm_state,   // To know if the current unit_LTSM_ctrl state = RESET or not.
+        input  current_ltsm_state  , // To know if the current unit_LTSM_ctrl state = RESET or not.
         input  mb_rx_data_lane_mask, // To know the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
         // ======================= //
