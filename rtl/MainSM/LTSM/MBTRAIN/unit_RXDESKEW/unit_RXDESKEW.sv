@@ -5,7 +5,7 @@
 //   - UCIe-3.0 specification §4.5.3.4.10 MBTRAIN.RXDESKEW.
 //   - These part is Implemention spesific so, the next TODOs don't have high periority right now...
 // TODO: don't forget to do the next TODO tasks descussed below:
-//       1. what is the next_state when we are receiving RX_D2C_PT messages 
+//       1. what is the next_state when we are receiving RX_D2C_PT messages
 //          (or receiving {MBTRAIN.RXDESKEW EQ Preset req}  (MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req)
 //          when the current_state = RXDESKEW_EXIT_TO_DTC1_REQ_RESP)
 //       2. The logic that tells unit_RX_D2C_PT: "you are enabled to responce on the received msg".
@@ -35,7 +35,7 @@ module unit_RXDESKEW #(
     import UCIe_pkg::TRAINERROR_Entry_req                                                    ;
     import UCIe_pkg::NOTHING                                                                 ;
 
-    localparam [4:0]
+    localparam [3:0]
     RXDESKEW_IDLE                  = 4'd0 , // S0:  Wait for rxdeskew_en.
     RXDESKEW_START_REQ_RESP        = 4'd1 , // S1:  MBTRAIN.RXDESKEW start req/resp.
     RXDESKEW_CHOOSE_PRESET         = 4'd2 , // S2:  (HS) Select next Tx EQ preset.
@@ -165,12 +165,12 @@ module unit_RXDESKEW #(
                         if (is_high_speed) begin
                             if (min_sweep_range > (MIN_DESIRED_SWEEP_RANGE - 1'b1)) begin
                                 next_state = RXDESKEW_END_REQ_RESP;
-                            end else if ((preset_search_cnt != 3'd6) ||
+                            end else if ((preset_search_cnt != 3'd6 && preset_search_cnt != 3'd5) ||
                                     (preset_search_cnt == 3'd5 && best_preset_saved != partner_preset)) begin
                                 next_state = RXDESKEW_CHOOSE_PRESET;
                             end else if (dtc1_arc_cnt != MAX_ARC_LIMIT) begin
                                 next_state = (best_preset_saved == old_preset_saved) ?
-                                             RXDESKEW_END_REQ_RESP : RXDESKEW_EXIT_TO_DTC1_REQ_RESP;
+                                    RXDESKEW_END_REQ_RESP : RXDESKEW_EXIT_TO_DTC1_REQ_RESP;
                             end else begin
                                 next_state = RXDESKEW_END_REQ_RESP;
                             end
@@ -355,7 +355,7 @@ module unit_RXDESKEW #(
                     next_state == RXDESKEW_CHOOSE_PRESET) begin
                 preset_search_cnt <= preset_search_cnt + 1'b1;
             end
-            
+
             // Increment fine-tuning arc count when transitioning into ARC_COUNT.
             if (next_state == RXDESKEW_ARC_COUNT) begin
                 dtc1_arc_cnt <= dtc1_arc_cnt + 1'b1;
@@ -537,7 +537,7 @@ module unit_RXDESKEW #(
                     current_state == RXDESKEW_PRESET_REQ_RESP       ||
                     current_state == RXDESKEW_EXIT_TO_DTC1_REQ_RESP ||
                     current_state == RXDESKEW_END_REQ_RESP          ) begin
-                    send_sb_msg [1] <= send_sb_msg [0];
+                send_sb_msg [1] <= send_sb_msg [0];
             end
 
             if(rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_start_req && rxdeskew_if.rx_sb_msg_valid)begin
@@ -575,7 +575,7 @@ module unit_RXDESKEW #(
                     if (min_sweep_range > (MIN_DESIRED_SWEEP_RANGE - 1'b1)) begin
                         send_sb_msg[0] <= END_REQ;
                     end
-                    else if ((preset_search_cnt != 3'd6) ||
+                    else if ((preset_search_cnt != 3'd6 && preset_search_cnt != 3'd5) ||
                             (preset_search_cnt == 3'd5 && best_preset_saved != partner_preset)) begin
                         send_sb_msg[0] <= PRESET_REQ;
                         partner_preset <= (preset_search_cnt == 3'd5) ? best_preset_saved : partner_preset + 1'b1;

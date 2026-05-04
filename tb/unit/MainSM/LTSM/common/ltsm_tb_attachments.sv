@@ -265,7 +265,7 @@ module ltsm_tb_attachments #(
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        .substate_if(to_rx_d2c_if.d2c2substate_mp),
+        .substate_if(to_rx_d2c_if.rx_d2c2substate_mp),
 
         //=====================================//
         // Control Signals for the MB and SB:  //
@@ -277,7 +277,7 @@ module ltsm_tb_attachments #(
         //=====================================//
         // Control Signals for Sub-states:     //
         //=====================================//
-        .substate_if(to_tx_d2c_if.d2c2substate_mp),
+        .substate_if(to_tx_d2c_if.tx_d2c2substate_mp),
 
         //=====================================//
         // Control Signals for the MB and SB:  //
@@ -294,54 +294,29 @@ module ltsm_tb_attachments #(
     //   ====================================================================================================   //
     always @(*) begin
         case({intf.tx_pt_en, intf.rx_pt_en})
-            2'b00, // we will consider here that our Main module (That we want to test in the testbench) is connected to the RX_D2C_PT module as default till we get the choice {intf.tx_pt_en, intf.rx_pt_en} = 2'b10;
+            2'b00,
             2'b11,
             2'b01: begin
                 intf.test_d2c_done        = to_rx_d2c_if.test_d2c_done;
-                // output  timeout_8ms_occured,
-
-                // Clock sampling.
-                // output  d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-                intf.d2c_timeout_or_error = to_rx_d2c_if.d2c_timeout_or_error; // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
-
-                //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
-                // Received Tx Pattern Generator Setup Group:
-                // output  d2c_lfsr_en         , // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
-                // output  d2c_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
-                // output  d2c_data_pattern_sel, // Data pattern used during training: LFSR, ID, or all 0.
-                // output  d2c_val_pattern_sel , // 0: VALTRAIN pattern, 1: Held Low.
-
-                // Received Tx Pattern Mode Setup Group:
-                // output  d2c_pattern_mode, // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
-                // output  d2c_burst_count , // Burst Count: Indicates the duration of selected pattern (UI count).
-                // output  d2c_idle_count  , // IDLE Count: Indicates the duration of low following the burst (UI count).
-                // output  d2c_iter_count  , // Iteration Count: Indicates the iteration count of bursts followed by idle.
-
-                // Received Receiver Comparison Setup & Errors
-                // output   d2c_compare_setup, // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
-                intf.d2c_aggr_err    = to_rx_d2c_if.d2c_aggr_err   ; // The total calculated Aggregate Errors on Rx.
-                intf.d2c_perlane_err = to_rx_d2c_if.d2c_perlane_err; // The Per-Lane Errors (Each bit represents one fail Data Lane).
-                intf.d2c_val_err     = to_rx_d2c_if.d2c_val_err    ; // The error coming from Valid Lane receiver in MB.
-                intf.d2c_clk_err     = to_rx_d2c_if.d2c_clk_err    ; // The error coming from Clock Lane receiver in MB.
+                intf.d2c_aggr_err    = to_rx_d2c_if.d2c_aggr_err   ;
+                intf.d2c_perlane_err = to_rx_d2c_if.d2c_perlane_err;
+                intf.d2c_val_err     = to_rx_d2c_if.d2c_val_err    ;
+                intf.d2c_clk_err     = to_rx_d2c_if.d2c_clk_err    ;
                 intf.partner_valtraincenter_fail_flag  = to_tx_d2c_if.partner_valtraincenter_fail_flag ;
-                intf.partner_datatraincenter_fail_flag = to_tx_d2c_if.partner_datatraincenter_fail_flag;
-
             end
             2'b10: begin // for TX_D2C_PT
                 intf.test_d2c_done        = to_tx_d2c_if.test_d2c_done       ;
-                intf.d2c_timeout_or_error = to_tx_d2c_if.d2c_timeout_or_error; // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
-                intf.d2c_aggr_err         = to_tx_d2c_if.d2c_aggr_err        ; // The total calculated Aggregate Errors on Rx.
-                intf.d2c_perlane_err      = to_tx_d2c_if.d2c_perlane_err     ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
-                intf.d2c_val_err          = to_tx_d2c_if.d2c_val_err         ; // The error coming from Valid Lane receiver in MB.
-                intf.d2c_clk_err          = to_tx_d2c_if.d2c_clk_err         ; // The error coming from Clock Lane receiver in MB.
+                intf.d2c_aggr_err         = to_tx_d2c_if.d2c_aggr_err        ;
+                intf.d2c_perlane_err      = to_tx_d2c_if.d2c_perlane_err     ;
+                intf.d2c_val_err          = to_tx_d2c_if.d2c_val_err         ;
+                intf.d2c_clk_err          = to_tx_d2c_if.d2c_clk_err         ;
                 intf.partner_valtraincenter_fail_flag  = to_tx_d2c_if.partner_valtraincenter_fail_flag ;
-                intf.partner_datatraincenter_fail_flag = to_tx_d2c_if.partner_datatraincenter_fail_flag;
             end
         endcase
-        to_rx_d2c_if.rx_pt_en                     = intf.rx_pt_en                    ;
-        to_rx_d2c_if.tx_pt_en                     = intf.tx_pt_en                    ;
-        to_rx_d2c_if.substate_timeout_8ms_occured = intf.substate_timeout_8ms_occured;
-        to_rx_d2c_if.d2c_clk_sampling             = intf.d2c_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        to_rx_d2c_if.rx_pt_en          = intf.rx_pt_en          ;
+        to_rx_d2c_if.tx_pt_en          = intf.tx_pt_en          ;
+        // substate_timeout_8ms_occured removed from modport
+        to_rx_d2c_if.d2c_clk_sampling  = intf.d2c_clk_sampling  ;
         to_rx_d2c_if.d2c_lfsr_en                  = intf.d2c_lfsr_en                 ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
         to_rx_d2c_if.d2c_pattern_setup            = intf.d2c_pattern_setup           ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         to_rx_d2c_if.d2c_data_pattern_sel         = intf.d2c_data_pattern_sel        ; // Data pattern used during training: LFSR, ID, or all 0.
@@ -352,10 +327,10 @@ module ltsm_tb_attachments #(
         to_rx_d2c_if.d2c_iter_count               = intf.d2c_iter_count              ; // Iteration Count: Indicates the iteration count of bursts followed by idle.
         to_rx_d2c_if.d2c_compare_setup            = intf.d2c_compare_setup           ; // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
 
-        to_tx_d2c_if.rx_pt_en                     = intf.rx_pt_en                    ;
-        to_tx_d2c_if.tx_pt_en                     = intf.tx_pt_en                    ;
-        to_tx_d2c_if.substate_timeout_8ms_occured = intf.substate_timeout_8ms_occured;
-        to_tx_d2c_if.d2c_clk_sampling             = intf.d2c_clk_sampling            ; // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+        to_tx_d2c_if.rx_pt_en          = intf.rx_pt_en          ;
+        to_tx_d2c_if.tx_pt_en          = intf.tx_pt_en          ;
+        // substate_timeout_8ms_occured removed from modport
+        to_tx_d2c_if.d2c_clk_sampling  = intf.d2c_clk_sampling  ;
         to_tx_d2c_if.d2c_lfsr_en                  = intf.d2c_lfsr_en                 ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
         to_tx_d2c_if.d2c_pattern_setup            = intf.d2c_pattern_setup           ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         to_tx_d2c_if.d2c_data_pattern_sel         = intf.d2c_data_pattern_sel        ; // Data pattern used during training: LFSR, ID, or all 0.
