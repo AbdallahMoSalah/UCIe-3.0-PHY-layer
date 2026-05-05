@@ -20,7 +20,7 @@ module LFSR_TX #(
     // 16 output data lanes (indexed 0-15)
     // -------------------------------------------------------------------------
     output logic  [WIDTH-1:0] o_lane [0:15],
-
+    output logic  o_ser_en_lfsr,
     output logic  o_Lfsr_tx_done,   // Pulses high when current LFSR/ID phase completes
     output logic  o_valid_frame_en    // High while frames are actively being transmitted
 );
@@ -273,6 +273,7 @@ module LFSR_TX #(
             counter_lfsr         <= 0;
             counter_per_lane     <= 0;
             o_Lfsr_tx_done       <= 0;
+            o_ser_en_lfsr       <= 0;
             o_valid_frame_en       <= 0;
             lane_reversal_enabled <= 0;
 
@@ -299,6 +300,7 @@ module LFSR_TX #(
                 // ==============================================================
                 IDLE: begin
                     counter_lfsr     <= 0;
+                    o_ser_en_lfsr       <= 0;
                     counter_per_lane <= 0;
                     o_valid_frame_en   <= 0;
 
@@ -331,10 +333,12 @@ module LFSR_TX #(
                     if (counter_lfsr == COUNT_LFSR) begin
                         // Phase complete
                         counter_lfsr   <= 0;
+                        o_ser_en_lfsr <= 0;
                         o_Lfsr_tx_done <= 1;
                         o_valid_frame_en <= 0;
                     end else begin
                         // Drive the appropriate lane group with LFSR data
+                        o_ser_en_lfsr <= 1;
                         o_valid_frame_en <= 1;
                         o_Lfsr_tx_done <= 0;
                         counter_lfsr   <= counter_lfsr + 1;
@@ -402,9 +406,11 @@ module LFSR_TX #(
                 PER_LANE_IDE: begin
                     if (counter_per_lane == COUNT_PER_LANE) begin
                         counter_per_lane <= 0;
+                        o_ser_en_lfsr <= 0;
                         o_Lfsr_tx_done   <= 1;
                         o_valid_frame_en   <= 0;
                     end else begin
+                        o_ser_en_lfsr <= 1;
                         o_valid_frame_en   <= 1;
                         o_Lfsr_tx_done   <= 0;
                         counter_per_lane <= counter_per_lane + 1;
@@ -476,6 +482,7 @@ module LFSR_TX #(
                     if (i_scramble_en) begin
                         // Scrambling enabled: XOR input data with LFSR stream
                         o_valid_frame_en <= 1;
+                        o_ser_en_lfsr <= 1;
 
                         case (i_width_deg_lfsr)
 
@@ -535,6 +542,7 @@ module LFSR_TX #(
                     end else begin
                         // Scrambling disabled — no frame output
                         o_valid_frame_en <= 0;
+                        o_ser_en_lfsr <= 0;
                     end
                 end
 
