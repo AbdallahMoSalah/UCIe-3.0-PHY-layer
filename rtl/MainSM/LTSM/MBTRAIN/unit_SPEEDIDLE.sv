@@ -19,7 +19,7 @@ module unit_SPEEDIDLE #() (
     reg [3:0] current_state, next_state;
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_msg_valid = (current_state == next_state);
     reg [2:0] internal_phy_negotiated_speed; // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 2h: 12 GT/s; ... ; or 7h: 64 GT/s)
     assign speedidle_if.phy_negotiated_speed = internal_phy_negotiated_speed; // connect the internal wire to the interface.
     // Condition to check if speed degrade is not possible because we are already at minimum speed (4 GT/s)
@@ -27,7 +27,7 @@ module unit_SPEEDIDLE #() (
         speedidle_if.state_n[1] == ltsm_state_n_pkg::LOG_PHYRETRAIN) &&
         (internal_phy_negotiated_speed == 3'b000);
     // Current State Logic & Speed memory handling
-    always @(posedge speedidle_if.lclk or negedge speedidle_if.rst_n) begin
+    always_ff @(posedge speedidle_if.lclk or negedge speedidle_if.rst_n) begin
         if (!speedidle_if.rst_n) begin
             current_state  <= SPEEDIDLE_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
@@ -50,7 +50,7 @@ module unit_SPEEDIDLE #() (
         end
     end
     // Next State Logic of the FSM:
-    always @(*) begin
+    always_comb begin
         if(speedidle_if.timeout_8ms_occured | (speedidle_if.rx_sb_msg == TRAINERROR_Entry_req && speedidle_if.rx_sb_msg_valid == 1'b1)) begin
             // (S6)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
@@ -98,7 +98,7 @@ module unit_SPEEDIDLE #() (
         end
     end
     // Output logic based on current state:
-    always @(*) begin
+    always_comb begin
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
@@ -149,12 +149,12 @@ module unit_SPEEDIDLE #() (
             end
             // (S3) Send & Receive SB Message: {MBTRAIN.SPEEDIDLE done req}
             SPEEDIDLE_DONE_REQ: begin
-                speedidle_if.tx_sb_msg_valid = (!data_incoherence);           // Tell the SB that the selected message is valid.
+                speedidle_if.tx_sb_msg_valid = (is_tx_sb_msg_valid);           // Tell the SB that the selected message is valid.
                 speedidle_if.tx_sb_msg       = MBTRAIN_SPEEDIDLE_done_req;    // Tell the Sideband the message that it should to send.
             end
             // (S4) Send & Receive SB Message: {MBTRAIN.SPEEDIDLE done resp}.
             SPEEDIDLE_DONE_RESP: begin
-                speedidle_if.tx_sb_msg_valid = (!data_incoherence);           // Tell the SB that the selected message is valid.
+                speedidle_if.tx_sb_msg_valid = (is_tx_sb_msg_valid);           // Tell the SB that the selected message is valid.
                 speedidle_if.tx_sb_msg       = MBTRAIN_SPEEDIDLE_done_resp;   // Tell the Sideband the message that it should to send.
             end
             // (S5) End of SPEEDIDLE state, transition to TXSELFCAL via asserting speedidle_done.

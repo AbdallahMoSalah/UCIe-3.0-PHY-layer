@@ -103,7 +103,7 @@ module unit_LINKSPEED (
     // =========================================================================
     // (Block 1) Sequential: state register
     // =========================================================================
-    always @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
+    always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n)
             current_state <= LINKSPEED_IDLE;
         else
@@ -113,7 +113,8 @@ module unit_LINKSPEED (
     // =========================================================================
     // (Block 2) Combinational: next-state logic
     // =========================================================================
-    always @(*) begin
+    always_comb begin
+        next_state = LINKSPEED_IDLE;
         // ── Global overrides (fatal conditions) ─────────────────────────────
         if ( ls_if.timeout_8ms_occured || (ls_if.rx_sb_msg == TRAINERROR_Entry_req && ls_if.rx_sb_msg_valid) ) begin
             next_state = TO_TRAINERROR;
@@ -227,7 +228,7 @@ module unit_LINKSPEED (
     // =========================================================================
     // (Block 3) Combinational: output logic
     // =========================================================================
-    always @(*) begin
+    always_comb begin
         // ── LTSM handshake defaults ──────────────────────────────────────────
         ls_if.linkspeed_done     = 1'b0;
         ls_if.trainerror_req     = 1'b0;
@@ -427,8 +428,23 @@ module unit_LINKSPEED (
     logic [15:0] negotiated_data_lanes;
     logic [15:0] active_lanes;
     assign active_lanes = negotiated_data_lanes & (~d2c_if.d2c_perlane_err); // All the lanes that passed the D2C test.
-    assign ls_if.linkspeed_success_lanes = active_lanes;
-    always @(*) begin
+
+    // We have to register the signal 'linkspeed_success_lanes'.
+    // Because it's used in external modules.
+    // and it changes only at the end of the LINKSPEED_TX_D2C_PT state.
+    // so we need to register it to make it stable for the external modules.
+    always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
+        if (!ls_if.rst_n) begin
+            ls_if.linkspeed_success_lanes <= 16'b0;
+        end else begin
+            if(current_state == LINKSPEED_TX_D2C_PT && d2c_if.test_d2c_done) begin
+                ls_if.linkspeed_success_lanes <= active_lanes;
+            end
+        end
+    end
+
+
+    always_comb begin
         case(ls_if.mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
             3'b001:  negotiated_data_lanes = 16'h00FF;
@@ -443,7 +459,7 @@ module unit_LINKSPEED (
     // =========================================================================
     // (Block 4) Sequential: data-path — D2C result evaluation
     // =========================================================================
-    always @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
+    always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
             d2c_fail_r          <= 1'b0;
             req_speed_degrade_r <= 1'b0;
@@ -581,7 +597,7 @@ module unit_LINKSPEED (
     //
     //  All other REQ states use normal echo-wait (dont_wait_req stays 0).
     // =========================================================================
-    always @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
+    always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
             dont_wait_req <= 1'b0;
         end else begin
@@ -676,6 +692,10 @@ module unit_LINKSPEED (
         end
     end
 
+    // TODO: Sence we are using Asynchronous FIFO between LTSM and SB, there won't be a small gap.
+    //       All gaps will be very wide because the LTSM clock is so, fast (ex: 1GHz) while the SB
+    //       clock is slower (ex: 100MHz). So we don't need the timer, (I think also,) we don't need the buffer.
+    //       update this block....
     // =========================================================================
     // (Block 6) Sequential: SB separation timer + rx-message buffer
     //
@@ -693,7 +713,7 @@ module unit_LINKSPEED (
     logic              rx_sb_msg_valid_r;
     UCIe_pkg::msg_no_e rx_sb_msg_r      ;
 
-    always @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
+    always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
             tx_sb_msg_valid_r <= 1'b0;
             send_timer        <= '0  ;

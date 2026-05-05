@@ -57,11 +57,11 @@ module unit_VALTRAINVREF #(
     reg [3:0] current_state, next_state;
     // Asserted for one lclk cycle whenever the state changes; gates tx_sb_msg_valid
     // to prevent sending a stale message during the transition clock.
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_msg_valid = (current_state == next_state);
     // =====================================================================
     // (Block 1) Sequential: Current-State Register
     // =====================================================================
-    always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin
+    always_ff @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin
         if (!valtrainvref_if.rst_n) begin
             current_state  <= VALTRAINVREF_IDLE;
         end else begin
@@ -71,7 +71,7 @@ module unit_VALTRAINVREF #(
     // =====================================================================
     // (Block 2) Combinational: Next-State Logic
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         // Global override: timeout or remote TRAINERROR message
         // NOTE: valtrainvref_fail_flag does NOT cause TRAINERROR here (spec
         //       line 482-488: "vref_code == MAX_VREF_CODE -> GOTO S6" -- fail
@@ -145,7 +145,7 @@ module unit_VALTRAINVREF #(
     // =====================================================================
     // (Block 3) Combinational: Output Logic
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         // Safe defaults (prevent latches)
         // --- LTSM handshake ---
         valtrainvref_if.valtrainvref_done = 1'b0;
@@ -197,14 +197,14 @@ module unit_VALTRAINVREF #(
             end
             // (S1) Send {MBTRAIN.VALTRAINVREF start req}.
             VALTRAINVREF_START_REQ: begin
-                valtrainvref_if.tx_sb_msg_valid = !data_incoherence              ;
+                valtrainvref_if.tx_sb_msg_valid = is_tx_sb_msg_valid              ;
                 valtrainvref_if.tx_sb_msg       = MBTRAIN_VALTRAINVREF_start_req ;
                 valtrainvref_if.tx_msginfo      = 16'h0                          ;
                 valtrainvref_if.tx_data_field   = 64'h0                          ;
             end
             // (S2) Send {MBTRAIN.VALTRAINVREF start resp}.
             VALTRAINVREF_START_RESP: begin
-                valtrainvref_if.tx_sb_msg_valid = !data_incoherence               ;
+                valtrainvref_if.tx_sb_msg_valid = is_tx_sb_msg_valid               ;
                 valtrainvref_if.tx_sb_msg       = MBTRAIN_VALTRAINVREF_start_resp ;
                 valtrainvref_if.tx_msginfo      = 16'h0                           ;
                 valtrainvref_if.tx_data_field   = 64'h0                           ;
@@ -229,14 +229,14 @@ module unit_VALTRAINVREF #(
             end
             // (S7) Send {MBTRAIN.VALTRAINVREF end req}.
             VALTRAINVREF_END_REQ: begin
-                valtrainvref_if.tx_sb_msg_valid = !data_incoherence             ;
+                valtrainvref_if.tx_sb_msg_valid = is_tx_sb_msg_valid             ;
                 valtrainvref_if.tx_sb_msg       = MBTRAIN_VALTRAINVREF_end_req  ;
                 valtrainvref_if.tx_msginfo      = 16'h0                         ;
                 valtrainvref_if.tx_data_field   = 64'h0                         ;
             end
             // (S8) Send {MBTRAIN.VALTRAINVREF end resp}.
             VALTRAINVREF_END_RESP: begin
-                valtrainvref_if.tx_sb_msg_valid = !data_incoherence              ;
+                valtrainvref_if.tx_sb_msg_valid = is_tx_sb_msg_valid              ;
                 valtrainvref_if.tx_sb_msg       = MBTRAIN_VALTRAINVREF_end_resp  ;
                 valtrainvref_if.tx_msginfo      = 16'h0                          ;
                 valtrainvref_if.tx_data_field   = 64'h0                          ;
@@ -266,6 +266,7 @@ module unit_VALTRAINVREF #(
     reg                        vref_code_filled; // 1 = at least one pass found
     assign vref_range      = vref_code_filled ? (max_vref_code - min_vref_code) : '0;
     assign temp_vref_range = (valtrainvref_if.phy_rx_valvref_ctrl - temp_min_vref);
+
     // valtrainvref_fail_flag:
     //   Asserted when sweep completes and no passing Vref was found.
     //   Per spec: this does NOT cause TRAINERROR; instead the FSM continues
@@ -275,20 +276,22 @@ module unit_VALTRAINVREF #(
     //   readable by the MBTRAIN controller after valtrainvref_done is asserted.
     //   A purely combinational version (gated on current_state == CALC_APPLY)
     //   would silently drop back to 0 the moment the FSM exits that state.
-    reg valtrainvref_fail_flag_r;
-    always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_FAIL_FLAG_PROC
-        if (!valtrainvref_if.rst_n) begin
-            valtrainvref_fail_flag_r <= 1'b0;
-        end else if (current_state == VALTRAINVREF_START_REQ) begin
-            // Clear at the start of each run (supports back-to-back without reset).
-            valtrainvref_fail_flag_r <= 1'b0;
-        end else if (current_state == VALTRAINVREF_CALC_APPLY) begin
-            // Latch result once it is known; stays high through S7 / S8 / S9.
-            valtrainvref_fail_flag_r <= ~vref_code_filled;
-        end
-    end
-    // Drive to modport output.
-    assign valtrainvref_if.valtrainvref_fail_flag = valtrainvref_fail_flag_r;
+    // reg valtrainvref_fail_flag_r;
+    // always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_FAIL_FLAG_PROC
+    //     if (!valtrainvref_if.rst_n) begin
+    //         valtrainvref_fail_flag_r <= 1'b0;
+    //     end else if (current_state == VALTRAINVREF_START_REQ) begin
+    //         // Clear at the start of each run (supports back-to-back without reset).
+    //         valtrainvref_fail_flag_r <= 1'b0;
+    //     end else if (current_state == VALTRAINVREF_CALC_APPLY) begin
+    //         // Latch result once it is known; stays high through S7 / S8 / S9.
+    //         valtrainvref_fail_flag_r <= ~vref_code_filled;
+    //     end
+    // end
+    // // Drive to modport output.
+    // assign valtrainvref_if.valtrainvref_fail_flag = valtrainvref_fail_flag_r;
+
+
     // Sequential: Vref code control (swept_code_r = phy_rx_valvref_ctrl)
     //
     // Unified signal names (for cross-module readability):
@@ -307,7 +310,7 @@ module unit_VALTRAINVREF #(
     //     If temp_vref_range (zone_range) > vref_range (best_range):
     //       update min_vref_code (best_lo) and max_vref_code (best_hi).
     //   Fail: is_in_valid_region -> 0 (hole detected in Valid-lane Vref eye).
-    always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_CALC_APPLY_PROC
+    always_ff @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_CALC_APPLY_PROC
         if (!valtrainvref_if.rst_n) begin
             valtrainvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
         end
@@ -334,7 +337,7 @@ module unit_VALTRAINVREF #(
     end
     // Sequential: Eye-map tracking (widest contiguous pass window)
     reg is_in_valid_region;
-    always @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_LOG_RESULT_PROC
+    always_ff @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_LOG_RESULT_PROC
         if (!valtrainvref_if.rst_n) begin
             min_vref_code      <= '0;
             max_vref_code      <= '0;

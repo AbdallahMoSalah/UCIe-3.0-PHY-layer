@@ -1,0 +1,881 @@
+// =============================================================================
+// Module  : wrapper_MBTRAIN
+// Purpose : Centralized wrapper for MBTRAIN sub-states and control logic.
+//           Instantiates all 13 sub-state FSMs, unit_MBTRAIN_ctrl, and
+//           the shared D2C test modules (via wrapper_D2C_PT).
+//           Implements MUX/DEMUX logic for D2C handshakes and MB/SB/PHY signals.
+// =============================================================================
+
+// This module is a wrapper for the MBTRAIN module
+// It instantiates these Substates Modules:
+//    .------.---------------------------.----------------------------------------------------.
+//    |  No. |      Substate Name        |                      Modules                       |
+//    '------'---------------------------'----------------------------------------------------'
+//    |   1.    MBTRAIN.VALVREF          | unit_VALVREF                                       |
+//    |   2.    MBTRAIN.DATAVREF         | unit_DATAVREF                                      |
+//    |   3.    MBTRAIN.SPEEDIDLE        | unit_SPEEDIDLE                                     |
+//    |   4.    MBTRAIN.TXSELFCAL        | unit_TXSELFCAL                                     |
+//    |   5.    MBTRAIN.RXCLKCAL         | unit_RXCLKCAL                                      |
+//    |   6.    MBTRAIN.VALTRAINCENTER   | unit_VALTRAINCENTER                                |
+//    |   7.    MBTRAIN.VALTRAINVREF     | unit_VALTRAINVREF                                  |
+//    |   8.    MBTRAIN.DATATRAINCENTER1 | unit_DATATRAINCENTER1                              |
+//    |   9.    MBTRAIN.DATATRAINVREF    | unit_DATATRAINVREF                                 |
+//    |   10.   MBTRAIN.RXDESKEW         | unit_RXDESKEW & unit_phase_interpolator_for_deskew |
+//    |   11.   MBTRAIN.DATATRAINCENTER2 | unit_DATATRAINCENTER2                              |
+//    |   12.   MBTRAIN.LINKSPEED        | unit_LINKSPEED                                     |
+//    |   13.   MBTRAIN.REPAIR           | unit_REPAIR                                        |
+//    |   --             ---             | unit_MBTRAIN_ctrl                                  |
+//    '----------------------------------'----------------------------------------------------'
+module wrapper_MBTRAIN (
+        internal_ltsm_if.mbtrain_mp          mbtrain_if,
+        internal_ltsm_if.substate2d2c_mp     d2c_if,
+
+        // -- RF inputs / params (not fully covered by mbtrain_mp) --
+        input [1:0]                          rf_linkspeed_ctrl_target_link_width,
+        input                                rf_linkspeed_rf_cap_SPMW,
+        input                                rf_repair_param_UCIe_S_x8,
+        input [2:0]                          param_negotiated_max_speed,
+
+        // -- PHY Analog / RXCLKCAL / PI --
+        output [15:0]                        phy_rx_valvref_ctrl,
+        output [15:0]                        phy_rx_datavref_ctrl,
+        output [15:0][6:0]                   phy_tx_pi_phase_ctrl,
+        output [15:0][6:0]                   phy_rx_deskew_ctrl,
+        output [2:0]                         phy_tx_eq_preset_ctrl,
+        output                               phy_tx_selfcal_en,
+        output                               phy_rx_clock_lock_en,
+        output                               phy_rx_track_lock_en,
+        output                               phy_rx_phase_detector_en,
+        output                               phy_tx_tckn_shift_en,
+        output [4:0]                         phy_tx_tckn_shift,
+        output                               phy_tx_decrement_shift,
+        input                                phy_tx_tckn_shift_out_of_range,
+        output [2:0]                         phy_negotiated_speed,
+
+        // -- Timers --
+        output                               timeout_timer_en,
+        output                               analog_settle_timer_en,
+        input                                timeout_8ms_occured,
+        input                                analog_settle_time_done
+    );
+
+    import ltsm_state_n_pkg::*;
+
+    // =========================================================================
+    // 1. Internal Interface Declarations (23 Total)
+    // =========================================================================
+
+    // Per-substate Control Interfaces (13)
+    internal_ltsm_if intf_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_speedidle        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_txselfcal        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_rxclkcal         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if intf_repair           (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+
+    // Per-substate D2C Handshake Interfaces (9)
+    internal_ltsm_if d2c_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if d2c_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+
+    // -- unit_LTSM_ctrl --
+    internal_ltsm_if ctrl_if              (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+
+    // =========================================================================
+    // 2. Module Instantiations
+    // =========================================================================
+
+
+    // For analog Voltage control.
+    localparam MAX_VAL_VREF_CODE  = 'd128,  MIN_VAL_VREF_CODE  = '0 ;
+    localparam MAX_DATA_VREF_CODE = 'd128,  MIN_DATA_VREF_CODE = '0 ;
+    localparam MAX_PI_PHASE       = 'd64 ,  MIN_PI_PHASE       = '0 ;
+
+    localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
+    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+    localparam PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE      );
+
+    // MBTRAIN Controller
+    unit_MBTRAIN_ctrl u_mbtrain_ctrl (
+        .itf (ctrl_if.mbtrain_ctrl_mp)
+    );
+
+    // Sub-state FSMs
+    // 1. MBTRAIN.VALVREF
+    unit_VALVREF #(
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
+        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+    ) u_valvref (
+        .valvref_if (intf_valvref.valvref_mp),
+        .d2c_if     (d2c_valvref.substate2d2c_mp)
+    );
+
+    // 2. MBTRAIN.DATAVREF
+    unit_DATAVREF  #(
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+    ) u_datavref (
+        .datavref_if (intf_datavref.datavref_mp),
+        .d2c_if      (d2c_datavref.substate2d2c_mp)
+    );
+
+    // 3. MBTRAIN.SPEEDIDLE
+    unit_SPEEDIDLE u_speedidle (
+        .speedidle_if (intf_speedidle.speedidle_mp)
+    );
+
+    // 4. MBTRAIN.TXSELFCAL
+    unit_TXSELFCAL u_txselfcal (
+        .txselfcal_if (intf_txselfcal.txselfcal_mp)
+    );
+
+    // 5. MBTRAIN.RXCLKCAL
+    unit_RXCLKCAL u_rxclkcal (
+        .rxclkcal_if (intf_rxclkcal.rxclkcal_mp)
+    );
+
+    // 6. MBTRAIN.VALTRAINCENTER
+    unit_VALTRAINCENTER u_valtraincenter (
+        .valtraincenter_if (intf_valtraincenter.valtraincenter_mp),
+        .d2c_if            (d2c_valtraincenter.substate2d2c_mp)
+    );
+
+    // 7. MBTRAIN.VALTRAINVREF
+    unit_VALTRAINVREF u_valtrainvref (
+        .valtrainvref_if (intf_valtrainvref.valtrainvref_mp),
+        .d2c_if          (d2c_valtrainvref.substate2d2c_mp)
+    );
+
+    // 8. MBTRAIN.DATATRAINCENTER1
+    unit_DATATRAINCENTER1 u_datatraincenter1 (
+        .dtc1_if (intf_datatraincenter1.datatraincenter1_mp),
+        .d2c_if  (d2c_datatraincenter1.substate2d2c_mp     )
+    );
+
+    // 9. MBTRAIN.DATATRAINVREF
+    unit_DATATRAINVREF u_datatrainvref (
+        .dtvref_if (intf_datatrainvref.datatrainvref_mp),
+        .d2c_if    (d2c_datatrainvref.substate2d2c_mp  )
+    );
+
+    // 10. MBTRAIN.RXDESKEW
+    unit_RXDESKEW u_rxdeskew (
+        .rxdeskew_if (intf_rxdeskew.rxdeskew_mp),
+        .d2c_if      (d2c_rxdeskew.substate2d2c_mp)
+    );
+
+    // 11. MBTRAIN.DATATRAINCENTER2
+    unit_DATATRAINCENTER2 u_datatraincenter2 (
+        .dtc2_if (intf_datatraincenter2.datatraincenter2_mp),
+        .d2c_if  (d2c_datatraincenter2.substate2d2c_mp)
+    );
+
+    // 12. MBTRAIN.LINKSPEED
+    unit_LINKSPEED u_linkspeed (
+        .ls_if  (intf_linkspeed.linkspeed_mp),
+        .d2c_if (d2c_linkspeed.substate2d2c_mp)
+    );
+
+    // 13. MBTRAIN.REPAIR
+    unit_REPAIR u_repair (
+        .rp_if (intf_repair.repair_mp)
+    );
+
+    // =========================================================================
+    // 3. Handshake Wiring (Controller <-> Sub-states)
+    // =========================================================================
+    assign ctrl_if.mbtrain_en                  = mbtrain_if.mbtrain_en;
+    assign mbtrain_if.mbtrain_done             = ctrl_if.mbtrain_done;
+    assign mbtrain_if.current_mbtrain_substate = ctrl_if.current_mbtrain_substate;
+
+    // EN signals (Output from Controller)
+    assign intf_valvref.valvref_en                   = ctrl_if.valvref_en;
+    assign intf_datavref.datavref_en                 = ctrl_if.datavref_en;
+    assign intf_speedidle.speedidle_en               = ctrl_if.speedidle_en;
+    assign intf_txselfcal.txselfcal_en               = ctrl_if.txselfcal_en;
+    assign intf_rxclkcal.rxclkcal_en                 = ctrl_if.rxclkcal_en;
+    assign intf_valtraincenter.valtraincenter_en     = ctrl_if.valtraincenter_en;
+    assign intf_valtrainvref.valtrainvref_en         = ctrl_if.valtrainvref_en;
+    assign intf_datatraincenter1.datatraincenter1_en = ctrl_if.datatraincenter1_en;
+    assign intf_datatrainvref.datatrainvref_en       = ctrl_if.datatrainvref_en;
+    assign intf_rxdeskew.rxdeskew_en                 = ctrl_if.rxdeskew_en;
+    assign intf_datatraincenter2.datatraincenter2_en = ctrl_if.datatraincenter2_en;
+    assign intf_linkspeed.linkspeed_en               = ctrl_if.linkspeed_en;
+    assign intf_repair.repair_en                     = ctrl_if.repair_en;
+
+    // DONE signals (Input to Controller)
+    assign ctrl_if.valvref_done          = intf_valvref.valvref_done;
+    assign ctrl_if.datavref_done         = intf_datavref.datavref_done;
+    assign ctrl_if.speedidle_done        = intf_speedidle.speedidle_done;
+    assign ctrl_if.txselfcal_done        = intf_txselfcal.txselfcal_done;
+    assign ctrl_if.rxclkcal_done         = intf_rxclkcal.rxclkcal_done;
+    assign ctrl_if.valtraincenter_done   = intf_valtraincenter.valtraincenter_done;
+    assign ctrl_if.valtrainvref_done     = intf_valtrainvref.valtrainvref_done;
+    assign ctrl_if.datatraincenter1_done = intf_datatraincenter1.datatraincenter1_done;
+    assign ctrl_if.datatrainvref_done    = intf_datatrainvref.datatrainvref_done;
+    assign ctrl_if.rxdeskew_done         = intf_rxdeskew.rxdeskew_done;
+    assign ctrl_if.datatraincenter2_done = intf_datatraincenter2.datatraincenter2_done;
+    assign ctrl_if.linkspeed_done        = intf_linkspeed.linkspeed_done;
+    assign ctrl_if.repair_done           = intf_repair.repair_done;
+
+    // (Inputs from outside blocks)
+    assign ctrl_if.mbtrain_repair_req    = mbtrain_if.mbtrain_repair_req   ;
+    assign ctrl_if.mbtrain_speedidle_req = mbtrain_if.mbtrain_speedidle_req;
+    assign ctrl_if.mbtrain_txselfcal_req = mbtrain_if.mbtrain_txselfcal_req;
+
+    // REQ signals (Input to Controller)
+    assign ctrl_if.trainerror_req =
+        intf_valvref.trainerror_req          | intf_datavref.trainerror_req         |
+        intf_speedidle.trainerror_req        | intf_txselfcal.trainerror_req        |
+        intf_rxclkcal.trainerror_req         | intf_valtraincenter.trainerror_req   |
+        intf_valtrainvref.trainerror_req     | intf_datatraincenter1.trainerror_req |
+        intf_datatrainvref.trainerror_req    | intf_rxdeskew.trainerror_req         |
+        intf_datatraincenter2.trainerror_req | intf_linkspeed.trainerror_req        |
+        intf_repair.trainerror_req;
+
+    assign ctrl_if.speedidle_req         = intf_linkspeed.speedidle_req;
+    assign ctrl_if.repair_req            = intf_linkspeed.repair_req;
+    assign ctrl_if.phyretrain_req        = intf_linkspeed.phyretrain_req;
+    assign ctrl_if.linkinit_req          = intf_linkspeed.linkinit_req;
+    assign ctrl_if.txselfcal_req         = intf_repair.txselfcal_req;
+    assign ctrl_if.datatraincenter1_req  = intf_rxdeskew.datatraincenter1_req;
+
+
+
+    // =========================================================================
+    // 4. D2C Bridge MUX/DEMUX (9-to-1)
+    // =========================================================================
+
+    mbtrain_substate_e active_substate;
+    assign active_substate = ctrl_if.current_mbtrain_substate;
+
+    // Input signals from wrapper_D2C_PT (Sub-state <- D2C): We receives:
+    //     1. test_d2c_done
+    //     2. d2c_aggr_err
+    //     3. d2c_perlane_err
+    //     4. d2c_val_err
+    //     5. d2c_clk_err
+    //     6. partner_valtraincenter_fail_flag
+
+    // 1. [test_d2c_done]
+    assign d2c_valvref         .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_datavref        .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_valtraincenter  .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_valtrainvref    .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_datatraincenter1.test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_datatrainvref   .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_rxdeskew        .test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_datatraincenter2.test_d2c_done = d2c_if.test_d2c_done;
+    assign d2c_linkspeed       .test_d2c_done = d2c_if.test_d2c_done;
+
+    // 2. [d2c_aggr_err]
+    assign d2c_valvref         .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_datavref        .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_valtraincenter  .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_valtrainvref    .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_datatraincenter1.d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_datatrainvref   .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_rxdeskew        .d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_datatraincenter2.d2c_aggr_err = d2c_if.d2c_aggr_err;
+    assign d2c_linkspeed       .d2c_aggr_err = d2c_if.d2c_aggr_err;
+
+    // 3. [d2c_perlane_err]
+    assign d2c_valvref         .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_datavref        .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_valtraincenter  .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_valtrainvref    .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_datatraincenter1.d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_datatrainvref   .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_rxdeskew        .d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_datatraincenter2.d2c_perlane_err = d2c_if.d2c_perlane_err;
+    assign d2c_linkspeed       .d2c_perlane_err = d2c_if.d2c_perlane_err;
+
+    // 4. [d2c_val_err]
+    assign d2c_valvref         .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_datavref        .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_valtraincenter  .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_valtrainvref    .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_datatraincenter1.d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_datatrainvref   .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_rxdeskew        .d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_datatraincenter2.d2c_val_err = d2c_if.d2c_val_err;
+    assign d2c_linkspeed       .d2c_val_err = d2c_if.d2c_val_err;
+
+    // 5. [d2c_clk_err]
+    assign d2c_valvref         .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_datavref        .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_valtraincenter  .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_valtrainvref    .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_datatraincenter1.d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_datatrainvref   .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_rxdeskew        .d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_datatraincenter2.d2c_clk_err = d2c_if.d2c_clk_err;
+    assign d2c_linkspeed       .d2c_clk_err = d2c_if.d2c_clk_err;
+
+    // 6. [partner_valtraincenter_fail_flag]
+    assign d2c_valvref         .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_datavref        .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_valtraincenter  .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_valtrainvref    .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_datatraincenter1.partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_datatrainvref   .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_rxdeskew        .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_datatraincenter2.partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+    assign d2c_linkspeed       .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
+
+
+    // Output signals to wrapper_D2C_PT (Sub-state -> D2C)
+    always_comb begin : D2C_INPUT_MUX
+        d2c_if.rx_pt_en             = 1'b0;
+        d2c_if.tx_pt_en             = 1'b0;
+        d2c_if.d2c_clk_sampling     = 2'b00;
+        d2c_if.d2c_lfsr_en          = 1'b0;
+        d2c_if.d2c_pattern_setup    = 3'b000;
+        d2c_if.d2c_data_pattern_sel = 2'b00;
+        d2c_if.d2c_val_pattern_sel  = 1'b0;
+        d2c_if.d2c_pattern_mode     = 1'b0;
+        d2c_if.d2c_burst_count      = 16'h0;
+        d2c_if.d2c_idle_count       = 16'h0;
+        d2c_if.d2c_iter_count       = 16'h0;
+        d2c_if.d2c_compare_setup    = 2'b00;
+
+        case (active_substate)
+            VALVREF:          begin
+                d2c_if.rx_pt_en             = d2c_valvref.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_valvref.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_valvref.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_valvref.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_valvref.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_valvref.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_valvref.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_valvref.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_valvref.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_valvref.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_valvref.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_valvref.d2c_compare_setup;
+            end
+            DATAVREF:         begin
+                d2c_if.rx_pt_en             = d2c_datavref.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_datavref.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_datavref.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_datavref.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_datavref.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_datavref.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_datavref.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_datavref.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_datavref.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_datavref.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_datavref.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_datavref.d2c_compare_setup;
+            end
+            VALTRAINCENTER:   begin
+                d2c_if.rx_pt_en             = d2c_valtraincenter.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_valtraincenter.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_valtraincenter.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_valtraincenter.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_valtraincenter.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_valtraincenter.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_valtraincenter.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_valtraincenter.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_valtraincenter.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_valtraincenter.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_valtraincenter.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_valtraincenter.d2c_compare_setup;
+            end
+            VALTRAINVREF:     begin
+                d2c_if.rx_pt_en             = d2c_valtrainvref.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_valtrainvref.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_valtrainvref.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_valtrainvref.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_valtrainvref.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_valtrainvref.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_valtrainvref.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_valtrainvref.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_valtrainvref.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_valtrainvref.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_valtrainvref.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_valtrainvref.d2c_compare_setup;
+            end
+            DATATRAINCENTER1: begin
+                d2c_if.rx_pt_en             = d2c_datatraincenter1.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_datatraincenter1.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_datatraincenter1.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_datatraincenter1.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_datatraincenter1.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_datatraincenter1.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_datatraincenter1.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_datatraincenter1.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_datatraincenter1.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_datatraincenter1.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_datatraincenter1.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_datatraincenter1.d2c_compare_setup;
+            end
+            DATATRAINVREF:    begin
+                d2c_if.rx_pt_en             = d2c_datatrainvref.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_datatrainvref.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_datatrainvref.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_datatrainvref.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_datatrainvref.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_datatrainvref.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_datatrainvref.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_datatrainvref.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_datatrainvref.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_datatrainvref.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_datatrainvref.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_datatrainvref.d2c_compare_setup;
+            end
+            RXDESKEW:         begin
+                d2c_if.rx_pt_en             = d2c_rxdeskew.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_rxdeskew.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_rxdeskew.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_rxdeskew.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_rxdeskew.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_rxdeskew.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_rxdeskew.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_rxdeskew.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_rxdeskew.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_rxdeskew.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_rxdeskew.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_rxdeskew.d2c_compare_setup;
+            end
+            DATATRAINCENTER2: begin
+                d2c_if.rx_pt_en             = d2c_datatraincenter2.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_datatraincenter2.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_datatraincenter2.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_datatraincenter2.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_datatraincenter2.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_datatraincenter2.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_datatraincenter2.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_datatraincenter2.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_datatraincenter2.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_datatraincenter2.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_datatraincenter2.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_datatraincenter2.d2c_compare_setup;
+            end
+            LINKSPEED:        begin
+                d2c_if.rx_pt_en             = d2c_linkspeed.rx_pt_en;
+                d2c_if.tx_pt_en             = d2c_linkspeed.tx_pt_en;
+                d2c_if.d2c_clk_sampling     = d2c_linkspeed.d2c_clk_sampling;
+                d2c_if.d2c_lfsr_en          = d2c_linkspeed.d2c_lfsr_en;
+                d2c_if.d2c_pattern_setup    = d2c_linkspeed.d2c_pattern_setup;
+                d2c_if.d2c_data_pattern_sel = d2c_linkspeed.d2c_data_pattern_sel;
+                d2c_if.d2c_val_pattern_sel  = d2c_linkspeed.d2c_val_pattern_sel;
+                d2c_if.d2c_pattern_mode     = d2c_linkspeed.d2c_pattern_mode;
+                d2c_if.d2c_burst_count      = d2c_linkspeed.d2c_burst_count;
+                d2c_if.d2c_idle_count       = d2c_linkspeed.d2c_idle_count;
+                d2c_if.d2c_iter_count       = d2c_linkspeed.d2c_iter_count;
+                d2c_if.d2c_compare_setup    = d2c_linkspeed.d2c_compare_setup;
+            end
+            default: ;
+        endcase
+    end
+    // ================================================================================= //
+    // ================================================================================= //
+    // ===============                                                    ============== //
+    // ===========      Now these interfaceses their logic is completed:      ========== //
+    // ======                  "ctrl_if" (for unit_LTSM_ctrl)                     ====== //
+    // ===========             "d2c_if"  (for wrapper_D2C_PT)                 ========== //
+    // ===============                                                    ============== //
+    // ================================================================================= //
+    // ================================================================================= //
+
+    // =========================================================================
+    // 5. Global Signal Broadcasting
+    // =========================================================================
+    always_comb begin : BROADCAST_LOGIC
+        // Timer Broadcast
+        intf_valvref.timeout_8ms_occured              = timeout_8ms_occured    ;
+        intf_valvref.analog_settle_time_done          = analog_settle_time_done;
+        // ... repeat for all 13 ...
+        intf_datavref.timeout_8ms_occured             = timeout_8ms_occured    ;
+        intf_datavref.analog_settle_time_done         = analog_settle_time_done;
+        intf_speedidle.timeout_8ms_occured            = timeout_8ms_occured    ;
+        intf_speedidle.analog_settle_time_done        = analog_settle_time_done;
+        intf_txselfcal.timeout_8ms_occured            = timeout_8ms_occured    ;
+        intf_txselfcal.analog_settle_time_done        = analog_settle_time_done;
+        intf_rxclkcal.timeout_8ms_occured             = timeout_8ms_occured    ;
+        intf_rxclkcal.analog_settle_time_done         = analog_settle_time_done;
+        intf_valtraincenter.timeout_8ms_occured       = timeout_8ms_occured    ;
+        intf_valtraincenter.analog_settle_time_done   = analog_settle_time_done;
+        intf_valtrainvref.timeout_8ms_occured         = timeout_8ms_occured    ;
+        intf_valtrainvref.analog_settle_time_done     = analog_settle_time_done;
+        intf_datatraincenter1.timeout_8ms_occured     = timeout_8ms_occured    ;
+        intf_datatraincenter1.analog_settle_time_done = analog_settle_time_done;
+        intf_datatrainvref.timeout_8ms_occured        = timeout_8ms_occured    ;
+        intf_datatrainvref.analog_settle_time_done    = analog_settle_time_done;
+        intf_rxdeskew.timeout_8ms_occured             = timeout_8ms_occured    ;
+        intf_rxdeskew.analog_settle_time_done         = analog_settle_time_done;
+        intf_datatraincenter2.timeout_8ms_occured     = timeout_8ms_occured    ;
+        intf_datatraincenter2.analog_settle_time_done = analog_settle_time_done;
+        intf_linkspeed.timeout_8ms_occured            = timeout_8ms_occured    ;
+        intf_linkspeed.analog_settle_time_done        = analog_settle_time_done;
+        intf_repair.timeout_8ms_occured               = timeout_8ms_occured    ;
+        intf_repair.analog_settle_time_done           = analog_settle_time_done;
+
+        // SB RX Broadcast
+        intf_valvref.rx_sb_msg_valid          = mbtrain_if.rx_sb_msg_valid;
+        intf_valvref.rx_sb_msg                = mbtrain_if.rx_sb_msg      ;
+        intf_valvref.rx_msginfo               = mbtrain_if.rx_msginfo     ;
+        intf_valvref.rx_data_field            = mbtrain_if.rx_data_field  ;
+        // ... (repeated for all 13 substates)
+        intf_datavref.rx_sb_msg_valid         = mbtrain_if.rx_sb_msg_valid;
+        intf_datavref.rx_sb_msg               = mbtrain_if.rx_sb_msg      ;
+        intf_datavref.rx_msginfo              = mbtrain_if.rx_msginfo     ;
+        intf_datavref.rx_data_field           = mbtrain_if.rx_data_field  ;
+        intf_speedidle.rx_sb_msg_valid        = mbtrain_if.rx_sb_msg_valid;
+        intf_speedidle.rx_sb_msg              = mbtrain_if.rx_sb_msg      ;
+        intf_speedidle.rx_msginfo             = mbtrain_if.rx_msginfo     ;
+        intf_speedidle.rx_data_field          = mbtrain_if.rx_data_field  ;
+        intf_txselfcal.rx_sb_msg_valid        = mbtrain_if.rx_sb_msg_valid;
+        intf_txselfcal.rx_sb_msg              = mbtrain_if.rx_sb_msg      ;
+        intf_txselfcal.rx_msginfo             = mbtrain_if.rx_msginfo     ;
+        intf_txselfcal.rx_data_field          = mbtrain_if.rx_data_field  ;
+        intf_rxclkcal.rx_sb_msg_valid         = mbtrain_if.rx_sb_msg_valid;
+        intf_rxclkcal.rx_sb_msg               = mbtrain_if.rx_sb_msg      ;
+        intf_rxclkcal.rx_msginfo              = mbtrain_if.rx_msginfo     ;
+        intf_rxclkcal.rx_data_field           = mbtrain_if.rx_data_field  ;
+        intf_valtraincenter.rx_sb_msg_valid   = mbtrain_if.rx_sb_msg_valid;
+        intf_valtraincenter.rx_sb_msg         = mbtrain_if.rx_sb_msg      ;
+        intf_valtraincenter.rx_msginfo        = mbtrain_if.rx_msginfo     ;
+        intf_valtraincenter.rx_data_field     = mbtrain_if.rx_data_field  ;
+        intf_valtrainvref.rx_sb_msg_valid     = mbtrain_if.rx_sb_msg_valid;
+        intf_valtrainvref.rx_sb_msg           = mbtrain_if.rx_sb_msg      ;
+        intf_valtrainvref.rx_msginfo          = mbtrain_if.rx_msginfo     ;
+        intf_valtrainvref.rx_data_field       = mbtrain_if.rx_data_field  ;
+        intf_datatraincenter1.rx_sb_msg_valid = mbtrain_if.rx_sb_msg_valid;
+        intf_datatraincenter1.rx_sb_msg       = mbtrain_if.rx_sb_msg      ;
+        intf_datatraincenter1.rx_msginfo      = mbtrain_if.rx_msginfo     ;
+        intf_datatraincenter1.rx_data_field   = mbtrain_if.rx_data_field  ;
+        intf_datatrainvref.rx_sb_msg_valid    = mbtrain_if.rx_sb_msg_valid;
+        intf_datatrainvref.rx_sb_msg          = mbtrain_if.rx_sb_msg      ;
+        intf_datatrainvref.rx_msginfo         = mbtrain_if.rx_msginfo     ;
+        intf_datatrainvref.rx_data_field      = mbtrain_if.rx_data_field  ;
+        intf_rxdeskew.rx_sb_msg_valid         = mbtrain_if.rx_sb_msg_valid;
+        intf_rxdeskew.rx_sb_msg               = mbtrain_if.rx_sb_msg      ;
+        intf_rxdeskew.rx_msginfo              = mbtrain_if.rx_msginfo     ;
+        intf_rxdeskew.rx_data_field           = mbtrain_if.rx_data_field  ;
+        intf_datatraincenter2.rx_sb_msg_valid = mbtrain_if.rx_sb_msg_valid;
+        intf_datatraincenter2.rx_sb_msg       = mbtrain_if.rx_sb_msg      ;
+        intf_datatraincenter2.rx_msginfo      = mbtrain_if.rx_msginfo     ;
+        intf_datatraincenter2.rx_data_field   = mbtrain_if.rx_data_field  ;
+        intf_linkspeed.rx_sb_msg_valid        = mbtrain_if.rx_sb_msg_valid;
+        intf_linkspeed.rx_sb_msg              = mbtrain_if.rx_sb_msg      ;
+        intf_linkspeed.rx_msginfo             = mbtrain_if.rx_msginfo     ;
+        intf_linkspeed.rx_data_field          = mbtrain_if.rx_data_field  ;
+        intf_repair.rx_sb_msg_valid           = mbtrain_if.rx_sb_msg_valid;
+        intf_repair.rx_sb_msg                 = mbtrain_if.rx_sb_msg      ;
+        intf_repair.rx_msginfo                = mbtrain_if.rx_msginfo     ;
+        intf_repair.rx_data_field             = mbtrain_if.rx_data_field  ;
+
+        // MB RX Broadcast
+        intf_datavref.mb_rx_data_lane_mask         = mbtrain_if.mb_rx_data_lane_mask;
+        intf_datatraincenter1.mb_rx_data_lane_mask = mbtrain_if.mb_rx_data_lane_mask;
+        intf_datatrainvref.mb_rx_data_lane_mask    = mbtrain_if.mb_rx_data_lane_mask;
+        intf_rxdeskew.mb_rx_data_lane_mask         = mbtrain_if.mb_rx_data_lane_mask;
+        intf_datatraincenter2.mb_rx_data_lane_mask = mbtrain_if.mb_rx_data_lane_mask;
+        intf_linkspeed.mb_rx_data_lane_mask        = mbtrain_if.mb_rx_data_lane_mask;
+        intf_repair.mbinit_rx_data_lane_mask       = mbtrain_if.mbinit_rx_data_lane_mask;
+        intf_repair.mbinit_tx_data_lane_mask       = mbtrain_if.mbinit_tx_data_lane_mask;
+
+        // REPAIR needs special width inputs
+        intf_repair.rf_cap_SPMW               = rf_linkspeed_rf_cap_SPMW;
+        intf_repair.rf_ctrl_target_link_width = {2'b00, rf_linkspeed_ctrl_target_link_width};
+        intf_repair.param_UCIe_S_x8           = rf_repair_param_UCIe_S_x8;
+
+        // Cross-substate Flags
+        intf_valtrainvref.valtraincenter_fail_flag  = intf_valtraincenter.valtraincenter_fail_flag;
+        intf_datatrainvref.valtraincenter_fail_flag = intf_valtraincenter.valtraincenter_fail_flag;
+        intf_rxdeskew.valtraincenter_fail_flag      = intf_valtraincenter.valtraincenter_fail_flag;
+
+        intf_repair.linkspeed_success_lanes = intf_linkspeed.linkspeed_success_lanes;
+        intf_repair.update_lane_mask        = intf_valvref.update_lane_mask         ;
+
+        intf_rxclkcal.phy_negotiated_speed  = intf_speedidle.phy_negotiated_speed;
+        intf_rxdeskew.phy_negotiated_speed  = intf_speedidle.phy_negotiated_speed;
+        intf_linkspeed.phy_negotiated_speed = intf_speedidle.phy_negotiated_speed;
+
+        intf_speedidle.param_negotiated_max_speed = param_negotiated_max_speed;
+        intf_speedidle.state_n                    = mbtrain_if.state_n;
+    end
+
+    // =========================================================================
+    // 6. Sub-state Output MUX (13-to-1) to Global MUX
+    // =========================================================================
+
+    assign timeout_timer_en =
+        (active_substate == VALVREF)          ? intf_valvref.timeout_timer_en :
+        (active_substate == DATAVREF)         ? intf_datavref.timeout_timer_en :
+        (active_substate == SPEEDIDLE)        ? intf_speedidle.timeout_timer_en :
+        (active_substate == TXSELFCAL)        ? intf_txselfcal.timeout_timer_en :
+        (active_substate == RXSELFCAL)        ? intf_rxclkcal.timeout_timer_en :
+        (active_substate == VALTRAINCENTER)   ? intf_valtraincenter.timeout_timer_en :
+        (active_substate == VALTRAINVREF)     ? intf_valtrainvref.timeout_timer_en :
+        (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.timeout_timer_en :
+        (active_substate == DATATRAINVREF)    ? intf_datatrainvref.timeout_timer_en :
+        (active_substate == RXDESKEW)         ? intf_rxdeskew.timeout_timer_en :
+        (active_substate == DATATRAINCENTER2) ? intf_datatraincenter2.timeout_timer_en :
+        (active_substate == LINKSPEED)        ? intf_linkspeed.timeout_timer_en :
+        (active_substate == REPAIR)           ? intf_repair.timeout_timer_en : 1'b0;
+
+    assign analog_settle_timer_en =
+        (active_substate == VALVREF)          ? intf_valvref.analog_settle_timer_en :
+        (active_substate == DATAVREF)         ? intf_datavref.analog_settle_timer_en :
+        (active_substate == SPEEDIDLE)        ? intf_speedidle.analog_settle_timer_en :
+        (active_substate == TXSELFCAL)        ? intf_txselfcal.analog_settle_timer_en :
+        (active_substate == RXSELFCAL)        ? intf_rxclkcal.analog_settle_timer_en :
+        (active_substate == VALTRAINCENTER)   ? intf_valtraincenter.analog_settle_timer_en :
+        (active_substate == VALTRAINVREF)     ? intf_valtrainvref.analog_settle_timer_en :
+        (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.analog_settle_timer_en :
+        (active_substate == DATATRAINVREF)    ? intf_datatrainvref.analog_settle_timer_en :
+        (active_substate == RXDESKEW)         ? intf_rxdeskew.analog_settle_timer_en :
+        (active_substate == DATATRAINCENTER2) ? intf_datatraincenter2.analog_settle_timer_en :
+        (active_substate == LINKSPEED)        ? intf_linkspeed.analog_settle_timer_en :
+        (active_substate == REPAIR)           ? intf_repair.analog_settle_timer_en : 1'b0;
+
+    // PHY Analog Controls MUX
+    assign phy_rx_valvref_ctrl  = (active_substate == VALVREF) ? intf_valvref.phy_rx_valvref_ctrl : intf_valtrainvref.phy_rx_valvref_ctrl;
+
+    // TODO: these signals need generate block to loop on all 16 data lanes signal for each signal type.
+    // TODO: Don't forget to set a default value in the middle (parameterized) in case of total failure in any lane.
+    // TODO: The logic done in these substate was build on just finding the best midpoint for just lane[0], not all 16 data lanes. solve this huge bug.
+    genvar i;
+    generate
+        for (i = 0; i < 16; i = i + 1) begin : PHY_RX_DATAVREF_CTRL_GEN
+            assign phy_rx_datavref_ctrl[i]      = (active_substate == DATAVREF)? intf_datavref.phy_rx_datavref_ctrl[i] : intf_datatrainvref.phy_rx_datavref_ctrl[i];
+            assign phy_tx_data_pi_phase_ctrl[i] = (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.phy_tx_data_pi_phase_ctrl[i] : intf_datatraincenter2.phy_tx_data_pi_phase_ctrl[i];
+            assign phy_rx_deskew_ctrl[i]        = intf_rxdeskew.phy_rx_deskew_ctrl[i];
+        end
+    endgenerate
+
+    assign phy_tx_eq_preset_ctrl= intf_rxdeskew.phy_tx_eq_preset_ctrl;
+    assign phy_tx_val_pi_phase_ctrl = intf_valtraincenter.phy_tx_val_pi_phase_ctrl;
+
+
+
+    assign phy_tx_selfcal_en                            = intf_txselfcal.phy_tx_selfcal_en;
+    assign phy_rx_clock_lock_en                         = intf_rxclkcal.phy_rx_clock_lock_en;
+    assign phy_rx_track_lock_en                         = intf_rxclkcal.phy_rx_track_lock_en;
+    assign phy_rx_phase_detector_en                     = intf_rxclkcal.phy_rx_phase_detector_en;
+    assign phy_tx_tckn_shift_en                         = intf_rxclkcal.phy_tx_tckn_shift_en;
+    assign phy_tx_tckn_shift                            = intf_rxclkcal.phy_tx_tckn_shift;
+    assign phy_tx_decrement_shift                       = intf_rxclkcal.phy_tx_decrement_shift;
+    assign intf_rxclkcal.phy_tx_tckn_shift_out_of_range = phy_tx_tckn_shift_out_of_range; // Be careful with this signal....
+    assign phy_negotiated_speed                         = intf_speedidle.phy_negotiated_speed;
+
+    // MB/SB Signals MUX to Global MUX
+    always_comb begin : MUX_TO_GLOBAL
+        mbtrain_if.tx_sb_msg_valid = 1'b0;
+        mbtrain_if.tx_sb_msg       = UCIe_pkg::NOTHING;
+        mbtrain_if.tx_msginfo      = 16'h0;
+        mbtrain_if.tx_data_field   = 64'h0;
+
+        mbtrain_if.mb_tx_clk_lane_sel  = 2'b00;
+        mbtrain_if.mb_tx_data_lane_sel = 2'b00;
+        mbtrain_if.mb_tx_val_lane_sel  = 2'b00;
+        mbtrain_if.mb_tx_trk_lane_sel  = 2'b00;
+        mbtrain_if.mb_rx_clk_lane_sel  = 1'b0;
+        mbtrain_if.mb_rx_data_lane_sel = 1'b0;
+        mbtrain_if.mb_rx_val_lane_sel  = 1'b0;
+        mbtrain_if.mb_rx_trk_lane_sel  = 1'b0;
+
+        case (active_substate)
+            VALVREF: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_valvref.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_valvref.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_valvref.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_valvref.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_valvref.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_valvref.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_valvref.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_valvref.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_valvref.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_valvref.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_valvref.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_valvref.mb_rx_trk_lane_sel;
+            end
+            DATAVREF: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_datavref.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_datavref.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_datavref.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_datavref.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_datavref.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_datavref.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_datavref.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_datavref.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_datavref.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_datavref.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_datavref.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_datavref.mb_rx_trk_lane_sel;
+            end
+            SPEEDIDLE: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_speedidle.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_speedidle.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_speedidle.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_speedidle.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_speedidle.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_speedidle.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_speedidle.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_speedidle.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_speedidle.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_speedidle.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_speedidle.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_speedidle.mb_rx_trk_lane_sel;
+            end
+            TXSELFCAL: begin
+                mbtrain_if.tx_sb_msg_valid = intf_txselfcal.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg       = intf_txselfcal.tx_sb_msg;
+                mbtrain_if.tx_msginfo      = intf_txselfcal.tx_msginfo;
+                mbtrain_if.tx_data_field   = intf_txselfcal.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel = intf_txselfcal.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_txselfcal.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel = intf_txselfcal.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel = intf_txselfcal.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel = intf_txselfcal.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_txselfcal.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel = intf_txselfcal.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel = intf_txselfcal.mb_rx_trk_lane_sel;
+            end
+            RXSELFCAL: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_rxclkcal.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_rxclkcal.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_rxclkcal.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_rxclkcal.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_rxclkcal.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_rxclkcal.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_rxclkcal.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_rxclkcal.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_rxclkcal.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_rxclkcal.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_rxclkcal.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_rxclkcal.mb_rx_trk_lane_sel;
+            end
+            VALTRAINCENTER: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_valtraincenter.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_valtraincenter.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_valtraincenter.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_valtraincenter.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_valtraincenter.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_valtraincenter.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_valtraincenter.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_valtraincenter.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_valtraincenter.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_valtraincenter.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_valtraincenter.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_valtraincenter.mb_rx_trk_lane_sel;
+            end
+            VALTRAINVREF: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_valtrainvref.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_valtrainvref.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_valtrainvref.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_valtrainvref.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_valtrainvref.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_valtrainvref.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_valtrainvref.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_valtrainvref.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_valtrainvref.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_valtrainvref.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_valtrainvref.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_valtrainvref.mb_rx_trk_lane_sel;
+            end
+            DATATRAINCENTER1: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_datatraincenter1.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_datatraincenter1.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_datatraincenter1.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_datatraincenter1.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_datatraincenter1.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_datatraincenter1.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_datatraincenter1.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_datatraincenter1.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_datatraincenter1.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_datatraincenter1.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_datatraincenter1.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_datatraincenter1.mb_rx_trk_lane_sel;
+            end
+            DATATRAINVREF: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_datatrainvref.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_datatrainvref.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_datatrainvref.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_datatrainvref.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_datatrainvref.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_datatrainvref.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_datatrainvref.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_datatrainvref.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_datatrainvref.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_datatrainvref.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_datatrainvref.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_datatrainvref.mb_rx_trk_lane_sel;
+            end
+            RXDESKEW: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_rxdeskew.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_rxdeskew.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_rxdeskew.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_rxdeskew.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_rxdeskew.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_rxdeskew.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_rxdeskew.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_rxdeskew.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_rxdeskew.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_rxdeskew.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_rxdeskew.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_rxdeskew.mb_rx_trk_lane_sel;
+            end
+            DATATRAINCENTER2: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_datatraincenter2.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_datatraincenter2.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_datatraincenter2.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_datatraincenter2.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_datatraincenter2.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_datatraincenter2.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_datatraincenter2.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_datatraincenter2.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_datatraincenter2.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_datatraincenter2.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_datatraincenter2.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_datatraincenter2.mb_rx_trk_lane_sel;
+            end
+            LINKSPEED: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_linkspeed.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_linkspeed.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_linkspeed.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_linkspeed.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_linkspeed.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_linkspeed.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_linkspeed.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_linkspeed.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_linkspeed.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_linkspeed.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_linkspeed.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_linkspeed.mb_rx_trk_lane_sel;
+            end
+            REPAIR: begin
+                mbtrain_if.tx_sb_msg_valid     = intf_repair.tx_sb_msg_valid;
+                mbtrain_if.tx_sb_msg           = intf_repair.tx_sb_msg;
+                mbtrain_if.tx_msginfo          = intf_repair.tx_msginfo;
+                mbtrain_if.tx_data_field       = intf_repair.tx_data_field;
+                mbtrain_if.mb_tx_clk_lane_sel  = intf_repair.mb_tx_clk_lane_sel;
+                mbtrain_if.mb_tx_data_lane_sel = intf_repair.mb_tx_data_lane_sel;
+                mbtrain_if.mb_tx_val_lane_sel  = intf_repair.mb_tx_val_lane_sel;
+                mbtrain_if.mb_tx_trk_lane_sel  = intf_repair.mb_tx_trk_lane_sel;
+                mbtrain_if.mb_rx_clk_lane_sel  = intf_repair.mb_rx_clk_lane_sel;
+                mbtrain_if.mb_rx_data_lane_sel = intf_repair.mb_rx_data_lane_sel;
+                mbtrain_if.mb_rx_val_lane_sel  = intf_repair.mb_rx_val_lane_sel;
+                mbtrain_if.mb_rx_trk_lane_sel  = intf_repair.mb_rx_trk_lane_sel;
+            end
+            default: ;
+        endcase
+    end
+
+endmodule

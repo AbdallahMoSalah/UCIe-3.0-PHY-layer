@@ -48,7 +48,7 @@ module unit_RXDESKEW #(
     TO_DTC2                        = 4'd13, // S13: Terminal — proceed to DataTrainCenter2.
     TO_TRAINERROR                  = 4'd14; // S14: Terminal — TRAINERROR.
 
-    reg [4:0] current_state, next_state;
+    logic [4:0] current_state, next_state;
     wire      is_high_speed;
     assign is_high_speed      = (rxdeskew_if.phy_negotiated_speed > SPEED_32G);
 
@@ -79,13 +79,11 @@ module unit_RXDESKEW #(
     // Outputs from unit_phase_interpolator (PI) sub-module
     // =========================================================================
     logic [DW-1:0] best_deskew_code       [15:0];
-    logic          pi_fail_flag_r;
     logic [2:0]    best_preset_saved;
     logic [DW-1:0] overall_best_min_range;
 
     logic [DW-1:0] min_sweep_range;
     assign min_sweep_range                = overall_best_min_range;
-    assign rxdeskew_if.rxdeskew_fail_flag = pi_fail_flag_r;
 
     // pi_en: held high for the duration of RXDESKEW_APPLY_SKEW_SWEEP.
     assign pi_en           = (current_state == RXDESKEW_APPLY_SKEW_SWEEP);
@@ -116,7 +114,7 @@ module unit_RXDESKEW #(
     reg       my_preset_fail_status;  // 1 = we could not support the requested preset.
     reg       partner_preset_fail_status; // 1 = partner signalled fail on our preset request.
 
-    always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin
+    always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin
         if(~rxdeskew_if.rst_n) begin
             current_state  <= RXDESKEW_IDLE;
         end
@@ -125,7 +123,7 @@ module unit_RXDESKEW #(
         end
     end
 
-    always @(*) begin
+    always_comb begin
         if (rxdeskew_if.timeout_8ms_occured | (rxdeskew_if.rx_sb_msg == TRAINERROR_Entry_req && rxdeskew_if.rx_sb_msg_valid == 1'b1)) begin
             next_state = TO_TRAINERROR;
         end
@@ -280,7 +278,7 @@ module unit_RXDESKEW #(
     // OLD_PRESET_SAVED tracking (TO_DTC1 / TO_DTC2)
     // Stays in this module because it is a pure FSM side-effect.
     // =========================================================================
-    always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : OLD_PRESET_PROC
+    always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : OLD_PRESET_PROC
         if (!rxdeskew_if.rst_n) begin
             old_preset_saved <= 3'd0;
         end else begin
@@ -305,7 +303,7 @@ module unit_RXDESKEW #(
         .pi_session_start              (pi_session_start),
         // Abort triggers
         .valtraincenter_fail_flag      (rxdeskew_if.valtraincenter_fail_flag),
-        .partner_valtraincenter_fail_flag (rxdeskew_if.partner_valtraincenter_fail_flag),
+        .partner_valtraincenter_fail_flag (d2c_if.partner_valtraincenter_fail_flag),
         // D2C PT interface
         .test_d2c_done                 (d2c_if.test_d2c_done),
         .d2c_perlane_err               (d2c_if.d2c_perlane_err),
@@ -325,7 +323,7 @@ module unit_RXDESKEW #(
         .swept_code_r_out              (swept_code_r_out),
         // Computation outputs
         .best_deskew_code              (best_deskew_code),
-        .fail_flag_r                   (pi_fail_flag_r),
+        // .fail_flag_r                   (),
         // .current_preset_min_range_out  (), // Unused at this level
         .best_preset_saved             (best_preset_saved),
         .overall_best_min_range        (overall_best_min_range)
@@ -334,7 +332,7 @@ module unit_RXDESKEW #(
         // .overall_found_pass            ()  // Unused at this level
     );
 
-    always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : COUNTERS_PROC
+    always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : COUNTERS_PROC
         if (!rxdeskew_if.rst_n) begin
             preset_search_cnt <= 3'd0;
             dtc1_arc_cnt      <= 3'd0;
@@ -363,7 +361,7 @@ module unit_RXDESKEW #(
         end
     end
 
-    always @(*) begin
+    always_comb begin
         rxdeskew_if.rxdeskew_done        = 1'b0;
         rxdeskew_if.trainerror_req       = 1'b0;
         rxdeskew_if.datatraincenter1_req = 1'b0;
@@ -517,7 +515,7 @@ module unit_RXDESKEW #(
         endcase
     end
 
-    always @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDSHAKE_PROC
+    always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDSHAKE_PROC
         if (rxdeskew_if.rst_n == 1'b0) begin
             {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, NO_MSG};
             my_preset_fail_status      <= 1'b0;

@@ -44,8 +44,25 @@ module unit_REPAIR (
     logic [2:0] local_tx_lane_map_code; // We assign to this signal: the sucessful lanes encoding of our MB Tx Lanes (linkspeed_success_lanes)
     logic [2:0] local_rx_lane_map_code; // We assign to this signal: the sucessful lanes encoding of our MB Rx Lanes (mb_rx_data_lane_mask)
 
-    assign rp_if.mb_tx_data_lane_mask = local_tx_lane_map_code; // to update the used lanes mask for MB Transmitter side. (on our Die)
-    assign rp_if.mb_rx_data_lane_mask = local_rx_lane_map_code; // to update the used lanes mask for MB Receiver    side. (on our Die)
+    // We have to register the signal 'mb_tx_data_lane_mask'.
+    // Because it's used in external modules.
+    // and it changes only at the end of the REPAIR_EVAL_RESULT state.
+    always_ff @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
+        if (!rp_if.rst_n) begin
+            rp_if.mb_tx_data_lane_mask <= 3'b0; // to update the used lanes mask for MB Transmitter side. (on our Die)
+            rp_if.mb_rx_data_lane_mask <= 3'b0; // to update the used lanes mask for MB Receiver    side. (on our Die)
+        end
+        // This signal be triggered in the begining of the MBTRAIN state. We get signal form ths substate MBTRAIN.VALVREF
+        else if (rp_if.update_lane_mask) begin
+            rp_if.mb_tx_data_lane_mask <= rp_if.mbinit_tx_data_lane_mask; // to update the used lanes mask for MB Transmitter side. (on our Die)
+            rp_if.mb_rx_data_lane_mask <= rp_if.mbinit_rx_data_lane_mask; // to update the used lanes mask for MB Receiver    side. (on our Die)
+        end
+        // At the end of the REPAIR substate, we update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "local_(rx/tx)_lane_map_code".
+        else if (current_state == REPAIR_EVAL_RESULT) begin
+            rp_if.mb_tx_data_lane_mask <= local_tx_lane_map_code; // to update the used lanes mask for MB Transmitter side. (on our Die)
+            rp_if.mb_rx_data_lane_mask <= local_rx_lane_map_code; // to update the used lanes mask for MB Receiver    side. (on our Die)
+        end
+    end
 
     // =========================================================================
     // State encoding
@@ -94,7 +111,7 @@ module unit_REPAIR (
     // =========================================================================
     // Combinational: next-state logic
     // =========================================================================
-    always @(*) begin
+    always_comb begin
         if (rp_if.timeout_8ms_occured |
                 (rp_if.rx_sb_msg == TRAINERROR_Entry_req && rp_if.rx_sb_msg_valid)) begin
             next_state = TO_TRAINERROR;
@@ -148,7 +165,7 @@ module unit_REPAIR (
     // =========================================================================
     // Combinational: output logic
     // =========================================================================
-    always @(*) begin
+    always_comb begin
         // ======================= //
         // LTSM general signals.   //
         // ======================= //

@@ -5,7 +5,9 @@
 
 interface internal_ltsm_if #(
         parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control.
-        parameter MAX_DATA_VREF_CODE = 'D127  // for Reference Rx Data Lanes Vref control.
+        parameter MAX_DATA_VREF_CODE = 'D127, // for Reference Rx Data Lanes Vref control.
+        parameter MAX_PI_PHASE_CODE  = 'D64 , // for Phase Interpolator (PI) control.
+        parameter MAX_DESKEW_CODE    = 'D64   // for Deskew control.
     ) (
         input logic lclk,
         input logic rst_n
@@ -14,6 +16,8 @@ interface internal_ltsm_if #(
     // For analog Voltage control.
     localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
     localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+    localparam PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE);
+    localparam DESKEW_WIDTH         = $clog2(MAX_DESKEW_CODE);
 
     // current and previous states.
     import ltsm_state_n_pkg::state_n_e         ; state_n_e          state_n[3:0]            ; // for RF (to log the last 4 states names). state_n[0]: current state, state_n[1]: previous state, state_n[2]: previous previous state, state_n[3]: previous previous previous state.
@@ -43,20 +47,20 @@ interface internal_ltsm_if #(
     logic repairmb_en        , repairmb_done        , repairmb_fail_flag        ; // repairmb_fail_flag: For MBINIT.RepairMB FSM state: To report if the RepairMB FSM failed to repair the MB.
 
     // enable, done and fail_flag signals for the MBTRAIN sub-states:
-    logic mbtrain_repair_req , mbtrain_speedidle_req, mbtrain_txselfcal_req;
+    logic mbtrain_repair_req , mbtrain_speedidle_req, mbtrain_txselfcal_req     ; // we use the signals that starts with "mbtrain_..." for the requests that come from State outside the MBTRAIN substates.
     logic valvref_en         , valvref_done                                     ;
-    logic datavref_en        , datavref_done        , datavref_fail_flag        ; // datavref_fail_flag: For MBTRAIN.DATAVREF FSM state: To report if the Data  Vref calibration failed.
+    logic datavref_en        , datavref_done                                    ;
     logic speedidle_en       , speedidle_done       , speedidle_req             ;
-    logic txselfcal_en       , txselfcal_done       , txselfcal_req                     ;
+    logic txselfcal_en       , txselfcal_done       , txselfcal_req             ;
     logic rxclkcal_en        , rxclkcal_done                                    ;
-    logic valtraincenter_en  , valtraincenter_done  , valtraincenter_fail_flag  ; // valtraincenter_fail_flag: For MBTRAIN.VALTRAINCENTER FSM state: To report if there was a fail in calibration.
-    logic valtrainvref_en    , valtrainvref_done    , valtrainvref_fail_flag    ; // valtrainvref_fail_flag: For MBTRAIN.VALTRAINVREF FSM state: To report if the Valid Vref calibration failed.
-    logic datatraincenter1_en, datatraincenter1_done, datatraincenter1_fail_flag, datatraincenter1_req;
-    logic datatrainvref_en   , datatrainvref_done   , datatrainvref_fail_flag   ;
-    logic rxdeskew_en        , rxdeskew_done        , rxdeskew_fail_flag        ; // rxdeskew_fail_flag: For MBTRAIN.RXDESKEW FSM state: To report if the per-lane deskew failed.
-    logic datatraincenter2_en, datatraincenter2_done, datatraincenter2_fail_flag;
-    logic linkspeed_en       , linkspeed_done       , linkspeed_fail_flag       ; // linkspeed_fail_flag: For MBTRAIN.LINKSPEED FSM state: To report if there was a problem.
-    logic [15:0] linkspeed_success_lanes; // From LINKSPEED to REPAIR: indicates the lanes that passed the test.
+    logic valtraincenter_en  , valtraincenter_done  , valtraincenter_fail_flag  ;
+    logic valtrainvref_en    , valtrainvref_done                                ;
+    logic datatraincenter1_en, datatraincenter1_done, datatraincenter1_req;
+    logic datatrainvref_en   , datatrainvref_done                               ;
+    logic rxdeskew_en        , rxdeskew_done                                    ;
+    logic datatraincenter2_en, datatraincenter2_done                            ;
+    logic linkspeed_en       , linkspeed_done                                   ;
+    logic [15:0] linkspeed_success_lanes                                        ; // From LINKSPEED to REPAIR: indicates the lanes that passed the test.
     logic repair_en          , repair_done          , repair_req                ;
 
     // PHY_IN_RETRAIN handshake between PHYRETRAIN state and MBTRAIN.LINKSPEED sub-state.
@@ -134,6 +138,8 @@ interface internal_ltsm_if #(
     // 101b: Logical Lanes 4 to 7
     logic [2:0]  mb_rx_data_lane_mask; // Describes the Functional Rx Lanes (Active Lanes).
     logic [2:0]  mb_tx_data_lane_mask; // Describes the Functional Tx Lanes (Active Lanes).
+    logic [2:0]  mbinit_rx_data_lane_mask, mbinit_tx_data_lane_mask; // The above but for the MBINIT State outputs.
+    logic        update_lane_mask       ; // Tells the MBTRAIN.REPAIR substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN. We get this signal from MBTRAIN.VALVREF.
     logic        mb_mapper_en        ; // 0: Disable the mapper, 1: Enable the mapper.
 
     // Lane Behavior Control
@@ -160,8 +166,9 @@ interface internal_ltsm_if #(
     logic        phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
     logic [VAL_VREF_CODE_WIDTH-1 :0] phy_rx_valvref_ctrl       ; // Tell ADC the Rx Valid Lane Vref level to operate in.
     logic [DATA_VREF_CODE_WIDTH-1:0] phy_rx_datavref_ctrl[15:0]; // Tell ADC the Rx Data Lane Vref level to operate in.
-    logic [5:0]  phy_tx_pi_phase_ctrl      ; // Tell ADC the Tx Clock Lane PI phase level.
-    logic [6:0]  phy_rx_deskew_ctrl[15:0]  ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+    logic [PI_PHASE_WIDTH-1:0]  phy_tx_val_pi_phase_ctrl       ; // Tell ADC the Tx Valid-to-Clock PI phase level.
+    logic [PI_PHASE_WIDTH-1:0]  phy_tx_data_pi_phase_ctrl[15:0]; // Tell ADC the Tx Data-to-Clock PI phase level.
+    logic [DESKEW_WIDTH-1:0]  phy_rx_deskew_ctrl[15:0]  ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
     logic [2:0]  phy_tx_eq_preset_ctrl     ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
     logic        phy_rx_clk_drift_cal_state; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
     logic        phy_rx_clk_drift_cal_valid; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
@@ -423,7 +430,8 @@ interface internal_ltsm_if #(
         input  phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
         output phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
         output phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
-        output phy_tx_pi_phase_ctrl      , // Tell ADC the Tx Clock Lane PI phase level.
+        output phy_tx_val_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
+        output phy_tx_data_pi_phase_ctrl , // Tell ADC the Tx Clock Lane PI phase level.
         output phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
         output phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
         input  phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
@@ -496,7 +504,8 @@ interface internal_ltsm_if #(
         output phy_rx_decrement_shift    , // Direction of shift: 1b (earlier), 0b (later).
         input  phy_rx_valvref_ctrl       , // Tell ADC the Rx Valid Lane Vref level to operate in.
         input  phy_rx_datavref_ctrl      , // Tell ADC the Rx Data Lane Vref level to operate in.
-        input  phy_tx_pi_phase_ctrl      , // Tell ADC the Tx Clock Lane PI phase level.
+        input  phy_tx_val_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
+        input  phy_tx_data_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
         input  phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
         input  phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
         output phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
@@ -752,7 +761,6 @@ interface internal_ltsm_if #(
 
         // Clock sampling.
         output d2c_clk_sampling    , // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
-        // input  d2c_timeout_or_error, // Tell the external Sub-state if timeout or error occurs during the test to move to TRAINERROR state.
 
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
@@ -1025,10 +1033,10 @@ interface internal_ltsm_if #(
         output  mb_tx_pattern_count_done, // Asserted (=1) once MB completes the iter_count.
 
         // Receiver Comparison Setup & Errors
-        input mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
-        input mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
-        input mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
-        input mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+        input   mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
+        input   mb_rx_max_err_thresh_aggr   , // Max error Threshold in aggregate comparison.
+        input   mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
+        input   mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
         output  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
         output  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
         output  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
@@ -1103,6 +1111,7 @@ interface internal_ltsm_if #(
         // ======================= //
         input  valvref_en    , output  valvref_done,
         output trainerror_req,
+        input  update_lane_mask, // Tells the MBTRAIN.REPAIR substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN. We get this signal from MBTRAIN.VALVREF.
 
         // ======================= //
         // MB signals.             //
@@ -1159,7 +1168,6 @@ interface internal_ltsm_if #(
         // LTSM general signals.   //
         // ======================= //
         input  datavref_en            , output datavref_done          ,
-        output datavref_fail_flag     , // To report if the Data Vref calibration failed.
         output trainerror_req         , // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)).
         input  mb_rx_data_lane_mask   , // Describes the Functional Rx Lanes (Active Lanes) in 3-bit. as in table 4-9 in UCIe_reference
 
@@ -1406,7 +1414,8 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  valtraincenter_en, output valtraincenter_done, output valtraincenter_fail_flag,
+        input  valtraincenter_en, output valtraincenter_done,
+        output valtraincenter_fail_flag,
         output trainerror_req,
 
         // ======================= //
@@ -1425,7 +1434,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // PHY Rx/Tx control       //
         // ======================= //
-        output phy_tx_pi_phase_ctrl, // Tell ADC the Tx Clock Lane PI phase level.
+        output phy_tx_val_pi_phase_ctrl, // Tell ADC the Tx Clock Lane PI phase level.
 
         // ======================= //
         // SB signals.             //
@@ -1464,7 +1473,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  valtrainvref_en, output valtrainvref_done, output valtrainvref_fail_flag,
+        input  valtrainvref_en, output valtrainvref_done,
         input  valtraincenter_fail_flag, // Read by VALTRAINVREF S2 to skip sweep when VALTRAINCENTER failed.
         output trainerror_req,
 
@@ -1523,7 +1532,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  datatraincenter1_en, output datatraincenter1_done, output datatraincenter1_fail_flag,
+        input  datatraincenter1_en, output datatraincenter1_done,
         output trainerror_req,
         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
@@ -1543,7 +1552,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // PHY Rx/Tx control       //
         // ======================= //
-        output phy_tx_pi_phase_ctrl, // Tell PHY the Tx Clock Lane PI phase (per-lane phase sweep).
+        output phy_tx_data_pi_phase_ctrl, // Tell PHY the Tx Clock Lane PI phase (per-lane phase sweep).
 
         // ======================= //
         // SB signals.             //
@@ -1583,10 +1592,9 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  datatrainvref_en, output datatrainvref_done, output datatrainvref_fail_flag,
-        // S2 shortcut inputs: if dtc1_fail_flag==1 OR valtraincenter_fail_flag==1 → skip sweep → S7.
-        input  datatraincenter1_fail_flag, // Read by DATATRAINVREF S2 to skip sweep.
-        input  valtraincenter_fail_flag  , // Read by DATATRAINVREF S2 to skip sweep.
+        input  datatrainvref_en, output datatrainvref_done,
+        // S2 shortcut inputs: if dtc1_fail_flag==1 OR valtraincenter_fail_flag==1 → skip sweep → S7. <--- change that...
+        input  valtraincenter_fail_flag        , // Read by DATATRAINVREF S2 to skip sweep.
         output trainerror_req,
         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
@@ -1640,11 +1648,9 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  rxdeskew_en, output rxdeskew_done, output rxdeskew_fail_flag,
-        // Fail flags from prior sub-states (used in RXDESKEW_START_RESP and CHOOSE_PRESET).
-        input  datatraincenter1_fail_flag, // Used in accumulative_error for EQ preset selection.
+        input  rxdeskew_en, output rxdeskew_done,
         input  valtraincenter_fail_flag  , // Used in accumulative_error and speed-degrade exit.
-        input  partner_valtraincenter_fail_flag , // Used to determine to know if partner needs to exit as fast as possible.
+
         // input  partner_datatraincenter_fail_flag, // Used to determine to know if partner needs a new Tx EQ Preset.
         output trainerror_req,
         // Re-entry signal: when TO_DTC1 fires, this tells controller to re-enable RXDESKEW
@@ -1709,7 +1715,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  datatraincenter2_en, output datatraincenter2_done, output datatraincenter2_fail_flag,
+        input  datatraincenter2_en, output datatraincenter2_done,
         output trainerror_req,
         input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit encoding.
 
@@ -1729,7 +1735,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // PHY Rx/Tx control       //
         // ======================= //
-        output phy_tx_pi_phase_ctrl, // Tell PHY the Tx Clock Lane PI phase (per-lane phase sweep).
+        output phy_tx_data_pi_phase_ctrl, // Tell PHY the Tx Clock Lane PI phase (per-lane phase sweep).
 
         // ======================= //
         // SB signals.             //
@@ -1769,7 +1775,7 @@ interface internal_ltsm_if #(
         // ======================= //
         // LTSM general signals.   //
         // ======================= //
-        input  linkspeed_en, output linkspeed_done, output linkspeed_fail_flag,
+        input  linkspeed_en, output linkspeed_done,
         output trainerror_req,
 
         // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)
@@ -1780,9 +1786,6 @@ interface internal_ltsm_if #(
         input  params_changed           , // Were link parameters changed during PHYRETRAIN?
 
         // // Previous substates fail flags (read-only inputs to decide exit path)
-        // input  datatraincenter2_fail_flag,
-        // input  datatrainvref_fail_flag   ,
-        // input  valtrainvref_fail_flag    ,
         // input  valtraincenter_fail_flag  ,
         output linkspeed_success_lanes,
 
@@ -1866,13 +1869,17 @@ interface internal_ltsm_if #(
         input  param_UCIe_S_x8,
 
         // ======================= //
-        // MB signals.             //
+        // MB lanes width signals. //
         // ======================= //
         input  linkspeed_success_lanes, // To know which lanes succeeded in the previous state.
-        input  mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit.
+        output mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes) in 3-bit.
         output mb_tx_data_lane_mask, // Describes the Functional Tx Lanes (Active Lanes) in 3-bit.
+        input  mbinit_rx_data_lane_mask, // Get the Functional Rx Lanes (Active Lanes) in 3-bit described in the MBINIT State.
+        input  mbinit_tx_data_lane_mask, // Get the Functional Tx Lanes (Active Lanes) in 3-bit described in the MBINIT State.
+        input  update_lane_mask,       // Tells the substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN. We get this signal from MBTRAIN.VALVREF.
 
         // ======================= //
+
         // MB signals.             //
         // ======================= //
         // Lane Behavior Control
@@ -1923,16 +1930,6 @@ interface internal_ltsm_if #(
 
 
 
-
-    modport datavref2ltsm_mp (
-        input  datavref_en            , // Enable the DATAVREF FSM.
-        output datavref_done          , // To Know if the DATAVREF FSM is done.
-        output datavref_fail_flag     , // To report if the Data Vref calibration failed.
-        // output successful_clk_sampling, // To know if the clock needs to take a shift (to right or to left).
-        output trainerror_req         , // To request TRAINERROR implementation (because of (Timeout) OR (receiving TRAINERROR req)).
-        input  mb_rx_data_lane_mask     // Describes the Functional Rx Lanes (Active Lanes) in 3-bit. as in table 4-9 in UCIe_reference
-    );
-
     //=======================================================================================//
     // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
     // LTSM -> MB                                                                            //
@@ -1968,7 +1965,8 @@ interface internal_ltsm_if #(
         output trainerror_en      , input trainerror_done      ,input trainerror_req
     );
 
-    modport mbtrain_mp (
+    // For the module unit_mbtrain_ctrl
+    modport mbtrain_ctrl_mp (
         input  lclk      , input  rst_n       ,
         input  mbtrain_en, output mbtrain_done,
         output current_mbtrain_substate       ,
@@ -1976,21 +1974,59 @@ interface internal_ltsm_if #(
 
         // Sub-state handshakes:
         input  mbtrain_repair_req, mbtrain_speedidle_req, mbtrain_txselfcal_req,
-        output valvref_en         , input valvref_done                                           ,
-        output datavref_en        , input datavref_done        , input datavref_fail_flag        , // datavref_fail_flag: For MBTRAIN.DATAVREF FSM state: To report if the Data  Vref calibration failed.
-        output speedidle_en       , input speedidle_done       , input speedidle_req             ,
-        output txselfcal_en       , input txselfcal_done       , input txselfcal_req         ,
-        output rxclkcal_en        , input rxclkcal_done                                          ,
-        output valtraincenter_en  , input valtraincenter_done  , input valtraincenter_fail_flag  , // valtraincenter_fail_flag: For MBTRAIN.VALTRAINCENTER FSM state: To report if there was a fail in calibration.
-        output valtrainvref_en    , input valtrainvref_done                                      ,
-        output datatraincenter1_en, input datatraincenter1_done, input  datatraincenter1_req     ,
-        output datatrainvref_en   , input datatrainvref_done                                     ,
-        output rxdeskew_en        , input rxdeskew_done                                          ,
-        output datatraincenter2_en, input datatraincenter2_done                                  ,
-        output linkspeed_en       , input linkspeed_done                                         ,
+        output valvref_en         , input valvref_done         ,
+        output datavref_en        , input datavref_done        ,
+        output speedidle_en       , input speedidle_done       , input speedidle_req           ,
+        output txselfcal_en       , input txselfcal_done       , input txselfcal_req           ,
+        output rxclkcal_en        , input rxclkcal_done                                        ,
+        output valtraincenter_en  , input valtraincenter_done  ,
+        output valtrainvref_en    , input valtrainvref_done    ,
+        output datatraincenter1_en, input datatraincenter1_done, input datatraincenter1_req    ,
+        output datatrainvref_en   , input datatrainvref_done   ,
+        output rxdeskew_en        , input rxdeskew_done        ,
+        output datatraincenter2_en, input datatraincenter2_done,
+        output linkspeed_en       , input linkspeed_done       ,
         output repair_en          , input repair_done          , input repair_req
     );
 
+    // For the wrapper module wrapper_MBTRAIN
+    modport mbtrain_mp (
+        input lclk               ,input rst_n,
+        input mbtrain_repair_req ,input mbtrain_speedidle_req ,input mbtrain_txselfcal_req,
+        input mbtrain_en         , output mbtrain_done        ,
+        output current_mbtrain_substate,
 
+        input  mbinit_rx_data_lane_mask , mbinit_tx_data_lane_mask,
+        output mb_rx_data_lane_mask , mb_rx_data_lane_mask,
+
+        input  state_n,
+
+
+        // ======================= //
+        // MB signals.             //
+        // ======================= //
+        // Lane Behavior Control
+        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
+        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
+        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
+        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
+        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
+        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
+        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+
+        // ======================= //
+        // SB signals.             //
+        // ======================= //
+        output tx_sb_msg_valid,
+        output tx_sb_msg      ,
+        output tx_msginfo     ,
+        output tx_data_field  ,
+
+        input rx_sb_msg_valid,
+        input rx_sb_msg      ,
+        input rx_msginfo     ,
+        input rx_data_field
+    );
 
 endinterface

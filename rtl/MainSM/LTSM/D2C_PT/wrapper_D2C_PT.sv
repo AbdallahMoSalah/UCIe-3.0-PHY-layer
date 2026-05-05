@@ -1,18 +1,18 @@
 module wrapper_D2C_PT (
-    //=====================================//
-    // Control Signals for Sub-states:     //
-    //=====================================//
-    internal_ltsm_if.d2c2substate_mp       mbinit_if            ,
-    internal_ltsm_if.d2c2substate_mp       mbtrain_if           ,
-    internal_ltsm_if.current_ltsm_state_mp current_ltsm_state_if,
+        //=====================================//
+        // Control Signals for Sub-states:     //
+        //=====================================//
+        internal_ltsm_if.d2c2substate_mp       mbinit_if            ,
+        internal_ltsm_if.d2c2substate_mp       mbtrain_if           ,
+        internal_ltsm_if.current_ltsm_state_mp current_ltsm_state_if,
 
-    //=====================================//
-    // Control Signals for MB, SB, LTSM:   //
-    //=====================================//
-    internal_ltsm_if.d2c2mux_mp            mux_if
-);
+        //=====================================//
+        // Control Signals for MB, SB, LTSM:   //
+        //=====================================//
+        internal_ltsm_if.d2c2mux_mp            mux_if
+    );
 
-    import LTSM_state_pkg::*; 
+    import LTSM_state_pkg::*;
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
     // |  -------------------------      Internal Interfaces and Instances       ---------------------------  |
@@ -26,7 +26,7 @@ module wrapper_D2C_PT (
         .substate_if(intf_tx.tx_d2c2substate_mp),
         .mux_if     (intf_tx.d2c2mux_mp) // using the new d2c2mux_mp port mapping
     );
-    
+
     unit_RX_D2C_PT RX_D2C_PT (
         .substate_if(intf_rx.rx_d2c2substate_mp),
         .mux_if     (intf_rx.d2c2mux_mp) // using the new d2c2mux_mp port mapping
@@ -187,7 +187,7 @@ module wrapper_D2C_PT (
             // Route outputs from the TX test
             mux_if.mb_tx_clk_sampling_en       = intf_tx.mb_tx_clk_sampling_en;
             mux_if.mb_tx_clk_sampling          = intf_tx.mb_tx_clk_sampling;
-            
+
             mux_if.mb_tx_pattern_en            = intf_tx.mb_tx_pattern_en;
             mux_if.mb_tx_pattern_setup         = intf_tx.mb_tx_pattern_setup;
             mux_if.mb_tx_data_pattern_sel      = intf_tx.mb_tx_data_pattern_sel;
@@ -224,7 +224,7 @@ module wrapper_D2C_PT (
             // Route outputs from the RX test
             mux_if.mb_tx_clk_sampling_en       = intf_rx.mb_tx_clk_sampling_en;
             mux_if.mb_tx_clk_sampling          = intf_rx.mb_tx_clk_sampling;
-            
+
             mux_if.mb_tx_pattern_en            = intf_rx.mb_tx_pattern_en;
             mux_if.mb_tx_pattern_setup         = intf_rx.mb_tx_pattern_setup;
             mux_if.mb_tx_data_pattern_sel      = intf_rx.mb_tx_data_pattern_sel;

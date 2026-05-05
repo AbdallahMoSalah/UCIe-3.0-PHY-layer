@@ -88,8 +88,7 @@ module unit_DATATRAINCENTER2 #(
     reg [PW-1:0] best_code_r [NUM_DATA_LANES-1:0];
 
     // fail_flag_r : set if ANY negotiated lane has no passing code in the sweep
-    reg fail_flag_r;
-    assign dtc2_if.datatraincenter2_fail_flag = fail_flag_r;
+    // reg fail_flag_r;
 
     // ==================================================
     // MB Lane Control
@@ -98,7 +97,7 @@ module unit_DATATRAINCENTER2 #(
     // 100b: Lanes 0-3  101b: Lanes 4-7
     // ==================================================
     logic [15:0] negotiated_data_lanes;
-    always @(*) begin
+    always_comb begin
         case (dtc2_if.mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
             3'b001:  negotiated_data_lanes = 16'h00FF;
@@ -113,7 +112,7 @@ module unit_DATATRAINCENTER2 #(
     // any_fail: combinational reduction over found_pass[]
     // Only consider lanes that are active (negotiated_data_lanes[l]==1).
     genvar g;
-    wire any_fail_w;
+    // wire any_fail_w;
     wire [NUM_DATA_LANES-1:0] found_pass_bus;
     generate
         for (g = 0; g < NUM_DATA_LANES; g++) begin : GEN_FP
@@ -121,12 +120,12 @@ module unit_DATATRAINCENTER2 #(
         end
     endgenerate
     // A lane is "ok" if it found a pass OR it is not a negotiated lane.
-    assign any_fail_w = ~(&(found_pass_bus | ~negotiated_data_lanes));
+    // assign any_fail_w = ~(&(found_pass_bus | ~negotiated_data_lanes));
 
     // =====================================================================
     // (Block 1) Sequential: current state
     // =====================================================================
-    always @(posedge dtc2_if.lclk or negedge dtc2_if.rst_n) begin
+    always_ff @(posedge dtc2_if.lclk or negedge dtc2_if.rst_n) begin
         if (!dtc2_if.rst_n) begin
             current_state  <= DTC2_IDLE;
         end else begin
@@ -137,7 +136,7 @@ module unit_DATATRAINCENTER2 #(
     // =====================================================================
     // (Block 2) Combinational: next state
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         if (dtc2_if.timeout_8ms_occured | (dtc2_if.rx_sb_msg == TRAINERROR_Entry_req && dtc2_if.rx_sb_msg_valid == 1'b1)) begin
             next_state = TO_TRAINERROR;
         end else begin
@@ -199,7 +198,7 @@ module unit_DATATRAINCENTER2 #(
     // All interface outputs are driven here; the data-path block below
     // maintains swept_code_r, best_lo/hi, best_code_r, and fail_flag_r.
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         // Safe defaults
         dtc2_if.datatraincenter2_done  = 1'b0;
         dtc2_if.trainerror_req         = 1'b0;
@@ -325,7 +324,7 @@ module unit_DATATRAINCENTER2 #(
     //   Fail transition:
     //     zone_valid[l] -> 0 (current pass zone closed).
     // =====================================================================
-    always @(posedge dtc2_if.lclk or negedge dtc2_if.rst_n) begin : DTC2_SWEEP_PROC
+    always_ff @(posedge dtc2_if.lclk or negedge dtc2_if.rst_n) begin : DTC2_SWEEP_PROC
         integer i;
         if (!dtc2_if.rst_n) begin
             // Async reset: initialise all sweep registers
@@ -337,7 +336,7 @@ module unit_DATATRAINCENTER2 #(
                 zone_valid[i] <= 1'b0;
                 best_code_r[i] <= MIN_PHASE_CODE;
             end
-            fail_flag_r <= 1'b0;
+            // fail_flag_r <= 1'b0;
 
         end else if (current_state == DTC2_START_REQ) begin
             // (S1) Reset sweep state at the start of every new run.
@@ -350,7 +349,7 @@ module unit_DATATRAINCENTER2 #(
                 zone_valid[i] <= 1'b0;
                 best_code_r[i] <= MIN_PHASE_CODE;
             end
-            fail_flag_r <= 1'b0;
+            // fail_flag_r <= 1'b0;
 
         end else if (current_state == DTC2_LOG_RESULT) begin
             // (S5) Per-lane pass/fail logging and swept_code_r increment.
@@ -395,7 +394,7 @@ module unit_DATATRAINCENTER2 #(
                 // else: keep previous best_code_r[i] (defective lane, no update).
             end
             // Fail if any negotiated lane never passed.
-            fail_flag_r <= any_fail_w;
+            // fail_flag_r <= any_fail_w;
         end
     end
 

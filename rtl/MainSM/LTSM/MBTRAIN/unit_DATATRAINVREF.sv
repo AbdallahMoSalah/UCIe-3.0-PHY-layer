@@ -71,7 +71,7 @@ module unit_DATATRAINVREF #(
     TO_TRAINERROR           = 4'hA;
     reg [3:0] current_state, next_state;
     // Glitch-guard: suppress tx_sb_msg_valid on the cycle of a state change.
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_data_valid = (current_state == next_state);
     // =====================================================================
     // Vref code width
     // =====================================================================
@@ -105,8 +105,9 @@ module unit_DATATRAINVREF #(
     // Applied per-lane optimal midpoint (written in CALC_APPLY, held afterwards).
     reg [VW-1:0] best_vref_code [15:0];
     // fail_flag: asserted if ANY negotiated lane has no passing Vref code at all.
-    reg fail_flag_r;
-    assign dtvref_if.datatrainvref_fail_flag = fail_flag_r;
+    // reg fail_flag_r;
+    // assign dtvref_if.datatrainvref_fail_flag = fail_flag_r;
+
     // =====================================================================
     // Negotiated data lane mask
     //
@@ -116,7 +117,7 @@ module unit_DATATRAINVREF #(
     //   100b: Lanes 0-3  101b: Lanes 4-7
     // =====================================================================
     logic [15:0] negotiated_data_lanes;
-    always @(*) begin
+    always_comb begin
         case (dtvref_if.mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
             3'b001:  negotiated_data_lanes = 16'h00FF;
@@ -160,7 +161,7 @@ module unit_DATATRAINVREF #(
     // =====================================================================
     // (Block 1) Sequential: current state register
     // =====================================================================
-    always @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin
+    always_ff @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin
         if (!dtvref_if.rst_n) begin
             current_state  <= DTVREF_IDLE;
         end else begin
@@ -170,7 +171,7 @@ module unit_DATATRAINVREF #(
     // =====================================================================
     // (Block 2) Combinational: next state
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         if (dtvref_if.timeout_8ms_occured |
                 (dtvref_if.rx_sb_msg == TRAINERROR_Entry_req &&
                     dtvref_if.rx_sb_msg_valid)) begin
@@ -240,7 +241,7 @@ module unit_DATATRAINVREF #(
     //       block above (VREF_RANGE_GEN). No assignments are made here to
     //       avoid duplicate drivers.
     // =====================================================================
-    always @(*) begin
+    always_comb begin
         // LTSM controller signals.
         dtvref_if.datatrainvref_done   = 1'b0;
         dtvref_if.trainerror_req       = 1'b0;
@@ -279,11 +280,11 @@ module unit_DATATRAINVREF #(
                 dtvref_if.timeout_timer_en = 1'b0;
             end
             DTVREF_START_REQ: begin
-                dtvref_if.tx_sb_msg_valid = !data_incoherence;
+                dtvref_if.tx_sb_msg_valid = is_tx_sb_data_valid;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_start_req;
             end
             DTVREF_START_RESP: begin
-                dtvref_if.tx_sb_msg_valid = !data_incoherence;
+                dtvref_if.tx_sb_msg_valid = is_tx_sb_data_valid;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_start_resp;
             end
             DTVREF_SET_VREF: begin
@@ -304,11 +305,11 @@ module unit_DATATRAINVREF #(
                 dtvref_if.analog_settle_timer_en = 1'b1;
             end
             DTVREF_END_REQ: begin
-                dtvref_if.tx_sb_msg_valid = !data_incoherence;
+                dtvref_if.tx_sb_msg_valid = is_tx_sb_data_valid;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_end_req;
             end
             DTVREF_END_RESP: begin
-                dtvref_if.tx_sb_msg_valid = !data_incoherence;
+                dtvref_if.tx_sb_msg_valid = is_tx_sb_data_valid;
                 dtvref_if.tx_sb_msg       = MBTRAIN_DATATRAINVREF_end_resp;
             end
             TO_RXDESKEW: begin
@@ -339,12 +340,12 @@ module unit_DATATRAINVREF #(
     //   best_vref_code[l]: midpoint applied to PHY for lane l after CALC_APPLY.
     //   fail_flag_r    : set if ANY negotiated lane has no passing Vref code.
     // =====================================================================
-    always @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin : DTVREF_LOG_RESULT_PROC
+    always_ff @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin : DTVREF_LOG_RESULT_PROC
         integer i;
         if (!dtvref_if.rst_n) begin
             // Async reset: clear all per-lane tracking registers.
             swept_code_r <= MIN_VREF_CODE[VW-1:0];
-            fail_flag_r  <= 1'b0;
+            // fail_flag_r  <= 1'b0;
             for (i = 0; i < 16; i = i + 1) begin
                 zone_min_r     [i] <= '0;
                 best_lo        [i] <= '0;
@@ -357,7 +358,7 @@ module unit_DATATRAINVREF #(
             // (S1) Reset sweep state at the start of each run.
             // Done in START_REQ so back-to-back activations each get a fresh sweep.
             swept_code_r <= MIN_VREF_CODE[VW-1:0];
-            fail_flag_r  <= 1'b0;
+            // fail_flag_r  <= 1'b0;
             for (i = 0; i < 16; i = i + 1) begin
                 zone_min_r     [i] <= '0;
                 best_lo        [i] <= '0;
@@ -416,7 +417,7 @@ module unit_DATATRAINVREF #(
             // Uses found_pass_bus (packed) so the bitwise NOT and AND are legal.
             // Non-negotiated lane bits are forced to 1 (via ~negotiated_data_lanes)
             // so they never cause a false failure.
-            fail_flag_r <= ~(&(found_pass_bus | (~negotiated_data_lanes)));
+            // fail_flag_r <= ~(&(found_pass_bus | (~negotiated_data_lanes)));
         end
     end
 endmodule

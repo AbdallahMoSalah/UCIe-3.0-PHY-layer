@@ -18,9 +18,9 @@ module unit_TXSELFCAL #() (
     reg [3:0] current_state, next_state;
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_msg_valid = (current_state == next_state);
     // Current State Logic
-    always @(posedge txselfcal_if.lclk or negedge txselfcal_if.rst_n) begin
+    always_ff @(posedge txselfcal_if.lclk or negedge txselfcal_if.rst_n) begin
         if (!txselfcal_if.rst_n) begin
             current_state  <= TXSELFCAL_IDLE;
         end else begin
@@ -28,7 +28,7 @@ module unit_TXSELFCAL #() (
         end
     end
     // Next State Logic of the FSM:
-    always @(*) begin
+    always_comb begin
         if(txselfcal_if.timeout_8ms_occured | (txselfcal_if.rx_sb_msg == TRAINERROR_Entry_req && txselfcal_if.rx_sb_msg_valid == 1'b1)) begin
             // (S5)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
@@ -69,7 +69,7 @@ module unit_TXSELFCAL #() (
         end
     end
     // Output logic based on current state:
-    always @(*) begin
+    always_comb begin
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
@@ -117,12 +117,12 @@ module unit_TXSELFCAL #() (
             end
             // (S2) Send & Receive SB Message: {MBTRAIN.TXSELFCAL done req}
             TXSELFCAL_DONE_REQ: begin
-                txselfcal_if.tx_sb_msg_valid = (!data_incoherence);             // Tell the SB that the selected message is valid.
+                txselfcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid);             // Tell the SB that the selected message is valid.
                 txselfcal_if.tx_sb_msg       = MBTRAIN_TXSELFCAL_Done_req;      // Tell the Sideband the message that it should to send.
             end
             // (S3) Send & Receive SB Message: {MBTRAIN.TXSELFCAL done resp}.
             TXSELFCAL_DONE_RESP: begin
-                txselfcal_if.tx_sb_msg_valid = (!data_incoherence);             // Tell the SB that the selected message is valid.
+                txselfcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid);             // Tell the SB that the selected message is valid.
                 txselfcal_if.tx_sb_msg       = MBTRAIN_TXSELFCAL_Done_resp;     // Tell the Sideband the message that it should to send.
             end
             // (S4) End of TXSELFCAL state.

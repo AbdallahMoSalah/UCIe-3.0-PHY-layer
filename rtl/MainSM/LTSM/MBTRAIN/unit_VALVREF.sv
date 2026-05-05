@@ -38,7 +38,7 @@ module unit_VALVREF #(
     wire valvref_fail_flag; // To know if there is no successful Valid Receiver Vref Code.
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_msg_valid = (current_state == next_state);
     // Current State Logic of the FSM:
     always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin
         if (!valvref_if.rst_n) begin
@@ -48,7 +48,7 @@ module unit_VALVREF #(
         end
     end
     // Next State Logic of the FSM:
-    always @(*) begin
+    always_comb begin
         if(valvref_if.timeout_8ms_occured | (valvref_if.rx_sb_msg == TRAINERROR_Entry_req && valvref_if.rx_sb_msg_valid == 1'b1) | valvref_fail_flag) begin
             // (S10)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
@@ -114,7 +114,7 @@ module unit_VALVREF #(
         end
     end
     // Output logic based on current state:
-    always @(*) begin
+    always_comb begin
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
@@ -123,6 +123,7 @@ module unit_VALVREF #(
         //==========================
         valvref_if.valvref_done   = 1'b0;
         valvref_if.trainerror_req = 1'b0;
+        valvref_if.update_lane_mask = 1'b0;
         //==========================
         // Timers:
         //==========================
@@ -168,6 +169,8 @@ module unit_VALVREF #(
         valvref_if.tx_sb_msg       = NOTHING; // Tell the Sideband the message that it should to send.
         valvref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
         valvref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
+
+
         case (current_state)
             // (S0) IDLE state: Wait for the trigger to start VALVREF FSM.
             VALVREF_IDLE: begin
@@ -176,14 +179,16 @@ module unit_VALVREF #(
             end
             // (S1) Send & Receive SB Message: {MBTRAIN.VALVREF start req}
             VALVREF_START_REQ: begin
-                valvref_if.tx_sb_msg_valid = (!data_incoherence)      ; // Tell the SB that the selected message is valid.
+                valvref_if.update_lane_mask = 1'b1; // Tell the MBTRAIN.REPAIR substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN.
+
+                valvref_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)      ; // Tell the SB that the selected message is valid.
                 valvref_if.tx_sb_msg       = MBTRAIN_VALVREF_start_req; // Tell the Sideband the message that it should to send.
                 valvref_if.tx_msginfo      = 16'h0                    ; // MsgInfo field of the SB message.
                 valvref_if.tx_data_field   = 64'h0                    ; // Data field of the SB message.
             end
             // (S2) Send & Receive SB Message: {MBTRAIN.VALVREF start resp}.
             VALVREF_START_RESP: begin
-                valvref_if.tx_sb_msg_valid = (!data_incoherence)       ; // Tell the SB that the selected message is valid.
+                valvref_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)       ; // Tell the SB that the selected message is valid.
                 valvref_if.tx_sb_msg       = MBTRAIN_VALVREF_start_resp; // Tell the Sideband the message that it should to send.
                 valvref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 valvref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
@@ -211,14 +216,14 @@ module unit_VALVREF #(
             end
             // (S7) Send & Receive SB Message: {MBTRAIN.VALVREFF end resp}. Also, drive Vref_code to the PHY MB Receiver Valid Lane.
             VALVREF_END_REQ: begin
-                valvref_if.tx_sb_msg_valid = (!data_incoherence)    ; // Tell the SB that the selected message is valid.
+                valvref_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)    ; // Tell the SB that the selected message is valid.
                 valvref_if.tx_sb_msg       = MBTRAIN_VALVREF_end_req; // Tell the Sideband the message that it should to send.
                 valvref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 valvref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.
             end
             // (S8) Send & Receive SB Message: {End Rx Init D to C point test req}.
             VALVREF_END_RESP: begin
-                valvref_if.tx_sb_msg_valid = (!data_incoherence)     ; // Tell the SB that the selected message is valid.
+                valvref_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)     ; // Tell the SB that the selected message is valid.
                 valvref_if.tx_sb_msg       = MBTRAIN_VALVREF_end_resp; // Tell the Sideband the message that it should to send.
                 valvref_if.tx_msginfo      = 16'h0  ; // MsgInfo field of the SB message.
                 valvref_if.tx_data_field   = 64'h0  ; // Data field of the SB message.

@@ -118,6 +118,7 @@ module unit_DATATRAINCENTER2_tb ();
         intf.tb_rx_msginfo       = 16'B0;
         intf.tb_rx_data_field    = 64'B0;
         all_lanes_fail           = 0;
+        intf.mb_rx_data_lane_mask = 3'b011;
         #10; rst_n = 1;
     endtask
 

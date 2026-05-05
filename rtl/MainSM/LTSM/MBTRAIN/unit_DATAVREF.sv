@@ -1,4 +1,4 @@
-`timescale 1ps/1ps
+// `timescale 1ps/1ps
 module unit_DATAVREF #(
         parameter MAX_DATA_VREF_CODE  = 7'D127,
         parameter MIN_DATA_VREF_CODE  = 7'D10
@@ -89,7 +89,7 @@ module unit_DATAVREF #(
     end
 
     // Next State Logic of the FSM:
-    always @(*) begin
+    always_comb begin
         if (datavref_if.timeout_8ms_occured | (datavref_if.rx_sb_msg == TRAINERROR_Entry_req && datavref_if.rx_sb_msg_valid == 1'b1)) begin
             // (S10)
             next_state = TO_TRAINERROR; // If timeout or error occurs, transition to TRAINERROR state.
@@ -156,7 +156,7 @@ module unit_DATAVREF #(
 
 
     // Output logic based on current state:
-    always @(*) begin
+    always_comb begin
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
@@ -339,7 +339,7 @@ module unit_DATAVREF #(
         integer j;
         if(!datavref_if.rst_n) begin
             swept_code_r                   <= MIN_DATA_VREF_CODE;
-            datavref_if.datavref_fail_flag <= 1'b0;
+            // datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
@@ -347,7 +347,7 @@ module unit_DATAVREF #(
         else if(current_state == DATAVREF_START_REQ) begin
             // Reset swept_code_r and applied values at the start of each run.
             swept_code_r                   <= MIN_DATA_VREF_CODE;
-            datavref_if.datavref_fail_flag <= 1'b0;
+            // datavref_if.datavref_fail_flag <= 1'b0;
             for(j=0; j<16; j=j+1) begin
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
@@ -373,7 +373,7 @@ module unit_DATAVREF #(
 
             // Fail flag: set if any negotiated lane has no passing Vref code.
             // (negotiated_data_lanes mask gates out non-active lanes.)
-            datavref_if.datavref_fail_flag <= ~( &(found_pass|(~negotiated_data_lanes)) );
+            // datavref_if.datavref_fail_flag <= ~( &(found_pass|(~negotiated_data_lanes)) );
         end
     end
 

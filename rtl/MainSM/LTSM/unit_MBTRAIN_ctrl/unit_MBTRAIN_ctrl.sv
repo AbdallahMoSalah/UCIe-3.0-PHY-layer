@@ -1,5 +1,5 @@
 module unit_MBTRAIN_ctrl (
-        internal_ltsm_if.mbtrain_mp itf
+        internal_ltsm_if.mbtrain_ctrl_mp itf
     );
     // for current `mbtrain` sub-state
     import ltsm_state_n_pkg::mbtrain_substate_e;
@@ -67,7 +67,8 @@ module unit_MBTRAIN_ctrl (
         //   3. VALVREF: fatal — no valid Vref found for the Valid Lane.
         //   4. SPEEDIDLE: entering from LINKSPEED/PHYRETRAIN while already at 4 GT/s.
         //   5. RXCLKCAL: partner TCKN shift out of range after all IQ retries.
-        //   6. REPAIR: partner responds with "Degrade not possible".
+        //   6. RXDESKEW: Receiving {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} SB message after 4 arc iterations to DTC1
+        //   7. REPAIR: partner responds with "Degrade not possible".
         // When asserted, hold the current state; ltsm_ctrl will move to TRAINERROR.
         if (itf.trainerror_req) begin
             next_state = current_state;
@@ -75,13 +76,13 @@ module unit_MBTRAIN_ctrl (
 
         // PHYRETRAIN exit requests: ltsm_ctrl re-enables MBTRAIN and asserts one of
         // these to direct the restart sub-state (§PHYRETRAIN retrain encoding).
-        else if (itf.mbtrain_txselfcal_req) begin
+        else if (itf.mbtrain_txselfcal_req | itf.txselfcal_req) begin
             next_state = TXSELFCAL;
         end
-        else if (itf.mbtrain_speedidle_req) begin
+        else if (itf.mbtrain_speedidle_req | itf.speedidle_req) begin
             next_state = SPEEDIDLE;
         end
-        else if (itf.mbtrain_repair_req) begin
+        else if (itf.mbtrain_repair_req | itf.repair_req) begin
             next_state = REPAIR;
         end
 

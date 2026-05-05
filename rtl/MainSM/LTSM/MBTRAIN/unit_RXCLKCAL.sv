@@ -85,11 +85,11 @@ module unit_RXCLKCAL #() (
     // which is the same cycle the output always block drives new values.
     // By masking tx_sb_msg_valid during that cycle we ensure no partial/
     // incoherent message is forwarded to the SB module. (Pattern from TXSELFCAL)
-    wire data_incoherence = (current_state != next_state);
+    wire is_tx_sb_msg_valid = (current_state == next_state);
     // ============================================================================
     // Always Block 1 — Sequential Logic: current_state, previous_state
     // ============================================================================
-    always @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin
+    always_ff @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin
         if (!rxclkcal_if.rst_n) begin
             current_state  <= RXCLKCAL_IDLE;
         end else begin
@@ -99,7 +99,7 @@ module unit_RXCLKCAL #() (
     // ============================================================================
     // Always Block 2 — Combinational Logic: next_state
     // ============================================================================
-    always @(*) begin
+    always_comb begin
         // Global error override: any 8 ms timeout or partner {TRAINERROR Entry req}
         // immediately forces transition to TO_TRAINERROR, regardless of the current
         // FSM state (the per-state cases below are only evaluated when no error).
@@ -274,7 +274,7 @@ module unit_RXCLKCAL #() (
     // ============================================================================
     // Always Block 3 — Combinational Logic: Output Values
     // ============================================================================
-    always @(*) begin
+    always_comb begin
         //==========================================================================//
         //              Default values for outputs (to avoid latches)               //
         //==========================================================================//
@@ -343,8 +343,6 @@ module unit_RXCLKCAL #() (
             // (S1) Send & Receive {MBTRAIN.RXCLKCAL start req}:
             //   - All Tx lanes are Low: we are not yet forwarding the clock.
             //   - Continuously send the start_req until we receive the echo.
-            //   - data_incoherence is masked for 1 cycle after entering this state
-            //     to prevent the SB from latching a partially updated message.
             // -------------------------------------------------------------------
             RXCLKCAL_START_REQ: begin
                 // Tx lanes: All Low while clock is not yet forwarded.
@@ -357,7 +355,7 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_rx_val_lane_sel  = 1'b0; // disable.
                 rxclkcal_if.mb_rx_trk_lane_sel  = 1'b1; // enabled.
                 // SB:
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send request.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)         ; // Send request.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_start_req  ; // Message code.
             end
             // -------------------------------------------------------------------
@@ -373,7 +371,7 @@ module unit_RXCLKCAL #() (
                 // Enable the pattern generator.
                 rxclkcal_if.mb_tx_pattern_en      = 1'b1  ; // Enable pattern generator and send the clock immediately.
                 // SB:
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)         ; // Send response.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)         ; // Send response.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_start_resp ; // Message code.
             end
             // -------------------------------------------------------------------
@@ -439,7 +437,7 @@ module unit_RXCLKCAL #() (
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // SB: send shift request with our measured shift payload.
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)              ; // Mask for 1 cycle after state entry.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)              ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_TCKN_L_shift_req; // Message code.
                 rxclkcal_if.tx_msginfo      = {10'h0,
                     rxclkcal_if.phy_rx_tckn_shift      , // [5:1]: shift magnitude.
@@ -491,7 +489,7 @@ module unit_RXCLKCAL #() (
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // Phase detector enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // TCKN_L shift   enable signal: 1'b0(default value): disable; 1'b1: enable.
                 // SB: send shift response with our out-of-range status.
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)                                                       ; // Mask for 1 cycle after state entry.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)                                                       ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_TCKN_L_shift_resp                                        ; // Message code.
                 rxclkcal_if.tx_msginfo      = {15'h0, rxclkcal_if.phy_tx_tckn_shift_out_of_range}                      ; // [0]: our out-of-range flag.
             end
@@ -557,7 +555,7 @@ module unit_RXCLKCAL #() (
                 // rxclkcal_if.phy_rx_phase_detector_en = 1'b0;  // OFF by default.
                 // rxclkcal_if.phy_tx_tckn_shift_en     = 1'b0;  // OFF by default.
                 // SB: send done request.
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)      ; // Mask for 1 cycle after state entry.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)      ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_done_req; // Message code (MsgInfo = 0000h).
             end
             // -------------------------------------------------------------------
@@ -572,7 +570,7 @@ module unit_RXCLKCAL #() (
                 rxclkcal_if.mb_tx_clk_lane_sel = 2'b01; // Active.
                 rxclkcal_if.mb_tx_trk_lane_sel = 2'b01; // Active.
                 // SB: send done response.
-                rxclkcal_if.tx_sb_msg_valid = (!data_incoherence)       ; // Mask for 1 cycle after state entry.
+                rxclkcal_if.tx_sb_msg_valid = (is_tx_sb_msg_valid)       ; // Mask for 1 cycle after state entry.
                 rxclkcal_if.tx_sb_msg       = MBTRAIN_RXCLKCAL_done_resp; // Message code (MsgInfo = 0000h).
             end
             // -------------------------------------------------------------------

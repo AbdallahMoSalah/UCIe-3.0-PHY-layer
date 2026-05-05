@@ -139,7 +139,6 @@ module unit_VALTRAINVREF_tb ();
         // next-state combinational logic before the TX/RX D2C FSMs perform
         // their first reset cycle and drive the signals to a known value.
         intf.partner_valtraincenter_fail_flag  = 1'b0;
-        intf.partner_datatraincenter_fail_flag = 1'b0;
         #10;
         rst_n = 1;
     endtask

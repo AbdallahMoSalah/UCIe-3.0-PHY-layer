@@ -112,8 +112,8 @@ module unit_phase_interpolator_for_deskew #(
         // Computation Outputs  (per-lane optimal codes, consumed by unit_RXDESKEW)
         // =========================================================================
         output logic [DW-1:0] best_deskew_code [15:0],
-        // Fail flag: 1 if any negotiated lane has no passing deskew code.
-        output logic          fail_flag_r,
+        // // Fail flag: 1 if any negotiated lane has no passing deskew code.
+        // output logic          fail_flag_r,
 
         // =========================================================================
         // Preset Evaluation Outputs  (consumed by unit_RXDESKEW FSM decisions)
@@ -157,7 +157,7 @@ module unit_phase_interpolator_for_deskew #(
     // =========================================================================
     // PI FSM — Sequential (State Register)
     // =========================================================================
-    always @(posedge lclk or negedge rst_n) begin : PI_STATE_REG
+    always_ff @(posedge lclk or negedge rst_n) begin : PI_STATE_REG
         if (!rst_n) pi_state <= PI_IDLE;
         else        pi_state <= pi_next;
     end
@@ -165,7 +165,7 @@ module unit_phase_interpolator_for_deskew #(
     // =========================================================================
     // PI FSM — Combinational (Next-State Logic)
     // =========================================================================
-    always @(*) begin : PI_NEXT_STATE
+    always_comb begin : PI_NEXT_STATE
         case (pi_state)
             // -----------------------------------------------------------------
             // (S0) PI_IDLE: Wait for pi_en from unit_RXDESKEW.
@@ -250,7 +250,7 @@ module unit_phase_interpolator_for_deskew #(
     //   Reset to MIN when PI exits IDLE (start of every new sweep).
     //   Incremented once per PI_LOG_RESULT cycle until MAX is reached.
     // =========================================================================
-    always @(posedge lclk or negedge rst_n) begin : SWEPT_CODE_PROC
+    always_ff @(posedge lclk or negedge rst_n) begin : SWEPT_CODE_PROC
         if (!rst_n) begin
             swept_code_r <= MIN_DESKEW_CODE[DW-1:0];
         end else if (pi_state == PI_IDLE && pi_en) begin
@@ -283,7 +283,7 @@ module unit_phase_interpolator_for_deskew #(
     // Converts 3-bit mb_rx_data_lane_mask → 16-bit bitmask of active lanes.
     // =========================================================================
     logic [15:0] negotiated_data_lanes;
-    always @(*) begin
+    always_comb begin
         case (mb_rx_data_lane_mask)
             3'b000:  negotiated_data_lanes = 16'h0000;
             3'b001:  negotiated_data_lanes = 16'h00FF;
@@ -299,7 +299,7 @@ module unit_phase_interpolator_for_deskew #(
     // HIGHEST_MIN_EDGE_PROC: Step 2 — Combinational max(best_lo[]) reduction
     // =========================================================================
     logic [DW-1:0] highest_min_edge_arr [0:16];
-    always @(*) begin : HIGHEST_MIN_EDGE_PROC
+    always_comb begin : HIGHEST_MIN_EDGE_PROC
         integer l;
         highest_min_edge_arr[0] = '0;
         for (l = 0; l < 16; l = l + 1) begin
@@ -328,7 +328,7 @@ module unit_phase_interpolator_for_deskew #(
     // =========================================================================
     logic [DW-1:0] current_preset_min_range [0:16];
 
-    always @(*) begin : PRESET_MIN_RANGE_PROC
+    always_comb begin : PRESET_MIN_RANGE_PROC
         integer l;
         current_preset_min_range[0] = MAX_DESKEW_CODE[DW-1:0];
         for (l = 0; l < 16; l = l + 1) begin
@@ -344,7 +344,7 @@ module unit_phase_interpolator_for_deskew #(
     //   Triggered on PI_LOG_PRESET_RESULT (replaces in_log_preset_result gate).
     //   Reset on pi_session_start (replaces in_idle_start gate).
     // =========================================================================
-    always @(posedge lclk or negedge rst_n) begin : PRESET_EVAL_PROC
+    always_ff @(posedge lclk or negedge rst_n) begin : PRESET_EVAL_PROC
         integer i;
         if (!rst_n) begin
             best_preset_saved      <= 3'd0;
@@ -398,10 +398,10 @@ module unit_phase_interpolator_for_deskew #(
     //   PI_LOG_RESULT     → track min/max edges per lane   (Step 1).
     //   PI_CALC_APPLY     → compute midpoints + fail flag   (Step 5).
     // =========================================================================
-    always @(posedge lclk or negedge rst_n) begin : DESKEW_TRACKING_PROC
+    always_ff @(posedge lclk or negedge rst_n) begin : DESKEW_TRACKING_PROC
         integer i;
         if (!rst_n) begin
-            fail_flag_r <= 1'b0;
+            // fail_flag_r <= 1'b0;
             for (i = 0; i < 16; i = i + 1) begin
                 best_lo[i]          <= '0;
                 best_hi[i]          <= '0;
@@ -414,7 +414,7 @@ module unit_phase_interpolator_for_deskew #(
             // (PI_IDLE → PI_SET_CODE, i.e., on the cycle pi_en is first seen).
             // -----------------------------------------------------------------
             if (pi_state == PI_IDLE && pi_en) begin
-                fail_flag_r <= 1'b0;
+                // fail_flag_r <= 1'b0;
                 for (i = 0; i < 16; i = i + 1) begin
                     best_lo[i]    <= '0;
                     best_hi[i]    <= '0;
@@ -450,7 +450,7 @@ module unit_phase_interpolator_for_deskew #(
                             best_deskew_code[i] <= MIN_DESKEW_CODE[DW-1:0];
                         end
                     end
-                    fail_flag_r <= ~(&(overall_found_pass_bus | (~negotiated_data_lanes)));
+                    // fail_flag_r <= ~(&(overall_found_pass_bus | (~negotiated_data_lanes)));
                 end else begin
                     for (i = 0; i < 16; i = i + 1) begin
                         if (found_pass[i]) begin
@@ -460,7 +460,7 @@ module unit_phase_interpolator_for_deskew #(
                             best_deskew_code[i] <= MIN_DESKEW_CODE[DW-1:0];
                         end
                     end
-                    fail_flag_r <= ~(&(found_pass_bus | (~negotiated_data_lanes)));
+                    // fail_flag_r <= ~(&(found_pass_bus | (~negotiated_data_lanes)));
                 end
             end
         end
