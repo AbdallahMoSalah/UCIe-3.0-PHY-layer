@@ -12,6 +12,7 @@ module VALID_TX_tb;
 
     wire        O_done;
     wire [31:0] o_TVLD_L;
+    wire        ser_en_o;
 
     // ============================================================
     // Instantiate DUT
@@ -22,7 +23,8 @@ module VALID_TX_tb;
         .valid_pattern_en(valid_pattern_en),
         .valid_frame_en(valid_frame_en),
         .O_done(O_done),
-        .o_TVLD_L(o_TVLD_L)
+        .o_TVLD_L(o_TVLD_L),
+        .ser_en_o(ser_en_o)
     );
 
     // ============================================================
@@ -84,9 +86,9 @@ module VALID_TX_tb;
     // Monitor
     // ============================================================
     initial begin
-        $monitor("Time=%0t | State Signals: pattern_en=%b frame_en=%b | TVLD=%h | Done=%b",
+        $monitor("Time=%0t | State Signals: pattern_en=%b frame_en=%b | TVLD=%h | Done=%b | ser_en_o=%b",
                   $time, valid_pattern_en, valid_frame_en,
-                  o_TVLD_L, O_done);
+                  o_TVLD_L, O_done, ser_en_o);
     end
 
 endmodule

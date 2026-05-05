@@ -1,15 +1,14 @@
 `timescale 1ns/1ps
-
+/*****   DESERIALIZER FOR DATA LANES  ******/
 module MB_DESERIALIZER #(
     parameter DATA_WIDTH = 32
 )(
     input  wire                   MB_clk,
     input  wire                   pll_clk,
-    input  wire                   i_ckp,
-    input  wire                   i_ckn,
     input  wire                   i_rst_n,
     input  wire                   ser_valid, 
     input  wire                   ser_data_in,
+    input  wire                   enable_des_valid_frame,
     output reg  [DATA_WIDTH-1:0]  par_data_out,
     output reg                    de_ser_done
 );

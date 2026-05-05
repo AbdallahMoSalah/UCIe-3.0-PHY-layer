@@ -5,6 +5,7 @@ module VALID_TX (
     input  wire        valid_frame_en,
 
     // Outputs
+    output reg         ser_en_o,
     output reg         O_done,
     output reg [31:0]  o_TVLD_L
 );
@@ -79,6 +80,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
         o_TVLD_L <= 32'b0;
         O_done   <= 1'b0;
         COUNTER  <= 8'd0;
+        ser_en_o   <= 1'b0;
     end
     else begin
         case (current_state)
@@ -90,6 +92,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
+                ser_en_o   <= 1'b0;
             end
 
             // -------------------------
@@ -98,11 +101,13 @@ always @(posedge i_clk or negedge i_rst_n) begin
             VALID_PATTERN: begin
                 o_TVLD_L <= VALID_PATTERN_CODE;
                 O_done   <= 1'b0;
+                ser_en_o   <= 1'b1 ;
 
                 if (COUNTER == MAX_COUNT-1) begin
-                    COUNTER <= 8'd0;
-                    O_done  <= 1'b1;   // One-cycle pulse
-                    o_TVLD_L <= 32'b0; // Clean end
+                    COUNTER  <= 8'd0;
+                    O_done   <= 1'b1;   // One-cycle pulse
+                    o_TVLD_L <= 32'b0;  // Clean end
+                    ser_en_o   <= 1'b0 ;                                                    
                 end
                 else begin
                     COUNTER <= COUNTER + 1;
@@ -116,12 +121,14 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 o_TVLD_L <= VALID_PATTERN_CODE;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
+                ser_en_o   <= 1'b1; 
             end
 
             default: begin
                 o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
+                ser_en_o   <= 1'b0; 
             end
 
         endcase

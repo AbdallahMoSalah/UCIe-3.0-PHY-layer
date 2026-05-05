@@ -14,8 +14,6 @@ parameter MB_PERIOD   = PLL_PERIOD * DATA_WIDTH; // 64ns (~15.6 MHz)
 /* -------------------------------------------------- */
 reg                    MB_clk;
 reg                    pll_clk;
-reg                    i_ckp;
-reg                    i_ckn;
 reg                    i_rst_n;
 reg                    ser_valid;
 reg                    ser_data_in;
@@ -31,8 +29,6 @@ MB_DESERIALIZER #(
 ) DUT (
     .MB_clk      (MB_clk),
     .pll_clk     (pll_clk),
-    .i_ckp       (i_ckp),
-    .i_ckn       (i_ckn),
     .i_rst_n     (i_rst_n),
     .ser_valid   (ser_valid),
     .ser_data_in (ser_data_in),
@@ -51,9 +47,9 @@ always #(PLL_PERIOD/2.0) pll_clk = ~pll_clk;
 initial MB_clk = 0;
 always #(MB_PERIOD/2.0) MB_clk = ~MB_clk;
 
-// Differential clocks
+/*Differential clocks
 assign i_ckp = pll_clk;
-assign i_ckn = ~pll_clk;
+assign i_ckn = ~pll_clk; */
 
 /* -------------------------------------------------- */
 /* Test Data & Expected Output                        */
