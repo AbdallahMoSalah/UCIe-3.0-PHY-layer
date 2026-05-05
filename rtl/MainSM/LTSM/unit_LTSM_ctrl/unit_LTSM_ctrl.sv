@@ -1,3 +1,9 @@
+/*
+
+    1- add trinerror handshake signals due to submodules error.
+    2- add signal that set to one 
+
+*/
 module unit_LTSM_ctrl (
         internal_ltsm_if.ltsm_ctrl2states_mp itf
     );
