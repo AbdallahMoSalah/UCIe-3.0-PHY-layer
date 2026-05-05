@@ -6,7 +6,7 @@ module MB_DESERIALIZER #(
     input  wire                   MB_clk,
     input  wire                   pll_clk,
     input  wire                   i_rst_n,
-    input  wire                   ser_valid, 
+    input  wire                   ser_data_en, 
     input  wire                   ser_data_in,
     input  wire                   enable_des_valid_frame,
     output reg  [DATA_WIDTH-1:0]  par_data_out,
@@ -18,34 +18,36 @@ module MB_DESERIALIZER #(
 /* -------------------------------------------------- */
 reg [DATA_WIDTH-1:0] shift_reg;
 reg [DATA_WIDTH-1:0] save_data;
+reg [5:0]            bit_cnt;
 
 // Handshake registers for CDC (pll_clk -> MB_clk)
 reg save_data_toggle;
 reg sync1_toggle;
 reg sync2_toggle;
 reg sync3_toggle;
+wire valid_pulse;
 
 /* -------------------------------------------------- */
-/* Serial to Parallel (DDR Sampling on pll_clk)       */
+/* Serial to Parallel & Counter (pll_clk domain)      */
 /* -------------------------------------------------- */
 always @(posedge pll_clk or negedge pll_clk or negedge i_rst_n) begin 
-    if (!i_rst_n)
-        shift_reg <= {DATA_WIDTH{1'b0}};
-    else
-        shift_reg <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]}; // LSB first
-end
-
-/* -------------------------------------------------- */
-/* Save data after deserializing (pll_clk domain)     */
-/* -------------------------------------------------- */
-always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
+        shift_reg        <= {DATA_WIDTH{1'b0}};
+        bit_cnt          <= 6'd0;
         save_data        <= {DATA_WIDTH{1'b0}};
         save_data_toggle <= 1'b0;
     end else begin
-        if (ser_valid) begin
-            save_data        <= shift_reg;
-            save_data_toggle <= ~save_data_toggle; // Flip the toggle to trigger CDC
+        if (ser_data_en) begin
+            shift_reg <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]}; // LSB first
+            if (bit_cnt == DATA_WIDTH - 1) begin
+                bit_cnt          <= 6'd0;
+                save_data        <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]};
+                save_data_toggle <= ~save_data_toggle; // Trigger CDC
+            end else begin
+                bit_cnt <= bit_cnt + 6'd1;
+            end
+        end else begin
+            bit_cnt <= 6'd0;
         end
     end
 end
@@ -76,9 +78,13 @@ always @(posedge MB_clk or negedge i_rst_n) begin
         de_ser_done  <= 1'b0;
     end else begin
         de_ser_done <= 1'b0; // Default off (pulse for 1 cycle)
-        if (valid_pulse) begin
+        if (valid_pulse && enable_des_valid_frame) begin
             par_data_out <= save_data;
             de_ser_done  <= 1'b1;
+        end
+        else if (valid_pulse && enable_des_valid_frame) begin
+            par_data_out <= {DATA_WIDTH{1'b0}};
+            de_ser_done  <= 1'b0;
         end
     end
 end
