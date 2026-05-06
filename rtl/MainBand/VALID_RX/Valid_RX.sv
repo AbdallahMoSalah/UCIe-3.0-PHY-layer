@@ -1,7 +1,7 @@
 module VALID_DETECTOR (
     input  wire        i_clk,
     input  wire        i_rst_n,
-    input  wire [31:0] RVLD_L,
+    input  wire [31:0] RVLD_L, // from MB_DES_VALID
     input  wire [11:0] i_max_error_threshold,
     input  wire        i_enable_cons,
     input  wire        i_enable_128,
