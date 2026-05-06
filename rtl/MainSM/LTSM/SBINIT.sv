@@ -1,14 +1,5 @@
-/*
-    add three more signals:
-    1- send_4iteration
-    2- send_4iteration_done
-*/
-
-
-module SBINIT
-
 import UCIe_pkg::*; // Importing the UCIe package for necessary definitions and utilities.
-
+module SBINIT
 #( parameter int CLK_FRQ_HZ = 800000000)
  (  //IN/OUT signals. 
 
@@ -16,7 +7,7 @@ import UCIe_pkg::*; // Importing the UCIe package for necessary definitions and 
     input logic rst_n,
     
     //Signal FROM TOP LTSM.
-    input logic sbinit_enable,
+    input logic sb_enable,
     
     //Signal TO TOP LTSM.
     output logic sbinit_done,
@@ -32,7 +23,7 @@ import UCIe_pkg::*; // Importing the UCIe package for necessary definitions and 
     input  logic four_iteration_done,
     input logic sb_det_pattern_rcvd,     // state S1: Detected pattern received from SB block.
 
-    //Signals to SB block.  
+    //Signals to SB block.
         //MESSAGES signals.
     output logic    sb_tx_valid,
     output msg_no_e sb_tx_msg_id,
@@ -56,7 +47,7 @@ sb_state_e current_state , next_state ;
 //=====================================================
 //timeout Timer (8 ms)
 logic sb_timer_enable;  // to reset and enable the timeout timer.
-assign sb_timer_enable = sbinit_enable && !sbinit_done && !sbinit_error;
+assign sb_timer_enable = sb_enable && !sb_done && !sb_error;
 
 logic sb_timeout_expired ;
 timeout_counter #(
@@ -70,7 +61,7 @@ timeout_counter #(
 ); 
 
 //timeout error logic.
-assign timeout_error = sb_timeout_expired && !sbinit_done ;
+assign timeout_error = sb_timeout_expired && !sb_done ;
 
 //=====================================================
 //================= Handshake =========================
@@ -171,10 +162,9 @@ assign four_patterns_done = (pattern_req_cnt >= 4);
 always_ff @( posedge clk , negedge rst_n ) begin
     if(!rst_n)
         current_state <= SB_S0_IDLE ;
-    
     else
         current_state <= next_state ;
-end
+    end
 //=====================================================
 
 //State transition logic.
@@ -186,40 +176,40 @@ end
         else 
         case(current_state)           
             SB_S0_IDLE: begin
-                if(sbinit_enable && !sbinit_error && !timeout_error)
+                if(sb_enable && !sb_error && !timeout_error)
                     next_state = SB_S1_DET_PATTERN ;
             end
 
             SB_S1_DET_PATTERN: begin
-                if(!sbinit_enable || sbinit_error)
+                if(!sb_enable || sb_error)
                     next_state = SB_S0_IDLE ;
                 else if(two_patterns_done)
                     next_state = SB_S2_LINK_SYNCH ;
             end
             
             SB_S2_LINK_SYNCH: begin
-                if(!sbinit_enable|| sbinit_error)
+                if(!sb_enable|| sb_error)
                     next_state = SB_S0_IDLE ;
                 else if(four_patterns_done)
                     next_state = SB_S3_OUT_OF_RESET ;
             end
             
             SB_S3_OUT_OF_RESET: begin
-                if(!sbinit_enable || sbinit_error)
+                if(!sb_enable || sb_error)
                     next_state = SB_S0_IDLE ;               
                 else if(out_of_reset_msg_sent && out_of_reset_msg_rcvd)
                     next_state = SB_S4_COMPLETION_REQ ;
             end
             
             SB_S4_COMPLETION_REQ: begin
-                if(!sbinit_enable || sbinit_error )
+                if(!sb_enable || sb_error )
                     next_state = SB_S0_IDLE ;
                 else if(done_req_rcvd && !done_rsp_rcvd)
                     next_state = SB_S4_COMPLETION_RSP ;
             end
 
             SB_S4_COMPLETION_RSP: begin
-                if(!sbinit_enable || sbinit_done || sbinit_error || done_rsp_rcvd )
+                if(!sb_enable || sb_done || sb_error || done_rsp_rcvd )
                     next_state = SB_S0_IDLE ;
             end
 
@@ -236,17 +226,13 @@ end
         //if(!rst_n) begin
             sb_tx_msg_id = msg_no_e'(8'h00) ;
             sb_tx_valid = 1'b0 ;
-            //sbinit_pattern_mode = 1'b0;
         //end
-        if(sbinit_enable) begin
+        if(sb_enable) begin
                 case(current_state)
-                /*
-                SB_S1_DET_PATTERN: sbinit_pattern_mode = 1'b1;
-                */
+                
                     SB_S3_OUT_OF_RESET:begin
                         sb_tx_valid = 1'b1 ;
                         sb_tx_msg_id = SBINIT_Out_of_Reset ;
-                        //sbinit_pattern_mode = 1'b0;
                     end
                 
                     SB_S4_COMPLETION_REQ:begin
@@ -265,37 +251,37 @@ end
     //Pattern Request signal output logic.
     always_comb begin
         sb_det_pattern_req = 1'b0;
-         if(s1_entry && !sbinit_done)
+         if(s1_entry && !sb_done)
             sb_det_pattern_req = 1 ;
          else if(current_state == SB_S2_LINK_SYNCH && pattern_req_cnt < 4)
             sb_det_pattern_req = 1;
     end
 
-    //sbinit_done signal output logic.
+    //sb_done signal output logic.
     always_ff @( posedge clk , negedge rst_n ) begin
-        if(!rst_n /*|| !sbinit_enable*/)
-            sbinit_done <= 1'b0 ;
+        if(!rst_n /*|| !sb_enable*/)
+            sb_done <= 1'b0 ;
         else if(current_state == SB_S4_COMPLETION_RSP && sb_rx_valid && sb_rx_msg_id == SBINIT_done_resp)
-            sbinit_done <= 1'b1 ;
+            sb_done <= 1'b1 ;
 
     end
 
-    //sbinit_error signal output logic.
+    //sb_error signal output logic.
     always_ff @( posedge clk , negedge rst_n ) begin
-        if(!rst_n || !sbinit_enable)
-            sbinit_error <= 1'b0 ;
+        if(!rst_n || !sb_enable)
+            sb_error <= 1'b0 ;
         else if (timeout_error)
-            sbinit_error <= 1'b1 ;
+            sb_error <= 1'b1 ;
         else begin
             // S1 and S2: Any valid message received is an error.
             if( (current_state == SB_S1_DET_PATTERN || current_state == SB_S2_LINK_SYNCH ) &&  sb_rx_valid )
-                sbinit_error <= 1'b1 ;
+                sb_error <= 1'b1 ;
             // S3: Any valid message other than Out_Of_Reset is an error.
             else if(current_state == SB_S3_OUT_OF_RESET && sb_rx_valid && sb_rx_msg_id !== SBINIT_Out_of_Reset)
-                sbinit_error <= 1'b1 ;
+                sb_error <= 1'b1 ;
             // S4: Any valid message other than Done_rsp is an error.
             else if(current_state == SB_S4_COMPLETION_RSP && sb_rx_valid && sb_rx_msg_id !== SBINIT_done_resp && sb_rx_msg_id != SBINIT_done_req)
-                sbinit_error <= 1'b1 ;
+                sb_error <= 1'b1 ;
         end
     end
 endmodule 

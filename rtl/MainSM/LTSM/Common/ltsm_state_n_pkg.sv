@@ -32,17 +32,16 @@ package ltsm_state_n_pkg;
 
     // for current `ltsm_ctrl` state
     typedef enum logic [3:0] {
-        CTRL_RESET                      = 4'd0,
-        CTRL_SBINIT                     = 4'd1,
-        CTRL_MBINIT                     = 4'd2,
-        CTRL_MBTRAIN                    = 4'd3,
-        CTRL_LINKINIT                   = 4'd4,
-        CTRL_ACTIVE                     = 4'd5,
-        CTRL_PHYRETRAIN                 = 4'd6,
-        CTRL_L1                         = 4'd7,
-        CTRL_L2                         = 4'd8,
-        CTRL_TRAINERROR                 = 4'd9,
-        CTRL_TRAINERROR_HANDSHAKE       = 4'd10 // i added this
+        CTRL_RESET      = 4'd0,
+        CTRL_SBINIT     = 4'd1,
+        CTRL_MBINIT     = 4'd2,
+        CTRL_MBTRAIN    = 4'd3,
+        CTRL_LINKINIT   = 4'd4,
+        CTRL_ACTIVE     = 4'd5,
+        CTRL_PHYRETRAIN = 4'd6,
+        CTRL_L1         = 4'd7,
+        CTRL_L2         = 4'd8,
+        CTRL_TRAINERROR = 4'd9
     } ltsm_ctrl_state_e;
 
     // for current `mbinit` sub-state
