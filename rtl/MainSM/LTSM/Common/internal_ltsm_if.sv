@@ -4,10 +4,10 @@
 //      rtl/MainSM/common/LTSM_state_pkg.sv
 
 interface internal_ltsm_if #(
-        parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control.
-        parameter MAX_DATA_VREF_CODE = 'D127, // for Reference Rx Data Lanes Vref control.
-        parameter MAX_PI_PHASE_CODE  = 'D64 , // for Phase Interpolator (PI) control.
-        parameter MAX_DESKEW_CODE    = 'D64   // for Deskew control.
+        parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control. For the MB Rx Valid Lane.
+        parameter MAX_DATA_VREF_CODE = 'D127, // for Reference Rx Data Lanes Vref control. For the MB Rx Data Lanes.
+        parameter MAX_PI_PHASE_CODE  = 'D172, // for Phase Interpolator (PI) control.      For the MB Tx Data Lanes.
+        parameter MAX_DESKEW_CODE    = 'D127  // for Deskew control.                       For the MB Rx Data Lanes.
     ) (
         input logic lclk,
         input logic rst_n
@@ -164,14 +164,14 @@ interface internal_ltsm_if #(
     logic        phy_tx_tckn_shift_out_of_range; // Extent of shift limit hit on our die.
     logic [4:0]  phy_rx_tckn_shift         ; // The required shift of the partner TCKN_L (range 0 to 12).
     logic        phy_rx_decrement_shift    ; // Direction of shift: 1b (earlier), 0b (later).
-    logic [VAL_VREF_CODE_WIDTH-1 :0] phy_rx_valvref_ctrl       ; // Tell ADC the Rx Valid Lane Vref level to operate in.
-    logic [DATA_VREF_CODE_WIDTH-1:0] phy_rx_datavref_ctrl[15:0]; // Tell ADC the Rx Data Lane Vref level to operate in.
-    logic [PI_PHASE_WIDTH-1:0]  phy_tx_val_pi_phase_ctrl       ; // Tell ADC the Tx Valid-to-Clock PI phase level.
-    logic [PI_PHASE_WIDTH-1:0]  phy_tx_data_pi_phase_ctrl[15:0]; // Tell ADC the Tx Data-to-Clock PI phase level.
-    logic [DESKEW_WIDTH-1:0]  phy_rx_deskew_ctrl[15:0]  ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
-    logic [2:0]  phy_tx_eq_preset_ctrl     ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
-    logic        phy_rx_clk_drift_cal_state; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
-    logic        phy_rx_clk_drift_cal_valid; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+    logic [VAL_VREF_CODE_WIDTH-1 :0] phy_rx_valvref_ctrl            ; // Tell ADC the Rx Valid Lane Vref level to operate in.
+    logic [DATA_VREF_CODE_WIDTH-1:0] phy_rx_datavref_ctrl[15:0]     ; // Tell ADC the Rx Data Lane Vref level to operate in.
+    logic [PI_PHASE_WIDTH-1:0]       phy_tx_val_pi_phase_ctrl       ; // Tell ADC the Tx Valid-to-Clock PI phase level.
+    logic [PI_PHASE_WIDTH-1:0]       phy_tx_data_pi_phase_ctrl[15:0]; // Tell ADC the Tx Data-to-Clock PI phase level.
+    logic [DESKEW_WIDTH-1:0]         phy_rx_deskew_ctrl[15:0]       ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
+    logic [2:0]                      phy_tx_eq_preset_ctrl          ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+    // logic                            phy_rx_clk_drift_cal_state     ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+    // logic                            phy_rx_clk_drift_cal_valid     ; // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
 
     logic [2:0]  param_negotiated_max_speed;
 
@@ -433,9 +433,9 @@ interface internal_ltsm_if #(
         output phy_tx_val_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
         output phy_tx_data_pi_phase_ctrl , // Tell ADC the Tx Clock Lane PI phase level.
         output phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
-        output phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
-        input  phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
-        input  phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+        output phy_tx_eq_preset_ctrl       // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+        // input  phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+        // input  phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
     );
 
     //=======================================================================================//
@@ -507,9 +507,9 @@ interface internal_ltsm_if #(
         input  phy_tx_val_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
         input  phy_tx_data_pi_phase_ctrl  , // Tell ADC the Tx Clock Lane PI phase level.
         input  phy_rx_deskew_ctrl        , // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
-        input  phy_tx_eq_preset_ctrl     , // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
-        output phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
-        output phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
+        input  phy_tx_eq_preset_ctrl       // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
+        // output phy_rx_clk_drift_cal_state, // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
+        // output phy_rx_clk_drift_cal_valid  // Tells LTSM if phy_rx_clk_drift_cal_state is ready.
     );
 
 
@@ -1111,7 +1111,7 @@ interface internal_ltsm_if #(
         // ======================= //
         input  valvref_en    , output  valvref_done,
         output trainerror_req,
-        input  update_lane_mask, // Tells the MBTRAIN.REPAIR substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN. We get this signal from MBTRAIN.VALVREF.
+        output update_lane_mask, // Tells the MBTRAIN.REPAIR substate to update the value of "mb_(rx/tx)_data_lane_mask" to take the value of "mbinit_(rx/tx)_data_lane_mask". It's used in the begining of the MBTRAIN. We get this signal from MBTRAIN.VALVREF.
 
         // ======================= //
         // MB signals.             //
@@ -1243,7 +1243,7 @@ interface internal_ltsm_if #(
         output mb_rx_val_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
         output mb_rx_trk_lane_sel  , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
-        output param_negotiated_max_speed,
+        input  param_negotiated_max_speed,
         output phy_negotiated_speed      ,
         // ======================= //
         // SB signals.             //
@@ -1346,13 +1346,13 @@ interface internal_ltsm_if #(
         // MB signals.             //
         // ======================= //
         output mb_tx_clk_lane_sel   ,
-        output mb_tx_trk_lane_sel   ,
         output mb_tx_data_lane_sel  ,
         output mb_tx_val_lane_sel   ,
+        output mb_tx_trk_lane_sel   ,
         output mb_rx_clk_lane_sel   ,
-        output mb_rx_trk_lane_sel   ,
         output mb_rx_data_lane_sel  ,
         output mb_rx_val_lane_sel   ,
+        output mb_rx_trk_lane_sel   ,
 
         output mb_tx_pattern_en     ,
         output mb_tx_pattern_setup  ,
@@ -1671,7 +1671,7 @@ interface internal_ltsm_if #(
         output mb_rx_val_lane_sel ,
         output mb_rx_trk_lane_sel ,
 
-        output phy_rx_deskew_ctrl, // Per-lane deskew code (unpacked [15:0] array in interface).
+        output phy_rx_deskew_ctrl  , // Per-lane deskew code (unpacked [15:0] array in interface).
         input  phy_negotiated_speed, // to know the max link speed.
 
         // ======================= //
@@ -1930,25 +1930,6 @@ interface internal_ltsm_if #(
 
 
 
-    //=======================================================================================//
-    // Control Signals from the LTSM to the MB direction: (LTSM prespective)                 //
-    // LTSM -> MB                                                                            //
-    //=======================================================================================//
-    modport datavref2mb_mp (
-        // Lane Behavior Control
-        output mb_tx_clk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
-        output mb_tx_data_lane_sel, // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
-        output mb_tx_val_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
-        output mb_tx_trk_lane_sel , // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
-        output mb_rx_clk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
-        output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
-        output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
-        output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
-
-        output phy_rx_datavref_ctrl  // Tell ADC the Rx Data Lane Vref level to operate in.
-    );
-
-
     modport ltsm_ctrl2states_mp (
         input  lclk               , input rst_n,
         input  state_req          , input mbtrain_speedidle_req, input timeout_8ms_occured,
@@ -1964,6 +1945,7 @@ interface internal_ltsm_if #(
         output phyretrain_en      , input phyretrain_done      ,input phyretrain_req,
         output trainerror_en      , input trainerror_done      ,input trainerror_req
     );
+
 
     // For the module unit_mbtrain_ctrl
     modport mbtrain_ctrl_mp (
@@ -1989,18 +1971,82 @@ interface internal_ltsm_if #(
         output repair_en          , input repair_done          , input repair_req
     );
 
-    // For the wrapper module wrapper_MBTRAIN
+
+
+    //=======================================================================================//
+    // For the `wrapper_MBTRAIN` module Signals. (LTSM State prespective)                    //
+    //=======================================================================================//
     modport mbtrain_mp (
         input lclk               ,input rst_n,
+
+        // -- Timers --
+        output timeout_timer_en      , input timeout_8ms_occured    ,
+        output analog_settle_timer_en, input analog_settle_time_done,
+
+        // -- General signals --
         input mbtrain_repair_req ,input mbtrain_speedidle_req ,input mbtrain_txselfcal_req,
         input mbtrain_en         , output mbtrain_done        ,
         output current_mbtrain_substate,
+        input  current_ltsm_state,  // Needed by RXDESKEW for RESET detection.
 
         input  mbinit_rx_data_lane_mask , mbinit_tx_data_lane_mask,
-        output mb_rx_data_lane_mask , mb_rx_data_lane_mask,
+        output mb_rx_data_lane_mask , mb_tx_data_lane_mask,
 
         input  state_n,
 
+        // ======================================================================== //
+        // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)                               //
+        // Sampled once at LINKSPEED_START_REQ; used in EVAL_RESULT to decide       //
+        // whether to exit via phy_retrain path (if params changed during retrain). //
+        // ======================================================================== //
+        input  phyretrain_PHY_IN_RETRAIN, // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
+        output linkspeed_PHY_IN_RETRAIN , // Sampled copy held stable through the sub-state.
+        input  params_changed           , // Were link parameters changed during PHYRETRAIN?
+        // ======================================================================== //
+
+
+        // ======================================================================== //
+        // PHY Analog / RXCLKCAL / PI                                               //
+        // ======================================================================== //
+        // 1. VALVREF & 7. VALTRAINVREF analog signals:
+        output phy_rx_valvref_ctrl           ,
+
+        // 2. DATAVREF & 9. DATATRAINVREF analog signals:
+        output phy_rx_datavref_ctrl          ,
+
+        // 3. SPEEDIDLE analog signals:
+        input  param_negotiated_max_speed    , // from MBINIT.
+        output phy_negotiated_speed          ,
+
+        // 4. TXSELFCAL analog signals:
+        output phy_tx_selfcal_en             ,
+
+        // 5. RXCLKCAL analog signals:
+        output phy_rx_clock_lock_en          ,
+        output phy_rx_track_lock_en          ,
+        output phy_rx_phase_detector_en      ,
+        output phy_tx_tckn_shift_en          ,
+        input  phy_rx_tckn_shift             ,
+        input  phy_rx_decrement_shift        ,
+        output phy_tx_tckn_shift             ,
+        output phy_tx_decrement_shift        ,
+        input  phy_tx_tckn_shift_out_of_range,
+
+        // 6. VALTRAINCENTER analog signals:
+        output phy_tx_val_pi_phase_ctrl      ,
+
+        // 8. DATATRAINCENTER1 & 12. DATATRAINCENTER2 analog signals:
+        output phy_tx_data_pi_phase_ctrl     ,
+
+        // 10. RXDESKEW analog signals:
+        output phy_rx_deskew_ctrl            ,
+        output phy_tx_eq_preset_ctrl         ,
+
+
+        // -- RF inputs / params --
+        input rf_cap_SPMW               , // from RF.
+        input rf_ctrl_target_link_width , // from RF.
+        input param_UCIe_S_x8           , // from MBINIT.
 
         // ======================= //
         // MB signals.             //
@@ -2014,6 +2060,10 @@ interface internal_ltsm_if #(
         output mb_rx_data_lane_sel, // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
         output mb_rx_val_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
         output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
+
+        output mb_tx_pattern_en     , // Needed for RXCLKCAL. 0b: don't send the pattern; 1b: send the pattern immediately.
+        output mb_tx_pattern_setup  , // Needed for RXCLKCAL. 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        output mb_tx_clk_pattern_sel, // Needed for RXCLKCAL. 2'b00: operational clock, 2'b01: Held Low, 2'b10: Clock Mode 1, 2'b11: Clock Mode 2.
 
         // ======================= //
         // SB signals.             //

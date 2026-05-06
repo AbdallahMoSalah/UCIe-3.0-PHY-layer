@@ -1,6 +1,10 @@
 module unit_VALVREF #(
         parameter MAX_VAL_VREF_CODE   = 7'D127,
-        parameter MIN_VAL_VREF_CODE   = 7'D10
+        parameter MIN_VAL_VREF_CODE   = 7'D10,
+        // D2C pattern test configuration – override for simulation speed.
+        // Spec defaults: 128 iterations × 8-cycle burst.
+        parameter D2C_ITER_COUNT      = 16'D128,
+        parameter D2C_BURST_COUNT     = 16'D8
     ) (
         // ======================= //
         // General signals.        //
@@ -144,9 +148,9 @@ module unit_VALVREF #(
         d2c_if.d2c_val_pattern_sel  = 1'b0  ; // 0: VALTRAIN pattern, 1: Held Low.
         // Received Tx Pattern Mode Setup Group:
         d2c_if.d2c_pattern_mode =  1'D0  ; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
-        d2c_if.d2c_burst_count  = 16'D8  ; // Burst Count: Indicates the duration of selected pattern (UI count).
-        d2c_if.d2c_idle_count   = 16'D0  ; // IDLE Count: Indicates the duration of low following the burst (UI count).
-        d2c_if.d2c_iter_count   = 16'D128; // Iteration Count: Indicates the iteration count of bursts followed by idle.
+        d2c_if.d2c_burst_count  = D2C_BURST_COUNT; // Burst Count: Indicates the duration of selected pattern (UI count).
+        d2c_if.d2c_idle_count   = 16'D0          ; // IDLE Count: Indicates the duration of low following the burst (UI count).
+        d2c_if.d2c_iter_count   = D2C_ITER_COUNT ; // Iteration Count: Indicates the iteration count of bursts followed by idle.
         // Received Receiver Comparison Setup & Errors
         d2c_if.d2c_compare_setup = 2'D2; // 0: Per-Lane, 1: Aggregate, 2: Valid Lane, 3: Clock Lane Comparison.
         // //=========================

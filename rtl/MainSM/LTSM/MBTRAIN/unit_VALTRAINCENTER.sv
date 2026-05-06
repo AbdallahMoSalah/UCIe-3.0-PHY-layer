@@ -6,8 +6,8 @@
 //           SB message payloads match UCIe Spec Rev 3.0 Chapter 7 Table 7-9.
 // =============================================================================
 module unit_VALTRAINCENTER #(
-        parameter MAX_PHASE_CODE = 6'd63,
-        parameter MIN_PHASE_CODE = 6'd0
+        parameter MAX_PHASE_CODE = 7'd127,
+        parameter MIN_PHASE_CODE = 7'd0
     ) (
         // ======================= //
         // General signals.        //

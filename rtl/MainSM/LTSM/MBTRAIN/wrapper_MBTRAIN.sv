@@ -26,37 +26,20 @@
 //    |   13.   MBTRAIN.REPAIR           | unit_REPAIR                                        |
 //    |   --             ---             | unit_MBTRAIN_ctrl                                  |
 //    '----------------------------------'----------------------------------------------------'
-module wrapper_MBTRAIN (
+module wrapper_MBTRAIN #(
+        // Sweep-range parameters – synthesis defaults are full-range spec values.
+        // Override to smaller values in simulation to keep run-time manageable.
+        parameter integer MAX_VAL_VREF_CODE  = 127 , // unit_VALVREF / unit_VALTRAINVREF upper bound
+        parameter integer MIN_VAL_VREF_CODE  = 0   , // unit_VALVREF / unit_VALTRAINVREF lower bound
+        parameter integer MAX_DATA_VREF_CODE = 127 , // unit_DATAVREF / unit_DATATRAINVREF upper bound
+        parameter integer MIN_DATA_VREF_CODE = 0   , // unit_DATAVREF / unit_DATATRAINVREF lower bound
+        parameter integer MAX_PI_PHASE_CODE  = 127 , // PI phase upper bound (VALTRAINCENTER, DTC1/2)
+        parameter integer MIN_PI_PHASE_CODE  = 0   , // PI phase lower bound
+        parameter integer MAX_DESKEW_CODE    = 127 , // for Deskew control. For the MB Rx Data Lanes.
+        parameter integer MIN_DESKEW_CODE    = 0     // for Deskew control. For the MB Rx Data Lanes.
+    ) (
         internal_ltsm_if.mbtrain_mp          mbtrain_if,
-        internal_ltsm_if.substate2d2c_mp     d2c_if,
-
-        // -- RF inputs / params (not fully covered by mbtrain_mp) --
-        input [1:0]                          rf_linkspeed_ctrl_target_link_width,
-        input                                rf_linkspeed_rf_cap_SPMW,
-        input                                rf_repair_param_UCIe_S_x8,
-        input [2:0]                          param_negotiated_max_speed,
-
-        // -- PHY Analog / RXCLKCAL / PI --
-        output [15:0]                        phy_rx_valvref_ctrl,
-        output [15:0]                        phy_rx_datavref_ctrl,
-        output [15:0][6:0]                   phy_tx_pi_phase_ctrl,
-        output [15:0][6:0]                   phy_rx_deskew_ctrl,
-        output [2:0]                         phy_tx_eq_preset_ctrl,
-        output                               phy_tx_selfcal_en,
-        output                               phy_rx_clock_lock_en,
-        output                               phy_rx_track_lock_en,
-        output                               phy_rx_phase_detector_en,
-        output                               phy_tx_tckn_shift_en,
-        output [4:0]                         phy_tx_tckn_shift,
-        output                               phy_tx_decrement_shift,
-        input                                phy_tx_tckn_shift_out_of_range,
-        output [2:0]                         phy_negotiated_speed,
-
-        // -- Timers --
-        output                               timeout_timer_en,
-        output                               analog_settle_timer_en,
-        input                                timeout_8ms_occured,
-        input                                analog_settle_time_done
+        internal_ltsm_if.substate2d2c_mp     d2c_if
     );
 
     import ltsm_state_n_pkg::*;
@@ -64,52 +47,115 @@ module wrapper_MBTRAIN (
     // =========================================================================
     // 1. Internal Interface Declarations (23 Total)
     // =========================================================================
+    parameter VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
+    parameter DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+    parameter PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE );
 
-    // Per-substate Control Interfaces (13)
-    internal_ltsm_if intf_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_speedidle        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_txselfcal        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_rxclkcal         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if intf_repair           (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    // Per-substate Control Interfaces (13) – fully parameterized
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_speedidle        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_txselfcal        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_rxclkcal         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) intf_repair           (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
 
-    // Per-substate D2C Handshake Interfaces (9)
-    internal_ltsm_if d2c_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
-    internal_ltsm_if d2c_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    // Per-substate D2C Handshake Interfaces (9) – parameterized for type consistency
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_valvref          (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_datavref         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_valtraincenter   (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_valtrainvref     (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_datatraincenter1 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_datatrainvref    (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_rxdeskew         (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_datatraincenter2 (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) d2c_linkspeed        (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
 
-    // -- unit_LTSM_ctrl --
-    internal_ltsm_if ctrl_if              (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
+    // -- unit_MBTRAIN_ctrl control interface --
+    internal_ltsm_if #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ), .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_PI_PHASE_CODE (MAX_PI_PHASE_CODE ), .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   )
+    ) ctrl_if              (.lclk(mbtrain_if.lclk), .rst_n(mbtrain_if.rst_n));
 
     // =========================================================================
     // 2. Module Instantiations
     // =========================================================================
 
 
-    // For analog Voltage control.
-    localparam MAX_VAL_VREF_CODE  = 'd128,  MIN_VAL_VREF_CODE  = '0 ;
-    localparam MAX_DATA_VREF_CODE = 'd128,  MIN_DATA_VREF_CODE = '0 ;
-    localparam MAX_PI_PHASE       = 'd64 ,  MIN_PI_PHASE       = '0 ;
-
-    localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
-    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
-    localparam PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE      );
-
     // MBTRAIN Controller
-    unit_MBTRAIN_ctrl u_mbtrain_ctrl (
+    unit_MBTRAIN_ctrl #() MBTRAIN_CTRL (
         .itf (ctrl_if.mbtrain_ctrl_mp)
     );
 
@@ -118,7 +164,7 @@ module wrapper_MBTRAIN (
     unit_VALVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
-    ) u_valvref (
+    ) VALVREF (
         .valvref_if (intf_valvref.valvref_mp),
         .d2c_if     (d2c_valvref.substate2d2c_mp)
     );
@@ -127,70 +173,88 @@ module wrapper_MBTRAIN (
     unit_DATAVREF  #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
         .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
-    ) u_datavref (
+    ) DATAVREF (
         .datavref_if (intf_datavref.datavref_mp),
         .d2c_if      (d2c_datavref.substate2d2c_mp)
     );
 
     // 3. MBTRAIN.SPEEDIDLE
-    unit_SPEEDIDLE u_speedidle (
+    unit_SPEEDIDLE #() SPEEDIDLE (
         .speedidle_if (intf_speedidle.speedidle_mp)
     );
 
     // 4. MBTRAIN.TXSELFCAL
-    unit_TXSELFCAL u_txselfcal (
+    unit_TXSELFCAL #() TXSELFCAL (
         .txselfcal_if (intf_txselfcal.txselfcal_mp)
     );
 
     // 5. MBTRAIN.RXCLKCAL
-    unit_RXCLKCAL u_rxclkcal (
+    unit_RXCLKCAL #() RXCLKCAL (
         .rxclkcal_if (intf_rxclkcal.rxclkcal_mp)
     );
 
     // 6. MBTRAIN.VALTRAINCENTER
-    unit_VALTRAINCENTER u_valtraincenter (
+    unit_VALTRAINCENTER #(
+        .MAX_PHASE_CODE(MAX_PI_PHASE_CODE),
+        .MIN_PHASE_CODE(MIN_PI_PHASE_CODE)
+    ) VALTRAINCENTER (
         .valtraincenter_if (intf_valtraincenter.valtraincenter_mp),
         .d2c_if            (d2c_valtraincenter.substate2d2c_mp)
     );
 
     // 7. MBTRAIN.VALTRAINVREF
-    unit_VALTRAINVREF u_valtrainvref (
+    unit_VALTRAINVREF #(
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
+        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+    ) VALTRAINVREF (
         .valtrainvref_if (intf_valtrainvref.valtrainvref_mp),
         .d2c_if          (d2c_valtrainvref.substate2d2c_mp)
     );
 
     // 8. MBTRAIN.DATATRAINCENTER1
-    unit_DATATRAINCENTER1 u_datatraincenter1 (
+    unit_DATATRAINCENTER1 #(
+        .MAX_PHASE_CODE(MAX_PI_PHASE_CODE),
+        .MIN_PHASE_CODE(MIN_PI_PHASE_CODE)
+    ) DTC1 (
         .dtc1_if (intf_datatraincenter1.datatraincenter1_mp),
         .d2c_if  (d2c_datatraincenter1.substate2d2c_mp     )
     );
 
     // 9. MBTRAIN.DATATRAINVREF
-    unit_DATATRAINVREF u_datatrainvref (
+    unit_DATATRAINVREF #(
+        .MAX_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MIN_VREF_CODE(MIN_DATA_VREF_CODE)
+    ) DTVREF (
         .dtvref_if (intf_datatrainvref.datatrainvref_mp),
         .d2c_if    (d2c_datatrainvref.substate2d2c_mp  )
     );
 
     // 10. MBTRAIN.RXDESKEW
-    unit_RXDESKEW u_rxdeskew (
+    unit_RXDESKEW #(
+        .MAX_DESKEW_CODE (MAX_DESKEW_CODE),
+        .MIN_DESKEW_CODE (MIN_DESKEW_CODE)
+    ) RXDESKEW (
         .rxdeskew_if (intf_rxdeskew.rxdeskew_mp),
         .d2c_if      (d2c_rxdeskew.substate2d2c_mp)
     );
 
     // 11. MBTRAIN.DATATRAINCENTER2
-    unit_DATATRAINCENTER2 u_datatraincenter2 (
+    unit_DATATRAINCENTER2 #(
+        .MAX_PHASE_CODE(MAX_PI_PHASE_CODE),
+        .MIN_PHASE_CODE(MIN_PI_PHASE_CODE)
+    ) DTC2 (
         .dtc2_if (intf_datatraincenter2.datatraincenter2_mp),
         .d2c_if  (d2c_datatraincenter2.substate2d2c_mp)
     );
 
     // 12. MBTRAIN.LINKSPEED
-    unit_LINKSPEED u_linkspeed (
+    unit_LINKSPEED #() LINKSPEED (
         .ls_if  (intf_linkspeed.linkspeed_mp),
         .d2c_if (d2c_linkspeed.substate2d2c_mp)
     );
 
     // 13. MBTRAIN.REPAIR
-    unit_REPAIR u_repair (
+    unit_REPAIR #() REPAIR (
         .rp_if (intf_repair.repair_mp)
     );
 
@@ -497,33 +561,33 @@ module wrapper_MBTRAIN (
     // =========================================================================
     always_comb begin : BROADCAST_LOGIC
         // Timer Broadcast
-        intf_valvref.timeout_8ms_occured              = timeout_8ms_occured    ;
-        intf_valvref.analog_settle_time_done          = analog_settle_time_done;
+        intf_valvref.timeout_8ms_occured              = mbtrain_if.timeout_8ms_occured    ;
+        intf_valvref.analog_settle_time_done          = mbtrain_if.analog_settle_time_done;
         // ... repeat for all 13 ...
-        intf_datavref.timeout_8ms_occured             = timeout_8ms_occured    ;
-        intf_datavref.analog_settle_time_done         = analog_settle_time_done;
-        intf_speedidle.timeout_8ms_occured            = timeout_8ms_occured    ;
-        intf_speedidle.analog_settle_time_done        = analog_settle_time_done;
-        intf_txselfcal.timeout_8ms_occured            = timeout_8ms_occured    ;
-        intf_txselfcal.analog_settle_time_done        = analog_settle_time_done;
-        intf_rxclkcal.timeout_8ms_occured             = timeout_8ms_occured    ;
-        intf_rxclkcal.analog_settle_time_done         = analog_settle_time_done;
-        intf_valtraincenter.timeout_8ms_occured       = timeout_8ms_occured    ;
-        intf_valtraincenter.analog_settle_time_done   = analog_settle_time_done;
-        intf_valtrainvref.timeout_8ms_occured         = timeout_8ms_occured    ;
-        intf_valtrainvref.analog_settle_time_done     = analog_settle_time_done;
-        intf_datatraincenter1.timeout_8ms_occured     = timeout_8ms_occured    ;
-        intf_datatraincenter1.analog_settle_time_done = analog_settle_time_done;
-        intf_datatrainvref.timeout_8ms_occured        = timeout_8ms_occured    ;
-        intf_datatrainvref.analog_settle_time_done    = analog_settle_time_done;
-        intf_rxdeskew.timeout_8ms_occured             = timeout_8ms_occured    ;
-        intf_rxdeskew.analog_settle_time_done         = analog_settle_time_done;
-        intf_datatraincenter2.timeout_8ms_occured     = timeout_8ms_occured    ;
-        intf_datatraincenter2.analog_settle_time_done = analog_settle_time_done;
-        intf_linkspeed.timeout_8ms_occured            = timeout_8ms_occured    ;
-        intf_linkspeed.analog_settle_time_done        = analog_settle_time_done;
-        intf_repair.timeout_8ms_occured               = timeout_8ms_occured    ;
-        intf_repair.analog_settle_time_done           = analog_settle_time_done;
+        intf_datavref.timeout_8ms_occured             = mbtrain_if.timeout_8ms_occured    ;
+        intf_datavref.analog_settle_time_done         = mbtrain_if.analog_settle_time_done;
+        intf_speedidle.timeout_8ms_occured            = mbtrain_if.timeout_8ms_occured    ;
+        intf_speedidle.analog_settle_time_done        = mbtrain_if.analog_settle_time_done;
+        intf_txselfcal.timeout_8ms_occured            = mbtrain_if.timeout_8ms_occured    ;
+        intf_txselfcal.analog_settle_time_done        = mbtrain_if.analog_settle_time_done;
+        intf_rxclkcal.timeout_8ms_occured             = mbtrain_if.timeout_8ms_occured    ;
+        intf_rxclkcal.analog_settle_time_done         = mbtrain_if.analog_settle_time_done;
+        intf_valtraincenter.timeout_8ms_occured       = mbtrain_if.timeout_8ms_occured    ;
+        intf_valtraincenter.analog_settle_time_done   = mbtrain_if.analog_settle_time_done;
+        intf_valtrainvref.timeout_8ms_occured         = mbtrain_if.timeout_8ms_occured    ;
+        intf_valtrainvref.analog_settle_time_done     = mbtrain_if.analog_settle_time_done;
+        intf_datatraincenter1.timeout_8ms_occured     = mbtrain_if.timeout_8ms_occured    ;
+        intf_datatraincenter1.analog_settle_time_done = mbtrain_if.analog_settle_time_done;
+        intf_datatrainvref.timeout_8ms_occured        = mbtrain_if.timeout_8ms_occured    ;
+        intf_datatrainvref.analog_settle_time_done    = mbtrain_if.analog_settle_time_done;
+        intf_rxdeskew.timeout_8ms_occured             = mbtrain_if.timeout_8ms_occured    ;
+        intf_rxdeskew.analog_settle_time_done         = mbtrain_if.analog_settle_time_done;
+        intf_datatraincenter2.timeout_8ms_occured     = mbtrain_if.timeout_8ms_occured    ;
+        intf_datatraincenter2.analog_settle_time_done = mbtrain_if.analog_settle_time_done;
+        intf_linkspeed.timeout_8ms_occured            = mbtrain_if.timeout_8ms_occured    ;
+        intf_linkspeed.analog_settle_time_done        = mbtrain_if.analog_settle_time_done;
+        intf_repair.timeout_8ms_occured               = mbtrain_if.timeout_8ms_occured    ;
+        intf_repair.analog_settle_time_done           = mbtrain_if.analog_settle_time_done;
 
         // SB RX Broadcast
         intf_valvref.rx_sb_msg_valid          = mbtrain_if.rx_sb_msg_valid;
@@ -591,9 +655,13 @@ module wrapper_MBTRAIN (
         intf_repair.mbinit_tx_data_lane_mask       = mbtrain_if.mbinit_tx_data_lane_mask;
 
         // REPAIR needs special width inputs
-        intf_repair.rf_cap_SPMW               = rf_linkspeed_rf_cap_SPMW;
-        intf_repair.rf_ctrl_target_link_width = {2'b00, rf_linkspeed_ctrl_target_link_width};
-        intf_repair.param_UCIe_S_x8           = rf_repair_param_UCIe_S_x8;
+        intf_repair.rf_cap_SPMW               = mbtrain_if.rf_cap_SPMW;
+        intf_repair.rf_ctrl_target_link_width = mbtrain_if.rf_ctrl_target_link_width;
+        intf_repair.param_UCIe_S_x8           = mbtrain_if.param_UCIe_S_x8;
+
+        // LINKSPEED also needs RF capability signals (Bug 9 fix)
+        intf_linkspeed.rf_cap_SPMW               = mbtrain_if.rf_cap_SPMW;
+        intf_linkspeed.rf_ctrl_target_link_width = mbtrain_if.rf_ctrl_target_link_width;
 
         // Cross-substate Flags
         intf_valtrainvref.valtraincenter_fail_flag  = intf_valtraincenter.valtraincenter_fail_flag;
@@ -607,7 +675,12 @@ module wrapper_MBTRAIN (
         intf_rxdeskew.phy_negotiated_speed  = intf_speedidle.phy_negotiated_speed;
         intf_linkspeed.phy_negotiated_speed = intf_speedidle.phy_negotiated_speed;
 
-        intf_speedidle.param_negotiated_max_speed = param_negotiated_max_speed;
+        // RXDESKEW needs top-level LTSM state for RESET detection (Bug 8 fix)
+        intf_rxdeskew.current_ltsm_state = mbtrain_if.current_ltsm_state;
+
+        // From MBINIT: max negotiated speed read by SPEEDIDLE
+        intf_speedidle.param_negotiated_max_speed = mbtrain_if.param_negotiated_max_speed;
+
         intf_speedidle.state_n                    = mbtrain_if.state_n;
     end
 
@@ -615,7 +688,7 @@ module wrapper_MBTRAIN (
     // 6. Sub-state Output MUX (13-to-1) to Global MUX
     // =========================================================================
 
-    assign timeout_timer_en =
+    assign mbtrain_if.timeout_timer_en =
         (active_substate == VALVREF)          ? intf_valvref.timeout_timer_en :
         (active_substate == DATAVREF)         ? intf_datavref.timeout_timer_en :
         (active_substate == SPEEDIDLE)        ? intf_speedidle.timeout_timer_en :
@@ -630,7 +703,7 @@ module wrapper_MBTRAIN (
         (active_substate == LINKSPEED)        ? intf_linkspeed.timeout_timer_en :
         (active_substate == REPAIR)           ? intf_repair.timeout_timer_en : 1'b0;
 
-    assign analog_settle_timer_en =
+    assign mbtrain_if.analog_settle_timer_en =
         (active_substate == VALVREF)          ? intf_valvref.analog_settle_timer_en :
         (active_substate == DATAVREF)         ? intf_datavref.analog_settle_timer_en :
         (active_substate == SPEEDIDLE)        ? intf_speedidle.analog_settle_timer_en :
@@ -645,35 +718,65 @@ module wrapper_MBTRAIN (
         (active_substate == LINKSPEED)        ? intf_linkspeed.analog_settle_timer_en :
         (active_substate == REPAIR)           ? intf_repair.analog_settle_timer_en : 1'b0;
 
-    // PHY Analog Controls MUX
-    assign phy_rx_valvref_ctrl  = (active_substate == VALVREF) ? intf_valvref.phy_rx_valvref_ctrl : intf_valtrainvref.phy_rx_valvref_ctrl;
+    // 1. VALVREF & 7. VALTRAINVREF analog signals:
+    assign mbtrain_if.phy_rx_valvref_ctrl  = (active_substate == VALVREF) ? intf_valvref.phy_rx_valvref_ctrl : intf_valtrainvref.phy_rx_valvref_ctrl;
 
-    // TODO: these signals need generate block to loop on all 16 data lanes signal for each signal type.
-    // TODO: Don't forget to set a default value in the middle (parameterized) in case of total failure in any lane.
-    // TODO: The logic done in these substate was build on just finding the best midpoint for just lane[0], not all 16 data lanes. solve this huge bug.
-    genvar i;
+    genvar lane;
     generate
-        for (i = 0; i < 16; i = i + 1) begin : PHY_RX_DATAVREF_CTRL_GEN
-            assign phy_rx_datavref_ctrl[i]      = (active_substate == DATAVREF)? intf_datavref.phy_rx_datavref_ctrl[i] : intf_datatrainvref.phy_rx_datavref_ctrl[i];
-            assign phy_tx_data_pi_phase_ctrl[i] = (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.phy_tx_data_pi_phase_ctrl[i] : intf_datatraincenter2.phy_tx_data_pi_phase_ctrl[i];
-            assign phy_rx_deskew_ctrl[i]        = intf_rxdeskew.phy_rx_deskew_ctrl[i];
+        for (lane = 0; lane < 16; lane = lane + 1) begin : PHY_RX_DATAVREF_CTRL_GEN
+            // 2. DATAVREF & 9. DATATRAINVREF analog signals:
+            assign mbtrain_if.phy_rx_datavref_ctrl[lane]      = (active_substate == DATAVREF)? intf_datavref.phy_rx_datavref_ctrl[lane] : intf_datatrainvref.phy_rx_datavref_ctrl[lane];
+
+            // 8. DATATRAINCENTER1 & 12. DATATRAINCENTER2 analog signals:
+            assign mbtrain_if.phy_tx_data_pi_phase_ctrl[lane] = (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.phy_tx_data_pi_phase_ctrl[lane] : intf_datatraincenter2.phy_tx_data_pi_phase_ctrl[lane];
+
+            // 10. RXDESKEW analog signals:
+            assign mbtrain_if.phy_rx_deskew_ctrl[lane]        = intf_rxdeskew.phy_rx_deskew_ctrl[lane];
         end
     endgenerate
 
-    assign phy_tx_eq_preset_ctrl= intf_rxdeskew.phy_tx_eq_preset_ctrl;
-    assign phy_tx_val_pi_phase_ctrl = intf_valtraincenter.phy_tx_val_pi_phase_ctrl;
+    // 6. VALTRAINCENTER analog signals:
+    assign mbtrain_if.phy_tx_val_pi_phase_ctrl = intf_valtraincenter.phy_tx_val_pi_phase_ctrl;
+
+    // 10. RXDESKEW analog signals:
+    assign mbtrain_if.phy_tx_eq_preset_ctrl   = intf_rxdeskew.phy_tx_eq_preset_ctrl;
 
 
+    // 4. TXSELFCAL analog signals:
+    assign mbtrain_if.phy_tx_selfcal_en                 = intf_txselfcal.phy_tx_selfcal_en;
 
-    assign phy_tx_selfcal_en                            = intf_txselfcal.phy_tx_selfcal_en;
-    assign phy_rx_clock_lock_en                         = intf_rxclkcal.phy_rx_clock_lock_en;
-    assign phy_rx_track_lock_en                         = intf_rxclkcal.phy_rx_track_lock_en;
-    assign phy_rx_phase_detector_en                     = intf_rxclkcal.phy_rx_phase_detector_en;
-    assign phy_tx_tckn_shift_en                         = intf_rxclkcal.phy_tx_tckn_shift_en;
-    assign phy_tx_tckn_shift                            = intf_rxclkcal.phy_tx_tckn_shift;
-    assign phy_tx_decrement_shift                       = intf_rxclkcal.phy_tx_decrement_shift;
-    assign intf_rxclkcal.phy_tx_tckn_shift_out_of_range = phy_tx_tckn_shift_out_of_range; // Be careful with this signal....
-    assign phy_negotiated_speed                         = intf_speedidle.phy_negotiated_speed;
+    // 5. RXCLKCAL analog signals:
+    assign mbtrain_if.phy_rx_clock_lock_en              = intf_rxclkcal.phy_rx_clock_lock_en;
+    assign mbtrain_if.phy_rx_track_lock_en              = intf_rxclkcal.phy_rx_track_lock_en;
+    assign mbtrain_if.phy_rx_phase_detector_en          = intf_rxclkcal.phy_rx_phase_detector_en;
+    assign mbtrain_if.phy_tx_tckn_shift_en              = intf_rxclkcal.phy_tx_tckn_shift_en;
+    assign intf_rxclkcal.phy_rx_tckn_shift              = mbtrain_if.phy_rx_tckn_shift ;  // Be careful with this signal....
+    assign intf_rxclkcal.phy_rx_decrement_shift         = mbtrain_if.phy_rx_decrement_shift;
+    assign mbtrain_if.phy_tx_tckn_shift                 = intf_rxclkcal.phy_tx_tckn_shift;
+    assign mbtrain_if.phy_tx_decrement_shift            = intf_rxclkcal.phy_tx_decrement_shift;
+    assign intf_rxclkcal.phy_tx_tckn_shift_out_of_range = mbtrain_if.phy_tx_tckn_shift_out_of_range;
+
+    // 3. SPEEDIDLE analog signals:
+    assign mbtrain_if.phy_negotiated_speed              = intf_speedidle.phy_negotiated_speed;
+
+    // REPAIR drives the active lane masks (updated once at start of MBTRAIN, stable thereafter)
+    assign mbtrain_if.mb_rx_data_lane_mask = intf_repair.mb_rx_data_lane_mask;
+    assign mbtrain_if.mb_tx_data_lane_mask = intf_repair.mb_tx_data_lane_mask;
+
+    // RXCLKCAL drives the MB clock pattern signals (unique to clock calibration phase)
+    assign mbtrain_if.mb_tx_pattern_en      = intf_rxclkcal.mb_tx_pattern_en;
+    assign mbtrain_if.mb_tx_pattern_setup   = intf_rxclkcal.mb_tx_pattern_setup;
+    assign mbtrain_if.mb_tx_clk_pattern_sel = intf_rxclkcal.mb_tx_clk_pattern_sel;
+
+    // ======================================================================== //
+    // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)                               //
+    // Sampled once at LINKSPEED_START_REQ; used in EVAL_RESULT to decide       //
+    // whether to exit via phy_retrain path (if params changed during retrain). //
+    // ======================================================================== //
+    assign intf_linkspeed.phyretrain_PHY_IN_RETRAIN = mbtrain_if.phyretrain_PHY_IN_RETRAIN   ; // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
+    assign mbtrain_if.linkspeed_PHY_IN_RETRAIN      = intf_linkspeed.linkspeed_PHY_IN_RETRAIN; // Sampled copy held stable through the sub-state.
+    assign intf_linkspeed.params_changed            = mbtrain_if.params_changed              ; // Were link parameters changed during PHYRETRAIN?
+    // ======================================================================== //
 
     // MB/SB Signals MUX to Global MUX
     always_comb begin : MUX_TO_GLOBAL

@@ -52,9 +52,9 @@ module ltsm_tb_attachments #(
             stable_tx_sb_msg <= NOTHING;
         end else begin
             // When rx_pt_en=1: unit_RX_D2C_PT owns SB; tx_pt_en=1: unit_TX_D2C_PT owns SB; else RXDESKEW FSM owns SB.
-            stable_tx_sb_msg <= intf.rx_pt_en ? d2c_mux_in1_if.tx_sb_msg : 
-                                intf.tx_pt_en ? d2c_mux_in2_if.tx_sb_msg : 
-                                intf.tx_sb_msg;
+            stable_tx_sb_msg <= intf.rx_pt_en ? d2c_mux_in1_if.tx_sb_msg :
+                intf.tx_pt_en ? d2c_mux_in2_if.tx_sb_msg :
+                intf.tx_sb_msg;
         end
     end
 
@@ -418,8 +418,11 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_tclkn_shift            ; // The required shift of the partner TCKN_L (range 0 to 12).
                 // input  phy_rx_decrement_shift        ; // Direction of shift: 1b (earlier), 0b (later).
                 d2c_mux_out_if.phy_rx_valvref_ctrl            = intf.phy_rx_valvref_ctrl           ; // Tell ADC the Rx Valid Lane Vref level to operate in.
-                d2c_mux_out_if.phy_rx_datavref_ctrl           = intf.phy_rx_datavref_ctrl          ; // Tell ADC the Rx Data Lane Vref level to operate in.
-                d2c_mux_out_if.phy_tx_pi_phase_ctrl           = intf.phy_tx_pi_phase_ctrl          ; // Tell ADC the Tx Clock Lane PI phase level.
+                d2c_mux_out_if.phy_tx_val_pi_phase_ctrl       = intf.phy_tx_val_pi_phase_ctrl      ; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                for (int i = 0; i < 16; i++) begin
+                    d2c_mux_out_if.phy_rx_datavref_ctrl[i]      = intf.phy_rx_datavref_ctrl[i]     ; // Tell ADC the Rx Data Lane Vref level to operate in.
+                    d2c_mux_out_if.phy_tx_data_pi_phase_ctrl[i] = intf.phy_tx_data_pi_phase_ctrl[i]; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                end
                 d2c_mux_out_if.phy_rx_deskew_ctrl             = intf.phy_rx_deskew_ctrl            ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
                 d2c_mux_out_if.phy_tx_eq_preset_ctrl          = intf.phy_tx_eq_preset_ctrl         ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
@@ -508,8 +511,11 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_tclkn_shift            ; // The required shift of the partner TCKN_L (range 0 to 12).
                 // input  phy_rx_decrement_shift        ; // Direction of shift: 1b (earlier), 0b (later).
                 d2c_mux_out_if.phy_rx_valvref_ctrl            = d2c_mux_in1_if.phy_rx_valvref_ctrl           ; // Tell ADC the Rx Valid Lane Vref level to operate in.
-                d2c_mux_out_if.phy_rx_datavref_ctrl           = d2c_mux_in1_if.phy_rx_datavref_ctrl          ; // Tell ADC the Rx Data Lane Vref level to operate in.
-                d2c_mux_out_if.phy_tx_pi_phase_ctrl           = d2c_mux_in1_if.phy_tx_pi_phase_ctrl          ; // Tell ADC the Tx Clock Lane PI phase level.
+                d2c_mux_out_if.phy_tx_val_pi_phase_ctrl       = d2c_mux_in1_if.phy_tx_val_pi_phase_ctrl      ; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                for (int i = 0; i < 16; i++) begin
+                    d2c_mux_out_if.phy_rx_datavref_ctrl[i]      = d2c_mux_in1_if.phy_rx_datavref_ctrl[i]     ; // Tell ADC the Rx Data Lane Vref level to operate in.
+                    d2c_mux_out_if.phy_tx_data_pi_phase_ctrl[i] = d2c_mux_in1_if.phy_tx_data_pi_phase_ctrl[i]; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                end
                 d2c_mux_out_if.phy_rx_deskew_ctrl             = d2c_mux_in1_if.phy_rx_deskew_ctrl            ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
                 d2c_mux_out_if.phy_tx_eq_preset_ctrl          = d2c_mux_in1_if.phy_tx_eq_preset_ctrl         ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.
@@ -597,8 +603,11 @@ module ltsm_tb_attachments #(
                 // input  phy_rx_tclkn_shift            ; // The required shift of the partner TCKN_L (range 0 to 12).
                 // input  phy_rx_decrement_shift        ; // Direction of shift: 1b (earlier), 0b (later).
                 d2c_mux_out_if.phy_rx_valvref_ctrl            = d2c_mux_in2_if.phy_rx_valvref_ctrl           ; // Tell ADC the Rx Valid Lane Vref level to operate in.
-                d2c_mux_out_if.phy_rx_datavref_ctrl           = d2c_mux_in2_if.phy_rx_datavref_ctrl          ; // Tell ADC the Rx Data Lane Vref level to operate in.
-                d2c_mux_out_if.phy_tx_pi_phase_ctrl           = d2c_mux_in2_if.phy_tx_pi_phase_ctrl          ; // Tell ADC the Tx Clock Lane PI phase level.
+                d2c_mux_out_if.phy_tx_val_pi_phase_ctrl       = d2c_mux_in2_if.phy_tx_val_pi_phase_ctrl      ; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                for (int i = 0; i < 16; i++) begin
+                    d2c_mux_out_if.phy_rx_datavref_ctrl[i]      = d2c_mux_in2_if.phy_rx_datavref_ctrl[i]     ; // Tell ADC the Rx Data Lane Vref level to operate in.
+                    d2c_mux_out_if.phy_tx_data_pi_phase_ctrl[i] = d2c_mux_in2_if.phy_tx_data_pi_phase_ctrl[i]; // Tell ADC the Tx Data Lane PI phase level (per-lane).
+                end
                 d2c_mux_out_if.phy_rx_deskew_ctrl             = d2c_mux_in2_if.phy_rx_deskew_ctrl            ; // Tell ADC the Rx deskew level for each data lane (16 lanes x 6 bits).
                 d2c_mux_out_if.phy_tx_eq_preset_ctrl          = d2c_mux_in2_if.phy_tx_eq_preset_ctrl         ; // Choose the EQ Tx Preset to use (for speed > 32 GT/s).
                 // input  phy_rx_clk_drift_cal_state    ; // 1b: Calibration done successfully (drift is small), 0b: Needs TARR.

@@ -24,9 +24,9 @@
 // =============================================================================
 
 module unit_DATATRAINCENTER2 #(
-        parameter MAX_PHASE_CODE   = 6'h3F, // Maximum PI phase sweep code (6-bit).
-        parameter MIN_PHASE_CODE   = 6'h00, // Minimum PI phase sweep code.
-        parameter NUM_DATA_LANES   = 16     // Number of data lanes tracked.
+        parameter MAX_PHASE_CODE   = 7'd127, // Maximum PI phase sweep code (7-bit).
+        parameter MIN_PHASE_CODE   = 7'd00 , // Minimum PI phase sweep code.
+        parameter NUM_DATA_LANES   = 16      // Number of data lanes tracked.
     ) (
         internal_ltsm_if.datatraincenter2_mp dtc2_if,
         internal_ltsm_if.substate2d2c_mp     d2c_if
@@ -60,7 +60,7 @@ module unit_DATATRAINCENTER2 #(
     // Glitch-guard: do not assert tx_sb_msg_valid on the cycle of a state change.
     wire is_sb_data_valid = (current_state == next_state);
 
-    // Phase sweep counter width (6-bit to match phy_tx_pi_phase_ctrl)
+    // Phase sweep counter width (6-bit to match phy_tx_data_pi_phase_ctrl)
     localparam PW = $clog2(MAX_PHASE_CODE + 1); // 6
 
     // =====================================================================
@@ -109,17 +109,17 @@ module unit_DATATRAINCENTER2 #(
         endcase
     end
 
-    // any_fail: combinational reduction over found_pass[]
-    // Only consider lanes that are active (negotiated_data_lanes[l]==1).
-    genvar g;
-    // wire any_fail_w;
-    wire [NUM_DATA_LANES-1:0] found_pass_bus;
-    generate
-        for (g = 0; g < NUM_DATA_LANES; g++) begin : GEN_FP
-            assign found_pass_bus[g] = found_pass[g];
-        end
-    endgenerate
-    // A lane is "ok" if it found a pass OR it is not a negotiated lane.
+    // // any_fail: combinational reduction over found_pass[]
+    // // Only consider lanes that are active (negotiated_data_lanes[l]==1).
+    // genvar g1;
+    // // wire any_fail_w;
+    // wire [NUM_DATA_LANES-1:0] found_pass_bus;
+    // generate
+    //     for (g1 = 0; g1 < NUM_DATA_LANES; g1++) begin : GEN_FP
+    //         assign found_pass_bus[g1] = found_pass[g1];
+    //     end
+    // endgenerate
+    // // A lane is "ok" if it found a pass OR it is not a negotiated lane.
     // assign any_fail_w = ~(&(found_pass_bus | ~negotiated_data_lanes));
 
     // =====================================================================
@@ -235,9 +235,6 @@ module unit_DATATRAINCENTER2 #(
         dtc2_if.tx_msginfo      = 16'h0  ;
         dtc2_if.tx_data_field   = 64'h0  ;
 
-        // PHY: drive best_code_r[0] by default (applied after CALC_APPLY).
-        dtc2_if.phy_tx_pi_phase_ctrl = best_code_r[0];
-
         case (current_state)
             DTC2_IDLE: dtc2_if.timeout_timer_en = 1'b0;
 
@@ -253,23 +250,24 @@ module unit_DATATRAINCENTER2 #(
 
             DTC2_SET_PHASE: begin
                 // Drive the current sweep code to the PI and wait for analog settle.
-                dtc2_if.phy_tx_pi_phase_ctrl   = swept_code_r;
+                // (phy_tx_data_pi_phase_ctrl is driven per-lane by the generate block.)
                 dtc2_if.analog_settle_timer_en = 1'b1;
             end
 
             DTC2_TX_D2C_PT: begin
                 // Hold swept_code_r on PHY while the Tx D2C test runs.
-                dtc2_if.phy_tx_pi_phase_ctrl = swept_code_r;
+                // (phy_tx_data_pi_phase_ctrl is driven per-lane by the generate block.)
                 d2c_if.tx_pt_en              = 1'b1;
             end
 
             DTC2_LOG_RESULT: begin
                 // Hold swept_code_r on PHY during the 1-cycle result logging.
-                dtc2_if.phy_tx_pi_phase_ctrl = swept_code_r;
+                // (phy_tx_data_pi_phase_ctrl is driven per-lane by the generate block.)
             end
 
             DTC2_CALC_APPLY: begin
-                // best_code_r[0] is already driven as default (apply best center).
+                // phy_tx_data_pi_phase_ctrl[lane] is now driven per-lane by the
+                // generate block (best_code_r[lane] after sweep completes).
                 // Wait for analog settle before accepting the final value.
                 dtc2_if.analog_settle_timer_en = 1'b1;
             end
@@ -298,6 +296,25 @@ module unit_DATATRAINCENTER2 #(
             default: begin end
         endcase
     end
+
+    // =====================================================================
+    // Per-lane phy_tx_data_pi_phase_ctrl combinational assignment.
+    //
+    // During the PI sweep states (SET_PHASE, TX_D2C_PT, LOG_RESULT) every
+    // lane is driven with the current swept_code_r so the PHY sees the code
+    // under test.  In all other states each lane independently receives its
+    // own best_code_r[l] — the midpoint calculated in CALC_APPLY.
+    // =====================================================================
+    genvar g2;
+    generate
+        for (g2 = 0; g2 < NUM_DATA_LANES; g2++) begin : GEN_PI_PHASE
+            assign dtc2_if.phy_tx_data_pi_phase_ctrl[g2] =
+                (current_state == DTC2_SET_PHASE  ||
+                    current_state == DTC2_TX_D2C_PT  ||
+                    current_state == DTC2_LOG_RESULT) ? swept_code_r
+                : best_code_r[g2];
+        end
+    endgenerate
 
     // =====================================================================
     // Sequential: PI phase sweep counter + per-lane eye-map tracking
