@@ -12,28 +12,31 @@ import UCIe_pkg::*; // Importing the UCIe package for necessary definitions and 
 #( parameter int CLK_FRQ_HZ = 800000000)
  (  //IN/OUT signals. 
 
-    input logic clk, rst_n,
+    input logic clk,
+    input logic rst_n,
     
     //Signal FROM TOP LTSM.
     input logic sbinit_enable,
     
     //Signal TO TOP LTSM.
-    output logic sbinit_done, sbinit_error,
+    output logic sbinit_done,
+    output logic sbinit_error,
 
     //Signals from SB block.
         //MESSAGES signals.
-    input logic sb_rx_valid,
+    input logic    sb_rx_valid,
     input msg_no_e sb_rx_msg_id,
         //Control signals.
     output logic sb_det_pattern_req,     // state S1: Request signal to SB block to start sending the pattern for detection.
+    output logic send_4iteration,
+    input  logic four_iteration_done,
     input logic sb_det_pattern_rcvd,     // state S1: Detected pattern received from SB block.
 
     //Signals to SB block.  
         //MESSAGES signals.
-    output logic sb_tx_valid,
+    output logic    sb_tx_valid,
     output msg_no_e sb_tx_msg_id,
-
-    //NEW signal.
+        //NEW signal.
     output logic timeout_error,
     output logic sbinit_pattern_mode
  );    
