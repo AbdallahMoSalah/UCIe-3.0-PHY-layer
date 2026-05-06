@@ -67,9 +67,7 @@ module unit_reset_state (
                 else if (message_receive == RDI_LINK_ERROR_REQ) begin
                     message_send<=RDI_LINK_ERROR_RSP;
                     cs<= le_resp;
-                end
-                else if ((lp_state_req == Active)||state_sts!=RESET)
-                    cs<= training;    
+                end   
                 else if (message_receive== RDI_DISABLE_REQ) begin
                     message_send<=RDI_DISABLE_RSP;
                     cs<= d_resp;
@@ -143,7 +141,7 @@ module unit_reset_state (
 //===========================================================
             // NOP_rcvd: Resting state waiting for target active, linkreset, or disable states
             NOP_rcvd: begin
-                if (lp_state_req == Active) begin
+                if (lp_state_req == Active & state_sts == LINKINIT) begin
                     cs <= active_hs;
                     Active_handshake_strt<=1;
                 end
@@ -155,6 +153,8 @@ module unit_reset_state (
                     cs <= d_req;
                     message_send<=RDI_DISABLE_REQ;
                 end
+                else if (lp_state_req == Active & state_sts != LINKINIT)
+                    cs <= training;
             end
 //===========================================================
             training: begin
