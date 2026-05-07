@@ -52,6 +52,10 @@ module unit_REPAIR (
             rp_if.mb_tx_data_lane_mask <= 3'b0; // to update the used lanes mask for MB Transmitter side. (on our Die)
             rp_if.mb_rx_data_lane_mask <= 3'b0; // to update the used lanes mask for MB Receiver    side. (on our Die)
         end
+        else if (!rp_if.is_ltsm_out_of_reset) begin
+            rp_if.mb_tx_data_lane_mask <= 3'b0;
+            rp_if.mb_rx_data_lane_mask <= 3'b0;
+        end
         // This signal be triggered in the begining of the MBTRAIN state. We get signal form ths substate MBTRAIN.VALVREF
         else if (rp_if.update_lane_mask) begin
             rp_if.mb_tx_data_lane_mask <= rp_if.mbinit_tx_data_lane_mask; // to update the used lanes mask for MB Transmitter side. (on our Die)
@@ -103,7 +107,11 @@ module unit_REPAIR (
     always @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
         if (!rp_if.rst_n) begin
             current_state  <= REPAIR_IDLE;
-        end else begin
+        end 
+        else if (!rp_if.is_ltsm_out_of_reset) begin
+            current_state  <= REPAIR_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -255,6 +263,9 @@ module unit_REPAIR (
 
     always_ff @(posedge rp_if.lclk or negedge rp_if.rst_n) begin
         if (!rp_if.rst_n) begin
+            local_rx_lane_map_code <= 3'b000;
+        end
+        else if (!rp_if.is_ltsm_out_of_reset) begin
             local_rx_lane_map_code <= 3'b000;
         end
         else if (current_state == REPAIR_INIT_RESP) begin

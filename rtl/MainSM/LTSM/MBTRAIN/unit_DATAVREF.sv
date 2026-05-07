@@ -83,7 +83,11 @@ module unit_DATAVREF #(
     always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin
         if (!datavref_if.rst_n) begin
             current_state  <= DATAVREF_IDLE;
-        end else begin
+        end
+        else if (!datavref_if.is_ltsm_out_of_reset) begin
+            current_state  <= DATAVREF_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -344,6 +348,12 @@ module unit_DATAVREF #(
                 best_vref_code[j] <= MIN_DATA_VREF_CODE;
             end
         end
+        else if (!datavref_if.is_ltsm_out_of_reset) begin
+            swept_code_r                   <= MIN_DATA_VREF_CODE;
+            for(j=0; j<16; j=j+1) begin
+                best_vref_code[j] <= MIN_DATA_VREF_CODE;
+            end
+        end
         else if(current_state == DATAVREF_START_REQ) begin
             // Reset swept_code_r and applied values at the start of each run.
             swept_code_r                   <= MIN_DATA_VREF_CODE;
@@ -400,6 +410,15 @@ module unit_DATAVREF #(
     always @(posedge datavref_if.lclk or negedge datavref_if.rst_n) begin : DATAVREF_LOG_RESULT_PROC
         integer i;
         if(!datavref_if.rst_n) begin
+            for(i=0; i<16; i=i+1) begin
+                best_lo   [i] <= '0;
+                best_hi   [i] <= '0;
+                found_pass[i] <= 1'b0;
+                zone_valid[i] <= 1'b0;
+                zone_min_r[i] <= '0;
+            end
+        end
+        else if (!datavref_if.is_ltsm_out_of_reset) begin
             for(i=0; i<16; i=i+1) begin
                 best_lo   [i] <= '0;
                 best_hi   [i] <= '0;

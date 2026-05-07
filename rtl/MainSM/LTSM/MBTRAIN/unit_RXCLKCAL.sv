@@ -92,7 +92,11 @@ module unit_RXCLKCAL #() (
     always_ff @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin
         if (!rxclkcal_if.rst_n) begin
             current_state  <= RXCLKCAL_IDLE;
-        end else begin
+        end 
+        else if (!rxclkcal_if.is_ltsm_out_of_reset) begin
+            current_state  <= RXCLKCAL_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -616,6 +620,10 @@ module unit_RXCLKCAL #() (
             phy_tx_tckn_shift_reg      <= 5'b0; // Reset: no shift pending.
             phy_tx_decrement_shift_reg <= 1'b0; // Reset: direction = increment.
         end
+        else if (!rxclkcal_if.is_ltsm_out_of_reset) begin
+            phy_tx_tckn_shift_reg      <= 5'b0;
+            phy_tx_decrement_shift_reg <= 1'b0;
+        end
         else if (current_state == IQ_TCKN_L_SHIFT_REQ &&
                 rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req &&
                 rxclkcal_if.rx_sb_msg_valid == 1'b1) begin
@@ -643,6 +651,10 @@ module unit_RXCLKCAL #() (
     always @(posedge rxclkcal_if.lclk or negedge rxclkcal_if.rst_n) begin : TCKN_L_SHIFT_REQ_PROC
         if(!rxclkcal_if.rst_n) begin
             req_msg_rcvd       <= 1'b0               ; // Default: NOT received (flag is only set for late-IQ scenario)
+            req_msg_sent_timer <= {TIMER_WIDTH{1'b0}};
+        end
+        else if (!rxclkcal_if.is_ltsm_out_of_reset) begin
+            req_msg_rcvd       <= 1'b0;
             req_msg_sent_timer <= {TIMER_WIDTH{1'b0}};
         end
         else if(current_state == RXCLKCAL_DONE_REQ && (rxclkcal_if.rx_sb_msg_valid && rxclkcal_if.rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req)) begin

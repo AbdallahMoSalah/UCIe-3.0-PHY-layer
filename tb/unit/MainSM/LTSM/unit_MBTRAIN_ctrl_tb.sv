@@ -14,7 +14,7 @@ module unit_MBTRAIN_ctrl_tb;
     assign trainerror_req = itf.trainerror_req;
 
     unit_MBTRAIN_ctrl dut (
-        .itf(itf.mbtrain_mp)
+        .itf(itf.mbtrain_ctrl_mp)
     );
 
     // Clock generation
@@ -39,14 +39,14 @@ module unit_MBTRAIN_ctrl_tb;
     endtask
 
     task set_all_fail(input logic f);
-        itf.datavref_fail_flag = f;
+        // itf.datavref_fail_flag = f;
         itf.valtraincenter_fail_flag = f;
-        itf.valtrainvref_fail_flag = f;
-        itf.datatraincenter1_fail_flag = f;
-        itf.rxdeskew_fail_flag = f;
-        itf.datatraincenter2_fail_flag = f;
-        itf.linkspeed_fail_flag = f;
-        itf.repairmb_fail_flag = f; // MBINIT signal, but we can set it if it exists
+        // itf.valtrainvref_fail_flag = f;
+        // itf.datatraincenter1_fail_flag = f;
+        // itf.rxdeskew_fail_flag = f;
+        // itf.datatraincenter2_fail_flag = f;
+        // itf.linkspeed_fail_flag = f;
+        itf.repairmb_fail_flag = f; // MBINIT signal
         itf.trainerror_req = f;
     endtask
 
@@ -95,7 +95,7 @@ module unit_MBTRAIN_ctrl_tb;
         test_fsm_transition(itf.datatrainvref_en, itf.datatrainvref_done, "datatrainvref_en", 1);
         test_fsm_transition(itf.rxdeskew_en, itf.rxdeskew_done, "rxdeskew_en", 2);
         test_fsm_transition(itf.datatraincenter2_en, itf.datatraincenter2_done, "datatraincenter2_en", 1);
-        
+
         // Final transition in LINKSPEED
         check_asserted(itf.linkspeed_en, "linkspeed_en");
         itf.linkinit_req = 1;
@@ -127,19 +127,19 @@ module unit_MBTRAIN_ctrl_tb;
         itf.datatrainvref_done = 1; @(posedge lclk); itf.datatrainvref_done = 0; #1;
         itf.rxdeskew_done = 1; @(posedge lclk); itf.rxdeskew_done = 0; #1;
         itf.datatraincenter2_done = 1; @(posedge lclk); itf.datatraincenter2_done = 0; #1;
-        
+
         check_asserted(itf.linkspeed_en, "linkspeed_en");
-        itf.repair_req = 1; 
+        itf.repair_req = 1;
         itf.linkspeed_done = 1;
         @(posedge lclk); #1;
         itf.repair_req = 0;
         itf.linkspeed_done = 0;
-        
+
         check_asserted(itf.repair_en, "repair_en");
         itf.repair_done = 1;
         @(posedge lclk); #1;
         itf.repair_done = 0;
-        
+
         // After REPAIR, it goes back to TXSELFCAL
         check_asserted(itf.txselfcal_en, "txselfcal_en");
 
@@ -149,11 +149,11 @@ module unit_MBTRAIN_ctrl_tb;
         mbtrain_en = 1;
         @(posedge lclk); #1;
         check_asserted(itf.valvref_en, "valvref_en");
-        
+
         itf.trainerror_req = 1;
         @(posedge lclk); #1;
-        
-        // In MBTRAIN, if trainerror_req is high, it holds state. 
+
+        // In MBTRAIN, if trainerror_req is high, it holds state.
         // ltsm_ctrl should see trainerror_req and move the whole thing.
         // Our test checks if we are NOT done.
         if (mbtrain_done !== 1'b0) begin
@@ -167,7 +167,7 @@ module unit_MBTRAIN_ctrl_tb;
         end else begin
             $display("PASSED: unit_MBTRAIN_ctrl_tb completed successfully.");
         end
-        
+
         $finish;
     end
 endmodule

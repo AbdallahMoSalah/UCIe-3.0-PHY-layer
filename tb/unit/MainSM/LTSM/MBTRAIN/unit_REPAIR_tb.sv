@@ -82,7 +82,7 @@ module unit_REPAIR_tb ();
         intf.tb_wrong_sb_msg_en = 0;
         intf.tb_wrong_sb_msg    = NOTHING;
         intf.tb_rx_data_field   = 64'h0;
-        intf.linkspeed_fail_flag = 0;
+        // intf.linkspeed_fail_flag = 0;
         intf.repair_en           = 0;
         intf.rx_pt_en            = 0;
         intf.tx_pt_en            = 0;

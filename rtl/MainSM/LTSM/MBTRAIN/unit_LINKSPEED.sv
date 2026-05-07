@@ -106,6 +106,8 @@ module unit_LINKSPEED (
     always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n)
             current_state <= LINKSPEED_IDLE;
+        else if (!ls_if.is_ltsm_out_of_reset)
+            current_state <= LINKSPEED_IDLE;
         else
             current_state <= next_state;
     end
@@ -436,7 +438,11 @@ module unit_LINKSPEED (
     always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
             ls_if.linkspeed_success_lanes <= 16'b0;
-        end else begin
+        end 
+        else if (!ls_if.is_ltsm_out_of_reset) begin
+            ls_if.linkspeed_success_lanes <= 16'b0;
+        end
+        else begin
             if(current_state == LINKSPEED_TX_D2C_PT && d2c_if.test_d2c_done) begin
                 ls_if.linkspeed_success_lanes <= active_lanes;
             end
@@ -463,7 +469,12 @@ module unit_LINKSPEED (
         if (!ls_if.rst_n) begin
             d2c_fail_r          <= 1'b0;
             req_speed_degrade_r <= 1'b0;
-        end else begin
+        end 
+        else if (!ls_if.is_ltsm_out_of_reset) begin
+            d2c_fail_r          <= 1'b0;
+            req_speed_degrade_r <= 1'b0;
+        end
+        else begin
             case (current_state)
                 // Clear decision registers at the beginning of each run
                 LINKSPEED_START_REQ: begin
@@ -600,7 +611,11 @@ module unit_LINKSPEED (
     always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
             dont_wait_req <= 1'b0;
-        end else begin
+        end 
+        else if (!ls_if.is_ltsm_out_of_reset) begin
+            dont_wait_req <= 1'b0;
+        end
+        else begin
             // this signal 'dont_wait_req' is asserted under conditions in the states:
             // LINKSPEED_DONE_REQ
             // LINKSPEED_ERROR_REQ
@@ -722,6 +737,12 @@ module unit_LINKSPEED (
             // rx_msginfo_r      <= '0;
 
         end
+        else if (!ls_if.is_ltsm_out_of_reset) begin
+            tx_sb_msg_valid_r <= 1'b0;
+            send_timer        <= '0  ;
+            rx_sb_msg_valid_r <= 1'b0;
+            rx_sb_msg_r       <= NOTHING;
+        end
         else if (current_state == LINKSPEED_IDLE) begin
             // Reset buffer and timer between LINKSPEED invocations.
             tx_sb_msg_valid_r <= 1'b0;
@@ -780,6 +801,9 @@ module unit_LINKSPEED (
     // =========================================================================
     always_ff @(posedge ls_if.lclk or negedge ls_if.rst_n) begin
         if (!ls_if.rst_n) begin
+            ls_if.linkspeed_PHY_IN_RETRAIN <= '0;
+        end
+        else if (!ls_if.is_ltsm_out_of_reset) begin
             ls_if.linkspeed_PHY_IN_RETRAIN <= '0;
         end
         else if (current_state == LINKSPEED_START_REQ) begin

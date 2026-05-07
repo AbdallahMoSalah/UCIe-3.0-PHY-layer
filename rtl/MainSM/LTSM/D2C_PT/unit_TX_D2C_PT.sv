@@ -338,7 +338,7 @@ module unit_TX_D2C_PT  #() (
             substate_if.d2c_val_err                      <= 0;
             substate_if.d2c_aggr_err                     <= 0;
             substate_if.d2c_perlane_err                  <= 0;
-            substate_if.partner_valtraincenter_fail_flag  <= 0;
+            substate_if.partner_valtraincenter_fail_flag <= 0;
         end
         // -- SB REQ from partner: extract pattern-gen config into MB registers --
         // The partner sends us how it wants us to drive our Tx (mirror of what

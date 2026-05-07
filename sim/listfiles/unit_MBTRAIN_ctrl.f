@@ -2,6 +2,6 @@
 rtl/common/UCIe_pkg.sv
 rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 rtl/MainSM/LTSM/common/internal_ltsm_if.sv
-rtl/MainSM/LTSM/unit_MBTRAIN_ctrl/unit_MBTRAIN_ctrl.sv
+rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv
 tb/unit/MainSM/LTSM/unit_MBTRAIN_ctrl_tb.sv
 

@@ -52,6 +52,7 @@ module unit_phase_interpolator_for_deskew #(
         // =========================================================================
         input  logic        lclk ,
         input  logic        rst_n,
+        input  logic        is_ltsm_out_of_reset,
 
         // =========================================================================
         // Handshake Interface  (driven by unit_RXDESKEW)
@@ -159,6 +160,7 @@ module unit_phase_interpolator_for_deskew #(
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : PI_STATE_REG
         if (!rst_n) pi_state <= PI_IDLE;
+        else if (!is_ltsm_out_of_reset) pi_state <= PI_IDLE;
         else        pi_state <= pi_next;
     end
 
@@ -252,6 +254,8 @@ module unit_phase_interpolator_for_deskew #(
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : SWEPT_CODE_PROC
         if (!rst_n) begin
+            swept_code_r <= MIN_DESKEW_CODE[DW-1:0];
+        end else if (!is_ltsm_out_of_reset) begin
             swept_code_r <= MIN_DESKEW_CODE[DW-1:0];
         end else if (pi_state == PI_IDLE && pi_en) begin
             // New sweep starting — reset counter.
@@ -354,6 +358,14 @@ module unit_phase_interpolator_for_deskew #(
                 overall_best_hi[i]    <= '0;
                 overall_found_pass[i] <= 1'b0;
             end
+        end else if (!is_ltsm_out_of_reset) begin
+            best_preset_saved      <= 3'd0;
+            overall_best_min_range <= '0;
+            for (i = 0; i < 16; i = i + 1) begin
+                overall_best_lo[i]    <= '0;
+                overall_best_hi[i]    <= '0;
+                overall_found_pass[i] <= 1'b0;
+            end
         end else begin
             // Clear at the start of a new RXDESKEW session.
             if (pi_session_start) begin
@@ -402,6 +414,13 @@ module unit_phase_interpolator_for_deskew #(
         integer i;
         if (!rst_n) begin
             // fail_flag_r <= 1'b0;
+            for (i = 0; i < 16; i = i + 1) begin
+                best_lo[i]          <= '0;
+                best_hi[i]          <= '0;
+                found_pass[i]       <= 1'b0;
+                best_deskew_code[i] <= MIN_DESKEW_CODE[DW-1:0];
+            end
+        end else if (!is_ltsm_out_of_reset) begin
             for (i = 0; i < 16; i = i + 1) begin
                 best_lo[i]          <= '0;
                 best_hi[i]          <= '0;

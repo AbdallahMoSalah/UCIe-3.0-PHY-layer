@@ -56,8 +56,9 @@ module wrapper_MBTRAIN_tb ();
         .MAX_DESKEW_CODE    (SIM_MAX_PI_PHASE      )
     ) intf (.lclk(lclk), .rst_n(rst_n));
 
-    // Keep current_ltsm_state = MBTRAIN
-    assign intf.current_ltsm_state = MBTRAIN;
+    // Control current_ltsm_state to trigger software reset exit in DUT
+    LTSM_state_e current_ltsm_state_reg;
+    assign intf.current_ltsm_state = current_ltsm_state_reg;
 
     // =========================================================================
     // DUT – wrapper_mbtrain_mbinit_d2c_mux_tb
@@ -373,7 +374,13 @@ module wrapper_MBTRAIN_tb ();
         intf.mbinit_tx_data_lane_mask   = 3'b011;
         intf.cfg_train4_max_err_thresh_aggr    = 16'hFFFF;
         intf.cfg_train4_max_err_thresh_perlane = 12'hFFF;
-        #10; rst_n = 1;
+        current_ltsm_state_reg = RESET;
+        repeat(5) @(posedge lclk);
+        rst_n = 1;
+        repeat(5) @(posedge lclk);
+        current_ltsm_state_reg = SBINIT;
+        repeat(5) @(posedge lclk);
+        current_ltsm_state_reg = MBTRAIN;
     endtask
 
     // =========================================================================

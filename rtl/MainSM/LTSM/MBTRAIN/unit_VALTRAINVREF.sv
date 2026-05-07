@@ -64,7 +64,11 @@ module unit_VALTRAINVREF #(
     always_ff @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin
         if (!valtrainvref_if.rst_n) begin
             current_state  <= VALTRAINVREF_IDLE;
-        end else begin
+        end 
+        else if (!valtrainvref_if.is_ltsm_out_of_reset) begin
+            current_state  <= VALTRAINVREF_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -314,6 +318,9 @@ module unit_VALTRAINVREF #(
         if (!valtrainvref_if.rst_n) begin
             valtrainvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
         end
+        else if (!valtrainvref_if.is_ltsm_out_of_reset) begin
+            valtrainvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
+        end
         // Reset sweep at start of each run (allows back-to-back without full reset).
         else if (current_state == VALTRAINVREF_START_REQ) begin
             valtrainvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
@@ -339,6 +346,13 @@ module unit_VALTRAINVREF #(
     reg is_in_valid_region;
     always_ff @(posedge valtrainvref_if.lclk or negedge valtrainvref_if.rst_n) begin : VALTRAINVREF_LOG_RESULT_PROC
         if (!valtrainvref_if.rst_n) begin
+            min_vref_code      <= '0;
+            max_vref_code      <= '0;
+            vref_code_filled   <= 1'b0;
+            is_in_valid_region <= 1'b0;
+            temp_min_vref      <= '0;
+        end
+        else if (!valtrainvref_if.is_ltsm_out_of_reset) begin
             min_vref_code      <= '0;
             max_vref_code      <= '0;
             vref_code_filled   <= 1'b0;

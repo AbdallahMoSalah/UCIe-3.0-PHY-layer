@@ -164,7 +164,11 @@ module unit_DATATRAINVREF #(
     always_ff @(posedge dtvref_if.lclk or negedge dtvref_if.rst_n) begin
         if (!dtvref_if.rst_n) begin
             current_state  <= DTVREF_IDLE;
-        end else begin
+        end 
+        else if (!dtvref_if.is_ltsm_out_of_reset) begin
+            current_state  <= DTVREF_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -354,7 +358,19 @@ module unit_DATATRAINVREF #(
                 zone_valid     [i] <= 1'b0;
                 best_vref_code [i] <= MIN_VREF_CODE[VW-1:0];
             end
-        end else if (current_state == DTVREF_START_REQ) begin
+        end 
+        else if (!dtvref_if.is_ltsm_out_of_reset) begin
+            swept_code_r <= MIN_VREF_CODE[VW-1:0];
+            for (i = 0; i < 16; i = i + 1) begin
+                zone_min_r     [i] <= '0;
+                best_lo        [i] <= '0;
+                best_hi        [i] <= '0;
+                found_pass     [i] <= 1'b0;
+                zone_valid     [i] <= 1'b0;
+                best_vref_code [i] <= MIN_VREF_CODE[VW-1:0];
+            end
+        end
+        else if (current_state == DTVREF_START_REQ) begin
             // (S1) Reset sweep state at the start of each run.
             // Done in START_REQ so back-to-back activations each get a fresh sweep.
             swept_code_r <= MIN_VREF_CODE[VW-1:0];

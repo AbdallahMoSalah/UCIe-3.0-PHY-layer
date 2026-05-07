@@ -47,7 +47,11 @@ module unit_VALVREF #(
     always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin
         if (!valvref_if.rst_n) begin
             current_state  <= VALVREF_IDLE;
-        end else begin
+        end 
+        else if (!valvref_if.is_ltsm_out_of_reset) begin
+            current_state  <= VALVREF_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -292,6 +296,9 @@ module unit_VALVREF #(
         if(!valvref_if.rst_n) begin
             valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE; // Reset to safe Vref.
         end
+        else if (!valvref_if.is_ltsm_out_of_reset) begin
+            valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
+        end
         // Reset on re-entry (allows module reuse across multiple MBTRAIN passes).
         else if(current_state == VALVREF_START_REQ) begin
             valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
@@ -336,6 +343,13 @@ module unit_VALVREF #(
     // =====================================================================
     always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin : VALVREF_LOG_RESULT_PROC
         if(!valvref_if.rst_n) begin
+            min_vref_code      <=   '0;
+            max_vref_code      <=   '0;
+            vref_code_filled   <= 1'b0;
+            is_in_valid_region <= 1'b0;
+            temp_min_vref      <=   '0;
+        end
+        else if (!valvref_if.is_ltsm_out_of_reset) begin
             min_vref_code      <=   '0;
             max_vref_code      <=   '0;
             vref_code_filled   <= 1'b0;

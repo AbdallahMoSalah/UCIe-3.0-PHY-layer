@@ -50,7 +50,11 @@ module unit_VALTRAINCENTER #(
     always_ff @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin
         if (!valtraincenter_if.rst_n) begin
             current_state  <= VALTRAINCENTER_IDLE;
-        end else begin
+        end 
+        else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
+            current_state  <= VALTRAINCENTER_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -272,6 +276,9 @@ module unit_VALTRAINCENTER #(
         if(!valtraincenter_if.rst_n) begin
             valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
         end
+        else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
+            valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
+        end
         else if(current_state == VALTRAINCENTER_START_REQ) begin
             valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
         end
@@ -316,6 +323,13 @@ module unit_VALTRAINCENTER #(
     // =====================================================================
     always_ff @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : VALTRAINCENTER_LOG_RESULT_PROC
         if(!valtraincenter_if.rst_n) begin
+            min_phase_code     <=   '0;
+            max_phase_code     <=   '0;
+            phase_code_filled  <= 1'b0;
+            is_in_valid_region <= 1'b0;
+            temp_min_phase     <=   '0;
+        end
+        else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
             min_phase_code     <=   '0;
             max_phase_code     <=   '0;
             phase_code_filled  <= 1'b0;

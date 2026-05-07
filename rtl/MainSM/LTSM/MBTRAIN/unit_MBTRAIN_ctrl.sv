@@ -26,7 +26,11 @@ module unit_MBTRAIN_ctrl (
     always_ff @(posedge itf.lclk or negedge itf.rst_n) begin
         if (!itf.rst_n) begin
             current_state <= MBTRAIN_IDLE;
-        end else begin
+        end 
+        else if (!itf.is_ltsm_out_of_reset) begin
+            current_state <= MBTRAIN_IDLE;
+        end
+        else begin
             if (!itf.mbtrain_en) begin
                 current_state <= MBTRAIN_IDLE;
             end

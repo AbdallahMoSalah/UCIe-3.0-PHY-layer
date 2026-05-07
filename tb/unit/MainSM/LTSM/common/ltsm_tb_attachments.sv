@@ -85,6 +85,7 @@ module ltsm_tb_attachments #(
         end
         else begin
             d2c_mux_out_if.rx_sb_msg_valid <= rx_sb_msg_valid_reg;
+            intf.is_ltsm_out_of_reset      <= 1'b1; // Default to 'out of reset' for unit tests.
 
             if(intf.tb_wait_timeout == 1'b0) begin
                 // Activate echo-back on the first SB clock where tx_sb_msg_valid_pulse is high.
@@ -661,8 +662,8 @@ module ltsm_tb_attachments #(
         d2c_mux_in1_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
         d2c_mux_in1_if.phy_rx_tckn_shift          = d2c_mux_out_if.phy_rx_tckn_shift         ;
         d2c_mux_in1_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
-        d2c_mux_in1_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
-        d2c_mux_in1_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
+        // d2c_mux_in1_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
+        // d2c_mux_in1_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
         d2c_mux_in1_if.rx_sb_msg_valid            = d2c_mux_out_if.rx_sb_msg_valid           ;
         d2c_mux_in1_if.rx_sb_msg                  = d2c_mux_out_if.rx_sb_msg                 ;
         d2c_mux_in1_if.rx_msginfo                 = d2c_mux_out_if.rx_msginfo                ;
@@ -677,8 +678,8 @@ module ltsm_tb_attachments #(
         d2c_mux_in2_if.mb_rx_compare_done         = d2c_mux_out_if.mb_rx_compare_done        ;
         d2c_mux_in2_if.phy_rx_tckn_shift          = d2c_mux_out_if.phy_rx_tckn_shift         ;
         d2c_mux_in2_if.phy_rx_decrement_shift     = d2c_mux_out_if.phy_rx_decrement_shift    ;
-        d2c_mux_in2_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
-        d2c_mux_in2_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
+        // d2c_mux_in2_if.phy_rx_clk_drift_cal_state = d2c_mux_out_if.phy_rx_clk_drift_cal_state;
+        // d2c_mux_in2_if.phy_rx_clk_drift_cal_valid = d2c_mux_out_if.phy_rx_clk_drift_cal_valid;
         d2c_mux_in2_if.rx_sb_msg_valid            = d2c_mux_out_if.rx_sb_msg_valid           ;
         d2c_mux_in2_if.rx_sb_msg                  = d2c_mux_out_if.rx_sb_msg                 ;
         d2c_mux_in2_if.rx_msginfo                 = d2c_mux_out_if.rx_msginfo                ;

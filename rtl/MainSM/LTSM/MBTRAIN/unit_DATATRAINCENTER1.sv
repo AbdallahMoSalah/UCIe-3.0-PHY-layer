@@ -116,7 +116,11 @@ module unit_DATATRAINCENTER1 #(
     always_ff @(posedge dtc1_if.lclk or negedge dtc1_if.rst_n) begin
         if (!dtc1_if.rst_n) begin
             current_state  <= DTC1_IDLE;
-        end else begin
+        end 
+        else if (!dtc1_if.is_ltsm_out_of_reset) begin
+            current_state  <= DTC1_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end
@@ -329,7 +333,18 @@ module unit_DATATRAINCENTER1 #(
                 best_code_r[i] <= MIN_PHASE_CODE;
             end
             // fail_flag_r <= 1'b0;
-        end else if (current_state == DTC1_START_REQ) begin
+        end 
+        else if (!dtc1_if.is_ltsm_out_of_reset) begin
+            swept_code_r <= MIN_PHASE_CODE;
+            for (i = 0; i < NUM_DATA_LANES; i++) begin
+                best_lo   [i] <= '0;
+                best_hi   [i] <= '0;
+                found_pass[i] <= 1'b0;
+                zone_valid[i] <= 1'b0;
+                best_code_r[i] <= MIN_PHASE_CODE;
+            end
+        end
+        else if (current_state == DTC1_START_REQ) begin
             // (S1) Reset sweep state at the start of every new run.
             // Done in START_REQ so back-to-back activations each get a fresh sweep.
             swept_code_r <= MIN_PHASE_CODE;

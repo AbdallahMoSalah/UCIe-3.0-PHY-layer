@@ -69,6 +69,7 @@ interface internal_ltsm_if #(
     logic phyretrain_PHY_IN_RETRAIN; // Input to LINKSPEED: did PHYRETRAIN assert PHY_IN_RETRAIN?
     logic linkspeed_PHY_IN_RETRAIN ; // Output from LINKSPEED: sampled copy used in EVAL_RESULT decision.
     logic params_changed           ; // Input to LINKSPEED: did link parameters change during PHYRETRAIN?
+    logic is_ltsm_out_of_reset     ; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
 
 
     //=====================================//
@@ -1099,6 +1100,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1157,6 +1159,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1216,6 +1219,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1273,6 +1277,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1329,6 +1334,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1404,6 +1410,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1463,6 +1470,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1522,6 +1530,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1582,6 +1591,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1638,6 +1648,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1705,6 +1716,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1765,6 +1777,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1849,6 +1862,7 @@ interface internal_ltsm_if #(
         // Clock and Reset.        //
         // ======================= //
         input  lclk, input  rst_n,
+        input  is_ltsm_out_of_reset,
 
         // ======================= //
         // Timers signals.         //
@@ -1952,6 +1966,7 @@ interface internal_ltsm_if #(
     // For the module unit_mbtrain_ctrl
     modport mbtrain_ctrl_mp (
         input  lclk      , input  rst_n       ,
+        input  is_ltsm_out_of_reset,
         input  mbtrain_en, output mbtrain_done,
         output current_mbtrain_substate       ,
         input  trainerror_req, input phyretrain_req, input linkinit_req,

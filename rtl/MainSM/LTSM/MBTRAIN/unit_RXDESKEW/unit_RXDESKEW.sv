@@ -118,6 +118,9 @@ module unit_RXDESKEW #(
         if(~rxdeskew_if.rst_n) begin
             current_state  <= RXDESKEW_IDLE;
         end
+        else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
+            current_state  <= RXDESKEW_IDLE;
+        end
         else begin
             current_state  <= next_state   ;
         end
@@ -281,7 +284,11 @@ module unit_RXDESKEW #(
     always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : OLD_PRESET_PROC
         if (!rxdeskew_if.rst_n) begin
             old_preset_saved <= 3'd0;
-        end else begin
+        end 
+        else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
+            old_preset_saved <= 3'd0;
+        end
+        else begin
             if (current_state == TO_DTC2) old_preset_saved <= 3'd0;           // Reset on DTC2 exit.
             if (current_state == TO_DTC1) old_preset_saved <= best_preset_saved; // Capture on DTC1 exit.
         end
@@ -298,6 +305,7 @@ module unit_RXDESKEW #(
     ) u_phase_interpolator_for_deskew (
         .lclk                          (rxdeskew_if.lclk),
         .rst_n                         (rxdeskew_if.rst_n),
+        .is_ltsm_out_of_reset          (rxdeskew_if.is_ltsm_out_of_reset),
         // Handshake
         .pi_en                         (pi_en),
         .pi_session_start              (pi_session_start),
@@ -336,7 +344,12 @@ module unit_RXDESKEW #(
         if (!rxdeskew_if.rst_n) begin
             preset_search_cnt <= 3'd0;
             dtc1_arc_cnt      <= 3'd0;
-        end else begin
+        end 
+        else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
+            preset_search_cnt <= 3'd0;
+            dtc1_arc_cnt      <= 3'd0;
+        end
+        else begin
             // Reset the arc counter only when the FSM exits completely.
             if (current_state == TO_DTC2 || current_state == TO_TRAINERROR) begin
                 dtc1_arc_cnt <= 3'd0;
@@ -517,6 +530,13 @@ module unit_RXDESKEW #(
 
     always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : HANDSHAKE_PROC
         if (rxdeskew_if.rst_n == 1'b0) begin
+            {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, NO_MSG};
+            my_preset_fail_status      <= 1'b0;
+            partner_preset_fail_status <= 1'b0;
+            partner_preset             <= 3'd0;
+            my_preset                  <= 3'd0;
+        end
+        else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
             {send_sb_msg [1], send_sb_msg [0]} <= {NO_MSG, NO_MSG};
             my_preset_fail_status      <= 1'b0;
             partner_preset_fail_status <= 1'b0;

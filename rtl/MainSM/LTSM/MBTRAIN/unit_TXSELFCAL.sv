@@ -23,7 +23,11 @@ module unit_TXSELFCAL #() (
     always_ff @(posedge txselfcal_if.lclk or negedge txselfcal_if.rst_n) begin
         if (!txselfcal_if.rst_n) begin
             current_state  <= TXSELFCAL_IDLE;
-        end else begin
+        end 
+        else if (!txselfcal_if.is_ltsm_out_of_reset) begin
+            current_state  <= TXSELFCAL_IDLE;
+        end
+        else begin
             current_state  <= next_state;
         end
     end

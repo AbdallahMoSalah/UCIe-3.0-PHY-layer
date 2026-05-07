@@ -31,7 +31,12 @@ module unit_SPEEDIDLE #() (
         if (!speedidle_if.rst_n) begin
             current_state  <= SPEEDIDLE_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
-        end else begin
+        end 
+        else if (!speedidle_if.is_ltsm_out_of_reset) begin
+            current_state  <= SPEEDIDLE_IDLE;
+            internal_phy_negotiated_speed <= 3'b000;
+        end
+        else begin
             current_state  <= next_state;
             // Speed logic based on the spec when transitioning from IDLE to processing SPEEDIDLE
             if (current_state == SPEEDIDLE_CONFIG_SPEED) begin

@@ -258,17 +258,31 @@ module wrapper_MBTRAIN #(
         .rp_if (intf_repair.repair_mp)
     );
 
-    // reg is_ltsm_in_reset; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
-    
-    // always @(posedge mbtrain_if.lclk or negedge mbtrain_if.rst_n) begin
-    //     if (!mbtrain_if.rst_n) begin
-    //         is_ltsm_in_reset <= 1'b1;
-    //     end
-    //     else if (current_ltsm_state == LTSM_state_pkg::SBINIT) begin
-    //         is_ltsm_in_reset <= 1'b0;
-    //     end
-    // end
-    // assign mbtrain_if.is_ltsm_in_reset_state = is_ltsm_in_reset;
+    reg is_ltsm_out_of_reset; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
+
+    always @(posedge mbtrain_if.lclk or negedge mbtrain_if.rst_n) begin
+        if (!mbtrain_if.rst_n) begin
+            is_ltsm_out_of_reset <= 1'b0;
+        end
+        else if (mbtrain_if.current_ltsm_state == LTSM_state_pkg::SBINIT) begin
+            is_ltsm_out_of_reset <= 1'b1;
+        end
+    end
+    assign intf_valvref.is_ltsm_out_of_reset          = is_ltsm_out_of_reset;
+    assign intf_datavref.is_ltsm_out_of_reset         = is_ltsm_out_of_reset;
+    assign intf_speedidle.is_ltsm_out_of_reset        = is_ltsm_out_of_reset;
+    assign intf_txselfcal.is_ltsm_out_of_reset        = is_ltsm_out_of_reset;
+    assign intf_rxclkcal.is_ltsm_out_of_reset         = is_ltsm_out_of_reset;
+    assign intf_valtraincenter.is_ltsm_out_of_reset   = is_ltsm_out_of_reset;
+    assign intf_valtrainvref.is_ltsm_out_of_reset     = is_ltsm_out_of_reset;
+    assign intf_datatraincenter1.is_ltsm_out_of_reset = is_ltsm_out_of_reset;
+    assign intf_datatrainvref.is_ltsm_out_of_reset    = is_ltsm_out_of_reset;
+    assign intf_rxdeskew.is_ltsm_out_of_reset         = is_ltsm_out_of_reset;
+    assign intf_datatraincenter2.is_ltsm_out_of_reset = is_ltsm_out_of_reset;
+    assign intf_linkspeed.is_ltsm_out_of_reset        = is_ltsm_out_of_reset;
+    assign intf_repair.is_ltsm_out_of_reset           = is_ltsm_out_of_reset;
+    assign ctrl_if.is_ltsm_out_of_reset               = is_ltsm_out_of_reset;
+
 
 
     // =========================================================================

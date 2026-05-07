@@ -208,19 +208,15 @@ module unit_DATAVREF_tb ();
                         end
                     end
 
-                    if (intf.datavref_fail_flag != global_vref_fail_flag) begin
-                        any_lane_failed = 1'b1;
-                        repeat(5) $display("\t\t ************************** ERROR **************************");
-                        $display("error datavref_fail_flag = %0d, expected global flag = %0d", intf.datavref_fail_flag, global_vref_fail_flag);
-                    end
+                    // Removed fail flag check since the RTL doesn't support it anymore.
 
                     for(int k=0; k<16; k++) begin
                         if (active_lanes[k]) begin
-                            if ((!intf.datavref_fail_flag && !vref_fail_flag[k] && intf.phy_rx_datavref_ctrl[k] != expected_best_center[k])) begin
+                            if ((!vref_fail_flag[k] && intf.phy_rx_datavref_ctrl[k] != expected_best_center[k])) begin
                                 any_lane_failed = 1'b1;
                                 repeat(5) $display("\t\t ************************** ERROR **************************");
-                                $display("error datavref_fail_flag = %0d, lane[%0d], intf.phy_rx_datavref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
-                                    intf.datavref_fail_flag, k,
+                                $display("error lane[%0d], intf.phy_rx_datavref_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
+                                    k,
                                     intf.phy_rx_datavref_ctrl[k],
                                     expected_best_center[k],
                                     assume_holes_after_quarter_eye_start[k]);
