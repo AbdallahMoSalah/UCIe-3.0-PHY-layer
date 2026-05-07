@@ -259,13 +259,19 @@ module wrapper_MBTRAIN #(
     );
 
     reg is_ltsm_out_of_reset; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
-
+    reg first_enter_flag    ; // To save the power by assigning the value of `is_ltsm_out_of_reset` only one time (not too much while staying in RESET state).
     always @(posedge mbtrain_if.lclk or negedge mbtrain_if.rst_n) begin
         if (!mbtrain_if.rst_n) begin
             is_ltsm_out_of_reset <= 1'b0;
+            first_enter_flag     <= 1'b0;
         end
-        else if (mbtrain_if.current_ltsm_state == LTSM_state_pkg::SBINIT) begin
+        else if (mbtrain_if.current_ltsm_state == LTSM_state_pkg::RESET && !first_enter_flag) begin
+            is_ltsm_out_of_reset <= 1'b0;
+            first_enter_flag     <= 1'b1;
+        end
+        else if (mbtrain_if.current_ltsm_state == LTSM_state_pkg::SBINIT && first_enter_flag) begin
             is_ltsm_out_of_reset <= 1'b1;
+            first_enter_flag     <= 1'b0;
         end
     end
     assign intf_valvref.is_ltsm_out_of_reset          = is_ltsm_out_of_reset;

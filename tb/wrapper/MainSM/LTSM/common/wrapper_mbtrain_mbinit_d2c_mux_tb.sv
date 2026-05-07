@@ -36,13 +36,13 @@ module  wrapper_mbtrain_mbinit_d2c_mux_tb #(
         input  logic mbtrain_txselfcal_req,
         input  logic mbtrain_en,
         output logic mbtrain_done,
-        output mbtrain_substate_e current_mbtrain_substate,
-        input  LTSM_state_e       current_ltsm_state,
+        output var mbtrain_substate_e current_mbtrain_substate,
+        input  var LTSM_state_e       current_ltsm_state,
         input  logic [2:0] mbinit_rx_data_lane_mask,
         input  logic [2:0] mbinit_tx_data_lane_mask,
         output logic [2:0] mb_rx_data_lane_mask,
         output logic [2:0] mb_tx_data_lane_mask,
-        input  state_n_e   state_n[3:0],
+        input  var state_n_e   state_n[3:0],
 
         // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)
         input  logic phyretrain_PHY_IN_RETRAIN,
@@ -108,12 +108,12 @@ module  wrapper_mbtrain_mbinit_d2c_mux_tb #(
         // SB signals.             //
         // ======================= //
         output logic tx_sb_msg_valid,
-        output msg_no_e tx_sb_msg,
+        output var msg_no_e tx_sb_msg,
         output logic [15:0] tx_msginfo,
         output logic [63:0] tx_data_field,
 
         input  logic rx_sb_msg_valid,
-        input  msg_no_e rx_sb_msg,
+        input  var msg_no_e rx_sb_msg,
         input  logic [15:0] rx_msginfo,
         input  logic [63:0] rx_data_field,
 
