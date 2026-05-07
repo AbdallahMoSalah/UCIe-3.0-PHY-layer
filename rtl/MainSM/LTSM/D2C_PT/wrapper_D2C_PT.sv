@@ -110,14 +110,14 @@ module wrapper_D2C_PT (
             mbinit_if.d2c_perlane_err                  = intf_tx.d2c_perlane_err;
             mbinit_if.d2c_val_err                      = intf_tx.d2c_val_err;
             mbinit_if.d2c_clk_err                      = intf_tx.d2c_clk_err;
-            mbinit_if.partner_valtraincenter_fail_flag = intf_tx.partner_valtraincenter_fail_flag;
+            // mbinit_if.partner_valtraincenter_fail_flag = intf_tx.partner_valtraincenter_fail_flag;
 
             mbtrain_if.test_d2c_done                   = intf_tx.test_d2c_done;
             mbtrain_if.d2c_aggr_err                    = intf_tx.d2c_aggr_err;
             mbtrain_if.d2c_perlane_err                 = intf_tx.d2c_perlane_err;
             mbtrain_if.d2c_val_err                     = intf_tx.d2c_val_err;
             mbtrain_if.d2c_clk_err                     = intf_tx.d2c_clk_err;
-            mbtrain_if.partner_valtraincenter_fail_flag= intf_tx.partner_valtraincenter_fail_flag;
+            // mbtrain_if.partner_valtraincenter_fail_flag= intf_tx.partner_valtraincenter_fail_flag;
         end else begin
             // RX test is active (or both are idle) -> Use outputs from unit_RX_D2C_PT
             mbinit_if.test_d2c_done                    = intf_rx.test_d2c_done;
@@ -125,15 +125,20 @@ module wrapper_D2C_PT (
             mbinit_if.d2c_perlane_err                  = intf_rx.d2c_perlane_err;
             mbinit_if.d2c_val_err                      = intf_rx.d2c_val_err;
             mbinit_if.d2c_clk_err                      = intf_rx.d2c_clk_err;
-            mbinit_if.partner_valtraincenter_fail_flag = intf_rx.partner_valtraincenter_fail_flag;
+            // mbinit_if.partner_valtraincenter_fail_flag = intf_rx.partner_valtraincenter_fail_flag;
 
             mbtrain_if.test_d2c_done                   = intf_rx.test_d2c_done;
             mbtrain_if.d2c_aggr_err                    = intf_rx.d2c_aggr_err;
             mbtrain_if.d2c_perlane_err                 = intf_rx.d2c_perlane_err;
             mbtrain_if.d2c_val_err                     = intf_rx.d2c_val_err;
             mbtrain_if.d2c_clk_err                     = intf_rx.d2c_clk_err;
-            mbtrain_if.partner_valtraincenter_fail_flag= intf_rx.partner_valtraincenter_fail_flag;
+            // mbtrain_if.partner_valtraincenter_fail_flag= intf_rx.partner_valtraincenter_fail_flag;
         end
+
+        // partner_valtraincenter_fail_flag is only driven by unit_TX_D2C_PT (receives SB results).
+        // unit_RX_D2C_PT does not drive it, so we always take it from intf_tx to avoid X propagation.
+        mbinit_if.partner_valtraincenter_fail_flag  = intf_tx.partner_valtraincenter_fail_flag;
+        mbtrain_if.partner_valtraincenter_fail_flag = intf_tx.partner_valtraincenter_fail_flag;
     end
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\

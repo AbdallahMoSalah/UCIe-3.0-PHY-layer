@@ -173,6 +173,8 @@ module unit_REPAIR (
         rp_if.txselfcal_req          = 1'b0;
         rp_if.trainerror_req         = 1'b0;
         rp_if.timeout_timer_en       = 1'b1;
+        rp_if.analog_settle_timer_en = 1'b0;
+
 
         // ======================= //
         // MB signals.             //

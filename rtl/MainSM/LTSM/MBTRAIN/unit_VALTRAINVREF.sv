@@ -31,7 +31,7 @@ module unit_VALTRAINVREF #(
         internal_ltsm_if.substate2d2c_mp d2c_if
     );
     // For analog Voltage control.
-    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE);
+    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE + 1);
     // To get the used SB messages for: (valtrainvref_if.tx_sb_msg, valtrainvref_if.rx_sb_msg)
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_VALTRAINVREF_start_req ; // Msg Number: d57 -- MsgCode B5h, SubCode 0Ah

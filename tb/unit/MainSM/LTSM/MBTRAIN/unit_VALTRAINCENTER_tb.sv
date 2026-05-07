@@ -89,13 +89,13 @@ module unit_VALTRAINCENTER_tb ();
     endtask
 
     always @(*) begin
-        if(intf.phy_tx_pi_phase_ctrl >= current_task_phase_min && intf.phy_tx_pi_phase_ctrl <= current_task_phase_max) begin
+        if(intf.phy_tx_val_pi_phase_ctrl >= current_task_phase_min && intf.phy_tx_val_pi_phase_ctrl <= current_task_phase_max) begin
 
             // =============================================================================================== //
             // Adding a deliberate hole (hole) in the eye to force the RTL to test all pathways.               //
             // For simplicity: Consider the hole be added after the (1/4) of the correct Phase range.          //
             // =============================================================================================== //
-            if ((intf.phy_tx_pi_phase_ctrl == current_task_phase_min + (current_task_phase_max - current_task_phase_min)/4 ) &&
+            if ((intf.phy_tx_val_pi_phase_ctrl == current_task_phase_min + (current_task_phase_max - current_task_phase_min)/4 ) &&
                     assume_holes_after_quarter_eye_start == 1 ) begin
                 intf.tb_val_err = 1'b1;  // A deliberate mistake in the middle!
             end
@@ -161,13 +161,13 @@ module unit_VALTRAINCENTER_tb ();
                     phase_fail_flag        = (assume_holes_after_quarter_eye_start && current_task_phase_min == current_task_phase_max);
 
                     if (( intf.valtraincenter_fail_flag !=  phase_fail_flag) ||
-                            (!intf.valtraincenter_fail_flag && !phase_fail_flag && intf.phy_tx_pi_phase_ctrl != expected_best_center)) begin
+                            (!intf.valtraincenter_fail_flag && !phase_fail_flag && intf.phy_tx_val_pi_phase_ctrl != expected_best_center)) begin
 
                         repeat(5) $display("\t\t ************************** ERROR **************************");
-                        $display("error valtraincenter_fail_flag = %0d, phase_fail_flag = %0b, intf.phy_tx_pi_phase_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
+                        $display("error valtraincenter_fail_flag = %0d, phase_fail_flag = %0b, intf.phy_tx_val_pi_phase_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
                             intf.valtraincenter_fail_flag,
                             phase_fail_flag,
-                            intf.phy_tx_pi_phase_ctrl,
+                            intf.phy_tx_val_pi_phase_ctrl,
                             expected_best_center,
                             assume_holes_after_quarter_eye_start);
                         $stop;

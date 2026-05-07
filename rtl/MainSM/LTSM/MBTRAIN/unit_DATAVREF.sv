@@ -14,7 +14,7 @@ module unit_DATAVREF #(
         internal_ltsm_if.substate2d2c_mp d2c_if
     );
     // For analog Voltage control.
-    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE + 1);
 
     // To get the used SB messages for: (datavref_if.tx_sb_msg, sb_it.rx_sb_msg)
     import UCIe_pkg::msg_no_e;

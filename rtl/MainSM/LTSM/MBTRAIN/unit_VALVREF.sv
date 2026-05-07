@@ -16,7 +16,7 @@ module unit_VALVREF #(
         internal_ltsm_if.substate2d2c_mp d2c_if
     );
     // For analog Voltage control.
-    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE);
+    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE + 1);
     //reg [1:0] clk_sampling; // To know if the fsm has looped on all Clock sampling values (0h(Eye Center), 1h(Left edge), 2h(Right edge)).
     // To get the used SB messages for: (valvref_if.tx_sb_msg, sb_it.rx_sb_msg)
     import UCIe_pkg::msg_no_e;

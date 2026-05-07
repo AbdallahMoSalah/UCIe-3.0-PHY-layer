@@ -14,10 +14,10 @@ interface internal_ltsm_if #(
     );
 
     // For analog Voltage control.
-    localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
-    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
-    localparam PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE);
-    localparam DESKEW_WIDTH         = $clog2(MAX_DESKEW_CODE);
+    localparam VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE + 1);
+    localparam DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE + 1);
+    localparam PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE + 1);
+    localparam DESKEW_WIDTH         = $clog2(MAX_DESKEW_CODE + 1);
 
     // current and previous states.
     import ltsm_state_n_pkg::state_n_e         ; state_n_e          state_n[3:0]            ; // for RF (to log the last 4 states names). state_n[0]: current state, state_n[1]: previous state, state_n[2]: previous previous state, state_n[3]: previous previous previous state.
@@ -1854,6 +1854,8 @@ interface internal_ltsm_if #(
         // Timers signals.         //
         // ======================= //
         output timeout_timer_en      , input  timeout_8ms_occured    ,
+        output analog_settle_timer_en, input  analog_settle_time_done,
+
 
         // ======================= //
         // LTSM general signals.   //
@@ -1972,7 +1974,6 @@ interface internal_ltsm_if #(
     );
 
 
-
     //=======================================================================================//
     // For the `wrapper_MBTRAIN` module Signals. (LTSM State prespective)                    //
     //=======================================================================================//
@@ -1984,9 +1985,11 @@ interface internal_ltsm_if #(
         output analog_settle_timer_en, input analog_settle_time_done,
 
         // -- General signals --
+        output trainerror_req,
         input mbtrain_repair_req ,input mbtrain_speedidle_req ,input mbtrain_txselfcal_req,
         input mbtrain_en         , output mbtrain_done        ,
         output current_mbtrain_substate,
+        input  rx_pt_en, tx_pt_en,  // TODO: Remove these signals after the testbench run correnctly
         input  current_ltsm_state,  // Needed by RXDESKEW for RESET detection.
 
         input  mbinit_rx_data_lane_mask , mbinit_tx_data_lane_mask,

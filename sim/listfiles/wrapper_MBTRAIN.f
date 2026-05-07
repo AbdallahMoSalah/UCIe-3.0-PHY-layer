@@ -13,7 +13,7 @@ rtl/MainSM/common/LTSM_state_pkg.sv
 rtl/MainSM/LTSM/common/internal_ltsm_if.sv
 
 // --- MBTRAIN Controller ---
-rtl/MainSM/LTSM/unit_MBTRAIN_ctrl/unit_MBTRAIN_ctrl.sv
+rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv
 
 // --- Sub-state FSMs (13, ordered by MBTRAIN sequencing) ---
 rtl/MainSM/LTSM/MBTRAIN/unit_VALVREF.sv
@@ -38,6 +38,9 @@ rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT.sv
 
 // --- Wrapper RTL (DUT) ---
 rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
+
+// --- MUX TB Wrapper ---
+tb/wrapper/MainSM/LTSM/common/wrapper_mbtrain_mbinit_d2c_mux_tb.sv
 
 // --- Top-level Testbench ---
 tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb.sv

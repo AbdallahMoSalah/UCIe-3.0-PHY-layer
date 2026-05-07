@@ -1,6 +1,7 @@
 module unit_MBTRAIN_ctrl (
         internal_ltsm_if.mbtrain_ctrl_mp itf
     );
+    import ltsm_state_n_pkg::*;
     // for current `mbtrain` sub-state
     import ltsm_state_n_pkg::mbtrain_substate_e;
     import ltsm_state_n_pkg::MBTRAIN_IDLE      ;
@@ -28,7 +29,8 @@ module unit_MBTRAIN_ctrl (
         end else begin
             if (!itf.mbtrain_en) begin
                 current_state <= MBTRAIN_IDLE;
-            end else begin
+            end
+            else begin
                 current_state <= next_state;
             end
         end
@@ -59,7 +61,7 @@ module unit_MBTRAIN_ctrl (
         itf.repair_en           = 1'b0;
 
         // -----------------------------------------------------------------------
-        // Global priority interrupts (checked before the normal FSM)
+        // Normal FSM and Global priority interrupts
         // -----------------------------------------------------------------------
         // Reason trainerror_req can be asserted inside MBTRAIN:
         //   1. Global 8 ms timeout (handled externally by ltsm_ctrl).
@@ -67,56 +69,38 @@ module unit_MBTRAIN_ctrl (
         //   3. VALVREF: fatal — no valid Vref found for the Valid Lane.
         //   4. SPEEDIDLE: entering from LINKSPEED/PHYRETRAIN while already at 4 GT/s.
         //   5. RXCLKCAL: partner TCKN shift out of range after all IQ retries.
-        //   6. REPAIR: partner responds with "Degrade not possible".
+        //   6. RXDESKEW: Receiving {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} SB message after 4 arc iterations to DTC1
+        //   7. REPAIR: partner responds with "Degrade not possible".
         // When asserted, hold the current state; ltsm_ctrl will move to TRAINERROR.
         if (itf.trainerror_req) begin
-            next_state = current_state;
+            next_state = (itf.mbtrain_en)? current_state : MBTRAIN_IDLE;
         end
-
-        // PHYRETRAIN exit requests: ltsm_ctrl re-enables MBTRAIN and asserts one of
-        // these to direct the restart sub-state (§PHYRETRAIN retrain encoding).
-        else if (itf.mbtrain_txselfcal_req) begin
-            next_state = TXSELFCAL;
-        end
-        else if (itf.mbtrain_speedidle_req) begin
-            next_state = SPEEDIDLE;
-        end
-        else if (itf.mbtrain_repair_req) begin
-            next_state = REPAIR;
-        end
-
-        // -----------------------------------------------------------------------
-        // Normal FSM
-        // -----------------------------------------------------------------------
         else begin
             case (current_state)
                 // Wait for `ltsm_ctrl` to enable us.
                 MBTRAIN_IDLE: begin
-                    if (itf.mbtrain_en) next_state = VALVREF;
+                    if (itf.mbtrain_en) begin
+                        // Priority check for re-entry requests from LTSM (e.g. from PHYRETRAIN)
+                        if (itf.mbtrain_txselfcal_req) next_state = TXSELFCAL;
+                        else if (itf.mbtrain_speedidle_req) next_state = SPEEDIDLE;
+                        else if (itf.mbtrain_repair_req) next_state = REPAIR;
+                        else next_state = VALVREF;
+                    end
                 end
 
                 // -- Sub-state: VALVREF --
-                // VALVREF sub-FSM calibrates the Rx Valid Lane Vref.
-                // If calibration finds NO valid Vref (fatal), the VALVREF sub-FSM
-                // asserts itf.trainerror_req — caught by the global check above.
-                // If calibration succeeds, VALVREF asserts valvref_done to advance.
                 VALVREF: begin
                     itf.valvref_en = 1'b1;
                     if (itf.valvref_done) next_state = DATAVREF;
                 end
 
                 // -- Sub-state: DATAVREF --
-                // Even if datavref_fail_flag=1, the FSM continues to SPEEDIDLE.
-                // The fail_flag is used internally by DTC1 / RXDESKEW sub-FSMs
-                // (both TX_D2C_PT sub-states, which are simultaneously visible to
-                //  both dies) to skip optional D2C recalibration loops.
                 DATAVREF: begin
                     itf.datavref_en = 1'b1;
                     if (itf.datavref_done) next_state = SPEEDIDLE;
                 end
 
                 // -- Sub-state: SPEEDIDLE --
-                // Also re-entered from SPEED-DEGRADE path via mbtrain_speedidle_req.
                 SPEEDIDLE: begin
                     itf.speedidle_en = 1'b1;
                     if (itf.speedidle_done) next_state = TXSELFCAL;
@@ -130,16 +114,13 @@ module unit_MBTRAIN_ctrl (
                     if (itf.txselfcal_done) next_state = RXSELFCAL;
                 end
 
-                // -- Sub-state: RXCLKCAL (enum literal: RXSELFCAL) --
+                // -- Sub-state: RXCLKCAL --
                 RXSELFCAL: begin
                     itf.rxclkcal_en = 1'b1;
                     if (itf.rxclkcal_done) next_state = VALTRAINCENTER;
                 end
 
                 // -- Sub-state: VALTRAINCENTER --
-                // valtraincenter_fail_flag propagates internally to later sub-states,
-                // causing them to skip their optional D2C tests (TX_D2C_PT path only)
-                // for synchronization with the partner.
                 VALTRAINCENTER: begin
                     itf.valtraincenter_en = 1'b1;
                     if (itf.valtraincenter_done) next_state = VALTRAINVREF;
@@ -199,7 +180,6 @@ module unit_MBTRAIN_ctrl (
                 end
 
                 // -- Sub-state: REPAIR --
-                // Width-degrade applied. Restart training from TXSELFCAL.
                 REPAIR: begin
                     itf.repair_en = 1'b1;
                     if (itf.repair_done) next_state = TXSELFCAL;
@@ -219,5 +199,3 @@ module unit_MBTRAIN_ctrl (
         end
     end
 endmodule
-
-

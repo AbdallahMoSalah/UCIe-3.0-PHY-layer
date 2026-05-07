@@ -47,9 +47,9 @@ module wrapper_MBTRAIN #(
     // =========================================================================
     // 1. Internal Interface Declarations (23 Total)
     // =========================================================================
-    parameter VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE );
-    parameter DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
-    parameter PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE );
+    parameter VAL_VREF_CODE_WIDTH  = $clog2(MAX_VAL_VREF_CODE + 1);
+    parameter DATA_VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE + 1);
+    parameter PI_PHASE_WIDTH       = $clog2(MAX_PI_PHASE_CODE + 1);
 
     // Per-substate Control Interfaces (13) – fully parameterized
     internal_ltsm_if #(
@@ -258,6 +258,19 @@ module wrapper_MBTRAIN #(
         .rp_if (intf_repair.repair_mp)
     );
 
+    // reg is_ltsm_in_reset; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
+    
+    // always @(posedge mbtrain_if.lclk or negedge mbtrain_if.rst_n) begin
+    //     if (!mbtrain_if.rst_n) begin
+    //         is_ltsm_in_reset <= 1'b1;
+    //     end
+    //     else if (current_ltsm_state == LTSM_state_pkg::SBINIT) begin
+    //         is_ltsm_in_reset <= 1'b0;
+    //     end
+    // end
+    // assign mbtrain_if.is_ltsm_in_reset_state = is_ltsm_in_reset;
+
+
     // =========================================================================
     // 3. Handshake Wiring (Controller <-> Sub-states)
     // =========================================================================
@@ -309,6 +322,8 @@ module wrapper_MBTRAIN #(
         intf_datatrainvref.trainerror_req    | intf_rxdeskew.trainerror_req         |
         intf_datatraincenter2.trainerror_req | intf_linkspeed.trainerror_req        |
         intf_repair.trainerror_req;
+
+    assign mbtrain_if.trainerror_req = ctrl_if.trainerror_req ;
 
     assign ctrl_if.speedidle_req         = intf_linkspeed.speedidle_req;
     assign ctrl_if.repair_req            = intf_linkspeed.repair_req;
@@ -401,151 +416,152 @@ module wrapper_MBTRAIN #(
     assign d2c_linkspeed       .partner_valtraincenter_fail_flag = d2c_if.partner_valtraincenter_fail_flag;
 
 
-    // Output signals to wrapper_D2C_PT (Sub-state -> D2C)
-    always_comb begin : D2C_INPUT_MUX
-        d2c_if.rx_pt_en             = 1'b0;
-        d2c_if.tx_pt_en             = 1'b0;
-        d2c_if.d2c_clk_sampling     = 2'b00;
-        d2c_if.d2c_lfsr_en          = 1'b0;
-        d2c_if.d2c_pattern_setup    = 3'b000;
-        d2c_if.d2c_data_pattern_sel = 2'b00;
-        d2c_if.d2c_val_pattern_sel  = 1'b0;
-        d2c_if.d2c_pattern_mode     = 1'b0;
-        d2c_if.d2c_burst_count      = 16'h0;
-        d2c_if.d2c_idle_count       = 16'h0;
-        d2c_if.d2c_iter_count       = 16'h0;
-        d2c_if.d2c_compare_setup    = 2'b00;
+    // =========================================================================
+    // 4. Substate -> D2C Mux (Continuous Assignments)
+    // =====================================================================
+    assign d2c_if.rx_pt_en =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.rx_pt_en :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.rx_pt_en :
+        1'b0;
 
-        case (active_substate)
-            VALVREF:          begin
-                d2c_if.rx_pt_en             = d2c_valvref.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_valvref.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_valvref.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_valvref.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_valvref.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_valvref.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_valvref.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_valvref.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_valvref.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_valvref.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_valvref.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_valvref.d2c_compare_setup;
-            end
-            DATAVREF:         begin
-                d2c_if.rx_pt_en             = d2c_datavref.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_datavref.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_datavref.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_datavref.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_datavref.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_datavref.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_datavref.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_datavref.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_datavref.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_datavref.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_datavref.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_datavref.d2c_compare_setup;
-            end
-            VALTRAINCENTER:   begin
-                d2c_if.rx_pt_en             = d2c_valtraincenter.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_valtraincenter.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_valtraincenter.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_valtraincenter.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_valtraincenter.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_valtraincenter.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_valtraincenter.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_valtraincenter.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_valtraincenter.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_valtraincenter.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_valtraincenter.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_valtraincenter.d2c_compare_setup;
-            end
-            VALTRAINVREF:     begin
-                d2c_if.rx_pt_en             = d2c_valtrainvref.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_valtrainvref.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_valtrainvref.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_valtrainvref.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_valtrainvref.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_valtrainvref.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_valtrainvref.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_valtrainvref.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_valtrainvref.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_valtrainvref.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_valtrainvref.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_valtrainvref.d2c_compare_setup;
-            end
-            DATATRAINCENTER1: begin
-                d2c_if.rx_pt_en             = d2c_datatraincenter1.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_datatraincenter1.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_datatraincenter1.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_datatraincenter1.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_datatraincenter1.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_datatraincenter1.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_datatraincenter1.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_datatraincenter1.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_datatraincenter1.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_datatraincenter1.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_datatraincenter1.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_datatraincenter1.d2c_compare_setup;
-            end
-            DATATRAINVREF:    begin
-                d2c_if.rx_pt_en             = d2c_datatrainvref.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_datatrainvref.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_datatrainvref.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_datatrainvref.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_datatrainvref.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_datatrainvref.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_datatrainvref.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_datatrainvref.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_datatrainvref.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_datatrainvref.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_datatrainvref.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_datatrainvref.d2c_compare_setup;
-            end
-            RXDESKEW:         begin
-                d2c_if.rx_pt_en             = d2c_rxdeskew.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_rxdeskew.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_rxdeskew.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_rxdeskew.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_rxdeskew.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_rxdeskew.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_rxdeskew.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_rxdeskew.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_rxdeskew.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_rxdeskew.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_rxdeskew.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_rxdeskew.d2c_compare_setup;
-            end
-            DATATRAINCENTER2: begin
-                d2c_if.rx_pt_en             = d2c_datatraincenter2.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_datatraincenter2.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_datatraincenter2.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_datatraincenter2.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_datatraincenter2.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_datatraincenter2.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_datatraincenter2.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_datatraincenter2.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_datatraincenter2.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_datatraincenter2.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_datatraincenter2.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_datatraincenter2.d2c_compare_setup;
-            end
-            LINKSPEED:        begin
-                d2c_if.rx_pt_en             = d2c_linkspeed.rx_pt_en;
-                d2c_if.tx_pt_en             = d2c_linkspeed.tx_pt_en;
-                d2c_if.d2c_clk_sampling     = d2c_linkspeed.d2c_clk_sampling;
-                d2c_if.d2c_lfsr_en          = d2c_linkspeed.d2c_lfsr_en;
-                d2c_if.d2c_pattern_setup    = d2c_linkspeed.d2c_pattern_setup;
-                d2c_if.d2c_data_pattern_sel = d2c_linkspeed.d2c_data_pattern_sel;
-                d2c_if.d2c_val_pattern_sel  = d2c_linkspeed.d2c_val_pattern_sel;
-                d2c_if.d2c_pattern_mode     = d2c_linkspeed.d2c_pattern_mode;
-                d2c_if.d2c_burst_count      = d2c_linkspeed.d2c_burst_count;
-                d2c_if.d2c_idle_count       = d2c_linkspeed.d2c_idle_count;
-                d2c_if.d2c_iter_count       = d2c_linkspeed.d2c_iter_count;
-                d2c_if.d2c_compare_setup    = d2c_linkspeed.d2c_compare_setup;
-            end
-            default: ;
-        endcase
-    end
+    assign d2c_if.tx_pt_en =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.tx_pt_en :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.tx_pt_en :
+        1'b0;
+
+    assign d2c_if.d2c_clk_sampling =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_clk_sampling :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_clk_sampling :
+        2'b00;
+
+    assign d2c_if.d2c_lfsr_en =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_lfsr_en :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_lfsr_en :
+        1'b0;
+
+    assign d2c_if.d2c_pattern_setup =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_pattern_setup :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_pattern_setup :
+        3'b000;
+
+    assign d2c_if.d2c_data_pattern_sel =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_data_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_data_pattern_sel :
+        2'b00;
+
+    assign d2c_if.d2c_val_pattern_sel =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_val_pattern_sel :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_val_pattern_sel :
+        1'b0;
+
+    assign d2c_if.d2c_pattern_mode =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_pattern_mode :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_pattern_mode :
+        1'b0;
+
+    assign d2c_if.d2c_burst_count =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_burst_count :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_burst_count :
+        16'h0000;
+
+    assign d2c_if.d2c_idle_count =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_idle_count :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_idle_count :
+        16'h0000;
+
+    assign d2c_if.d2c_iter_count =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_iter_count :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_iter_count :
+        16'h0000;
+
+    assign d2c_if.d2c_compare_setup =
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? d2c_valvref.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? d2c_datavref.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? d2c_valtraincenter.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? d2c_valtrainvref.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? d2c_datatraincenter1.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? d2c_datatrainvref.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? d2c_rxdeskew.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? d2c_datatraincenter2.d2c_compare_setup :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? d2c_linkspeed.d2c_compare_setup :
+        2'b00;
     // ================================================================================= //
     // ================================================================================= //
     // ===============                                                    ============== //
@@ -688,47 +704,72 @@ module wrapper_MBTRAIN #(
     // 6. Sub-state Output MUX (13-to-1) to Global MUX
     // =========================================================================
 
+    reg is_first_vref_source_ok         ;
+    reg is_first_datavref_source_ok     ;
+    reg is_first_data_pi_phase_source_ok;
+    always @(posedge mbtrain_if.lclk or negedge mbtrain_if.rst_n) begin
+        if (!mbtrain_if.rst_n) begin
+            is_first_vref_source_ok          <= 1'b1;
+            is_first_datavref_source_ok      <= 1'b1;
+            is_first_data_pi_phase_source_ok <= 1'b1;
+        end
+        else if (active_substate == ltsm_state_n_pkg::VALVREF) begin // Reset all flags.
+            is_first_vref_source_ok          <= 1'b1;
+            is_first_datavref_source_ok      <= 1'b1;
+            is_first_data_pi_phase_source_ok <= 1'b1;
+        end
+        else if (active_substate == ltsm_state_n_pkg::DATATRAINVREF) begin
+            is_first_datavref_source_ok <= 1'b0;
+        end
+        else if (active_substate == ltsm_state_n_pkg::VALTRAINVREF) begin
+            is_first_vref_source_ok <= 1'b0;
+        end
+        else if (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) begin
+            is_first_data_pi_phase_source_ok <= 1'b0;
+        end
+    end
+
     assign mbtrain_if.timeout_timer_en =
-        (active_substate == VALVREF)          ? intf_valvref.timeout_timer_en :
-        (active_substate == DATAVREF)         ? intf_datavref.timeout_timer_en :
-        (active_substate == SPEEDIDLE)        ? intf_speedidle.timeout_timer_en :
-        (active_substate == TXSELFCAL)        ? intf_txselfcal.timeout_timer_en :
-        (active_substate == RXSELFCAL)        ? intf_rxclkcal.timeout_timer_en :
-        (active_substate == VALTRAINCENTER)   ? intf_valtraincenter.timeout_timer_en :
-        (active_substate == VALTRAINVREF)     ? intf_valtrainvref.timeout_timer_en :
-        (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.timeout_timer_en :
-        (active_substate == DATATRAINVREF)    ? intf_datatrainvref.timeout_timer_en :
-        (active_substate == RXDESKEW)         ? intf_rxdeskew.timeout_timer_en :
-        (active_substate == DATATRAINCENTER2) ? intf_datatraincenter2.timeout_timer_en :
-        (active_substate == LINKSPEED)        ? intf_linkspeed.timeout_timer_en :
-        (active_substate == REPAIR)           ? intf_repair.timeout_timer_en : 1'b0;
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? intf_valvref.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? intf_datavref.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::SPEEDIDLE)        ? intf_speedidle.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::TXSELFCAL)        ? intf_txselfcal.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::RXSELFCAL)        ? intf_rxclkcal.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? intf_valtraincenter.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? intf_valtrainvref.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? intf_datatraincenter1.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? intf_datatrainvref.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? intf_rxdeskew.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? intf_datatraincenter2.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? intf_linkspeed.timeout_timer_en :
+        (active_substate == ltsm_state_n_pkg::REPAIR)           ? intf_repair.timeout_timer_en : 1'b0;
 
     assign mbtrain_if.analog_settle_timer_en =
-        (active_substate == VALVREF)          ? intf_valvref.analog_settle_timer_en :
-        (active_substate == DATAVREF)         ? intf_datavref.analog_settle_timer_en :
-        (active_substate == SPEEDIDLE)        ? intf_speedidle.analog_settle_timer_en :
-        (active_substate == TXSELFCAL)        ? intf_txselfcal.analog_settle_timer_en :
-        (active_substate == RXSELFCAL)        ? intf_rxclkcal.analog_settle_timer_en :
-        (active_substate == VALTRAINCENTER)   ? intf_valtraincenter.analog_settle_timer_en :
-        (active_substate == VALTRAINVREF)     ? intf_valtrainvref.analog_settle_timer_en :
-        (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.analog_settle_timer_en :
-        (active_substate == DATATRAINVREF)    ? intf_datatrainvref.analog_settle_timer_en :
-        (active_substate == RXDESKEW)         ? intf_rxdeskew.analog_settle_timer_en :
-        (active_substate == DATATRAINCENTER2) ? intf_datatraincenter2.analog_settle_timer_en :
-        (active_substate == LINKSPEED)        ? intf_linkspeed.analog_settle_timer_en :
-        (active_substate == REPAIR)           ? intf_repair.analog_settle_timer_en : 1'b0;
+        (active_substate == ltsm_state_n_pkg::VALVREF)          ? intf_valvref.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATAVREF)         ? intf_datavref.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::SPEEDIDLE)        ? intf_speedidle.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::TXSELFCAL)        ? intf_txselfcal.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::RXSELFCAL)        ? intf_rxclkcal.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINCENTER)   ? intf_valtraincenter.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::VALTRAINVREF)     ? intf_valtrainvref.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER1) ? intf_datatraincenter1.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINVREF)    ? intf_datatrainvref.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::RXDESKEW)         ? intf_rxdeskew.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::DATATRAINCENTER2) ? intf_datatraincenter2.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::LINKSPEED)        ? intf_linkspeed.analog_settle_timer_en :
+        (active_substate == ltsm_state_n_pkg::REPAIR)           ? intf_repair.analog_settle_timer_en : 1'b0;
 
     // 1. VALVREF & 7. VALTRAINVREF analog signals:
-    assign mbtrain_if.phy_rx_valvref_ctrl  = (active_substate == VALVREF) ? intf_valvref.phy_rx_valvref_ctrl : intf_valtrainvref.phy_rx_valvref_ctrl;
+    assign mbtrain_if.phy_rx_valvref_ctrl  = (is_first_vref_source_ok) ? intf_valvref.phy_rx_valvref_ctrl : intf_valtrainvref.phy_rx_valvref_ctrl;
 
     genvar lane;
     generate
         for (lane = 0; lane < 16; lane = lane + 1) begin : PHY_RX_DATAVREF_CTRL_GEN
             // 2. DATAVREF & 9. DATATRAINVREF analog signals:
-            assign mbtrain_if.phy_rx_datavref_ctrl[lane]      = (active_substate == DATAVREF)? intf_datavref.phy_rx_datavref_ctrl[lane] : intf_datatrainvref.phy_rx_datavref_ctrl[lane];
+            assign mbtrain_if.phy_rx_datavref_ctrl[lane]      = (is_first_datavref_source_ok)? intf_datavref.phy_rx_datavref_ctrl[lane] : intf_datatrainvref.phy_rx_datavref_ctrl[lane];
 
             // 8. DATATRAINCENTER1 & 12. DATATRAINCENTER2 analog signals:
-            assign mbtrain_if.phy_tx_data_pi_phase_ctrl[lane] = (active_substate == DATATRAINCENTER1) ? intf_datatraincenter1.phy_tx_data_pi_phase_ctrl[lane] : intf_datatraincenter2.phy_tx_data_pi_phase_ctrl[lane];
+            assign mbtrain_if.phy_tx_data_pi_phase_ctrl[lane] = (is_first_data_pi_phase_source_ok) ? intf_datatraincenter1.phy_tx_data_pi_phase_ctrl[lane] : intf_datatraincenter2.phy_tx_data_pi_phase_ctrl[lane];
 
             // 10. RXDESKEW analog signals:
             assign mbtrain_if.phy_rx_deskew_ctrl[lane]        = intf_rxdeskew.phy_rx_deskew_ctrl[lane];
@@ -736,10 +777,11 @@ module wrapper_MBTRAIN #(
     endgenerate
 
     // 6. VALTRAINCENTER analog signals:
-    assign mbtrain_if.phy_tx_val_pi_phase_ctrl = intf_valtraincenter.phy_tx_val_pi_phase_ctrl;
+    assign mbtrain_if.phy_tx_val_pi_phase_ctrl          = intf_valtraincenter.phy_tx_val_pi_phase_ctrl;
 
     // 10. RXDESKEW analog signals:
-    assign mbtrain_if.phy_tx_eq_preset_ctrl   = intf_rxdeskew.phy_tx_eq_preset_ctrl;
+    assign mbtrain_if.phy_tx_eq_preset_ctrl             = intf_rxdeskew.phy_tx_eq_preset_ctrl;
+
 
 
     // 4. TXSELFCAL analog signals:
@@ -795,7 +837,7 @@ module wrapper_MBTRAIN #(
         mbtrain_if.mb_rx_trk_lane_sel  = 1'b0;
 
         case (active_substate)
-            VALVREF: begin
+            ltsm_state_n_pkg::VALVREF: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_valvref.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_valvref.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_valvref.tx_msginfo;
@@ -809,7 +851,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_valvref.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_valvref.mb_rx_trk_lane_sel;
             end
-            DATAVREF: begin
+            ltsm_state_n_pkg::DATAVREF: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_datavref.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_datavref.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_datavref.tx_msginfo;
@@ -823,7 +865,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_datavref.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_datavref.mb_rx_trk_lane_sel;
             end
-            SPEEDIDLE: begin
+            ltsm_state_n_pkg::SPEEDIDLE: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_speedidle.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_speedidle.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_speedidle.tx_msginfo;
@@ -837,7 +879,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_speedidle.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_speedidle.mb_rx_trk_lane_sel;
             end
-            TXSELFCAL: begin
+            ltsm_state_n_pkg::TXSELFCAL: begin
                 mbtrain_if.tx_sb_msg_valid = intf_txselfcal.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg       = intf_txselfcal.tx_sb_msg;
                 mbtrain_if.tx_msginfo      = intf_txselfcal.tx_msginfo;
@@ -865,7 +907,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_rxclkcal.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_rxclkcal.mb_rx_trk_lane_sel;
             end
-            VALTRAINCENTER: begin
+            ltsm_state_n_pkg::VALTRAINCENTER: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_valtraincenter.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_valtraincenter.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_valtraincenter.tx_msginfo;
@@ -879,7 +921,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_valtraincenter.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_valtraincenter.mb_rx_trk_lane_sel;
             end
-            VALTRAINVREF: begin
+            ltsm_state_n_pkg::VALTRAINVREF: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_valtrainvref.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_valtrainvref.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_valtrainvref.tx_msginfo;
@@ -893,7 +935,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_valtrainvref.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_valtrainvref.mb_rx_trk_lane_sel;
             end
-            DATATRAINCENTER1: begin
+            ltsm_state_n_pkg::DATATRAINCENTER1: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_datatraincenter1.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_datatraincenter1.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_datatraincenter1.tx_msginfo;
@@ -907,7 +949,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_datatraincenter1.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_datatraincenter1.mb_rx_trk_lane_sel;
             end
-            DATATRAINVREF: begin
+            ltsm_state_n_pkg::DATATRAINVREF: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_datatrainvref.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_datatrainvref.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_datatrainvref.tx_msginfo;
@@ -921,7 +963,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_datatrainvref.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_datatrainvref.mb_rx_trk_lane_sel;
             end
-            RXDESKEW: begin
+            ltsm_state_n_pkg::RXDESKEW: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_rxdeskew.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_rxdeskew.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_rxdeskew.tx_msginfo;
@@ -935,7 +977,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_rxdeskew.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_rxdeskew.mb_rx_trk_lane_sel;
             end
-            DATATRAINCENTER2: begin
+            ltsm_state_n_pkg::DATATRAINCENTER2: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_datatraincenter2.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_datatraincenter2.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_datatraincenter2.tx_msginfo;
@@ -949,7 +991,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_datatraincenter2.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_datatraincenter2.mb_rx_trk_lane_sel;
             end
-            LINKSPEED: begin
+            ltsm_state_n_pkg::LINKSPEED: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_linkspeed.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_linkspeed.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_linkspeed.tx_msginfo;
@@ -963,7 +1005,7 @@ module wrapper_MBTRAIN #(
                 mbtrain_if.mb_rx_val_lane_sel  = intf_linkspeed.mb_rx_val_lane_sel;
                 mbtrain_if.mb_rx_trk_lane_sel  = intf_linkspeed.mb_rx_trk_lane_sel;
             end
-            REPAIR: begin
+            ltsm_state_n_pkg::REPAIR: begin
                 mbtrain_if.tx_sb_msg_valid     = intf_repair.tx_sb_msg_valid;
                 mbtrain_if.tx_sb_msg           = intf_repair.tx_sb_msg;
                 mbtrain_if.tx_msginfo          = intf_repair.tx_msginfo;
