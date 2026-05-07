@@ -74,14 +74,13 @@ import UCIe_pkg::*;
     output logic [15:0] mb_param_tx_MsgInfo,
     output logic [63:0] mb_param_tx_data_Field,
 
-    //output logic timeout_error
     //--------------------------------
     //-------- Hard code signal ------
     //--------------------------------
-    input logic [4:0] Supported_TX_Vswing, //hardcoded
-    input  logic so ; // hard code to 0
-    input  logic mtp ; // hard code to 0
-    input logic [1:0] Module_ID, //zero hard coded
+    input logic [4:0] Supported_TX_Vswing,  // hard code to 0
+    input  logic so ,                       // hard code to 0
+    input  logic mtp ,                      // hard code to 0
+    input logic [1:0] Module_ID,            // hard code to 0
     
     // -------------------------------
     // ------- CAPABILITY REG --------
@@ -127,7 +126,8 @@ import UCIe_pkg::*;
     output logic PMO_enable_status;
     output logic L2SPD_enable_status;
     output logic PSPT_enable_status;
-
+    
+    // Timer signals
     output logic mb_param_timer_enable;
     input  logic mb_param_timeout_expired;
 
@@ -585,9 +585,10 @@ end
 ////////////////////////////////////////////////////////
 /////////////////// TIMEOUT TIMER //////////////////////
 ////////////////////////////////////////////////////////
+logic mb_param_timeout_error;
+assign mb_param_timeout_error = mb_param_timeout_expired && !mb_param_done;
 
 assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_error;
-assign timeout_error = mb_param_timeout_expired && !mb_param_done;
 
 ////////////////////////////////////////////////////////
 ////////////////// HANDSHAKE FLAGS /////////////////////
@@ -659,13 +660,13 @@ always_comb begin
 
     next_state = current_state;
 
-    if(timeout_error)
+    if(mb_param_error)
         next_state = MB_S0_IDLE;
 
     case(current_state)
 
         MB_S0_IDLE: begin
-            if(mb_param_enable && !mb_param_done) begin
+            if(mb_param_enable && !mb_param_error) begin
                 next_state = MB_S1_PARAM_EXCHANGE_REQ;
             end
         end
@@ -844,7 +845,7 @@ always_ff @( posedge clk , negedge rst_n ) begin
     if(!rst_n) begin
         mb_param_error <= 0;
     end
-    else if(timeout_error) begin
+    else if(mb_param_timeout_error) begin
         mb_param_error <= 1;
     end
     //S1 error: allow the previous message (req) while in RSP, since the partner might be 1 cycle behind.
