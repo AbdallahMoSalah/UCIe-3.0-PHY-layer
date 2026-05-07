@@ -128,6 +128,14 @@ end
 logic allow_x4_mode;
 assign allow_x4_mode = /*cap_if.spmw_en || */cap_if.use_x8_mode;
 
+
+/*
+if(use_x8_mode)
+ممكن اعمل degrade to 4 lane 
+else
+فده معناه اني شغال x16 , اذا هdegrade to 8 only
+*/
+
 ////////////////////////////////////////////////////////
 // Lane Maps
 ////////////////////////////////////////////////////////
