@@ -1,12 +1,15 @@
 
 /*
-
             //====== mb_tx_status ======
             mb_tx_valid_status  = 1'b1 ;
             mb_tx_track_status  = 1'b1 ;
             mb_tx_clk_status    = 1'b1 ;
             mb_tx_data_status   = 1'b1 ;
-            //=========
+            //====== mb_rx_status ======
+            mb_rx_valid_status  = 1'b0 ;
+            mb_rx_track_status  = 1'b0 ;
+            mb_rx_clk_status    = 1'b0 ;
+            mb_rx_data_status   = 1'b0 ;
             //====== sb_tx_status ======
             sb_tx_valid_status  = 1'b1 ;
             sb_tx_track_status  = 1'b1 ;
