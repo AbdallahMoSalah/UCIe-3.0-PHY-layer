@@ -1,9 +1,11 @@
 /*
-    add three more signals:
+1- remove timeout error signal.
+2- signals added:-
     1- send_4iteration
     2- send_4iteration_done
+    3- s1 pattern mode 
+3- remove timer from all modules and use global timer from the TOP LTSM module.
 */
-
 
 module SBINIT
 
@@ -28,16 +30,15 @@ import UCIe_pkg::*; // Importing the UCIe package for necessary definitions and 
     input msg_no_e sb_rx_msg_id,
         //Control signals.
     output logic sb_det_pattern_req,     // state S1: Request signal to SB block to start sending the pattern for detection.
-    output logic send_4iteration,
-    input  logic four_iteration_done,
-    input logic sb_det_pattern_rcvd,     // state S1: Detected pattern received from SB block.
+    output logic send_4iteration,        // New: send 4 iteration request to SB block.
+    input  logic four_iteration_done,    // New: 4 iteration request done signal.
+    input  logic sb_det_pattern_rcvd,    // state S1: Detected pattern received from SB block.
 
     //Signals to SB block.  
         //MESSAGES signals.
     output logic    sb_tx_valid,
     output msg_no_e sb_tx_msg_id,
         //NEW signal.
-    output logic timeout_error,
     output logic sbinit_pattern_mode
  );    
 //=====================================================
@@ -176,8 +177,9 @@ always_ff @( posedge clk , negedge rst_n ) begin
         current_state <= next_state ;
 end
 //=====================================================
+//============ State transition logic =================
+//=====================================================
 
-//State transition logic.
     always_comb begin
         next_state = current_state ;
 
@@ -298,4 +300,9 @@ end
                 sbinit_error <= 1'b1 ;
         end
     end
+
+/*    assign sbinit_pattern_mode = ((current_state == SB_S0_IDLE && sbinit_enable) ||
+                                   (current_state == SB_S1_DET_PATTERN) || 
+                                   (current_state == SB_S2_LINK_SYNCH)) ;
+*/
 endmodule 
