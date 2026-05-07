@@ -85,6 +85,9 @@ always_comb begin
 
             else if(start_pat_req)
                 next_state = SEND_PATTERN;
+                
+            else if(send_4_iter)
+                next_state = COUNT_4;
         end
 
         ////////////////////////////////////////////////////
@@ -93,6 +96,9 @@ always_comb begin
         begin
             if(!pattern_mode)
                 next_state = MAPPER;
+            
+            else if(!start_pat_req)
+                next_state = IDLE;
 
             else if(send_4_iter)
                 next_state = COUNT_4;
