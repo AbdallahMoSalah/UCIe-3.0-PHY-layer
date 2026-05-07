@@ -133,19 +133,6 @@ import UCIe_pkg::*;
 
 );
 
-/*
-iternal signal
-1- L2SPD_sel
-2- PSPT_sel
-3- PMO_sel
-4- SFES
-5- TARR_sel
-6- UCIE_x8
-7- clk_mode_sel
-8- clk_phase_sel
-9- link_speed_sel
-*/
-
 logic TARR_sel;
 assign TARR_sel = TARR_support_local_ctrl &&  TARR_support_local_cap;
 
@@ -247,7 +234,9 @@ typedef enum logic [2:0] {
 
     MB_S4_ERROR_CHECK,
 
-    MB_S5_DONE
+    MB_S5_ERROR
+
+    MB_S6_DONE
  } mb_param_state_e;
 mb_param_state_e current_state , next_state ;
 
@@ -265,15 +254,15 @@ localparam logic [63:0] MB_default_data_Field = 64'h0000000000000000;
 
 /*
 configuration_req
-64'h0000_0000_0000_6A53
-[15]    TARR         = 0
-[14]    SBFE         = 1
-[13]    x32          = 1
-[12:11] ModuleID     = 01
-[10]    ClockPhase   = 0
-[9]     ClockMode    = 1
-[8:4]   Vswing       = 00101
-[3:0]   MaxSpeed     = 0011
+
+[15]    TARR         
+[14]    SBFE         
+[13]    x32          
+[12:11] ModuleID     
+[10]    ClockPhase   
+[9]     ClockMode   
+[8:4]   Vswing      
+[3:0]   MaxSpeed     
 */
 logic [63:0] local_capabilities_DataField_S1;
 always_comb begin
@@ -293,12 +282,12 @@ end
 
 /*
 SBFE_req
-64'h0000_0000_0000_0013
-[4] L2SPD   = 1
-[3] PSPT    = 0
-[2] SO      = 0
-[1] PMO     = 1
-[0] MTP     = 1
+
+[4] L2SPD   
+[3] PSPT    
+[2] SO      
+[1] PMO     
+[0] MTP     
 */
 logic [63:0] local_capabilities_DataField_S2;
 
@@ -551,36 +540,23 @@ end
 //////////////// Entry Detection logic /////////////////
 ////////////////////////////////////////////////////////
 logic s1_req_entry;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        s1_req_entry <= 0;
-    else
-        s1_req_entry <= (current_state != MB_S1_PARAM_EXCHANGE_REQ) && (next_state == MB_S1_PARAM_EXCHANGE_REQ);
-end
-
 logic s1_resp_entry;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        s1_resp_entry <= 0;
-    else
-        s1_resp_entry <= (current_state != MB_S1_PARAM_EXCHANGE_RSP) && (next_state == MB_S1_PARAM_EXCHANGE_RSP);
-end
-
-
 logic s3_req_entry;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        s3_req_entry <= 0;
-    else
-        s3_req_entry <= (current_state != MB_S3_FEATURE_EXCHANGE_REQ) && (next_state == MB_S3_FEATURE_EXCHANGE_REQ);
-end
-
 logic s3_resp_entry;
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
+    if(!rst_n) begin
+        s1_req_entry  <= 0;
+        s1_resp_entry <= 0;
+        s3_req_entry  <= 0;
         s3_resp_entry <= 0;
-    else
+    end
+
+    else begin
+        s1_req_entry  <= (current_state != MB_S1_PARAM_EXCHANGE_REQ)   && (next_state == MB_S1_PARAM_EXCHANGE_REQ);
+        s1_resp_entry <= (current_state != MB_S1_PARAM_EXCHANGE_RSP)   && (next_state == MB_S1_PARAM_EXCHANGE_RSP);
+        s3_req_entry  <= (current_state != MB_S3_FEATURE_EXCHANGE_REQ) && (next_state == MB_S3_FEATURE_EXCHANGE_REQ);
         s3_resp_entry <= (current_state != MB_S3_FEATURE_EXCHANGE_RSP) && (next_state == MB_S3_FEATURE_EXCHANGE_RSP);
+    end
 end
 ////////////////////////////////////////////////////////
 /////////////////// TIMEOUT TIMER //////////////////////
@@ -660,21 +636,23 @@ always_comb begin
 
     next_state = current_state;
 
-    if(mb_param_error)
-        next_state = MB_S0_IDLE;
-
     case(current_state)
-
         MB_S0_IDLE: begin
             if(mb_param_enable && !mb_param_error) begin
                 next_state = MB_S1_PARAM_EXCHANGE_REQ;
             end
+            else if(mb_param_error)begin
+                next_state = MB_S5_ERROR;
+            end
         end
         ////////////////////////////////////////////////
         MB_S1_PARAM_EXCHANGE_REQ: begin
-            if(!mb_param_enable || mb_param_error) begin
+            if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
             end 
+            else if(mb_param_error)begin
+                next_state = MB_S5_ERROR;
+            end
             else if(param_req_rcvd && !param_rsp_rcvd) begin
                 next_state = MB_S1_PARAM_EXCHANGE_RSP;
             end
@@ -684,8 +662,11 @@ always_comb begin
         end
         ////////////////////////////////////////////////
         MB_S1_PARAM_EXCHANGE_RSP: begin
-            if(!mb_param_enable || mb_param_error) begin
+            if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE; // Return to idle.
+            end
+            else if(mb_param_error)begin
+                next_state = MB_S5_ERROR;
             end
             else if(param_rsp_rcvd) begin
                 next_state = MB_S2_ERROR_CHECK ;
@@ -697,20 +678,25 @@ always_comb begin
         ////////////////////////////////////////////////
         MB_S2_ERROR_CHECK: begin
             if(!is_error) begin
-                if(is_SFES) begin
+                if(is_SFES)begin
                     next_state = MB_S3_FEATURE_EXCHANGE_REQ;
                 end
                 else begin
-                    next_state = MB_S5_DONE;
+                    next_state = MB_S6_DONE;
                 end
             end
             else begin
-                next_state = MB_S0_IDLE;
+                next_state = MB_S5_ERROR;
             end
         end
+        ////////////////////////////////////////////////
         MB_S3_FEATURE_EXCHANGE_REQ: begin
-            if(!mb_param_enable || mb_param_error)
+            if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
+            end
+            else if(mb_param_error)begin
+                next_state = MB_S5_ERROR;
+            end
             else if(sbfe_req_rcvd && !sbfe_rsp_rcvd )
                 next_state = MB_S3_FEATURE_EXCHANGE_RSP;
             else 
@@ -718,26 +704,41 @@ always_comb begin
             end
         ///////////////////////////////////////////////
         MB_S3_FEATURE_EXCHANGE_RSP: begin
-            if(!mb_param_enable || mb_param_error)
+            if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
+            end
+            else if(mb_param_error)begin
+                next_state = MB_S5_ERROR;
+            end
             else if(sbfe_rsp_rcvd) begin
                 next_state = MB_S4_ERROR_CHECK;
             end            
         end
         ///////////////////////////////////////////////
         MB_S4_ERROR_CHECK: begin
-            if(is_error)
-                next_state = MB_S0_IDLE;
-            else
-                next_state = MB_S5_DONE;
+            if(is_error)begin
+                next_state = MB_S5_ERROR;
+            end
+            else begin
+                next_state = MB_S6_DONE;
+            end
         end
         ///////////////////////////////////////////////
-        MB_S5_DONE:begin
+        MB_S6_DONE: begin
             if(!mb_param_enable) begin
                 next_state = MB_S0_IDLE;
             end 
             else begin
-                next_state = MB_S5_DONE;
+                next_state = MB_S6_DONE;
+            end   
+        end
+        ///////////////////////////////////////////////
+        MB_S5_ERROR: begin
+            if(!mb_param_enable) begin
+                next_state = MB_S0_IDLE;
+            end 
+            else begin
+                next_state = MB_S5_ERROR;
             end   
         end
         default: begin
@@ -831,10 +832,10 @@ end
 ////////////////////////////////////////////////////////
 always_comb begin
     if(current_state == MB_S5_DONE) begin       
-        mb_param_done = 1;
+        mb_param_done = 1'b1;
     end
     else begin
-        mb_param_done = 0;
+        mb_param_done = 1'b0;
     end
 end
 
@@ -843,30 +844,19 @@ end
 ////////////////////////////////////////////////////////
 always_ff @( posedge clk , negedge rst_n ) begin
     if(!rst_n) begin
-        mb_param_error <= 0;
+        mb_param_error <= 1'b0;
     end
     else if(mb_param_timeout_error) begin
-        mb_param_error <= 1;
-    end
-    //S1 error: allow the previous message (req) while in RSP, since the partner might be 1 cycle behind.
-    else if(mb_param_rx_valid && current_state == MB_S1_PARAM_EXCHANGE_REQ && mb_param_rx_msg_id != MBINIT_PARAM_configuration_req) begin
-        mb_param_error <= 1;
-    end
-    else if(mb_param_rx_valid && current_state == MB_S1_PARAM_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_configuration_resp) begin
-        mb_param_error <= 1;
-    end
-    //S2
-    else if(mb_param_rx_valid && current_state == MB_S3_FEATURE_EXCHANGE_REQ && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_req) begin
-        mb_param_error <= 1;
-    end
-    else if(mb_param_rx_valid && current_state == MB_S3_FEATURE_EXCHANGE_RSP && mb_param_rx_msg_id != MBINIT_PARAM_SBFE_resp) begin
-        mb_param_error <= 1;
+        mb_param_error <= 1'b1;
     end
     else if(is_error) begin
-        mb_param_error <= 1;
+        mb_param_error <= 1'b1;
     end
     else if(current_state == MB_S0_IDLE) begin
-        mb_param_error <= 0;
+        mb_param_error <= 1'b0;
+    end
+    else if (current_state == MB_S5_ERROR) begin
+        mb_param_error <= 1'b0 ;
     end
 end
 
