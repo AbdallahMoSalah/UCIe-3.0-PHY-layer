@@ -458,7 +458,7 @@ always_comb begin
 // PATTERN
 ////////////////////////////////////////////////////////
 assign mb_tx_pattern_clk_en = ((current_state == MB_S2_PATTERN_TRANSMISSION) && (!mb_repairclk_done));
-assign mb_rx_compare_en     = ((current_state == MB_S1_READINESS_HANDSHAKE_RSP ) ||  (current_state == MB_S2_PATTERN_TRANSMISSION) && (!mb_repairclk_done));
+assign mb_rx_compare_en     = ((current_state == MB_S1_READINESS_HANDSHAKE_RSP ) ||  (current_state == MB_S2_PATTERN_TRANSMISSION) || (current_state == MB_S3_RESULT_EXCHANGE_RSP) || (current_state == MB_S3_RESULT_EXCHANGE_REQ));
 
 ////////////////////////////////////////////////////////
 // DONE
