@@ -196,7 +196,7 @@ always_comb begin
     case(current_state)
 
         MB_S0_IDLE: begin
-            if(mb_repairclk_enable && !mb_repairclk_done && !mb_repairclk_error)
+            if(mb_repairclk_enable && !mb_repairclk_done)
                 next_state = MB_S1_READINESS_HANDSHAKE_REQ;
         end
 
@@ -204,7 +204,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s1_req_rcvd) begin
@@ -220,7 +220,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s1_rsp_rcvd) begin
@@ -235,7 +235,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(mb_tx_clk_pattern_transmission_completed) begin
@@ -250,7 +250,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s3_req_rcvd) begin
@@ -265,7 +265,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s3_rsp_rcvd) begin
@@ -280,7 +280,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(error_detect) begin
+            else if(error_detect || timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else begin
@@ -292,7 +292,7 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s4_req_rcvd) begin
@@ -307,11 +307,11 @@ always_comb begin
             if(!mb_repairclk_enable) begin
                 next_state = MB_S0_IDLE
             end
-            else if(mb_repairclk_error) begin
+            else if(timeout_error) begin
                 next_state = MB_S6_REPAIRCLK_ERROR
             end
             else if(s4_rsp_rcvd) begin
-                next_state = MB_S0_IDLE;
+                next_state = MB_S7_REPAIRCLK_DONE;
             end
             else begin
                 next_state = MB_S5_FINALIZE_HANDSHAKE_RSP;
@@ -464,33 +464,14 @@ assign mb_rx_compare_en     = ((current_state == MB_S1_READINESS_HANDSHAKE_RSP )
 // DONE
 ////////////////////////////////////////////////////////
 always_comb begin
-    if(current_state == MB_S7_REPAIRCLK_DONE) begin       
-        mb_repairclk_done = 1'b1;
-    end
-    else begin
-        mb_repairclk_done = 1'b0;
-    end
+    mb_repairclk_done = (current_state == MB_S7_REPAIRCLK_DONE);
 end
 
 ////////////////////////////////////////////////////////
 // ERROR LOGIC
 ////////////////////////////////////////////////////////
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        mb_repairclk_error <= 0;
-    end
-    else if(timeout_error || error_detect) begin
-        mb_repairclk_error <= 1;
-    end
-    else if(current_state == MB_S6_REPAIRCLK_ERROR) begin
-        mb_repairclk_error <= 0;
-    end
-    else if(current_state == MB_S0_IDLE) begin
-        mb_repairclk_error <= 0;
-    end
-    else begin
-        mb_repairclk_error <= 0;
-    end
+always_comb begin
+    mb_repairclk_error = (current_state == MB_S6_REPAIRCLK_ERROR);
 end
 
 endmodule
