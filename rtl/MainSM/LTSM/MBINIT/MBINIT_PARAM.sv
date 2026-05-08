@@ -326,8 +326,6 @@ logic [3:0]partner_link_speed_sel;
 
 always_comb begin
 
-    partner_capabilities_DataField_S1 = 64'b0;
-
     partner_TARR_sel                = partner_capabilities_DataField_S1[15];
     partner_SFES_sel                = partner_capabilities_DataField_S1[14];
     partner_UCIE_x8_sel             = partner_capabilities_DataField_S1[13];
