@@ -3,9 +3,9 @@ module timeout_counter
   parameter int TIME_OUT = 8
 )
 (
-    input  logic clk , timeout_rst_n ,
-    input  logic enable_timeout ,
-    output logic timeout_expired 
+    input  logic clk , timeout_rst_n,
+    input  logic enable_timeout,
+    output logic timeout_expired
 );
 
 
