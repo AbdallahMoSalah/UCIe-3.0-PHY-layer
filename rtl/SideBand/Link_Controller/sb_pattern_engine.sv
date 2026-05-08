@@ -218,20 +218,7 @@ assign mapper_rdy = (state == MAPPER) && ser_rdy;
 // done signal (latched by state)
 ////////////////////////////////////////////////////////////
 
-always_comb begin
-    if(!rst_n)
-        four_iter_done = 0;
-
-    else if(!pattern_mode)
-        four_iter_done = 0;
-
-    else if(state == DONE_HOLD)
-        four_iter_done = 1;
-
-    else
-        four_iter_done = 0;
-
-end
+assign four_iter_done = (state == DONE_HOLD);
 
 endmodule
 
