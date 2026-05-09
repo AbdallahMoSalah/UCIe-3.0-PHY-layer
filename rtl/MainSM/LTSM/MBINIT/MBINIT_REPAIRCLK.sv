@@ -76,7 +76,6 @@ localparam logic [63:0] MB_default_data_Field = 64'h0;
 // assign mb_rx_compare_setup   = 2'b11;
 
 logic [2:0] repairclk_result_local;
-assign repairclk_result_local = {rtrk_pass, rckn_pass, rckp_pass};
 logic [15:0] MB_repairclk_result_MSG_Info;
 assign MB_repairclk_result_MSG_Info = {13'b0, repairclk_result_local};
 
@@ -84,10 +83,10 @@ assign MB_repairclk_result_MSG_Info = {13'b0, repairclk_result_local};
 logic [2:0] partner_compare_result;
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
-        partner_compare_result <= 3'b111;
+        
     end
     else if(mb_repairclk_rx_msg_id == MBINIT_REPAIRCLK_result_resp && mb_repairclk_rx_valid) begin
-        partner_compare_result <= mb_repairclk_rx_data_Field[2:0];
+       
     end
 end
 
@@ -105,12 +104,12 @@ assign timeout_repairclk_enable = mb_repairclk_enable && !mb_repairclk_done && !
 ////////////////////////////////////////////////////////
 // HANDSHAKE FLAGS
 ////////////////////////////////////////////////////////
-logic s1_req_sent, s1_req_rcvd;
-logic s1_rsp_sent, s1_rsp_rcvd;
-logic s3_req_sent, s3_req_rcvd;
-logic s3_rsp_sent, s3_rsp_rcvd;
-logic s4_req_sent, s4_req_rcvd;
-logic s4_rsp_sent, s4_rsp_rcvd;
+logic s1_req_rcvd;
+logic s1_rsp_rcvd;
+logic s3_req_rcvd;
+logic s3_rsp_rcvd;
+logic s4_req_rcvd;
+logic s4_rsp_rcvd;
 
 ////////////////////////////////////////////////////////
 //////////////// Entry Detection logic /////////////////
@@ -148,6 +147,8 @@ always_ff @(posedge clk or negedge rst_n) begin
         s1_req_rcvd <= 0; s1_rsp_rcvd <= 0;
         s3_req_rcvd <= 0; s3_rsp_rcvd <= 0;
         s4_req_rcvd <= 0; s4_rsp_rcvd <= 0;
+        partner_compare_result <= 3'b111;
+        repairclk_result_local <= 3'b000;
     end
     else begin
         if(mb_repairclk_rx_valid) begin
@@ -160,10 +161,12 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
             else if(mb_repairclk_rx_msg_id == MBINIT_REPAIRCLK_result_req) begin
                 s3_req_rcvd <= 1;
+                repairclk_result_local <= {rtrk_pass, rckn_pass, rckp_pass};
             end
 
             else if(mb_repairclk_rx_msg_id == MBINIT_REPAIRCLK_result_resp) begin
                 s3_rsp_rcvd <= 1;
+                partner_compare_result <= mb_repairclk_rx_data_Field[2:0];
             end
             else if(mb_repairclk_rx_msg_id == MBINIT_REPAIRCLK_done_req) begin
                 s4_req_rcvd <= 1;
@@ -172,6 +175,12 @@ always_ff @(posedge clk or negedge rst_n) begin
             else if(mb_repairclk_rx_msg_id == MBINIT_REPAIRCLK_done_resp) begin
                 s4_rsp_rcvd <= 1;
             end
+        end
+        else if(current_state == MB_S0_IDLE) begin
+            s1_req_rcvd <= 0; s1_rsp_rcvd <= 0;
+            s3_req_rcvd <= 0; s3_rsp_rcvd <= 0;
+            s4_req_rcvd <= 0; s4_rsp_rcvd <= 0;
+            partner_compare_result <= 3'b111;
         end
     end
 end
@@ -458,7 +467,7 @@ always_comb begin
 // PATTERN
 ////////////////////////////////////////////////////////
 assign mb_tx_pattern_clk_en = ((current_state == MB_S2_PATTERN_TRANSMISSION) && (!mb_repairclk_done));
-assign mb_rx_compare_en     = ((current_state == MB_S1_READINESS_HANDSHAKE_RSP ) ||  (current_state == MB_S2_PATTERN_TRANSMISSION) || (current_state == MB_S3_RESULT_EXCHANGE_RSP) || (current_state == MB_S3_RESULT_EXCHANGE_REQ));
+assign mb_rx_compare_clk_en     = ((current_state == MB_S1_READINESS_HANDSHAKE_RSP ) ||  (current_state == MB_S2_PATTERN_TRANSMISSION) || (current_state == MB_S3_RESULT_EXCHANGE_RSP) || (current_state == MB_S3_RESULT_EXCHANGE_REQ));
 
 ////////////////////////////////////////////////////////
 // DONE
