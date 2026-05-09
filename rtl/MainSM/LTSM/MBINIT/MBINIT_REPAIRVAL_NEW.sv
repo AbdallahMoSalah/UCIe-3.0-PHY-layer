@@ -58,6 +58,9 @@ typedef enum logic [4:0] {
     MB_S3_RESULT_RSP_SEND,  // drive result_resp until ltsm_rdy=1
     MB_S3_RESULT_RSP_WAIT,  // wait for partner result_resp
 
+    // S4 Error Check
+    MB_S4_ERROR_CHECK,
+
     // S4 Finalize (split)
     MB_S4_FINALIZE_REQ_SEND,
     MB_S4_FINALIZE_REQ_WAIT,
@@ -103,30 +106,46 @@ logic s3_rsp_rcvd;
 logic s4_req_rcvd;
 logic s4_rsp_rcvd;
 
+logic repairval_result_local; // our local repair result (latched when partner result_req arrives)
+logic partner_result;         // partner's repair result (from rx MsgInfo[0] on result_resp)
+
+logic error_detect;
+assign error_detect = !partner_result; // pass = 1, fail = 0
+
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        s1_req_rcvd <= 1'b0;
-        s1_rsp_rcvd <= 1'b0;
-        s3_req_rcvd <= 1'b0;
-        s3_rsp_rcvd <= 1'b0;
-        s4_req_rcvd <= 1'b0;
-        s4_rsp_rcvd <= 1'b0;
+        s1_req_rcvd          <= 1'b0;
+        s1_rsp_rcvd          <= 1'b0;
+        s3_req_rcvd          <= 1'b0;
+        s3_rsp_rcvd          <= 1'b0;
+        s4_req_rcvd          <= 1'b0;
+        s4_rsp_rcvd          <= 1'b0;
+        repairval_result_local <= 1'b0;
+        partner_result         <= 1'b1; // default: assume pass
     end else if (current_state == MB_S0_IDLE) begin
-        s1_req_rcvd <= 1'b0;
-        s1_rsp_rcvd <= 1'b0;
-        s3_req_rcvd <= 1'b0;
-        s3_rsp_rcvd <= 1'b0;
-        s4_req_rcvd <= 1'b0;
-        s4_rsp_rcvd <= 1'b0;
+        s1_req_rcvd          <= 1'b0;
+        s1_rsp_rcvd          <= 1'b0;
+        s3_req_rcvd          <= 1'b0;
+        s3_rsp_rcvd          <= 1'b0;
+        s4_req_rcvd          <= 1'b0;
+        s4_rsp_rcvd          <= 1'b0;
+        repairval_result_local <= 1'b0;
+        partner_result         <= 1'b1;
     end else if (mb_repairval_rx_valid) begin
         case (mb_repairval_rx_msg_id)
-            MBINIT_REPAIRVAL_init_req   : s1_req_rcvd <= 1'b1;
-            MBINIT_REPAIRVAL_init_resp  : s1_rsp_rcvd <= 1'b1;
-            MBINIT_REPAIRVAL_result_req : s3_req_rcvd <= 1'b1;
-            MBINIT_REPAIRVAL_result_resp: s3_rsp_rcvd <= 1'b1;
-            MBINIT_REPAIRVAL_done_req   : s4_req_rcvd <= 1'b1;
-            MBINIT_REPAIRVAL_done_resp  : s4_rsp_rcvd <= 1'b1;
-            default                     : ; // ignore unrelated messages
+            MBINIT_REPAIRVAL_init_req    : s1_req_rcvd <= 1'b1;
+            MBINIT_REPAIRVAL_init_resp   : s1_rsp_rcvd <= 1'b1;
+            MBINIT_REPAIRVAL_result_req  : begin
+                s3_req_rcvd            <= 1'b1;
+                repairval_result_local <= RVLD_L_pass; // latch our local result
+            end
+            MBINIT_REPAIRVAL_result_resp : begin
+                s3_rsp_rcvd    <= 1'b1;
+                partner_result <= mb_repairval_rx_MsgInfo[0]; // partner's pass/fail bit
+            end
+            MBINIT_REPAIRVAL_done_req    : s4_req_rcvd <= 1'b1;
+            MBINIT_REPAIRVAL_done_resp   : s4_rsp_rcvd <= 1'b1;
+            default                      : ; // ignore unrelated messages
         endcase
     end
 end
@@ -196,10 +215,13 @@ always_comb begin
                 if (ltsm_rdy)       next_state = MB_S3_RESULT_RSP_WAIT;
             end
             MB_S3_RESULT_RSP_WAIT: begin
-                if (s3_rsp_rcvd) begin
-                    if (!RVLD_L_pass) next_state = MB_S5_ERROR;
-                    else              next_state = MB_S4_FINALIZE_REQ_SEND;
-                end
+                if (s3_rsp_rcvd)    next_state = MB_S4_ERROR_CHECK;
+            end
+
+            // ── S4 Error Check ────────────────────────────────────────────────
+            MB_S4_ERROR_CHECK: begin
+                if (error_detect) next_state = MB_S5_ERROR;
+                else              next_state = MB_S4_FINALIZE_REQ_SEND;
             end
 
             // ── S4 Finalize REQ ───────────────────────────────────────────────
@@ -272,10 +294,7 @@ always_comb begin
         end
 
         default: begin
-            mb_repairval_tx_valid      = 1'b0;
-            mb_repairval_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_repairval_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_repairval_tx_data_Field = MB_default_data_Field;
+            // Do nothing
         end
     endcase
 end
