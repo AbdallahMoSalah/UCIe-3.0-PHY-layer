@@ -104,7 +104,6 @@ import UCIe_pkg::*;
     input logic phy_x8_mode_ctrl,
     input logic Clock_Phase_ctrl,
     input logic Clock_mode_ctrl,
-    input logic [3:0] Max_Link_Speed_cap,
   
     // From Link
     input logic L2SPD_support_local_ctrl,
@@ -117,19 +116,19 @@ import UCIe_pkg::*;
     // --------- STATUS REG ----------
     // -------------------------------
     // From Phy 
-    output logic Clock_Phase_enable_status;
-    output logic Clock_mode_enable_status;
-    output logic TARR_enable_status;
+    output logic Clock_Phase_enable_status,
+    output logic Clock_mode_enable_status,
+    output logic TARR_enable_status,
     // From Link
-    output logic [3:0] Link_Width_enable_status;
-    output logic [3:0] Link_Speed_enable_status;
-    output logic PMO_enable_status;
-    output logic L2SPD_enable_status;
-    output logic PSPT_enable_status;
+    output logic [3:0] Link_Width_enable_status,
+    output logic [3:0] Link_Speed_enable_status,
+    output logic PMO_enable_status,
+    output logic L2SPD_enable_status,
+    output logic PSPT_enable_status,
     
     // Timer signals
-    output logic mb_param_timer_enable;
-    input  logic mb_param_timeout_expired;
+    output logic mb_param_timer_enable,
+    input  logic mb_param_timeout_expired
 
 );
 
@@ -137,14 +136,14 @@ logic TARR_sel;
 assign TARR_sel = TARR_support_local_ctrl &&  TARR_support_local_cap;
 
 logic L2SPD_sel;
-logic PSPT_sel;
+logic pspt_sel;
 logic PMO_sel;
 assign L2SPD_sel = L2SPD_support_local_ctrl && L2SPD_support_local_cap;
-assign PSPT_sel  = PSPT_support_local_ctrl  && PSPT_support_local_cap;
+assign PSPT_sel = PSPT_support_local_ctrl  && PSPT_support_local_cap;
 assign PMO_sel   = PMO_support_local_ctrl   && PMO_support_local_cap;
 
 logic SFES_sel;
-assign SFES_sel = L2SPD_sel || PSPT_sel || PMO_sel;
+assign SFES_sel = L2SPD_sel || PSPT_sel|| PMO_sel;
 
 // عايزين نشوف حوار ال SPMW
 logic UCIE_x8;
@@ -234,7 +233,7 @@ typedef enum logic [2:0] {
 
     MB_S4_ERROR_CHECK,
 
-    MB_S5_ERROR
+    MB_S5_ERROR,
 
     MB_S6_DONE
  } mb_param_state_e;
@@ -295,7 +294,7 @@ always_comb begin
     local_capabilities_DataField_S2 = 64'b0;
 
     local_capabilities_DataField_S2[4] = L2SPD_sel;
-    local_capabilities_DataField_S2[3] = PSPT_sel;
+    local_capabilities_DataField_S2[3] = pspt_sel;
     local_capabilities_DataField_S2[2] = so;
     local_capabilities_DataField_S2[1] = PMO_sel;
     local_capabilities_DataField_S2[0] = mtp;
@@ -408,8 +407,8 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_clk_mode_negotiated_status           <= clk_mode_sel;
         local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
         
-        local_pmo_negotiated_status                <= pmo_sel;
-        local_l2spd_negotiated_status              <= l2spd_sel;
+        local_pmo_negotiated_status                <= PMO_sel;
+        local_l2spd_negotiated_status              <= L2SPD_sel;
         local_pspt_negotiated_status               <= pspt_sel;
         local_so_negotiated                        <= so;
         local_mtp_negotiated                       <= mtp;
@@ -431,10 +430,10 @@ always_ff @(posedge clk or negedge rst_n) begin
     // S2 NEGOTIATION (SBFE features)
     ////////////////////////////////////////////////////////
     else if (sbfe_req_rcvd) begin
-        local_l2spd_negotiated_status <= l2spd_sel     & partner_l2spd;
-        local_pspt_negotiated_status  <= pspt_sel      & partner_pspt;
+        local_l2spd_negotiated_status <= L2SPD_sel     & partner_l2spd;
+        local_pspt_negotiated_status  <= PSPT_sel     & partner_pspt;
         local_so_negotiated           <= so            & partner_so;
-        local_pmo_negotiated_status   <= pmo_sel       & partner_pmo;
+        local_pmo_negotiated_status   <= PMO_sel       & partner_pmo;
         local_mtp_negotiated          <= mtp           & partner_mtp;
     end
 end
@@ -466,10 +465,10 @@ end
 /////////// partner RESP Negotiation log  //////////////
 ////////////////////////////////////////////////////////
 logic partner_TARR_negotiated_status;
-logic partner_SFES_negotiated                    
-logic partner_clk_phase_negotiated_status        
-logic partner_clk_mode_negotiated_status         
-logic [3:0] partner_Link_speed_enabled_negotiate_status 
+logic partner_SFES_negotiated;                   
+logic partner_clk_phase_negotiated_status;        
+logic partner_clk_mode_negotiated_status;         
+logic [3:0] partner_Link_speed_enabled_negotiate_status;
 
 
 logic partner_l2spd_negotiated_status;
@@ -831,7 +830,7 @@ end
 /////////////// DONE LOGIC //////////////////////////////
 ////////////////////////////////////////////////////////
 always_comb begin
-    if(current_state == MB_S5_DONE) begin       
+    if(current_state == MB_S6_DONE) begin       
         mb_param_done = 1'b1;
     end
     else begin
