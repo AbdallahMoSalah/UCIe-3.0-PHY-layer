@@ -104,7 +104,6 @@ import UCIe_pkg::*;
     input logic phy_x8_mode_ctrl,
     input logic Clock_Phase_ctrl,
     input logic Clock_mode_ctrl,
-    input logic [3:0] Max_Link_Speed_cap,
   
     // From Link
     input logic L2SPD_support_local_ctrl,
