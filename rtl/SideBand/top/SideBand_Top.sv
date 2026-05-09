@@ -137,6 +137,8 @@ module SideBand_Top #(
     // SerDes Modules
     // =========================================================================
 
+    logic ser_pmo_en;
+    assign ser_pmo_en = pattern_mode ? 1'b0 : pmo_en;
     sb_serializer #(
         .DATA_WIDTH (DATA_WIDTH),
         .GAP_WIDTH  (GAP_WIDTH)
@@ -144,7 +146,7 @@ module SideBand_Top #(
         .clk_parallel     (clk_sb),
         .clk_serial       (sb_pll_clock),
         .rst_n            (rst_sb_n),
-        .pmo_en           (pmo_en),
+        .pmo_en           (ser_pmo_en),
         .tx_parallel_data (ser_data_send),
         .tx_data_valid    (ser_vld_send),
         .tx_rdy           (ser_rdy),

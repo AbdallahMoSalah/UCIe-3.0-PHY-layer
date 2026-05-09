@@ -114,7 +114,6 @@ module Reg_File (
     input  logic [3:0]   phy_link_speed_enabled_status_i, // [14:11] Link Speed Enable
     input  logic         phy_link_status_status_i, // [15] Link Status
     input  logic         phy_link_training_retraining_status_i,
-    input  logic         phy_link_status_changed_status_i,  // sets bit [17]
     input  logic         phy_bw_changed_status_i,           // sets bit [18]Link Training/Retraining
     input  logic         phy_uci_e_link_correctable_error_i,    // sets bits [19]
     input  logic         phy_uci_e_link_uncorrectable_non_fatal_error_i,    // sets bits [20]
@@ -370,6 +369,34 @@ always_comb begin
     ucie_link_ctrl_r = ucie_link_ctrl_ff;
     ucie_link_ctrl_r[31:24] = 8'b11111111;   // Reserved
 end
+
+// ---------------------------------------------------------------------------
+//  Auto-clear for bit[10] "Start UCIe Link Training" and bit[11] "Retrain"
+//  UCIe Link"
+//  Per UCIe Spec §9.5.1 Table 9-9:
+//    bit[10]: "This bit is automatically cleared when the Link training
+//              completes with either success or error."
+//    bit[11]: Same auto-clear semantics.
+//  Also per spec: if SW writes 1 while training is already in progress
+//    (phy_link_training_retraining_status_i == 1), the write is ignored.
+//
+//  Implementation: detect the falling edge (1→0) of
+//  phy_link_training_retraining_status_i (= Link Status bit[16]), which is
+//  already wired as an RO live input.  No new ports required.
+// ---------------------------------------------------------------------------
+logic training_active_q;  // previous-cycle copy for edge detection
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        training_active_q <= 1'b0;
+    else
+        training_active_q <= phy_link_training_retraining_status_i;
+end
+
+// Pulse asserted for exactly one cycle when training finishes (1→0 edge)
+logic training_done_pulse;
+assign training_done_pulse = training_active_q & ~phy_link_training_retraining_status_i;
+
 assign phy_target_link_width_ctrl_out = ucie_link_ctrl_r[5:2];
 assign phy_target_link_speed_ctrl_out = ucie_link_ctrl_r[9:6];
 assign phy_start_ucie_link_training_ctrl_out = ucie_link_ctrl_r[10];
@@ -391,6 +418,19 @@ assign phy_l2spd_ctrl_out = ucie_link_ctrl_r[23];
 //   – bit[12] is not stored in a flop; it's injected at read time from live HW.
 // ---------------------------------------------------------------------------
 logic [31:0] ucie_link_status_ff;
+logic link_status_changed_q;  // previous-cycle copy for edge detection
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        link_status_changed_q <= 1'b0;
+    else
+        link_status_changed_q <= phy_link_status_status_i;
+end
+
+// Pulse asserted for exactly one cycle when training finishes (1→0 edge)
+logic link_status_changed_pulse;
+assign link_status_changed_pulse = link_status_changed_q ^ phy_link_status_status_i;
+
 always_comb begin
     ucie_link_status_r        = '0;
     ucie_link_status_r[0]     = adapter_raw_format_enabled_status_i;
@@ -728,7 +768,35 @@ always_ff @(posedge clk or negedge rst_n) begin
         phy_cap_ff[17]                <= phy_tarr_support_cap_i;
 
         // ── Config Space RW resets ───────────────────────────────────────
-        ucie_link_ctrl_ff             <= 32'h0000_1800; // bits[11:12]=1 per spec reset
+        // UCIe Link Control default value after reset is 0
+        ucie_link_ctrl_ff[0]          <= 1'b0;
+        ucie_link_ctrl_ff[1]          <= adapter_multi_protocol_cap_i;
+
+        ucie_link_ctrl_ff[5:2]          <= hw_max_link_width_cap_i;
+
+        ucie_link_ctrl_ff[9:6]          <= hw_max_link_speed_cap_i;
+        ucie_link_ctrl_ff[10]         <= 1'b0;
+        ucie_link_ctrl_ff[11]         <= 1'b0;
+        ucie_link_ctrl_ff[12]         <= 1'b0;
+
+        ucie_link_ctrl_ff[13]         <= adapter_68B_flit_formate_streaming_cap_i;
+        ucie_link_ctrl_ff[14]         <= adapter_256B_end_header_flit_format_streaming_cap_i;
+        ucie_link_ctrl_ff[15]         <= adapter_256B_start_header_flit_format_streaming_cap_i;
+        ucie_link_ctrl_ff[16]         <= adapter_256B_latency_optimized_flit_format_without_optional_bytes_streaming_cap_i;
+        ucie_link_ctrl_ff[17]         <= adapter_256B_latency_optimized_flit_format_with_optional_bytes_streaming_cap_i;
+        ucie_link_ctrl_ff[18]         <= adapter_enhanced_multi_protocol_capable_cap_i;
+        ucie_link_ctrl_ff[19]         <= adapter_standard_start_header_flit_for_pcie_protocol_cap_i;
+
+        ucie_link_ctrl_ff[20]         <= adapter_latency_optimized_flit_with_optional_bytes_for_pcie_protocol_cap_i;
+        ucie_link_ctrl_ff[21]         <= phy_sideband_performant_mode_operation_cap_i;
+        ucie_link_ctrl_ff[22]         <= phy_priority_sideband_packet_transfer_cap_i;
+        ucie_link_ctrl_ff[23]         <= phy_l2_sideband_power_down_cap_i;
+        ucie_link_ctrl_ff[31:24]      <= 8'b11111111;
+
+
+
+
+
         ucie_link_status_ff          <= 32'h0000_0000;
         link_event_notif_ctrl_ff      <= 16'h0000;
         error_notif_ctrl_ff           <= 16'h0000;
@@ -754,7 +822,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         // ═══════════════════════════════════════════════════════════════════
 
         //  UCIe Link Status [17],[18] – RW1C: OR-set from HW events
-        if (phy_link_status_changed_status_i) ucie_link_status_ff[17] <= 1'b1;
+        if (link_status_changed_pulse) ucie_link_status_ff[17] <= 1'b1;
         if (phy_bw_changed_status_i)          ucie_link_status_ff[18] <= 1'b1;
         if (phy_uci_e_link_correctable_error_i) ucie_link_status_ff[19] <= 1'b1;
         if (phy_uci_e_link_uncorrectable_non_fatal_error_i) ucie_link_status_ff[20] <= 1'b1;
@@ -766,12 +834,26 @@ always_ff @(posedge clk or negedge rst_n) begin
         if (phy_rm_link_err_i)   error_log1_ff[10] <= 1'b1;
         if (phy_internal_err_i)  error_log1_ff[11] <= 1'b1;
 
+
         // ═══════════════════════════════════════════════════════════════════
         //  SW write path – Config Space (addr[24]=0, RL=0) mapped from byte memory
         // ═══════════════════════════════════════════════════════════════════
         if (wr_en && cfg_sel) begin
             if (cfg_we[16]) ucie_link_ctrl_ff[7:0]   <= cfg_wdat[16];
-            if (cfg_we[17]) ucie_link_ctrl_ff[15:8]  <= cfg_wdat[17];
+            if (cfg_we[17]) begin
+                // byte 1 of UCIe Link Control (offset 11h) contains:
+                //   [10] Start UCIe Link Training  (bit 2 of this byte)
+                //   [11] Retrain UCIe Link         (bit 3 of this byte)
+                // Per spec: if training is already in progress, a 0→1 write
+                // on these bits must be ignored.
+                ucie_link_ctrl_ff[15:8] <= cfg_wdat[17];
+                if (phy_link_training_retraining_status_i) begin
+                    if(!phy_link_status_status_i)begin 
+                        ucie_link_ctrl_ff[10] <= ucie_link_ctrl_ff[10]; // hold – write ignored during training
+                    end
+                    ucie_link_ctrl_ff[11] <= ucie_link_ctrl_ff[11]; // hold – write ignored during training
+                end
+            end
             if (cfg_we[18]) ucie_link_ctrl_ff[23:16] <= cfg_wdat[18];
 
             if (cfg_we[22]) begin // 014h, byte 2 has RW1C bits [21:17]
@@ -783,9 +865,25 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
 
             if (cfg_we[24]) link_event_notif_ctrl_ff[1:0] <= cfg_wdat[24][1:0];
-            
+
             if (cfg_we[26]) error_notif_ctrl_ff[7:0]  <= cfg_wdat[26];
             if (cfg_we[27]) error_notif_ctrl_ff[15:8] <= cfg_wdat[27];
+
+        end  // if (wr_en && cfg_sel)
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  HW auto-clear – UCIe Link Control [10],[11]  (RWac)
+        //  Per UCIe Spec §9.5.1 Table 9-9:
+        //    bit[10] "Start UCIe Link Training" and bit[11] "Retrain UCIe Link"
+        //    are automatically cleared when Link training completes (success or
+        //    error), detected as the falling edge (1→0) of the live RO signal
+        //    phy_link_training_retraining_status_i (= Link Status bit[16]).
+        //  Placed AFTER the SW write block so it always wins (last assignment
+        //  in always_ff takes effect — HW beats SW on simultaneous events).
+        // ═══════════════════════════════════════════════════════════════════
+        if (training_done_pulse) begin
+            ucie_link_ctrl_ff[10] <= 1'b0;  // Start UCIe Link Training – auto-cleared
+            ucie_link_ctrl_ff[11] <= 1'b0;  // Retrain UCIe Link      – auto-cleared
         end
 
         // ═══════════════════════════════════════════════════════════════════

@@ -20,18 +20,16 @@ module MBINIT_REPAIRVAL
     output logic [15:0] mb_repairval_tx_MsgInfo,
     output logic [63:0] mb_repairval_tx_data_Field,
 
-    output logic timeout_error,
-
-    output logic [2:0] mb_tx_pattern_setup ,    //010
-    output logic mb_tx_val_pattern_sel,         //0
-    output logic [1:0] mb_rx_compare_setup,     //10
-
-    output logic mb_tx_pattern_en,
-    output logic mb_rx_compare_en,
+    output logic mb_tx_pattern_val_en,
+    output logic mb_rx_compare_val_en,
 
     input logic RVLD_L_pass,
 
-    input logic mb_rx_compare_done
+    input logic mb_tx_val_pattern_transmission_completed,
+
+    // timer interface 
+    output logic timer_enable,
+    input logic timeout_expired
 );
 
 ////////////////////////////////////////////////////////
@@ -56,30 +54,16 @@ mb_repairval_state_e current_state, next_state;
 localparam logic [15:0] MB_default_MSG_Info = 16'h0000;
 localparam logic [63:0] MB_default_data_Field = 64'h0;
 
-assign mb_tx_pattern_setup   = 3'b010;
-assign mb_tx_val_pattern_sel = 1'b0;
-assign mb_rx_compare_setup   = 2'b10;
-
 logic [15:0] MB_repairval_result_MSG_Info;
 assign MB_repairval_result_MSG_Info = {15'b0, RVLD_L_pass};
 
 ////////////////////////////////////////////////////////
 // TIMEOUT
 ////////////////////////////////////////////////////////
-logic timer_enable;
-logic timeout_expired;
 
+
+logic timeout_error;
 assign timer_enable = mb_repairval_enable && !mb_repairval_done && !mb_repairval_error;
-
-timeout_counter #(
-    .CLK_FRQ_HZ(CLK_FRQ_HZ),
-    .TIME_OUT(8)
-) u_timeout (
-    .clk(clk),
-    .timeout_rst_n(rst_n),
-    .enable_timeout(timer_enable),
-    .timeout_expired(timeout_expired)
-);
 
 assign timeout_error = timeout_expired && !mb_repairval_done;
 

@@ -325,8 +325,6 @@ logic [3:0]partner_link_speed_sel;
 
 always_comb begin
 
-    partner_capabilities_DataField_S1 = 64'b0;
-
     partner_TARR_sel                = partner_capabilities_DataField_S1[15];
     partner_SFES_sel                = partner_capabilities_DataField_S1[14];
     partner_UCIE_x8_sel             = partner_capabilities_DataField_S1[13];
@@ -637,10 +635,10 @@ always_comb begin
 
     case(current_state)
         MB_S0_IDLE: begin
-            if(mb_param_enable && !mb_param_error) begin
+            if(mb_param_enable) begin
                 next_state = MB_S1_PARAM_EXCHANGE_REQ;
             end
-            else if(mb_param_error)begin
+            else if(mb_param_timeout_error)begin
                 next_state = MB_S5_ERROR;
             end
         end
@@ -649,10 +647,10 @@ always_comb begin
             if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
             end 
-            else if(mb_param_error)begin
+            else if(mb_param_timeout_error)begin
                 next_state = MB_S5_ERROR;
             end
-            else if(param_req_rcvd && !param_rsp_rcvd) begin
+            else if(param_req_rcvd) begin
                 next_state = MB_S1_PARAM_EXCHANGE_RSP;
             end
             else begin
@@ -664,7 +662,7 @@ always_comb begin
             if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE; // Return to idle.
             end
-            else if(mb_param_error)begin
+            else if(mb_param_timeout_error)begin
                 next_state = MB_S5_ERROR;
             end
             else if(param_rsp_rcvd) begin
@@ -676,7 +674,7 @@ always_comb begin
         end
         ////////////////////////////////////////////////
         MB_S2_ERROR_CHECK: begin
-            if(!is_error) begin
+            if(!is_error && !mb_param_timeout_error) begin
                 if(is_SFES)begin
                     next_state = MB_S3_FEATURE_EXCHANGE_REQ;
                 end
@@ -693,24 +691,29 @@ always_comb begin
             if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
             end
-            else if(mb_param_error)begin
+            else if(mb_param_timeout_error)begin
                 next_state = MB_S5_ERROR;
             end
-            else if(sbfe_req_rcvd && !sbfe_rsp_rcvd )
+            else if(sbfe_req_rcvd)begin
                 next_state = MB_S3_FEATURE_EXCHANGE_RSP;
-            else 
+            end
+            else begin
                 next_state = MB_S3_FEATURE_EXCHANGE_REQ;                
             end
+        end
         ///////////////////////////////////////////////
         MB_S3_FEATURE_EXCHANGE_RSP: begin
             if(!mb_param_enable)begin
                 next_state = MB_S0_IDLE;
             end
-            else if(mb_param_error)begin
+            else if(mb_param_timeout_error)begin
                 next_state = MB_S5_ERROR;
             end
             else if(sbfe_rsp_rcvd) begin
                 next_state = MB_S4_ERROR_CHECK;
+            end
+            else begin
+                next_state = MB_S3_FEATURE_EXCHANGE_RSP;
             end            
         end
         ///////////////////////////////////////////////
@@ -830,33 +833,14 @@ end
 /////////////// DONE LOGIC //////////////////////////////
 ////////////////////////////////////////////////////////
 always_comb begin
-    if(current_state == MB_S6_DONE) begin       
-        mb_param_done = 1'b1;
-    end
-    else begin
-        mb_param_done = 1'b0;
-    end
+    mb_param_done = (current_state == MB_S6_DONE);
 end
 
 ////////////////////////////////////////////////////////
 /////////////// ERROR LOGIC ////////////////////////////
 ////////////////////////////////////////////////////////
-always_ff @( posedge clk , negedge rst_n ) begin
-    if(!rst_n) begin
-        mb_param_error <= 1'b0;
-    end
-    else if(mb_param_timeout_error) begin
-        mb_param_error <= 1'b1;
-    end
-    else if(is_error) begin
-        mb_param_error <= 1'b1;
-    end
-    else if(current_state == MB_S0_IDLE) begin
-        mb_param_error <= 1'b0;
-    end
-    else if (current_state == MB_S5_ERROR) begin
-        mb_param_error <= 1'b0 ;
-    end
+always_comb begin
+    mb_param_error = (current_state == MB_S5_ERROR);
 end
 
 endmodule
