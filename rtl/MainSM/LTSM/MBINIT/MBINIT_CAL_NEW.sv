@@ -110,50 +110,47 @@ end
 always_comb begin 
     next_state = current_state;
 
-    case(current_state)
-        MB_S0_IDLE: begin
-            if(mb_cal_enable)
-                next_state = MB_S1_CAL_REQ_SEND;
-            else if(timeout_error)
-                next_state = MB_S3_ERROR;
-        end
+    if(!mb_cal_enable) begin
+        next_state = MB_S0_IDLE;
+    end else if(timeout_error) begin
+        next_state = MB_S3_ERROR;
+    end else begin
+        
+        case(current_state)
+            MB_S0_IDLE: begin
+                if(mb_cal_enable)
+                    next_state = MB_S1_CAL_REQ_SEND;
+            end
 
-        // -- S1 CAL Request --
-        MB_S1_CAL_REQ_SEND: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-            else if(timeout_error)      next_state = MB_S3_ERROR;
-            else if(ltsm_rdy)           next_state = MB_S1_CAL_REQ_WAIT;
-        end
+            // -- S1 CAL Request --
+            MB_S1_CAL_REQ_SEND: begin
+                if(ltsm_rdy)           next_state = MB_S1_CAL_REQ_WAIT;
+            end
 
-        MB_S1_CAL_REQ_WAIT: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-            else if(timeout_error)      next_state = MB_S3_ERROR;
-            else if(cal_req_rcvd)       next_state = MB_S1_CAL_RSP_SEND;
-        end
+            MB_S1_CAL_REQ_WAIT: begin
+                if(cal_req_rcvd)       next_state = MB_S1_CAL_RSP_SEND;
+            end
 
-        // -- S1 CAL Response --
-        MB_S1_CAL_RSP_SEND: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-            else if(timeout_error)      next_state = MB_S3_ERROR;
-            else if(ltsm_rdy)           next_state = MB_S1_CAL_RSP_WAIT;
-        end
+            // -- S1 CAL Response --
+            MB_S1_CAL_RSP_SEND: begin
+                if(ltsm_rdy)           next_state = MB_S1_CAL_RSP_WAIT;
+            end
 
-        MB_S1_CAL_RSP_WAIT: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-            else if(timeout_error)      next_state = MB_S3_ERROR;
-            else if(cal_rsp_rcvd)       next_state = MB_S2_DONE;
-        end
+            MB_S1_CAL_RSP_WAIT: begin
+                if(cal_rsp_rcvd)       next_state = MB_S2_DONE;
+            end
 
-        MB_S2_DONE: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-        end
+            MB_S2_DONE: begin
+                // Stays here until mb_cal_enable deasserts
+            end
 
-        MB_S3_ERROR: begin
-            if(!mb_cal_enable)          next_state = MB_S0_IDLE;
-        end
+            MB_S3_ERROR: begin
+                // Stays here until mb_cal_enable deasserts
+            end
 
-        default: next_state = MB_S0_IDLE;
-    endcase        
+            default: next_state = MB_S0_IDLE;
+        endcase        
+    end
 end
 
 ////////////////////////////////////////////////////////
