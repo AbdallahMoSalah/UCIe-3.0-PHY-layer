@@ -235,10 +235,10 @@ always_comb begin
                 if(s4_rsp_rcvd)        next_state = MB_S7_REPAIRCLK_DONE;
             end
             MB_S6_REPAIRCLK_ERROR: begin
-                
+                // Stays here until mb_repairclk_enable deasserts
             end
             MB_S7_REPAIRCLK_DONE: begin
-                
+                // Stays here until mb_repairclk_enable deasserts
             end
             default: begin
                 next_state = MB_S0_IDLE;
