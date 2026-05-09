@@ -181,6 +181,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             s3_req_rcvd <= 0; s3_rsp_rcvd <= 0;
             s4_req_rcvd <= 0; s4_rsp_rcvd <= 0;
             partner_compare_result <= 3'b111;
+            repairclk_result_local <= 3'b000;
         end
     end
 end

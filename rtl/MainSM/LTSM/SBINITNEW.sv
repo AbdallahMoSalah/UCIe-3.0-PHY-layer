@@ -121,37 +121,30 @@ end
 //================= RX handshake logic ================
 //=====================================================
 
-// ---------- S3: Out-of-Reset received (continuous TX state) ----------
-logic out_of_reset_msg_rcvd ;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        out_of_reset_msg_rcvd <= 1'b0;
-    else if(sb_rx_valid && sb_rx_msg_id == SBINIT_Out_of_Reset)
-        out_of_reset_msg_rcvd <= 1'b1;
-    else if(current_state != SB_S3_OUT_OF_RESET)
-        out_of_reset_msg_rcvd <= 1'b0;
-end
-
-// ---------- S4-REQ-WAIT: done_req received ----------
+// ---------- RX message flags – merged into one always_ff ----------
+// When sb_rx_valid is high, a case on sb_rx_msg_id sets the matching flag.
+// All flags are cleared together when the FSM returns to IDLE.
+logic out_of_reset_msg_rcvd;
 logic done_req_rcvd;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        done_req_rcvd <= 1'b0;
-    else if(sb_rx_valid && sb_rx_msg_id == SBINIT_done_req)
-        done_req_rcvd <= 1'b1;
-    else if(current_state != SB_S4_REQ_WAIT)
-        done_req_rcvd <= 1'b0;
-end
-
-// ---------- S4-RSP-WAIT: done_resp received ----------
 logic done_rsp_rcvd;
+
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        done_rsp_rcvd <= 1'b0;
-    else if(sb_rx_valid && sb_rx_msg_id == SBINIT_done_resp)
-        done_rsp_rcvd <= 1'b1;
-    else if(current_state != SB_S4_RSP_WAIT)
-        done_rsp_rcvd <= 1'b0;
+    if (!rst_n) begin
+        out_of_reset_msg_rcvd <= 1'b0;
+        done_req_rcvd         <= 1'b0;
+        done_rsp_rcvd         <= 1'b0;
+    end else if (current_state == SB_S0_IDLE) begin
+        out_of_reset_msg_rcvd <= 1'b0;
+        done_req_rcvd         <= 1'b0;
+        done_rsp_rcvd         <= 1'b0;
+    end else if (sb_rx_valid) begin
+        case (sb_rx_msg_id)
+            SBINIT_Out_of_Reset : out_of_reset_msg_rcvd <= 1'b1;
+            SBINIT_done_req     : done_req_rcvd         <= 1'b1;
+            SBINIT_done_resp    : done_rsp_rcvd         <= 1'b1;
+            default             : ; // ignore unrelated messages
+        endcase
+    end
 end
 
 // ---------- S1: pattern-received sticky ----------
@@ -160,7 +153,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         pattern_rcvd_sticky <= 1'b0;
     else if (sb_det_pattern_rcvd)
         pattern_rcvd_sticky <= 1'b1;
-    else if (current_state != SB_S1_DET_PATTERN)
+    else if (current_state == SB_S0_IDLE)
         pattern_rcvd_sticky <= 1'b0;
 end
 
@@ -179,111 +172,90 @@ end
 //=====================================================
 always_comb begin
     next_state = current_state ;
+    
+    if(!sbinit_enable) begin
+        next_state = SB_S0_IDLE;
+    end
+    else if(sbinit_timeout_error) begin
+        next_state = SB_S5_ERROR;
+    end
+    else begin
+        case(current_state)
+            // ------------------------------------------------------------------
+            SB_S0_IDLE: begin
+                if(sbinit_enable)
+                    next_state = SB_S1_DET_PATTERN;
+            end
 
-    case(current_state)
-        // ------------------------------------------------------------------
-        SB_S0_IDLE: begin
-            if(sbinit_enable)
-                next_state = SB_S1_DET_PATTERN ;
-        end
+            // ------------------------------------------------------------------
+            // S1 – Detection pattern
+            // ------------------------------------------------------------------
+            SB_S1_DET_PATTERN: begin
+                if(sb_det_pattern_rcvd)
+                    next_state = SB_S2_LINK_SYNCH ;
+            end
 
-        // ------------------------------------------------------------------
-        // S1 – Detection pattern
-        // ------------------------------------------------------------------
-        SB_S1_DET_PATTERN: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(sb_det_pattern_rcvd)
-                next_state = SB_S2_LINK_SYNCH ;
-        end
+            // ------------------------------------------------------------------
+            // S2 – Link Synchronisation (4 iterations – no direct TX message)
+            // ------------------------------------------------------------------
+            SB_S2_LINK_SYNCH: begin
+                if(four_iteration_done)
+                    next_state = SB_S3_OUT_OF_RESET ;
+            end
 
-        // ------------------------------------------------------------------
-        // S2 – Link Synchronisation (4 iterations – no direct TX message)
-        // ------------------------------------------------------------------
-        SB_S2_LINK_SYNCH: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(four_iteration_done)
-                next_state = SB_S3_OUT_OF_RESET ;
-        end
+            // ------------------------------------------------------------------
+            // S3 – Out-of-Reset (single state, continuous TX)
+            // Keeps sending SBINIT_Out_of_Reset every cycle until the partner
+            // sends its own Out-of-Reset back.
+            // ------------------------------------------------------------------
+            SB_S3_OUT_OF_RESET: begin
+                if(out_of_reset_msg_rcvd)
+                    next_state = SB_S4_REQ_SEND ;
+            end
 
-        // ------------------------------------------------------------------
-        // S3 – Out-of-Reset (single state, continuous TX)
-        // Keeps sending SBINIT_Out_of_Reset every cycle until the partner
-        // sends its own Out-of-Reset back.
-        // ------------------------------------------------------------------
-        SB_S3_OUT_OF_RESET: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(out_of_reset_msg_rcvd)
-                next_state = SB_S4_REQ_SEND ;
-        end
+            // ------------------------------------------------------------------
+            // S4 – Completion Request
+            // _SEND: keep driving until FIFO accepts
+            // _WAIT: wait for partner's done_req
+            // ------------------------------------------------------------------
+            SB_S4_REQ_SEND: begin
+                if(ltsm_rdy)
+                    next_state = SB_S4_REQ_WAIT ;
+            end
 
-        // ------------------------------------------------------------------
-        // S4 – Completion Request
-        // _SEND: keep driving until FIFO accepts
-        // _WAIT: wait for partner's done_req
-        // ------------------------------------------------------------------
-        SB_S4_REQ_SEND: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(ltsm_rdy)
-                next_state = SB_S4_REQ_WAIT ;
-        end
+            SB_S4_REQ_WAIT: begin
+                if(done_req_rcvd)
+                    next_state = SB_S4_RSP_SEND ;
+            end
 
-        SB_S4_REQ_WAIT: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(done_req_rcvd)
-                next_state = SB_S4_RSP_SEND ;
-        end
+            // ------------------------------------------------------------------
+            // S4 – Completion Response
+            // _SEND: keep driving until FIFO accepts
+            // _WAIT: wait for partner's done_resp
+            // ------------------------------------------------------------------
+            SB_S4_RSP_SEND: begin
+                if(ltsm_rdy)
+                    next_state = SB_S4_RSP_WAIT ;
+            end
 
-        // ------------------------------------------------------------------
-        // S4 – Completion Response
-        // _SEND: keep driving until FIFO accepts
-        // _WAIT: wait for partner's done_resp
-        // ------------------------------------------------------------------
-        SB_S4_RSP_SEND: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(ltsm_rdy)
-                next_state = SB_S4_RSP_WAIT ;
-        end
+            SB_S4_RSP_WAIT: begin
+                if(done_rsp_rcvd)
+                    next_state = SB_S6_DONE ;
+            end
 
-        SB_S4_RSP_WAIT: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-            else if(sbinit_timeout_error)
-                next_state = SB_S5_ERROR ;
-            else if(done_rsp_rcvd)
-                next_state = SB_S6_DONE ;
-        end
+            // ------------------------------------------------------------------
+            SB_S6_DONE: begin
 
-        // ------------------------------------------------------------------
-        SB_S6_DONE: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-        end
+            end
 
-        SB_S5_ERROR: begin
-            if(!sbinit_enable)
-                next_state = SB_S0_IDLE ;
-        end
+            SB_S5_ERROR: begin
 
-        default: next_state = SB_S0_IDLE ;
-    endcase
+            end
+
+            default: next_state = SB_S0_IDLE ;
+        endcase
+    end
+
 end
 
 //=====================================================
@@ -335,24 +307,12 @@ always_comb begin
             sb_tx_msg_id = SBINIT_done_req ;
         end
 
-        // ---- S4 REQ WAIT ----
-        SB_S4_REQ_WAIT: begin
-            sb_tx_valid  = 1'b0 ;
-            sb_tx_msg_id = msg_no_e'(NOTHING) ;
-        end
-
         // ---- S4 RSP SEND ----
         SB_S4_RSP_SEND: begin
             sb_tx_valid  = 1'b1 ;
             sb_tx_msg_id = SBINIT_done_resp ;
         end
-
-        // ---- S4 RSP WAIT ----
-        SB_S4_RSP_WAIT: begin
-            sb_tx_valid  = 1'b0 ;
-            sb_tx_msg_id = msg_no_e'(NOTHING) ;
-        end
-
+        
         default: begin
             sb_tx_msg_id        = msg_no_e'(NOTHING) ;
             sb_tx_valid         = 1'b0 ;

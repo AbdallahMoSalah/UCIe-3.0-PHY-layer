@@ -104,7 +104,6 @@ import UCIe_pkg::*;
     input logic phy_x8_mode_ctrl,
     input logic Clock_Phase_ctrl,
     input logic Clock_mode_ctrl,
-    input logic [3:0] Max_Link_Speed_cap,
   
     // From Link
     input logic L2SPD_support_local_ctrl,
@@ -316,43 +315,71 @@ end
 ///////////////// PARTNER CAPABILITIES /////////////////
 ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////
-// ── Handshake flags (SBINITNEW style) ────────────────────────────────────────
-// Set  : any cycle the matching msg arrives (no state guard).
-// Clear: when we leave the corresponding _WAIT state.
-//-----------------------------------------------------
-// PARAM REQ received  (clears outside MB_S1_PARAM_REQ_WAIT)
-//-----------------------------------------------------
+// ── RX message flags + data-capture – all in one always_ff ──────────────────
+// When mb_param_rx_valid is high, a case on mb_param_rx_msg_id:
+//   • sets the matching flag
+//   • captures the payload into the corresponding register (where applicable)
+// All flags are cleared together when the FSM is reset or returns to IDLE.
+// Registers that have no associated payload keep their last captured value.
+//------------------------------------------------------------------------------
+logic param_req_rcvd;
+logic param_rsp_rcvd;
+logic sbfe_req_rcvd;
+logic sbfe_rsp_rcvd;
 
 logic [63:0] partner_capabilities_DataField_S1;
-logic param_req_rcvd;
+logic [63:0] partner_capabilities_DataField_S2;
+logic [63:0] partner_S2_RESP;
+logic [63:0] partner_S4_RESP;
 
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        partner_capabilities_DataField_S1 <= 64'h0;
-        param_req_rcvd <= 0;
-    end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req) begin
-        partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
-        param_req_rcvd <= 1;
-    end
-    else if(current_state != MB_S1_PARAM_REQ_WAIT) begin
-        param_req_rcvd <= 0;
+    if (!rst_n || !mb_param_enable) begin
+        param_req_rcvd                     <= 1'b0;
+        param_rsp_rcvd                     <= 1'b0;
+        sbfe_req_rcvd                      <= 1'b0;
+        sbfe_rsp_rcvd                      <= 1'b0;
+        partner_capabilities_DataField_S1  <= 64'h0;
+        partner_capabilities_DataField_S2  <= 64'h0;
+        partner_S2_RESP                    <= 64'h0;
+        partner_S4_RESP                    <= 64'h0;
+    end else if (current_state == MB_S0_IDLE) begin
+        param_req_rcvd <= 1'b0;
+        param_rsp_rcvd <= 1'b0;
+        sbfe_req_rcvd  <= 1'b0;
+        sbfe_rsp_rcvd  <= 1'b0;
+    end else if (mb_param_rx_valid) begin
+        case (mb_param_rx_msg_id)
+            MBINIT_PARAM_configuration_req : begin
+                param_req_rcvd                    <= 1'b1;
+                partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_configuration_resp : begin
+                param_rsp_rcvd  <= 1'b1;
+                partner_S2_RESP <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_SBFE_req : begin
+                sbfe_req_rcvd                     <= 1'b1;
+                partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_SBFE_resp : begin
+                sbfe_rsp_rcvd   <= 1'b1;
+                partner_S4_RESP <= mb_param_rx_data_Field;
+            end
+            default : ; // ignore unrelated messages
+        endcase
     end
 end
 
 logic partner_TARR_sel;
 logic partner_SFES_sel;
 logic partner_UCIE_x8_sel;
-logic [1:0]partner_Module_ID_sel;
+logic [1:0] partner_Module_ID_sel;
 logic partner_clk_phase_sel;
 logic partner_clk_mode_sel;
-logic [4:0]partner_Supported_TX_Vswing_sel;
-logic [3:0]partner_link_speed_sel;
-
-
+logic [4:0] partner_Supported_TX_Vswing_sel;
+logic [3:0] partner_link_speed_sel;
 
 always_comb begin
-
     partner_TARR_sel                = partner_capabilities_DataField_S1[15];
     partner_SFES_sel                = partner_capabilities_DataField_S1[14];
     partner_UCIE_x8_sel             = partner_capabilities_DataField_S1[13];
@@ -364,25 +391,6 @@ always_comb begin
 end
 
 /////////////////////////////////////////////////////////
-//-----------------------------------------------------
-// SBFE REQ received  (clears outside MB_S3_FEATURE_REQ_WAIT)
-//-----------------------------------------------------
-
-logic [63:0] partner_capabilities_DataField_S2;
-logic sbfe_req_rcvd;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        partner_capabilities_DataField_S2 <= 64'h0;
-        sbfe_req_rcvd <= 0;
-    end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req) begin
-        partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
-        sbfe_req_rcvd <= 1;
-    end
-    else if(current_state != MB_S3_FEATURE_REQ_WAIT) begin
-        sbfe_req_rcvd <= 0;
-    end
-end
 
 logic partner_l2spd;
 logic partner_pspt;
@@ -516,56 +524,12 @@ logic partner_mtp_negotiated;
 
 
 
-//-----------------------------------------------------
-// PARAM RSP received  (clears outside MB_S1_PARAM_RSP_WAIT)
-//-----------------------------------------------------
-logic [63:0] partner_S2_RESP;
-logic param_rsp_rcvd;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n || !mb_param_enable) begin
-        partner_S2_RESP <= 64'b0;
-        param_rsp_rcvd  <= 0;
-    end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_resp) begin
-        partner_S2_RESP <= mb_param_rx_data_Field;
-        param_rsp_rcvd  <= 1;
-    end
-    else if(current_state != MB_S1_PARAM_RSP_WAIT) begin
-        param_rsp_rcvd  <= 0;
-    end
-end
-
-
 always_comb begin
     partner_TARR_negotiated_status              = partner_S2_RESP[15];
     partner_SFES_negotiated                     = partner_S2_RESP[14];
     partner_clk_phase_negotiated_status         = partner_S2_RESP[10];
     partner_clk_mode_negotiated_status          = partner_S2_RESP[9];
     partner_Link_speed_enabled_negotiate_status = partner_S2_RESP[3:0];
-end
-
-
-//-----------------------------------------------------
-// PARAM RSP received  (clears outside MB_S1_PARAM_RSP_WAIT)
-//-----------------------------------------------------
-//-----------------------------------------------------
-// SBFE RSP received  (clears outside MB_S3_FEATURE_RSP_WAIT)
-//-----------------------------------------------------
-
-logic [63:0] partner_S4_RESP;
-logic sbfe_rsp_rcvd;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n || !mb_param_enable) begin
-        partner_S4_RESP <= 64'b0;
-        sbfe_rsp_rcvd <= 0;
-    end
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_resp) begin
-        partner_S4_RESP <= mb_param_rx_data_Field;
-        sbfe_rsp_rcvd <= 1;
-    end
-    else if(current_state != MB_S3_FEATURE_RSP_WAIT) begin
-        sbfe_rsp_rcvd <= 0;
-    end
 end
 
 
@@ -612,14 +576,6 @@ assign mb_param_timeout_error = mb_param_timeout_expired && !mb_param_done;
 assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_error;
 
 ////////////////////////////////////////////////////////
-////////////////// HANDSHAKE FLAGS /////////////////////
-////////////////////////////////////////////////////////
-
-
-
-
-
-////////////////////////////////////////////////////////
 ////////////////// STATE REGISTER //////////////////////
 ////////////////////////////////////////////////////////
 always_ff @(posedge clk or negedge rst_n) begin
@@ -635,79 +591,69 @@ end
 always_comb begin
 
     next_state = current_state;
-
-    case(current_state)
-        MB_S0_IDLE: begin
-            if(mb_param_enable)
-                next_state = MB_S1_PARAM_REQ_SEND;
-            else if(mb_param_timeout_error)
-                next_state = MB_S5_ERROR;
-        end
-        // ── S1 Param Request ──────────────────────────────────────────────
-        MB_S1_PARAM_REQ_SEND: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(ltsm_rdy)             next_state = MB_S1_PARAM_REQ_WAIT;
-        end
-        MB_S1_PARAM_REQ_WAIT: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(param_req_rcvd)       next_state = MB_S1_PARAM_RSP_SEND;
-        end
-        // ── S1 Param Response ─────────────────────────────────────────────
-        MB_S1_PARAM_RSP_SEND: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(ltsm_rdy)             next_state = MB_S1_PARAM_RSP_WAIT;
-        end
-        MB_S1_PARAM_RSP_WAIT: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(param_rsp_rcvd)       next_state = MB_S2_ERROR_CHECK;
-        end
-        // ── S2 Error Check ────────────────────────────────────────────────
-        MB_S2_ERROR_CHECK: begin
-            if(!is_error && !mb_param_timeout_error) begin
-                if(is_SFES) next_state = MB_S3_FEATURE_REQ_SEND;
-                else        next_state = MB_S6_DONE;
+    if(!mb_param_enable)begin
+        next_state = MB_S0_IDLE;
+    end
+    else if(mb_param_timeout_error)begin
+        next_state = MB_S5_ERROR;
+    end
+    else begin
+        case(current_state)
+            MB_S0_IDLE: begin
+                if(mb_param_enable)
+                    next_state = MB_S1_PARAM_REQ_SEND;
             end
-            else next_state = MB_S5_ERROR;
-        end
-        // ── S3 Feature Request ────────────────────────────────────────────
-        MB_S3_FEATURE_REQ_SEND: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(ltsm_rdy)             next_state = MB_S3_FEATURE_REQ_WAIT;
-        end
-        MB_S3_FEATURE_REQ_WAIT: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(sbfe_req_rcvd)        next_state = MB_S3_FEATURE_RSP_SEND;
-        end
-        // ── S3 Feature Response ───────────────────────────────────────────
-        MB_S3_FEATURE_RSP_SEND: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(ltsm_rdy)             next_state = MB_S3_FEATURE_RSP_WAIT;
-        end
-        MB_S3_FEATURE_RSP_WAIT: begin
-            if(!mb_param_enable)          next_state = MB_S0_IDLE;
-            else if(mb_param_timeout_error) next_state = MB_S5_ERROR;
-            else if(sbfe_rsp_rcvd)        next_state = MB_S4_ERROR_CHECK;
-        end
-        // ── S4 Error Check ────────────────────────────────────────────────
-        MB_S4_ERROR_CHECK: begin
-            if(is_error) next_state = MB_S5_ERROR;
-            else         next_state = MB_S6_DONE;
-        end
-        MB_S6_DONE: begin
-            if(!mb_param_enable) next_state = MB_S0_IDLE;
-        end
-        MB_S5_ERROR: begin
-            if(!mb_param_enable) next_state = MB_S0_IDLE;
-        end
-        default: next_state = MB_S0_IDLE;
-    endcase
+            // ── S1 Param Request ──────────────────────────────────────────────
+            MB_S1_PARAM_REQ_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S1_PARAM_REQ_WAIT;
+            end
+            MB_S1_PARAM_REQ_WAIT: begin
+                if(param_req_rcvd)       next_state = MB_S1_PARAM_RSP_SEND;
+            end
+            // ── S1 Param Response ─────────────────────────────────────────────
+            MB_S1_PARAM_RSP_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S1_PARAM_RSP_WAIT;
+            end
+            MB_S1_PARAM_RSP_WAIT: begin
+                if(param_rsp_rcvd)       next_state = MB_S2_ERROR_CHECK;
+            end
+            // ── S2 Error Check ────────────────────────────────────────────────
+            MB_S2_ERROR_CHECK: begin
+                if(!is_error) begin
+                    if(is_SFES) next_state = MB_S3_FEATURE_REQ_SEND;
+                    else        next_state = MB_S6_DONE;
+                end
+                else next_state = MB_S5_ERROR;
+            end
+            // ── S3 Feature Request ────────────────────────────────────────────
+            MB_S3_FEATURE_REQ_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S3_FEATURE_REQ_WAIT;
+            end
+            MB_S3_FEATURE_REQ_WAIT: begin
+                if(sbfe_req_rcvd)        next_state = MB_S3_FEATURE_RSP_SEND;
+            end
+            // ── S3 Feature Response ───────────────────────────────────────────
+            MB_S3_FEATURE_RSP_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S3_FEATURE_RSP_WAIT;
+            end
+            MB_S3_FEATURE_RSP_WAIT: begin
+                if(sbfe_rsp_rcvd)        next_state = MB_S4_ERROR_CHECK;
+            end
+            // ── S4 Error Check ────────────────────────────────────────────────
+            MB_S4_ERROR_CHECK: begin
+                if(is_error) next_state = MB_S5_ERROR;
+                else         next_state = MB_S6_DONE;
+            end
+            MB_S6_DONE: begin
+               
+            end
+            MB_S5_ERROR: begin
+                
+            end
+            default: next_state = MB_S0_IDLE;
+        endcase
+    end
+
 end
 ////////////////////////////////////////////////////////
 /////////////// OUTPUT LOGIC ///////////////////////////
@@ -727,26 +673,12 @@ always_comb begin
             mb_param_tx_MsgInfo    = MB_default_MSG_Info;
             mb_param_tx_data_Field = local_capabilities_DataField_S1;
         end
-        // ── S1 Param REQ WAIT: msg in FIFO, stop driving ─────────────────
-        MB_S1_PARAM_REQ_WAIT: begin
-            mb_param_tx_valid      = 1'b0;
-            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = MB_default_data_Field;
-        end
         // ── S1 Param RSP SEND ─────────────────────────────────────────────
         MB_S1_PARAM_RSP_SEND: begin
             mb_param_tx_valid      = 1'b1;
             mb_param_tx_msg_id     = MBINIT_PARAM_configuration_resp;
             mb_param_tx_MsgInfo    = MB_default_MSG_Info;
             mb_param_tx_data_Field = negotiated_capabilities_S1;
-        end
-        // ── S1 Param RSP WAIT ─────────────────────────────────────────────
-        MB_S1_PARAM_RSP_WAIT: begin
-            mb_param_tx_valid      = 1'b0;
-            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = MB_default_data_Field;
         end
         // ── S3 Feature REQ SEND ───────────────────────────────────────────
         MB_S3_FEATURE_REQ_SEND: begin
@@ -755,26 +687,12 @@ always_comb begin
             mb_param_tx_MsgInfo    = MB_default_MSG_Info;
             mb_param_tx_data_Field = local_capabilities_DataField_S2;
         end
-        // ── S3 Feature REQ WAIT ───────────────────────────────────────────
-        MB_S3_FEATURE_REQ_WAIT: begin
-            mb_param_tx_valid      = 1'b0;
-            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = MB_default_data_Field;
-        end
         // ── S3 Feature RSP SEND ───────────────────────────────────────────
         MB_S3_FEATURE_RSP_SEND: begin
             mb_param_tx_valid      = 1'b1;
             mb_param_tx_msg_id     = MBINIT_PARAM_SBFE_resp;
             mb_param_tx_MsgInfo    = MB_default_MSG_Info;
             mb_param_tx_data_Field = negotiated_capabilities_S2;
-        end
-        // ── S3 Feature RSP WAIT ───────────────────────────────────────────
-        MB_S3_FEATURE_RSP_WAIT: begin
-            mb_param_tx_valid      = 1'b0;
-            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = MB_default_data_Field;
         end
         default: begin
             mb_param_tx_valid      = 1'b0;
