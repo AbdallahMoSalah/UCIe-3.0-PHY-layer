@@ -46,7 +46,7 @@
 
 */
 
-module MBINIT_PARAM
+module MBINIT_PARAM_NEW
 
 import UCIe_pkg::*;
 
@@ -116,19 +116,22 @@ import UCIe_pkg::*;
     // --------- STATUS REG ----------
     // -------------------------------
     // From Phy 
-    output logic Clock_Phase_enable_status,
-    output logic Clock_mode_enable_status,
-    output logic TARR_enable_status,
+    output logic Clock_Phase_enable_status;
+    output logic Clock_mode_enable_status;
+    output logic TARR_enable_status;
     // From Link
-    output logic [3:0] Link_Width_enable_status,
-    output logic [3:0] Link_Speed_enable_status,
-    output logic PMO_enable_status,
-    output logic L2SPD_enable_status,
-    output logic PSPT_enable_status,
+    output logic [3:0] Link_Width_enable_status;
+    output logic [3:0] Link_Speed_enable_status;
+    output logic PMO_enable_status;
+    output logic L2SPD_enable_status;
+    output logic PSPT_enable_status;
     
+    // Sideband FIFO ready (write-side handshake)
+    input  logic ltsm_rdy,
+
     // Timer signals
-    output logic mb_param_timer_enable,
-    input  logic mb_param_timeout_expired
+    output logic mb_param_timer_enable;
+    input  logic mb_param_timeout_expired;
 
 );
 
@@ -136,14 +139,14 @@ logic TARR_sel;
 assign TARR_sel = TARR_support_local_ctrl &&  TARR_support_local_cap;
 
 logic L2SPD_sel;
-logic pspt_sel;
+logic PSPT_sel;
 logic PMO_sel;
 assign L2SPD_sel = L2SPD_support_local_ctrl && L2SPD_support_local_cap;
-assign PSPT_sel = PSPT_support_local_ctrl  && PSPT_support_local_cap;
+assign PSPT_sel  = PSPT_support_local_ctrl  && PSPT_support_local_cap;
 assign PMO_sel   = PMO_support_local_ctrl   && PMO_support_local_cap;
 
 logic SFES_sel;
-assign SFES_sel = L2SPD_sel || PSPT_sel|| PMO_sel;
+assign SFES_sel = L2SPD_sel || PSPT_sel || PMO_sel;
 
 // عايزين نشوف حوار ال SPMW
 logic UCIE_x8;
@@ -220,23 +223,31 @@ end
 ////////////////////// STATES //////////////////////////
 ////////////////////////////////////////////////////////
 
-typedef enum logic [2:0] { 
+typedef enum logic [3:0] {
     MB_S0_IDLE,
 
-    MB_S1_PARAM_EXCHANGE_REQ,
-    MB_S1_PARAM_EXCHANGE_RSP,
+    // S1 – Param Exchange (split: SEND waits for FIFO, WAIT waits for partner)
+    MB_S1_PARAM_REQ_SEND,   // drive configuration_req until ltsm_rdy=1
+    MB_S1_PARAM_REQ_WAIT,   // msg in FIFO; wait for partner's configuration_req
+
+    MB_S1_PARAM_RSP_SEND,   // drive configuration_resp until ltsm_rdy=1
+    MB_S1_PARAM_RSP_WAIT,   // msg in FIFO; wait for partner's configuration_resp
 
     MB_S2_ERROR_CHECK,
 
-    MB_S3_FEATURE_EXCHANGE_REQ,
-    MB_S3_FEATURE_EXCHANGE_RSP,
+    // S3 – Feature Exchange (split)
+    MB_S3_FEATURE_REQ_SEND, // drive SBFE_req until ltsm_rdy=1
+    MB_S3_FEATURE_REQ_WAIT, // msg in FIFO; wait for partner's SBFE_req
+
+    MB_S3_FEATURE_RSP_SEND, // drive SBFE_resp until ltsm_rdy=1
+    MB_S3_FEATURE_RSP_WAIT, // msg in FIFO; wait for partner's SBFE_resp
 
     MB_S4_ERROR_CHECK,
 
     MB_S5_ERROR,
 
     MB_S6_DONE
- } mb_param_state_e;
+} mb_param_state_e;
 mb_param_state_e current_state , next_state ;
 
 ////////////////////////////////////////////////////////
@@ -294,7 +305,7 @@ always_comb begin
     local_capabilities_DataField_S2 = 64'b0;
 
     local_capabilities_DataField_S2[4] = L2SPD_sel;
-    local_capabilities_DataField_S2[3] = pspt_sel;
+    local_capabilities_DataField_S2[3] = PSPT_sel;
     local_capabilities_DataField_S2[2] = so;
     local_capabilities_DataField_S2[1] = PMO_sel;
     local_capabilities_DataField_S2[0] = mtp;
@@ -304,27 +315,71 @@ end
 ///////////////// PARTNER CAPABILITIES /////////////////
 ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////
+// ── RX message flags + data-capture – all in one always_ff ──────────────────
+// When mb_param_rx_valid is high, a case on mb_param_rx_msg_id:
+//   • sets the matching flag
+//   • captures the payload into the corresponding register (where applicable)
+// All flags are cleared together when the FSM is reset or returns to IDLE.
+// Registers that have no associated payload keep their last captured value.
+//------------------------------------------------------------------------------
+logic param_req_rcvd;
+logic param_rsp_rcvd;
+logic sbfe_req_rcvd;
+logic sbfe_rsp_rcvd;
+
 logic [63:0] partner_capabilities_DataField_S1;
+logic [63:0] partner_capabilities_DataField_S2;
+logic [63:0] partner_S2_RESP;
+logic [63:0] partner_S4_RESP;
+
 always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        partner_capabilities_DataField_S1 <= 64'h0;
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req)
-        partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
+    if (!rst_n || !mb_param_enable) begin
+        param_req_rcvd                     <= 1'b0;
+        param_rsp_rcvd                     <= 1'b0;
+        sbfe_req_rcvd                      <= 1'b0;
+        sbfe_rsp_rcvd                      <= 1'b0;
+        partner_capabilities_DataField_S1  <= 64'h0;
+        partner_capabilities_DataField_S2  <= 64'h0;
+        partner_S2_RESP                    <= 64'h0;
+        partner_S4_RESP                    <= 64'h0;
+    end else if (current_state == MB_S0_IDLE) begin
+        param_req_rcvd <= 1'b0;
+        param_rsp_rcvd <= 1'b0;
+        sbfe_req_rcvd  <= 1'b0;
+        sbfe_rsp_rcvd  <= 1'b0;
+    end else if (mb_param_rx_valid) begin
+        case (mb_param_rx_msg_id)
+            MBINIT_PARAM_configuration_req : begin
+                param_req_rcvd                    <= 1'b1;
+                partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_configuration_resp : begin
+                param_rsp_rcvd  <= 1'b1;
+                partner_S2_RESP <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_SBFE_req : begin
+                sbfe_req_rcvd                     <= 1'b1;
+                partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
+            end
+            MBINIT_PARAM_SBFE_resp : begin
+                sbfe_rsp_rcvd   <= 1'b1;
+                partner_S4_RESP <= mb_param_rx_data_Field;
+            end
+            default : ; // ignore unrelated messages
+        endcase
+    end
 end
 
 logic partner_TARR_sel;
 logic partner_SFES_sel;
 logic partner_UCIE_x8_sel;
-logic [1:0]partner_Module_ID_sel;
+logic [1:0] partner_Module_ID_sel;
 logic partner_clk_phase_sel;
 logic partner_clk_mode_sel;
-logic [4:0]partner_Supported_TX_Vswing_sel;
-logic [3:0]partner_link_speed_sel;
-
-
+logic [4:0] partner_Supported_TX_Vswing_sel;
+logic [3:0] partner_link_speed_sel;
 
 always_comb begin
-
     partner_TARR_sel                = partner_capabilities_DataField_S1[15];
     partner_SFES_sel                = partner_capabilities_DataField_S1[14];
     partner_UCIE_x8_sel             = partner_capabilities_DataField_S1[13];
@@ -336,14 +391,6 @@ always_comb begin
 end
 
 /////////////////////////////////////////////////////////
-
-logic [63:0] partner_capabilities_DataField_S2;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        partner_capabilities_DataField_S2 <= 64'h0;
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)
-        partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
-end
 
 logic partner_l2spd;
 logic partner_pspt;
@@ -405,8 +452,8 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_clk_mode_negotiated_status           <= clk_mode_sel;
         local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
         
-        local_pmo_negotiated_status                <= PMO_sel;
-        local_l2spd_negotiated_status              <= L2SPD_sel;
+        local_pmo_negotiated_status                <= pmo_sel;
+        local_l2spd_negotiated_status              <= l2spd_sel;
         local_pspt_negotiated_status               <= pspt_sel;
         local_so_negotiated                        <= so;
         local_mtp_negotiated                       <= mtp;
@@ -428,10 +475,10 @@ always_ff @(posedge clk or negedge rst_n) begin
     // S2 NEGOTIATION (SBFE features)
     ////////////////////////////////////////////////////////
     else if (sbfe_req_rcvd) begin
-        local_l2spd_negotiated_status <= L2SPD_sel     & partner_l2spd;
-        local_pspt_negotiated_status  <= PSPT_sel     & partner_pspt;
+        local_l2spd_negotiated_status <= l2spd_sel     & partner_l2spd;
+        local_pspt_negotiated_status  <= pspt_sel      & partner_pspt;
         local_so_negotiated           <= so            & partner_so;
-        local_pmo_negotiated_status   <= PMO_sel       & partner_pmo;
+        local_pmo_negotiated_status   <= pmo_sel       & partner_pmo;
         local_mtp_negotiated          <= mtp           & partner_mtp;
     end
 end
@@ -463,10 +510,10 @@ end
 /////////// partner RESP Negotiation log  //////////////
 ////////////////////////////////////////////////////////
 logic partner_TARR_negotiated_status;
-logic partner_SFES_negotiated;                   
-logic partner_clk_phase_negotiated_status;        
-logic partner_clk_mode_negotiated_status;         
-logic [3:0] partner_Link_speed_enabled_negotiate_status;
+logic partner_SFES_negotiated                    
+logic partner_clk_phase_negotiated_status        
+logic partner_clk_mode_negotiated_status         
+logic [3:0] partner_Link_speed_enabled_negotiate_status 
 
 
 logic partner_l2spd_negotiated_status;
@@ -476,14 +523,7 @@ logic partner_pmo_negotiated_status;
 logic partner_mtp_negotiated;
 
 
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n || !mb_param_enable)
-        partner_S2_RESP <= 64'b0;
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_resp)
-        partner_S2_RESP <= mb_param_rx_data_Field;
-end
 
-logic [63:0] partner_S2_RESP;
 always_comb begin
     partner_TARR_negotiated_status              = partner_S2_RESP[15];
     partner_SFES_negotiated                     = partner_S2_RESP[14];
@@ -492,14 +532,7 @@ always_comb begin
     partner_Link_speed_enabled_negotiate_status = partner_S2_RESP[3:0];
 end
 
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n || !mb_param_enable)
-        partner_S4_RESP <= 64'b0;
-    else if(mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_resp)
-        partner_S4_RESP <= mb_param_rx_data_Field;
-end
 
-logic [63:0] partner_S4_RESP;
 always_comb begin
     partner_l2spd_negotiated_status              = partner_S4_RESP[4];
     partner_pspt_negotiated_status               = partner_S4_RESP[3];
@@ -533,28 +566,7 @@ always_comb begin
 end
 
 
-////////////////////////////////////////////////////////
-//////////////// Entry Detection logic /////////////////
-////////////////////////////////////////////////////////
-logic s1_req_entry;
-logic s1_resp_entry;
-logic s3_req_entry;
-logic s3_resp_entry;
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        s1_req_entry  <= 0;
-        s1_resp_entry <= 0;
-        s3_req_entry  <= 0;
-        s3_resp_entry <= 0;
-    end
-
-    else begin
-        s1_req_entry  <= (current_state != MB_S1_PARAM_EXCHANGE_REQ)   && (next_state == MB_S1_PARAM_EXCHANGE_REQ);
-        s1_resp_entry <= (current_state != MB_S1_PARAM_EXCHANGE_RSP)   && (next_state == MB_S1_PARAM_EXCHANGE_RSP);
-        s3_req_entry  <= (current_state != MB_S3_FEATURE_EXCHANGE_REQ) && (next_state == MB_S3_FEATURE_EXCHANGE_REQ);
-        s3_resp_entry <= (current_state != MB_S3_FEATURE_EXCHANGE_RSP) && (next_state == MB_S3_FEATURE_EXCHANGE_RSP);
-    end
-end
+// Entry-detection flip-flops removed – _SEND states handle first-cycle TX.
 ////////////////////////////////////////////////////////
 /////////////////// TIMEOUT TIMER //////////////////////
 ////////////////////////////////////////////////////////
@@ -562,59 +574,6 @@ logic mb_param_timeout_error;
 assign mb_param_timeout_error = mb_param_timeout_expired && !mb_param_done;
 
 assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_error;
-
-////////////////////////////////////////////////////////
-////////////////// HANDSHAKE FLAGS /////////////////////
-////////////////////////////////////////////////////////
-logic param_req_rcvd;
-logic param_rsp_rcvd;
-
-logic sbfe_req_rcvd;
-logic sbfe_rsp_rcvd;
-//-----------------------------------------------------
-// PARAM REQ received
-//-----------------------------------------------------
-always_ff @(posedge clk or negedge rst_n) begin
-if(!rst_n)
-    param_req_rcvd <= 0;
-else if(current_state == MB_S1_PARAM_EXCHANGE_REQ && mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_req)
-    param_req_rcvd <= 1;
-else if(current_state != MB_S1_PARAM_EXCHANGE_REQ)
-    param_req_rcvd <= 0;
-end
-//-----------------------------------------------------
-// PARAM RSP received
-//-----------------------------------------------------
-always_ff @(posedge clk or negedge rst_n) begin
-if(!rst_n)
-    param_rsp_rcvd <= 0;
-else if(current_state == MB_S1_PARAM_EXCHANGE_RSP && mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_configuration_resp)
-    param_rsp_rcvd <= 1;
-else if(current_state != MB_S1_PARAM_EXCHANGE_RSP)
-    param_rsp_rcvd <= 0;
-end
-//-----------------------------------------------------
-// SBFE REQ received
-//-----------------------------------------------------
-always_ff @(posedge clk or negedge rst_n) begin
-if(!rst_n)
-    sbfe_req_rcvd <= 0;
-else if(current_state == MB_S3_FEATURE_EXCHANGE_REQ && mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)
-    sbfe_req_rcvd <= 1;
-else if(current_state != MB_S3_FEATURE_EXCHANGE_REQ)
-    sbfe_req_rcvd <= 0;
-end
-//-----------------------------------------------------
-// SBFE RSP received
-//-----------------------------------------------------
-always_ff @(posedge clk or negedge rst_n) begin
-if(!rst_n)
-    sbfe_rsp_rcvd <= 0;
-else if(current_state == MB_S3_FEATURE_EXCHANGE_RSP && mb_param_rx_valid && mb_param_rx_msg_id == MBINIT_PARAM_SBFE_resp)
-    sbfe_rsp_rcvd <= 1;
-else if(current_state != MB_S3_FEATURE_EXCHANGE_RSP)
-    sbfe_rsp_rcvd <= 0;
-end
 
 ////////////////////////////////////////////////////////
 ////////////////// STATE REGISTER //////////////////////
@@ -632,121 +591,69 @@ end
 always_comb begin
 
     next_state = current_state;
+    if(!mb_param_enable)begin
+        next_state = MB_S0_IDLE;
+    end
+    else if(mb_param_timeout_error)begin
+        next_state = MB_S5_ERROR;
+    end
+    else begin
+        case(current_state)
+            MB_S0_IDLE: begin
+                if(mb_param_enable)
+                    next_state = MB_S1_PARAM_REQ_SEND;
+            end
+            // ── S1 Param Request ──────────────────────────────────────────────
+            MB_S1_PARAM_REQ_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S1_PARAM_REQ_WAIT;
+            end
+            MB_S1_PARAM_REQ_WAIT: begin
+                if(param_req_rcvd)       next_state = MB_S1_PARAM_RSP_SEND;
+            end
+            // ── S1 Param Response ─────────────────────────────────────────────
+            MB_S1_PARAM_RSP_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S1_PARAM_RSP_WAIT;
+            end
+            MB_S1_PARAM_RSP_WAIT: begin
+                if(param_rsp_rcvd)       next_state = MB_S2_ERROR_CHECK;
+            end
+            // ── S2 Error Check ────────────────────────────────────────────────
+            MB_S2_ERROR_CHECK: begin
+                if(!is_error) begin
+                    if(is_SFES) next_state = MB_S3_FEATURE_REQ_SEND;
+                    else        next_state = MB_S6_DONE;
+                end
+                else next_state = MB_S5_ERROR;
+            end
+            // ── S3 Feature Request ────────────────────────────────────────────
+            MB_S3_FEATURE_REQ_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S3_FEATURE_REQ_WAIT;
+            end
+            MB_S3_FEATURE_REQ_WAIT: begin
+                if(sbfe_req_rcvd)        next_state = MB_S3_FEATURE_RSP_SEND;
+            end
+            // ── S3 Feature Response ───────────────────────────────────────────
+            MB_S3_FEATURE_RSP_SEND: begin
+                if(ltsm_rdy)             next_state = MB_S3_FEATURE_RSP_WAIT;
+            end
+            MB_S3_FEATURE_RSP_WAIT: begin
+                if(sbfe_rsp_rcvd)        next_state = MB_S4_ERROR_CHECK;
+            end
+            // ── S4 Error Check ────────────────────────────────────────────────
+            MB_S4_ERROR_CHECK: begin
+                if(is_error) next_state = MB_S5_ERROR;
+                else         next_state = MB_S6_DONE;
+            end
+            MB_S6_DONE: begin
+               
+            end
+            MB_S5_ERROR: begin
+                
+            end
+            default: next_state = MB_S0_IDLE;
+        endcase
+    end
 
-    case(current_state)
-        MB_S0_IDLE: begin
-            if(mb_param_enable) begin
-                next_state = MB_S1_PARAM_EXCHANGE_REQ;
-            end
-            else if(mb_param_timeout_error)begin
-                next_state = MB_S5_ERROR;
-            end
-        end
-        ////////////////////////////////////////////////
-        MB_S1_PARAM_EXCHANGE_REQ: begin
-            if(!mb_param_enable)begin
-                next_state = MB_S0_IDLE;
-            end 
-            else if(mb_param_timeout_error)begin
-                next_state = MB_S5_ERROR;
-            end
-            else if(param_req_rcvd) begin
-                next_state = MB_S1_PARAM_EXCHANGE_RSP;
-            end
-            else begin
-                next_state = MB_S1_PARAM_EXCHANGE_REQ;
-            end
-        end
-        ////////////////////////////////////////////////
-        MB_S1_PARAM_EXCHANGE_RSP: begin
-            if(!mb_param_enable)begin
-                next_state = MB_S0_IDLE; // Return to idle.
-            end
-            else if(mb_param_timeout_error)begin
-                next_state = MB_S5_ERROR;
-            end
-            else if(param_rsp_rcvd) begin
-                next_state = MB_S2_ERROR_CHECK ;
-            end
-            else begin
-                next_state = MB_S1_PARAM_EXCHANGE_RSP;
-            end
-        end
-        ////////////////////////////////////////////////
-        MB_S2_ERROR_CHECK: begin
-            if(!is_error && !mb_param_timeout_error) begin
-                if(is_SFES)begin
-                    next_state = MB_S3_FEATURE_EXCHANGE_REQ;
-                end
-                else begin
-                    next_state = MB_S6_DONE;
-                end
-            end
-            else begin
-                next_state = MB_S5_ERROR;
-            end
-        end
-        ////////////////////////////////////////////////
-        MB_S3_FEATURE_EXCHANGE_REQ: begin
-            if(!mb_param_enable)begin
-                next_state = MB_S0_IDLE;
-            end
-            else if(mb_param_timeout_error)begin
-                next_state = MB_S5_ERROR;
-            end
-            else if(sbfe_req_rcvd)begin
-                next_state = MB_S3_FEATURE_EXCHANGE_RSP;
-            end
-            else begin
-                next_state = MB_S3_FEATURE_EXCHANGE_REQ;                
-            end
-        end
-        ///////////////////////////////////////////////
-        MB_S3_FEATURE_EXCHANGE_RSP: begin
-            if(!mb_param_enable)begin
-                next_state = MB_S0_IDLE;
-            end
-            else if(mb_param_timeout_error)begin
-                next_state = MB_S5_ERROR;
-            end
-            else if(sbfe_rsp_rcvd) begin
-                next_state = MB_S4_ERROR_CHECK;
-            end
-            else begin
-                next_state = MB_S3_FEATURE_EXCHANGE_RSP;
-            end            
-        end
-        ///////////////////////////////////////////////
-        MB_S4_ERROR_CHECK: begin
-            if(is_error)begin
-                next_state = MB_S5_ERROR;
-            end
-            else begin
-                next_state = MB_S6_DONE;
-            end
-        end
-        ///////////////////////////////////////////////
-        MB_S6_DONE: begin
-            if(!mb_param_enable) begin
-                next_state = MB_S0_IDLE;
-            end 
-            else begin
-                next_state = MB_S6_DONE;
-            end   
-        end
-        ///////////////////////////////////////////////
-        MB_S5_ERROR: begin
-            if(!mb_param_enable) begin
-                next_state = MB_S0_IDLE;
-            end 
-            else begin
-                next_state = MB_S5_ERROR;
-            end   
-        end
-        default: begin
-            next_state = MB_S0_IDLE;
-        end
-    endcase
 end
 ////////////////////////////////////////////////////////
 /////////////// OUTPUT LOGIC ///////////////////////////
@@ -759,72 +666,39 @@ always_comb begin
     mb_param_tx_data_Field  = MB_default_data_Field;
 
     case(current_state)
-
-        MB_S1_PARAM_EXCHANGE_REQ: begin
-            if(s1_req_entry) begin
-                mb_param_tx_valid       = 1'b1;
-                mb_param_tx_msg_id      = MBINIT_PARAM_configuration_req;
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = local_capabilities_DataField_S1;    
-            end
-            else begin
-                mb_param_tx_valid       = 1'b0;
-                mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = MB_default_data_Field;
-            end
+        // ── S1 Param REQ SEND: drive msg every cycle until FIFO accepts ──
+        MB_S1_PARAM_REQ_SEND: begin
+            mb_param_tx_valid      = 1'b1;
+            mb_param_tx_msg_id     = MBINIT_PARAM_configuration_req;
+            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            mb_param_tx_data_Field = local_capabilities_DataField_S1;
         end
-
-        MB_S1_PARAM_EXCHANGE_RSP: begin
-            if(s1_resp_entry) begin
-                mb_param_tx_valid       = 1'b1;
-                mb_param_tx_msg_id      = MBINIT_PARAM_configuration_resp;
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = negotiated_capabilities_S1;    
-            end
-            else begin
-                mb_param_tx_valid       = 1'b0;
-                mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = MB_default_data_Field;                
-            end
+        // ── S1 Param RSP SEND ─────────────────────────────────────────────
+        MB_S1_PARAM_RSP_SEND: begin
+            mb_param_tx_valid      = 1'b1;
+            mb_param_tx_msg_id     = MBINIT_PARAM_configuration_resp;
+            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            mb_param_tx_data_Field = negotiated_capabilities_S1;
         end
-
-        MB_S3_FEATURE_EXCHANGE_REQ: begin
-            if(s3_req_entry) begin
-                mb_param_tx_valid       = 1'b1;
-                mb_param_tx_msg_id      = MBINIT_PARAM_SBFE_req;
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = local_capabilities_DataField_S2;    
-            end
-            else begin
-                mb_param_tx_valid       = 1'b0;
-                mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = MB_default_data_Field;
-            end
+        // ── S3 Feature REQ SEND ───────────────────────────────────────────
+        MB_S3_FEATURE_REQ_SEND: begin
+            mb_param_tx_valid      = 1'b1;
+            mb_param_tx_msg_id     = MBINIT_PARAM_SBFE_req;
+            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            mb_param_tx_data_Field = local_capabilities_DataField_S2;
         end
-
-        MB_S3_FEATURE_EXCHANGE_RSP: begin
-            if(s3_resp_entry) begin
-                mb_param_tx_valid       = 1'b1;
-                mb_param_tx_msg_id      = MBINIT_PARAM_SBFE_resp;
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = negotiated_capabilities_S2;    
-            end
-            else begin
-                mb_param_tx_valid       = 1'b0;
-                mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-                mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-                mb_param_tx_data_Field  = MB_default_data_Field;                
-            end
+        // ── S3 Feature RSP SEND ───────────────────────────────────────────
+        MB_S3_FEATURE_RSP_SEND: begin
+            mb_param_tx_valid      = 1'b1;
+            mb_param_tx_msg_id     = MBINIT_PARAM_SBFE_resp;
+            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            mb_param_tx_data_Field = negotiated_capabilities_S2;
         end
-
         default: begin
-            mb_param_tx_valid       = 1'b0;
-            mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-            mb_param_tx_data_Field  = MB_default_data_Field;                
+            mb_param_tx_valid      = 1'b0;
+            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
+            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            mb_param_tx_data_Field = MB_default_data_Field;
         end
     endcase
 end
