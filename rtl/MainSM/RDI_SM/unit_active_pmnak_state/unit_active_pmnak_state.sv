@@ -7,225 +7,247 @@
 import RDI_SM_pkg::*;
 import UCIe_pkg::*;
 
-module unit_active_pmnak_state(
-    input logic lclk,                   // Local clock
-    input logic rst_n,                  // Asynchronous active-low reset
-    input logic lp_linkerror,           // Link error indicator from Adapter
-    input RDI_state lp_state_req,       // Requested state from Adapter
-    input msg_no_e message_receive,     // Received message from the other interface
-    input logic stall_done,             // Indicator that the stall handshake is complete
-    input logic EN,                     // Enable signal for the state machine
+module unit_active_pmnak_state (
+    input  logic    lclk,            // Local clock
+    input  logic    rst_n,           // Asynchronous active-low reset
+    input  logic    lp_linkerror,    // Link error indicator from Adapter
+    input  RDI_state lp_state_req,   // Requested state from Adapter
+    input  msg_no_e message_receive, // Received message from the other interface
+    input  logic    stall_done,      // Indicator that the stall handshake is complete
+    input  logic    en,              // Enable signal for the state machine
     
-    output logic stall_req,             // Request to stall the interface pipeline
-    output msg_no_e message_send,       // Message to send to the other interface
-    output RDI_state next_state         // Next main state to transition to
+    output logic    stall_req,       // Request to stall the interface pipeline
+    output msg_no_e message_send,    // Message to send to the other interface
+    output RDI_state next_state      // Next main state to transition to (registered output)
 );
 
-    // active_pmnak_state enumeration declaring main operational statuses
-    typedef enum logic [4:0] { 
-        state_disabled,   // Inactive module state
-        idle,             // Awaiting new incoming requests or messages
-        stall_handshake,  // Coordinating with pipeline stall request logic
-        le_send_req,      // Link Error handshake: Sending request
-        le_send_resp,     // Link Error handshake: Sending response
-        active,           // Loopback / confirm active state
-        d_send_req,       // Disable handshake: Sending request
-        d_send_resp,      // Disable handshake: Sending response
-        rt_send_req,      // Retrain handshake: Sending request
-        rt_send_resp,     // Retrain handshake: Sending response
-        lr_send_req,      // Link Reset handshake: Sending request
-        lr_send_resp,     // Link Reset handshake: Sending response
-        linkerror,        // Settled into LinkError
-        disabled,         // Settled into Disabled
-        retrain,          // Settled into Retrain
-        linkreset         // Settled into LinkReset
+    // active_pmnak_state enumeration declaring main operational statuses.
+    // One-hot encoding is selected here because high-speed interfaces like UCIe benefit
+    // from one-hot state machines on both FPGA and ASIC targets. In FPGAs, register
+    // resources are abundant, and one-hot encoding reduces next-state combinational logic
+    // depth, helping to achieve timing closure at high clock frequencies.
+    typedef enum logic [15:0] { 
+        STATE_DISABLED  = 16'h0001,   // Inactive module state
+        IDLE            = 16'h0002,   // Awaiting new incoming requests or messages
+        STALL_HANDSHAKE = 16'h0004,   // Coordinating with pipeline stall request logic
+        LE_SEND_REQ     = 16'h0008,   // Link Error handshake: Sending request
+        LE_SEND_RESP    = 16'h0010,   // Link Error handshake: Sending response
+        ACTIVE          = 16'h0020,   // Loopback / confirm active state
+        D_SEND_REQ      = 16'h0040,   // Disable handshake: Sending request
+        D_SEND_RESP     = 16'h0080,   // Disable handshake: Sending response
+        RT_SEND_REQ     = 16'h0100,   // Retrain handshake: Sending request
+        RT_SEND_RESP    = 16'h0200,   // Retrain handshake: Sending response
+        LR_SEND_REQ     = 16'h0400,   // Link Reset handshake: Sending request
+        LR_SEND_RESP    = 16'h0800,   // Link Reset handshake: Sending response
+        LINK_ERROR      = 16'h1000,   // Settled into LinkError
+        DISABLED        = 16'h2000,   // Settled into Disabled
+        RETRAIN         = 16'h4000,   // Settled into Retrain
+        LINK_RESET      = 16'h8000    // Settled into LinkReset
     } active_pmnak_state;
 
     // flow_state enumeration to preserve intent across the 'stall_handshake' delay
     typedef enum logic [2:0] { 
-        flow0, // Preserves the intent to send Disable Response
-        flow1, // Preserves the intent to send Disable Request
-        flow2, // Preserves the intent to send Retrain Response
-        flow3, // Preserves the intent to send Retrain Request
-        flow4, // Preserves the intent to send Link Reset Request
-        flow5  // Preserves the intent to send Link Reset Response
+        FLOW_DISABLE_RSP,
+        FLOW_DISABLE_REQ,
+        FLOW_RETRAIN_RSP,
+        FLOW_RETRAIN_REQ,
+        FLOW_LINK_RESET_REQ,
+        FLOW_LINK_RESET_RSP
     } flow_state;
 
     // Internal state variables 
-    active_pmnak_state cs;
-    flow_state flow;
+    active_pmnak_state current_state;
+    flow_state         flow;
 
     // Sequential logic for state machine transitions
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            cs <= state_disabled;
-            flow <= flow0;
-            next_state <= Nop;
-            stall_req <= 1'b0;
-            message_send <= NOP;
-        end else if (!EN) begin
-            cs <= state_disabled;
-            next_state <= Nop;
-            stall_req <= 1'b0;
-            message_send <= NOP;
+            current_state <= STATE_DISABLED;
+            flow          <= FLOW_DISABLE_RSP;
+            next_state    <= Nop;
+            stall_req     <= 1'b0;
+            message_send  <= NOP;
+        end else if (!en) begin
+            current_state <= STATE_DISABLED;
+            flow          <= FLOW_DISABLE_RSP;
+            next_state    <= Nop;
+            stall_req     <= 1'b0;
+            message_send  <= NOP;
         end else begin
-            case(cs)
+            case (current_state)
                 // --- STATE_DISABLED ---
-                state_disabled: begin
-                    if (EN) begin
-                        cs <= idle;
-                        next_state <= Active;
-                    end
+                STATE_DISABLED: begin
+                    current_state <= IDLE;
+                    next_state    <= Active;
                 end
 
                 // --- IDLE ---
-                idle: begin
+                IDLE: begin
                     if (message_receive == RDI_LINK_ERROR_REQ) begin
-                        cs <= le_send_resp;
-                        message_send <= RDI_LINK_ERROR_RSP;
+                        current_state <= LE_SEND_RESP;
+                        message_send  <= RDI_LINK_ERROR_RSP;
                     end else if (lp_linkerror) begin
-                        cs <= le_send_req;
-                        message_send <= RDI_LINK_ERROR_REQ;
+                        current_state <= LE_SEND_REQ;
+                        message_send  <= RDI_LINK_ERROR_REQ;
                     end else if (lp_state_req == Active) begin
-                        cs <= active;
-                        next_state <= Active;
+                        current_state <= ACTIVE;
+                        next_state    <= Active;
                     end else if (message_receive == RDI_DISABLE_REQ) begin
-                        cs <= stall_handshake;
-                        flow <= flow0;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_DISABLE_RSP;
+                        stall_req     <= 1'b1;
                     end else if (lp_state_req == Disabled) begin
-                        cs <= stall_handshake;
-                        flow <= flow1;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_DISABLE_REQ;
+                        stall_req     <= 1'b1;
                     end else if (message_receive == RDI_RETRAIN_REQ) begin
-                        cs <= stall_handshake;
-                        flow <= flow2;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_RETRAIN_RSP;
+                        stall_req     <= 1'b1;
                     end else if (lp_state_req == Retrain) begin
-                        cs <= stall_handshake;
-                        flow <= flow3;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_RETRAIN_REQ;
+                        stall_req     <= 1'b1;
                     end else if (lp_state_req == LinkReset) begin
-                        cs <= stall_handshake;
-                        flow <= flow4;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_LINK_RESET_REQ;
+                        stall_req     <= 1'b1;
                     end else if (message_receive == RDI_LINK_RESET_REQ) begin
-                        cs <= stall_handshake;
-                        flow <= flow5;
-                        stall_req <= 1'b1;
+                        current_state <= STALL_HANDSHAKE;
+                        flow          <= FLOW_LINK_RESET_RSP;
+                        stall_req     <= 1'b1;
                     end
                 end
 
                 // --- STALL HANDSHAKE ---
-                stall_handshake: begin
+                STALL_HANDSHAKE: begin
+                    // De-assert stall_req to create a single-cycle pulse since it was asserted in IDLE
                     stall_req <= 1'b0; 
                     if (stall_done) begin
-                        case(flow)
-                            flow0: begin
-                                message_send <= RDI_DISABLE_RSP;
-                                cs <= d_send_resp;
+                        case (flow)
+                            FLOW_DISABLE_RSP: begin
+                                message_send  <= RDI_DISABLE_RSP;
+                                current_state <= D_SEND_RESP;
                             end
-                            flow1: begin
-                                message_send <= RDI_DISABLE_REQ;
-                                cs <= d_send_req;
+                            FLOW_DISABLE_REQ: begin
+                                message_send  <= RDI_DISABLE_REQ;
+                                current_state <= D_SEND_REQ;
                             end
-                            flow2: begin
-                                message_send <= RDI_RETRAIN_RSP;
-                                cs <= rt_send_resp;
+                            FLOW_RETRAIN_RSP: begin
+                                message_send  <= RDI_RETRAIN_RSP;
+                                current_state <= RT_SEND_RESP;
                             end
-                            flow3: begin
-                                message_send <= RDI_RETRAIN_REQ;
-                                cs <= rt_send_req;
+                            FLOW_RETRAIN_REQ: begin
+                                message_send  <= RDI_RETRAIN_REQ;
+                                current_state <= RT_SEND_REQ;
                             end
-                            flow4: begin
-                                message_send <= RDI_LINK_RESET_REQ;
-                                cs <= lr_send_req;
+                            FLOW_LINK_RESET_REQ: begin
+                                message_send  <= RDI_LINK_RESET_REQ;
+                                current_state <= LR_SEND_REQ;
                             end
-                            flow5: begin
-                                message_send <= RDI_LINK_RESET_RSP;
-                                cs <= lr_send_resp;
+                            FLOW_LINK_RESET_RSP: begin
+                                message_send  <= RDI_LINK_RESET_RSP;
+                                current_state <= LR_SEND_RESP;
+                            end
+                            default: begin
+                                message_send  <= NOP;
+                                current_state <= STALL_HANDSHAKE;
                             end
                         endcase
                     end
                 end
 
                 // --- LINK ERROR HANDSHAKE ---
-                le_send_req: begin
+                LE_SEND_REQ: begin
                     message_send <= NOP;
                     if (message_receive == RDI_LINK_ERROR_RSP) begin
-                        cs <= linkerror;
-                        next_state <= LinkError;
+                        current_state <= LINK_ERROR;
+                        next_state    <= LinkError;
                     end
                 end
 
-                le_send_resp: begin
-                    message_send <= NOP;
-                    cs <= linkerror;
-                    next_state <= LinkError;
+                LE_SEND_RESP: begin
+                    message_send  <= NOP;
+                    current_state <= LINK_ERROR;
+                    next_state    <= LinkError;
                 end
                 
-                linkerror: begin
-                    // Transition handled by EN de-assertion logic
-                end
-
-                active: begin
-                    // Transition handled by EN de-assertion logic
-                end
-
-                d_send_req: begin
+                D_SEND_REQ: begin
                     message_send <= NOP;
                     if (message_receive == RDI_DISABLE_RSP) begin
-                        cs <= disabled;
-                        next_state <= Disabled;
+                        current_state <= DISABLED;
+                        next_state    <= Disabled;
                     end
                 end
 
-                d_send_resp: begin
-                    message_send <= NOP;
-                    cs <= disabled;
-                    next_state <= Disabled;
+                D_SEND_RESP: begin
+                    message_send  <= NOP;
+                    current_state <= DISABLED;
+                    next_state    <= Disabled;
                 end
 
-                disabled: begin
-                    // Transition handled by EN de-assertion logic
-                end
-
-                rt_send_req: begin
+                RT_SEND_REQ: begin
                     message_send <= NOP;
                     if (message_receive == RDI_RETRAIN_RSP) begin
-                        cs <= retrain;
-                        next_state <= Retrain;
+                        current_state <= RETRAIN;
+                        next_state    <= Retrain;
                     end
                 end
 
-                rt_send_resp: begin
-                    message_send <= NOP;
-                    cs <= retrain;
-                    next_state <= Retrain;
+                RT_SEND_RESP: begin
+                    message_send  <= NOP;
+                    current_state <= RETRAIN;
+                    next_state    <= Retrain;
                 end
 
-                retrain: begin
-                    // Transition handled by EN de-assertion logic
-                end
-
-                lr_send_req: begin
+                LR_SEND_REQ: begin
                     message_send <= NOP;
                     if (message_receive == RDI_LINK_RESET_RSP) begin
-                        cs <= linkreset;
-                        next_state <= LinkReset;
+                        current_state <= LINK_RESET;
+                        next_state    <= LinkReset;
                     end
                 end
 
-                lr_send_resp: begin
-                    message_send <= NOP;
-                    cs <= linkreset;
-                    next_state <= LinkReset;
+                LR_SEND_RESP: begin
+                    message_send  <= NOP;
+                    current_state <= LINK_RESET;
+                    next_state    <= LinkReset;
                 end
 
-                linkreset: begin
-                    // Transition handled by EN de-assertion logic
+                // ==========================================
+                // Settled Terminal States
+                // ==========================================
+                LINK_ERROR: begin
+                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
+                    flow <= FLOW_DISABLE_RSP;
                 end
 
+                ACTIVE: begin
+                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
+                    flow <= FLOW_DISABLE_RSP;
+                end
+
+                DISABLED: begin
+                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
+                    flow <= FLOW_DISABLE_RSP;
+                end
+
+                RETRAIN: begin
+                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
+                    flow <= FLOW_DISABLE_RSP;
+                end
+
+                LINK_RESET: begin
+                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
+                    flow <= FLOW_DISABLE_RSP;
+                end
+
+                default: begin
+                    current_state <= STATE_DISABLED;
+                    next_state    <= Nop;
+                    stall_req     <= 1'b0;
+                    message_send  <= NOP;
+                end
             endcase
         end
     end

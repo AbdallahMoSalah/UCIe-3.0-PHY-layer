@@ -13,7 +13,27 @@ module unit_msg_handler(
     output msg_no_e Message_receive
 );
     typedef enum logic [2:0] {IDLE, LnkMsgS, LnkMsgR, ActvHsS} state;
-    state cs=IDLE;
+    state cs = IDLE;
+
+    // ---------------------------------------------------------------
+    // 1-entry RX capture register
+    // Captures every valid_r pulse unconditionally so a message
+    // arriving while the FSM is busy is never silently dropped.
+    // ---------------------------------------------------------------
+    msg_no_e pending_rx_msg;
+    logic    pending_rx_valid;
+
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (~rst_n) begin
+            pending_rx_msg   <= NOP;
+            pending_rx_valid <= 1'b0;
+        end else begin
+            if (valid_r) begin
+                pending_rx_msg   <= Link_Mgmt_Msg_Received;
+                pending_rx_valid <= 1'b1;
+            end
+        end
+    end
 
     always_ff @(posedge lclk or negedge rst_n) begin
         if (~rst_n) begin
@@ -33,9 +53,10 @@ module unit_msg_handler(
                     Link_Mgmt_Msg_Send <= Message_send;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (valid_r == 1'b1) begin //transition to LnkMsgR
-                    cs <= LnkMsgR;
-                    Message_receive <= Link_Mgmt_Msg_Received;
+                else if (pending_rx_valid) begin //transition to LnkMsgR
+                    cs               <= LnkMsgR;
+                    Message_receive  <= pending_rx_msg;
+                    pending_rx_valid <= 1'b0;
                 end
                 //--------------------------------------------------------------------------------------
                 else if (Active_message_send != NOP) begin //transition to ActvHsS
@@ -60,9 +81,10 @@ module unit_msg_handler(
                     Link_Mgmt_Msg_Send <= Message_send;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (valid_r == 1'b1) begin //transition to LnkMsgR
-                    cs <= LnkMsgR;
-                    Message_receive <= Link_Mgmt_Msg_Received;
+                else if (pending_rx_valid) begin //transition to LnkMsgR
+                    cs               <= LnkMsgR;
+                    Message_receive  <= pending_rx_msg;
+                    pending_rx_valid <= 1'b0;
                 end
                 //--------------------------------------------------------------------------------------
                 else if (Active_message_send != NOP) begin //transition to ActvHsS
@@ -94,9 +116,10 @@ module unit_msg_handler(
                     Link_Mgmt_Msg_Send <= Message_send;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (valid_r == 1'b1) begin //transition to LnkMsgR
-                    cs <= LnkMsgR;
-                    Message_receive <= Link_Mgmt_Msg_Received;
+                else if (pending_rx_valid) begin //transition to LnkMsgR
+                    cs               <= LnkMsgR;
+                    Message_receive  <= pending_rx_msg;
+                    pending_rx_valid <= 1'b0;
                 end
                 //--------------------------------------------------------------------------------------
                 else if (Active_message_send != NOP) begin //transition to ActvHsS
@@ -128,9 +151,10 @@ module unit_msg_handler(
                     Link_Mgmt_Msg_Send <= Message_send;
                 end
                 //--------------------------------------------------------------------------------------
-                else if (valid_r == 1'b1) begin //transition to LnkMsgR
-                    cs <= LnkMsgR;
-                    Message_receive <= Link_Mgmt_Msg_Received;
+                else if (pending_rx_valid) begin //transition to LnkMsgR
+                    cs               <= LnkMsgR;
+                    Message_receive  <= pending_rx_msg;
+                    pending_rx_valid <= 1'b0;
                 end
                 //--------------------------------------------------------------------------------------
                 else if (Active_message_send != NOP) begin //transition to ActvHsS

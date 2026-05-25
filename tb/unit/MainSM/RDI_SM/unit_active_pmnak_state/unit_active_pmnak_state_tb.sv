@@ -17,7 +17,7 @@ module unit_active_pmnak_state_tb();
     RDI_state lp_state_req;
     msg_no_e message_receive;
     logic stall_done;
-    logic EN;
+    logic en;
 
     // Testbench Outputs
     logic stall_req;
@@ -36,7 +36,7 @@ module unit_active_pmnak_state_tb();
         .lp_state_req(lp_state_req),
         .message_receive(message_receive),
         .stall_done(stall_done),
-        .EN(EN),
+        .en(en),
         .stall_req(stall_req),
         .message_send(message_send),
         .next_state(next_state)
@@ -65,14 +65,14 @@ module unit_active_pmnak_state_tb();
     task reset_uut;
         begin
             rst_n = 0;
-            EN = 0;
+            en = 0;
             lp_linkerror = 0;
             lp_state_req = Nop;
             message_receive = NOP;
             stall_done = 0;
             #20;
             rst_n = 1;
-            EN = 1; 
+            en = 1; 
             #30; 
         end
     endtask
@@ -105,7 +105,7 @@ module unit_active_pmnak_state_tb();
         // --- Scenario 1: Basic Reset and Enable ---
         $display("\n--- Scenario 1: Reset and transition to Idle ---");
         reset_uut();
-        check_condition((uut.cs == 5'd1), "Did not reach idle state."); // idle is 5'd1
+        check_condition((uut.current_state.name() == "IDLE"), "Did not reach IDLE state.");
         
         // --- Scenario 2: message_receive == RDI_LINK_ERROR_REQ ---
         $display("\n--- Scenario 2: Peer RDI_LINK_ERROR_REQ ---");

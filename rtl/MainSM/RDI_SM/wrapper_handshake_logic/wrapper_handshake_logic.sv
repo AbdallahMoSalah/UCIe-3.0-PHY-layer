@@ -4,9 +4,9 @@ module wrapper_handshake_logic(
     input  logic lclk,
     input  logic rst_n,
     // AWAKE Handshake
-    input  logic lp_awak_req,
+    input  logic lp_wake_req,
     input  logic ungating_done,
-    output logic pl_awak_ack,
+    output logic pl_wake_ack,
     output logic ungating_req,
     
     // STALL Handshake
@@ -40,11 +40,11 @@ module wrapper_handshake_logic(
     );
 
     unit_awak_handshake u2 (
-        .lp_awak_req(lp_awak_req),
+        .lp_wake_req(lp_wake_req),
         .ungating_done(ungating_done),
         .lclk(lclk),
         .rst_n(rst_n),
-        .pl_awak_ack(pl_awak_ack),
+        .pl_wake_ack(pl_wake_ack),
         .ungating_req(ungating_req)
     );
 
@@ -62,10 +62,10 @@ module wrapper_handshake_logic(
         .rst_n(rst_n),
         .pm_exit(pm_exit),
         .message_receive(message_receive),
-        .Active_handshake_strt(Active_handshake_strt),
+        .active_handshake_strt(Active_handshake_strt),
         .inband_pres(inband_pres),
-        .Active_message_send(Active_message_send),
-        .Active_handshake_done(Active_handshake_done)
+        .active_message_send(Active_message_send),
+        .active_handshake_done(Active_handshake_done)
     );
 
 endmodule

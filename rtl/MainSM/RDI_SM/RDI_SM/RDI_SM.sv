@@ -7,14 +7,14 @@ module RDI_SM (
     input  logic                    lclk                ,
     input  logic                    rst_n               ,
     input  logic                    lp_clk_ack          ,
-    input  logic                    lp_awak_req         ,
+    input  logic                    lp_wake_req         ,
     input  logic                    lp_stallack         ,
     input  RDI_state                lp_state_req        ,
     input  logic                    lp_linkerror        ,
 
     output logic                    pl_clk_req          ,
     output logic                    pl_stallreq         ,
-    output logic                    pl_awak_ack         ,
+    output logic                    pl_wake_ack         ,
     output logic                    pl_trainerror       ,
     output logic                    pl_inband_pres      ,
     output logic                    pl_phyinrecenter    ,
@@ -105,9 +105,9 @@ module RDI_SM (
         .rst_n                  (rst_n),
 
         // AWAKE Handshake
-        .lp_awak_req            (lp_awak_req),
+        .lp_wake_req            (lp_wake_req),
         .ungating_done          (ungating_done),
-        .pl_awak_ack            (pl_awak_ack),
+        .pl_wake_ack            (pl_wake_ack),
         .ungating_req           (ungating_req),
 
         // STALL Handshake

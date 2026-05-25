@@ -21,12 +21,12 @@ module wrapper_sm_handshake_logic(
     // Inputs from Handshake Logic side
     input  logic           ungating_done,
     input  logic           lp_stallack,
-    input  logic           lp_awak_req,
+    input  logic           lp_wake_req,
     input  logic           clk_handshake_strt,
     input  logic           lp_clk_ack,
     
     // Outputs from Handshake Logic side
-    output logic           pl_awak_ack,
+    output logic           pl_wake_ack,
     output logic           ungating_req,
     output logic           pl_stallreq,
     output msg_no_e        Active_message_send,
@@ -69,9 +69,9 @@ module wrapper_sm_handshake_logic(
         .rst_n                  (rst_n),
         
         // AWAKE Handshake
-        .lp_awak_req            (lp_awak_req),
+        .lp_wake_req            (lp_wake_req),
         .ungating_done          (ungating_done),
-        .pl_awak_ack            (pl_awak_ack),
+        .pl_wake_ack            (pl_wake_ack),
         .ungating_req           (ungating_req),
         
         // STALL Handshake

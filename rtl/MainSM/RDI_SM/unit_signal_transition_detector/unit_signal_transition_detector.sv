@@ -28,10 +28,10 @@ module unit_signal_transition_detector(
         end else
             case (cs)
             IDLE: begin
-                if ((phyinrecenter !== pl_phyinrecenter) || 
-                    (inband_pres !== pl_inband_pres) || 
-                    (trainerror !== pl_trainerror) || 
-                    (rdi_state_sts !== pl_state_sts)) begin
+                if ((phyinrecenter != pl_phyinrecenter) || 
+                    (inband_pres != pl_inband_pres) || 
+                    (trainerror != pl_trainerror) || 
+                    (rdi_state_sts != pl_state_sts)) begin
                     cs <= CLK_HANDSHAKE;
                 end else begin
                     cs <= IDLE;

@@ -15,12 +15,15 @@ module unit_gating_logic#(
     
     typedef enum logic { UNGATING, GATING } state;
     state GATING_cs;
-    logic counter;
-    localparam int T1US_LIMIT  = int'(1e-6*real'(CLK_FREQ));
+    localparam int T1US_LIMIT    = int'(1e-6*real'(CLK_FREQ));
+    localparam int COUNTER_WIDTH = $clog2(T1US_LIMIT + 1);
+    logic [COUNTER_WIDTH-1:0] counter;
 
     always_ff @(posedge lclk or negedge rst_n) begin
-        if (~rst_n)
+        if (~rst_n) begin
             GATING_cs <= UNGATING;
+            counter   <= '0;
+        end
         else
             case (GATING_cs)
                 UNGATING:begin
@@ -36,11 +39,11 @@ module unit_gating_logic#(
                               ~pl_clk_req && 
                               ~ungating_req && 
                               ~inband_pres)begin
-                        GATING_cs = GATING;
+                        GATING_cs <= GATING;
                         counter <= 0;
                     end
                     else begin
-                        GATING_cs = UNGATING;
+                        GATING_cs <= UNGATING;
                         counter <= 0;
                     end
                 end
@@ -50,9 +53,9 @@ module unit_gating_logic#(
                                                                      (pl_state_sts == Disabled)||
                                                                      (pl_state_sts == L_1)||
                                                                      (pl_state_sts == L_2))||inband_pres)
-                    GATING_cs = UNGATING;
+                    GATING_cs <= UNGATING;
                 else 
-                    GATING_cs = GATING;
+                    GATING_cs <= GATING;
             end 
         endcase
     end

@@ -2,25 +2,28 @@
 
 import RDI_SM_pkg::*;
 import UCIe_pkg::*;
+import LTSM_state_pkg::*;
 
 module unit_active_state_tb();
 
     // ------------------------------------------------------------------------
     // Signals
     // ------------------------------------------------------------------------
-    logic lclk;
-    logic rst_n;
-    logic lp_linkerror;
-    msg_no_e message_receive;
-    logic stall_done;
-    logic EN;
-    RDI_state lp_state_req;
-    logic timeout_1us;
+    logic           lclk;
+    logic           rst_n;
+    logic           en;
+    logic           stall_done;
+    logic           timeout_1us;
+    logic           lp_linkerror;
+    logic           pl_error;
+    RDI_state       lp_state_req;
+    LTSM_state_e    state_sts;
+    msg_no_e        message_receive;
     
-    RDI_state next_state;
-    logic stall_req;
-    logic start_1us_timer;
-    msg_no_e message_send;
+    RDI_state       next_state;
+    logic           stall_req;
+    logic           start_1us_timer;
+    msg_no_e        message_send;
 
     int errors = 0;
     int successes = 0;
@@ -47,12 +50,14 @@ module unit_active_state_tb();
     unit_active_state dut (
         .lclk(lclk),
         .rst_n(rst_n),
-        .lp_linkerror(lp_linkerror),
-        .message_receive(message_receive),
+        .en(en),
         .stall_done(stall_done),
-        .EN(EN),
-        .lp_state_req(lp_state_req),
         .timeout_1us(timeout_1us),
+        .lp_linkerror(lp_linkerror),
+        .pl_error(pl_error),
+        .lp_state_req(lp_state_req),
+        .state_sts(state_sts),
+        .message_receive(message_receive),
         
         .next_state(next_state),
         .stall_req(stall_req),
@@ -66,15 +71,17 @@ module unit_active_state_tb();
     task soft_reset();
         begin
             @(negedge lclk);
-            EN = 0;
+            en = 0;
             @(negedge lclk);
             lp_state_req = Active;
             message_receive = NOP;
             lp_linkerror = 0;
+            pl_error = 0;
+            state_sts = NO_OP;
             stall_done = 0;
             timeout_1us = 0;
             #10;
-            EN = 1;
+            en = 1;
             @(negedge lclk);
         end
     endtask
@@ -86,10 +93,12 @@ module unit_active_state_tb();
         // Initialize signals
         rst_n = 0;
         lp_linkerror = 0;
+        pl_error = 0;
         message_receive = NOP;
         stall_done = 0;
-        EN = 0;
+        en = 0;
         lp_state_req = Active;
+        state_sts = NO_OP;
         timeout_1us = 0;
         
         // Apply Reset
@@ -101,7 +110,7 @@ module unit_active_state_tb();
         
         // Enable State Machine
         @(negedge lclk);
-        EN = 1;
+        en = 1;
         #10;
 
         // ====================================================================
