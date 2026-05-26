@@ -40,13 +40,16 @@ module SBINIT
     input  logic    sbinit_timeout_expired
 );
 
-    // ---------------- States ----------------
-    typedef enum logic [2:0] {
+    // ---------------- States (4 sub-states for Step 8 handshake) ----------------
+    typedef enum logic [3:0] {
         SB_S0_IDLE,
         SB_S1_DET_PATTERN,    // Steps 1-3 / 5: send pattern in 1ms/1ms duty; wait for detect
         SB_S2_LINK_SYNCH,     // Step 4: 4 more pattern iterations, then enable msg tx/rx
         SB_S3_OUT_OF_RESET,   // Steps 6-7: send {Out of Reset} until received
-        SB_S4_DONE_HANDSHAKE, // Step 8: send done_req; respond to partner done_req with done_resp
+        SB_S4_REQ_SEND,       // Step 8a: drive done_req until FIFO accepts (ltsm_rdy)
+        SB_S4_REQ_WAIT,       // Step 8b: wait for partner's done_req
+        SB_S4_RSP_SEND,       // Step 8c: drive done_resp until FIFO accepts
+        SB_S4_RSP_WAIT,       // Step 8d: wait for partner's done_resp
         SB_S5_ERROR,          // 8 ms timeout -> TRAINERROR
         SB_S6_DONE            // Exit -> MBINIT
     } sb_state_e;
@@ -115,27 +118,6 @@ module SBINIT
         end
     end
 
-    // ---------------- S4 TX-side stickies (deadlock-free Step 8) ----------------
-    // done_req_sent  : our SBINIT_done_req  was accepted by SB FIFO (ltsm_rdy seen).
-    // done_resp_sent : our SBINIT_done_resp was accepted by SB FIFO.
-    logic done_req_sent;
-    logic done_resp_sent;
-    logic sending_done_req;   // combinational: we are driving done_req  this cycle
-    logic sending_done_resp;  // combinational: we are driving done_resp this cycle
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            done_req_sent  <= 1'b0;
-            done_resp_sent <= 1'b0;
-        end else if (current_state == SB_S0_IDLE) begin
-            done_req_sent  <= 1'b0;
-            done_resp_sent <= 1'b0;
-        end else begin
-            if (sending_done_req  && ltsm_rdy) done_req_sent  <= 1'b1;
-            if (sending_done_resp && ltsm_rdy) done_resp_sent <= 1'b1;
-        end
-    end
-
     // ---------------- State register ----------------
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -163,10 +145,19 @@ module SBINIT
                                           next_state = SB_S3_OUT_OF_RESET;
 
                 SB_S3_OUT_OF_RESET  : if (out_of_reset_rcvd)
-                                          next_state = SB_S4_DONE_HANDSHAKE;
+                                          next_state = SB_S4_REQ_SEND;
 
-                SB_S4_DONE_HANDSHAKE: if (done_req_sent  && done_resp_sent &&
-                                          done_req_rcvd  && done_resp_rcvd)
+                // Step 8: split handshake (REQ_SEND -> REQ_WAIT -> RSP_SEND -> RSP_WAIT)
+                SB_S4_REQ_SEND     : if (ltsm_rdy)
+                                          next_state = SB_S4_REQ_WAIT;
+
+                SB_S4_REQ_WAIT     : if (done_req_rcvd)
+                                          next_state = SB_S4_RSP_SEND;
+
+                SB_S4_RSP_SEND     : if (ltsm_rdy)
+                                          next_state = SB_S4_RSP_WAIT;
+
+                SB_S4_RSP_WAIT     : if (done_resp_rcvd)
                                           next_state = SB_S6_DONE;
 
                 SB_S5_ERROR         : ;  // sink until enable drops
@@ -183,12 +174,11 @@ module SBINIT
         sb_det_pattern_req  = 1'b0;
         sbinit_pattern_mode = 1'b0;
         req_iter_count      = 3'd0;
-        sending_done_req    = 1'b0;
-        sending_done_resp   = 1'b0;
 
         case (current_state)
             SB_S1_DET_PATTERN: begin
-                // Spec Step 5: 1 ms send pattern / 1 ms hold low (level encoding to SB).
+                // Spec Step 5: 1 ms send pattern / 1 ms hold low.
+                // FIX: no dependency on next_state; uses only registered sticky.
                 sb_det_pattern_req  = one_ms_toggle && !pattern_rcvd_sticky;
                 sbinit_pattern_mode = 1'b1;
             end
@@ -205,20 +195,15 @@ module SBINIT
                 sb_tx_msg_id = SBINIT_Out_of_Reset;
             end
 
-            SB_S4_DONE_HANDSHAKE: begin
-                // Spec Step 8: independent send-our-req and react-to-partner-req paths.
-                //  - First: drive our done_req until FIFO accepts.
-                //  - Once partner's done_req has arrived: drive our done_resp until FIFO accepts.
-                // Exit when both ours are sent AND both partner's are received.
-                if (!done_req_sent) begin
-                    sb_tx_valid      = 1'b1;
-                    sb_tx_msg_id     = SBINIT_done_req;
-                    sending_done_req = 1'b1;
-                end else if (done_req_rcvd && !done_resp_sent) begin
-                    sb_tx_valid       = 1'b1;
-                    sb_tx_msg_id      = SBINIT_done_resp;
-                    sending_done_resp = 1'b1;
-                end
+            // Step 8: each SEND state drives one message until FIFO accepts.
+            SB_S4_REQ_SEND: begin
+                sb_tx_valid  = 1'b1;
+                sb_tx_msg_id = SBINIT_done_req;
+            end
+
+            SB_S4_RSP_SEND: begin
+                sb_tx_valid  = 1'b1;
+                sb_tx_msg_id = SBINIT_done_resp;
             end
 
             default: ; // safe defaults already assigned above
