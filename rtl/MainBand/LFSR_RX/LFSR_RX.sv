@@ -18,7 +18,7 @@ module LFSR_RX #(
      * HM Interface
      *--------------------------------------------------------------------*/
     input  logic              i_descramble_en, // Enable descrambling
-    input  logic              i_enable_buffer,                // Gate from buffer
+    input  logic              i_enable_buffer,                // Gate from buffer FOR TRAINING MODE(PATTERN LFSR & PER_LANE_ID)
 
     /*---------------------------------------------------------------------
      * Deserialiser Input  (16 lanes)
