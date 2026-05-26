@@ -58,6 +58,7 @@ module MBINIT_PARAM_tb;
     logic        PMO_support_local_ctrl;
     logic [3:0]  Target_Link_Width_ctrl;
     logic [3:0]  Target_Link_Speed_ctrl;
+    logic        SPMW;
 
     // STATUS REG
     logic        Clock_Phase_enable_status;
@@ -140,6 +141,7 @@ module MBINIT_PARAM_tb;
 
         ltsm_rdy                 = 1'b1;
         mb_param_timeout_expired = 1'b0;
+        SPMW                     = 1'b0;
 
         repeat (5) @(posedge clk);
         rst_n = 1;
@@ -527,6 +529,35 @@ module MBINIT_PARAM_tb;
         check(!mb_param_error, "SCN10: Clean restart completed successfully!");
 
         mb_param_enable = 0;
+        repeat (10) @(posedge clk);
+
+        // ====================================================================
+        // SCN 11: Force x8 Mode via SPMW
+        // ====================================================================
+        scn = 11;
+        $display("\n[%0t] --- SCN %0d: FORCE X8 MODE VIA SPMW ---", $time, scn);
+        do_reset();
+        disable_sbfe_locally(); // Bypass SBFE
+        SPMW = 1'b1;            // Force SPMW (Standard Package Module Width = x8)
+        mb_param_enable = 1;
+
+        wait (mb_param_tx_valid && mb_param_tx_msg_id == MBINIT_PARAM_configuration_req);
+        // Bit 13 should be 1 in our driven configuration request (forcing x8 capability)
+        check(mb_param_tx_data_Field[13] == 1'b1, "SCN11: Local capabilities bit 13 (UCIE_x8) is forced to 1 by SPMW");
+
+        // Send partner req
+        send_msg(MBINIT_PARAM_configuration_req, 64'h0000_0000_0000_8003); // partner supports x16 only (bit 13 = 0)
+        
+        wait (mb_param_tx_valid && mb_param_tx_msg_id == MBINIT_PARAM_configuration_resp);
+
+        // Send partner resp
+        send_msg(MBINIT_PARAM_configuration_resp, 64'h0000_0000_0000_8003);
+        
+        wait (mb_param_done);
+        check(Link_Width_enable_status == 4'h1, "SCN11: Final Link Width is negotiated to x8 (4'h1) due to SPMW force");
+
+        mb_param_enable = 0;
+        SPMW = 1'b0; // Restore default
         repeat (10) @(posedge clk);
 
         // ====================================================================

@@ -102,6 +102,7 @@ import UCIe_pkg::*;
     // From Phy
     input logic TARR_support_local_ctrl,
     input logic phy_x8_mode_ctrl,
+    input logic SPMW,
     input logic Clock_Phase_ctrl,
     input logic Clock_mode_ctrl,
   
@@ -150,7 +151,7 @@ assign SFES_sel = L2SPD_sel || PSPT_sel || PMO_sel;
 // عايزين نشوف حوار ال SPMW
 logic UCIE_x8;
 always_comb begin
-    if(phy_x8_mode_ctrl || Target_Link_Width_ctrl == 4'h1 ) begin
+    if(phy_x8_mode_ctrl || Target_Link_Width_ctrl == 4'h1 || SPMW) begin
         UCIE_x8 = 1'b1;
     end
     else begin

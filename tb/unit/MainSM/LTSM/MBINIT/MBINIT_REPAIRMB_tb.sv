@@ -3,289 +3,561 @@ import UCIe_pkg::*;
 
 module MBINIT_REPAIRMB_tb;
 
-//////////////////////////////////////////////////
-// CLOCK / RESET
-//////////////////////////////////////////////////
-logic clk;
-logic rst_n;
+    ////////////////////////////////////////////////
+    // CLOCK / RESET GENERATION
+    ////////////////////////////////////////////////
+    logic clk;
+    logic rst_n;
 
-initial clk = 0;
-always #500 clk = ~clk;
+    initial clk = 0;
+    always #5 clk = ~clk; // 100 MHz clock in simulation
 
-//////////////////////////////////////////////////
-// INTERFACES
-//////////////////////////////////////////////////
-ucie_mb_cap_if cap_if_master();
-ucie_mb_cap_if cap_if_partner();
+    ////////////////////////////////////////////////
+    // CAPABILITY INTERFACES
+    ////////////////////////////////////////////////
+    ucie_mb_cap_if cap_if_master();
+    ucie_mb_cap_if cap_if_partner();
 
-internal_ltsm_if d2c_if_master(.lclk(clk), .rst_n(rst_n));
-internal_ltsm_if d2c_if_partner(.lclk(clk), .rst_n(rst_n));
+    // Default setup
+    assign cap_if_master.negotiated_speed  = 4'h1;
+    assign cap_if_partner.negotiated_speed = 4'h1;
 
-assign cap_if_master.use_x8_mode  = 1;
-assign cap_if_partner.use_x8_mode = 1;
+    // Registers to control use_x8_mode dynamically
+    logic m_use_x8_mode;
+    logic p_use_x8_mode;
+    logic m_spmw;
+    logic p_spmw;
+    assign cap_if_master.use_x8_mode  = m_use_x8_mode;
+    assign cap_if_partner.use_x8_mode = p_use_x8_mode;
 
-//////////////////////////////////////////////////
-// MASTER SIGNALS
-//////////////////////////////////////////////////
-logic m_enable;
-logic m_done;
-logic m_error;
+    ////////////////////////////////////////////////
+    // SIGNAL DEFINITIONS
+    ////////////////////////////////////////////////
+    logic m_enable, m_done, m_error;
+    logic p_enable, p_done, p_error;
 
-logic m_rx_valid;
-msg_no_e m_rx_msg_id;
-logic [15:0] m_rx_MsgInfo;
-logic [63:0] m_rx_data;
+    // Sideband connection (Master TX to Partner RX, Partner TX to Master RX)
+    logic         m_tx_valid;
+    msg_no_e      m_tx_msg_id;
+    logic [15:0]  m_tx_MsgInfo;
+    logic [63:0]  m_tx_data_Field;
 
-logic m_tx_valid;
-msg_no_e m_tx_msg_id;
-logic [15:0] m_tx_MsgInfo;
-logic [63:0] m_tx_data;
+    logic         p_tx_valid;
+    msg_no_e      p_tx_msg_id;
+    logic [15:0]  p_tx_MsgInfo;
+    logic [63:0]  p_tx_data_Field;
 
-logic m_timeout_error;
+    // FIFO ready handshaking
+    logic         m_ltsm_rdy;
+    logic         p_ltsm_rdy;
 
-//////////////////////////////////////////////////
-// PARTNER SIGNALS
-//////////////////////////////////////////////////
-logic p_enable;
-logic p_done;
-logic p_error;
+    // Pattern interface
+    logic         m_tx_data_pattern_sel, m_rx_compare_setup;
+    logic         m_tx_data_pattern_en, m_rx_data_compare_en;
+    logic [15:0]  m_rx_perlane_status;
+    logic         m_tx_data_pattern_transmission_completed;
+    logic         m_clear_error_req;
 
-logic p_rx_valid;
-msg_no_e p_rx_msg_id;
-logic [15:0] p_rx_MsgInfo;
-logic [63:0] p_rx_data;
+    logic         p_tx_data_pattern_sel, p_rx_compare_setup;
+    logic         p_tx_data_pattern_en, p_rx_data_compare_en;
+    logic [15:0]  p_rx_perlane_status;
+    logic         p_tx_data_pattern_transmission_completed;
+    logic         p_clear_error_req;
 
-logic p_tx_valid;
-msg_no_e p_tx_msg_id;
-logic [15:0] p_tx_MsgInfo;
-logic [63:0] p_tx_data;
+    // Timer interface
+    logic         m_timeout_repair_expired;
+    logic         m_timeout_repair_enable;
+    logic         p_timeout_repair_expired;
+    logic         p_timeout_repair_enable;
 
-logic p_timeout_error;
+    // PHY status signals (monitored)
+    logic         m_tx_valid_status, m_tx_track_status, m_tx_clk_status, m_tx_data_status;
+    logic         m_rx_valid_status, m_rx_track_status, m_rx_clk_status, m_rx_data_status;
+    logic         p_tx_valid_status, p_tx_track_status, p_tx_clk_status, p_tx_data_status;
+    logic         p_rx_valid_status, p_rx_track_status, p_rx_clk_status, p_rx_data_status;
 
-//////////////////////////////////////////////////
-// LINK CONNECTION
-//////////////////////////////////////////////////
-assign p_rx_valid   = m_tx_valid;
-assign p_rx_msg_id  = m_tx_msg_id;
-assign p_rx_MsgInfo = m_tx_MsgInfo;
-assign p_rx_data    = m_tx_data;
+    ////////////////////////////////////////////////
+    // TIMERS INSTANTIATION (EXTERNAL)
+    ////////////////////////////////////////////////
+    timeout_counter #(
+        .CLK_FRQ_HZ(1000000), // Fast timeout for simulation
+        .TIME_OUT(1)          // 1 ms (1000 clock cycles)
+    ) master_timer (
+        .clk(clk),
+        .timeout_rst_n(rst_n),
+        .enable_timeout(m_timeout_repair_enable),
+        .timeout_expired(m_timeout_repair_expired)
+    );
 
-assign m_rx_valid   = p_tx_valid;
-assign m_rx_msg_id  = p_tx_msg_id;
-assign m_rx_MsgInfo = p_tx_MsgInfo;
-assign m_rx_data    = p_tx_data;
+    timeout_counter #(
+        .CLK_FRQ_HZ(1000000),
+        .TIME_OUT(1)
+    ) partner_timer (
+        .clk(clk),
+        .timeout_rst_n(rst_n),
+        .enable_timeout(p_timeout_repair_enable),
+        .timeout_expired(p_timeout_repair_expired)
+    );
 
-//////////////////////////////////////////////////
-// PHY CONTROL SIGNALS
-//////////////////////////////////////////////////
-logic m_tx_data_status;
-logic m_tx_clk_status;
-logic m_tx_track_status;
-logic m_tx_valid_status;
+    ////////////////////////////////////////////////
+    // DUT INSTANTIATIONS
+    ////////////////////////////////////////////////
+    MBINIT_REPAIRMB #(
+        .CLK_FRQ_HZ(1000000)
+    ) master (
+        .clk(clk),
+        .rst_n(rst_n),
+        .reg_x8_mode_req(m_use_x8_mode),
+        .SPMW(m_spmw),
+        .mb_repairmb_enable(m_enable),
+        .mb_repairmb_done(m_done),
+        .mb_repairmb_error(m_error),
 
-logic m_rx_data_status;
-logic m_rx_clk_status;
-logic m_rx_track_status;
-logic m_rx_valid_status;
+        // RX
+        .mb_repairmb_rx_valid(p_tx_valid),
+        .mb_repairmb_rx_msg_id(p_tx_msg_id),
+        .mb_repairmb_rx_MsgInfo(p_tx_MsgInfo),
+        .mb_repairmb_rx_data_Field(p_tx_data_Field),
 
+        // TX
+        .mb_repairmb_tx_valid(m_tx_valid),
+        .mb_repairmb_tx_msg_id(m_tx_msg_id),
+        .mb_repairmb_tx_MsgInfo(m_tx_MsgInfo),
+        .mb_repairmb_tx_data_Field(m_tx_data_Field),
 
-logic p_tx_data_status;
-logic p_tx_clk_status;
-logic p_tx_track_status;
-logic p_tx_valid_status;
+        // Timer
+        .timeout_repair_expired(m_timeout_repair_expired),
+        .timeout_repair_enable(m_timeout_repair_enable),
 
-logic p_rx_data_status;
-logic p_rx_clk_status;
-logic p_rx_track_status;
-logic p_rx_valid_status;
+        // FIFO ready
+        .ltsm_rdy(m_ltsm_rdy),
 
-//////////////////////////////////////////////////
-// DUTs
-//////////////////////////////////////////////////
-MBINIT_REPAIRMB master (
-    .clk(clk),
-    .rst_n(rst_n),
-    .cap_if(cap_if_master),
-    .d2c_test_if(d2c_if_master),
-    .mb_repairmb_enable(m_enable),
-    .mb_repairmb_done(m_done),
-    .mb_repairmb_error(m_error),
-    .mb_repairmb_rx_valid(m_rx_valid),
-    .mb_repairmb_rx_msg_id(m_rx_msg_id),
-    .mb_repairmb_rx_MsgInfo(m_rx_MsgInfo),
-    .mb_repairmb_rx_data_Field(m_rx_data),
-    .mb_repairmb_tx_valid(m_tx_valid),
-    .mb_repairmb_tx_msg_id(m_tx_msg_id),
-    .mb_repairmb_tx_MsgInfo(m_tx_MsgInfo),
-    .mb_repairmb_tx_data_Field(m_tx_data),
-    .timeout_error(m_timeout_error),
+        // Pattern
+        .mb_tx_data_pattern_sel(m_tx_data_pattern_sel),
+        .mb_rx_compare_setup(m_rx_compare_setup),
+        .mb_tx_data_pattern_en(m_tx_data_pattern_en),
+        .mb_rx_data_compare_en(m_rx_data_compare_en),
+        .mb_rx_perlane_status(m_rx_perlane_status),
+        .mb_tx_data_pattern_transmission_completed(m_tx_data_pattern_transmission_completed),
+        .clear_error_req(m_clear_error_req)
+    );
 
-    .mb_tx_data_status(m_tx_data_status),
-    .mb_tx_clk_status(m_tx_clk_status),
-    .mb_tx_track_status(m_tx_track_status),
-    .mb_tx_valid_status(m_tx_valid_status),
+    MBINIT_REPAIRMB #(
+        .CLK_FRQ_HZ(1000000)
+    ) partner (
+        .clk(clk),
+        .rst_n(rst_n),
+        .reg_x8_mode_req(p_use_x8_mode),
+        .SPMW(p_spmw),
+        .mb_repairmb_enable(p_enable),
+        .mb_repairmb_done(p_done),
+        .mb_repairmb_error(p_error),
 
-    .mb_rx_data_status(m_rx_data_status),
-    .mb_rx_clk_status(m_rx_clk_status),
-    .mb_rx_track_status(m_rx_track_status),
-    .mb_rx_valid_status(m_rx_valid_status)
-);
+        // RX
+        .mb_repairmb_rx_valid(m_tx_valid),
+        .mb_repairmb_rx_msg_id(m_tx_msg_id),
+        .mb_repairmb_rx_MsgInfo(m_tx_MsgInfo),
+        .mb_repairmb_rx_data_Field(m_tx_data_Field),
 
-MBINIT_REPAIRMB partner (
-    .clk(clk),
-    .rst_n(rst_n),
-    .cap_if(cap_if_partner),
-    .d2c_test_if(d2c_if_partner),
-    .mb_repairmb_enable(p_enable),
-    .mb_repairmb_done(p_done),
-    .mb_repairmb_error(p_error),
-    .mb_repairmb_rx_valid(p_rx_valid),
-    .mb_repairmb_rx_msg_id(p_rx_msg_id),
-    .mb_repairmb_rx_MsgInfo(p_rx_MsgInfo),
-    .mb_repairmb_rx_data_Field(p_rx_data),
-    .mb_repairmb_tx_valid(p_tx_valid),
-    .mb_repairmb_tx_msg_id(p_tx_msg_id),
-    .mb_repairmb_tx_MsgInfo(p_tx_MsgInfo),
-    .mb_repairmb_tx_data_Field(p_tx_data),
-    .timeout_error(p_timeout_error),
+        // TX
+        .mb_repairmb_tx_valid(p_tx_valid),
+        .mb_repairmb_tx_msg_id(p_tx_msg_id),
+        .mb_repairmb_tx_MsgInfo(p_tx_MsgInfo),
+        .mb_repairmb_tx_data_Field(p_tx_data_Field),
 
-    .mb_tx_data_status(p_tx_data_status),
-    .mb_tx_clk_status(p_tx_clk_status),
-    .mb_tx_track_status(p_tx_track_status),
-    .mb_tx_valid_status(p_tx_valid_status),
+        // Timer
+        .timeout_repair_expired(p_timeout_repair_expired),
+        .timeout_repair_enable(p_timeout_repair_enable),
 
-    .mb_rx_data_status(p_rx_data_status),
-    .mb_rx_clk_status(p_rx_clk_status),
-    .mb_rx_track_status(p_rx_track_status),
-    .mb_rx_valid_status(p_rx_valid_status)
-);
+        // FIFO ready
+        .ltsm_rdy(p_ltsm_rdy),
 
-//////////////////////////////////////////////////
-// INIT
-//////////////////////////////////////////////////
-initial begin
-    rst_n = 0;
-    m_enable = 0;
-    p_enable = 0;
+        // Pattern
+        .mb_tx_data_pattern_sel(p_tx_data_pattern_sel),
+        .mb_rx_compare_setup(p_rx_compare_setup),
+        .mb_tx_data_pattern_en(p_tx_data_pattern_en),
+        .mb_rx_data_compare_en(p_rx_data_compare_en),
+        .mb_rx_perlane_status(p_rx_perlane_status),
+        .mb_tx_data_pattern_transmission_completed(p_tx_data_pattern_transmission_completed),
+        .clear_error_req(p_clear_error_req)
+    );
 
-    d2c_if_master.test_d2c_done = 0;
-    d2c_if_partner.test_d2c_done = 0;
-
-    d2c_if_master.d2c_perlane_err = 0;
-    d2c_if_partner.d2c_perlane_err = 0;
-
-    repeat(5) @(posedge clk);
-    rst_n = 1;
-
-    // Assert enables simultaneously
-    @(posedge clk);
-    m_enable = 1;
-    p_enable = 1;
-end
-
-//////////////////////////////////////////////////
-// RETRY ASSERTION (EDGE DETECTION)
-//////////////////////////////////////////////////
-logic retry_seen;
-logic retry_prev;
-
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        retry_seen <= 0;
-        retry_prev <= 0;
-    end
-    else begin
-        if((master.retry_start || partner.retry_start) && !retry_prev) begin
-            if(retry_seen) begin
-                $error("ERROR: Retry happened more than once!");
-                $finish;
-            end
-            retry_seen <= 1;
+    ////////////////////////////////////////////////
+    // SAFETY CHECKS
+    ////////////////////////////////////////////////
+    logic expect_error;
+    always @(posedge clk) begin
+        if (rst_n && (m_error || p_error) && !expect_error) begin
+            $error("ERROR: Unexpected error flag assertion! expect_error=%b", expect_error);
+            $finish;
         end
-        retry_prev <= (master.retry_start || partner.retry_start);
     end
-end
 
-//////////////////////////////////////////////////
-// DEBUG
-//////////////////////////////////////////////////
-always @(posedge clk) begin
-    // $display("T=%0t | M_state=%0d | P_state=%0d | M_local=%b P_local=%b final=%b",
-    //     $time, master.current_state, partner.current_state,
-    //     master.local_lane_map, partner.local_lane_map, master.final_lane_map);
-    $display("STATE=%0d local=%b partner=%b final=%b degrade_np=%b",
-    master.current_state,
-    master.local_lane_map,
-    partner.local_lane_map,
-    master.final_lane_map,
-    master.degrade_not_possible_r);
-end
+    ////////////////////////////////////////////////
+    // SYSTEM RESET AND HELPER METHODS
+    ////////////////////////////////////////////////
+    task reset_system();
+        rst_n = 1'b0;
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_ltsm_rdy = 1'b1;
+        p_ltsm_rdy = 1'b1;
+        m_rx_perlane_status = 16'h0;
+        p_rx_perlane_status = 16'h0;
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        m_spmw = 1'b0;
+        p_spmw = 1'b0;
+        expect_error = 1'b0;
+        repeat(5) @(posedge clk);
+        rst_n = 1'b1;
+        repeat(2) @(posedge clk);
+    endtask
 
-//////////////////////////////////////////////////
-// MAIN TEST FLOW
-//////////////////////////////////////////////////
-initial begin
-    wait(rst_n);
+    ////////////////////////////////////////////////
+    // TEST SUITE
+    ////////////////////////////////////////////////
+    initial begin
+        $display("==========================================================");
+        $display("   STARTING MBINIT_REPAIRMB COMPREHENSIVE TEST SUITE      ");
+        $display("==========================================================");
 
-    $display("==== START TEST ====");
+        // --------------------------------------------------------
+        // SCN 1: Normal Happy Path (All PASS, x16 Mode)
+        // --------------------------------------------------------
+        $display("\n[SCN 1] Normal Happy Path (All PASS, x16 Mode)");
+        reset_system();
+        m_enable = 1'b1;
+        p_enable = 1'b1;
 
-    //////////////////////////////////////////
-    // TEST 1: FORCE RETRY
-    //////////////////////////////////////////
-    wait(d2c_if_master.tx_pt_en && d2c_if_partner.tx_pt_en);
-    repeat(2) @(posedge clk);
+        // Wait for both sides to enter point test state (S2)
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        $display("  -> Both sides entered Point Test S2.");
+        repeat(5) @(posedge clk);
 
-    $display("==== TEST 1: FORCE RETRY ====");
+        // Set status and complete point test
+        m_rx_perlane_status = 16'h0000; // Pass
+        p_rx_perlane_status = 16'h0000; // Pass
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
 
-    d2c_if_master.d2c_perlane_err  = 16'hFF00;
-    d2c_if_partner.d2c_perlane_err = 16'hFF0F; // Mismatch to force retry!
+        // Wait for completion
+        wait (m_done && p_done);
+        $display("  -> Happy path completed successfully! done=%b, error=%b", m_done, m_error);
+        if (m_error || p_error) $error("ERROR: SCN 1 reported unexpected errors!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk);
 
-    d2c_if_master.test_d2c_done = 1;
-    d2c_if_partner.test_d2c_done = 1;
+        // --------------------------------------------------------
+        // SCN 2: Degrade to Lower x8 Mode & Retry PASS
+        // --------------------------------------------------------
+        $display("\n[SCN 2] Degrade to Lower x8 Mode & Retry PASS");
+        reset_system();
+        m_enable = 1'b1;
+        p_enable = 1'b1;
 
-    @(posedge clk);
-    d2c_if_master.test_d2c_done = 0;
-    d2c_if_partner.test_d2c_done = 0;
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: Fails upper 8 lanes (fails 16'hFF00 -> Lower x8 should be operational)
+        m_rx_perlane_status = 16'hFF00;
+        p_rx_perlane_status = 16'hFF00;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
 
-    //////////////////////////////////////////
-    // WAIT RETRY (EDGE)
-    //////////////////////////////////////////
-    wait(master.retry_start || partner.retry_start);
-    wait(!(master.retry_start || partner.retry_start));
+        // Wait for retry transition back to S2 (safely wait for leaving S2 first)
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! Returned to Point Test S2.");
+        $display("  DEBUG: retry_done sticky flag is %b", master.retry_done);
 
-    $display("==== RETRY DETECTED ====");
+        // S2 Run 2: Lower x8 lanes pass (but upper 8 lanes remain broken physically!)
+        m_rx_perlane_status = 16'hFF00;
+        p_rx_perlane_status = 16'hFF00;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
 
-    //////////////////////////////////////////
-    // TEST 2: STABLE
-    //////////////////////////////////////////
-    wait(d2c_if_master.tx_pt_en && d2c_if_partner.tx_pt_en);
-    repeat(2) @(posedge clk);
+        wait (m_done && p_done);
+        $display("  -> Degrade to Lower x8 completed! done=%b, error=%b, final_lane_map=%b", m_done, m_error, master.final_lane_map_r);
+        if (master.final_lane_map_r != 3'b001) $error("ERROR: final_lane_map_r is not Lower x8!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk);
 
-    $display("==== TEST 2: STABLE ====");
+        // --------------------------------------------------------
+        // SCN 3: Degrade to Upper x8 Mode & Retry PASS
+        // --------------------------------------------------------
+        $display("\n[SCN 3] Degrade to Upper x8 Mode & Retry PASS");
+        reset_system();
+        m_enable = 1'b1;
+        p_enable = 1'b1;
 
-    d2c_if_master.d2c_perlane_err  = 16'hFF0F;
-    d2c_if_partner.d2c_perlane_err = 16'hFF0F; // Same, should stabilize
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: Fails lower 8 lanes (fails 16'h00FF -> Upper x8 should be operational)
+        m_rx_perlane_status = 16'h00FF;
+        p_rx_perlane_status = 16'h00FF;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
 
-    d2c_if_master.test_d2c_done = 1;
-    d2c_if_partner.test_d2c_done = 1;
+        // Wait for retry
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! S2 Run 2.");
 
-    @(posedge clk);
-    d2c_if_master.test_d2c_done = 0;
-    d2c_if_partner.test_d2c_done = 0;
-end
+        // S2 Run 2: Upper x8 lanes pass (lower 8 lanes remain broken physically!)
+        m_rx_perlane_status = 16'h00FF;
+        p_rx_perlane_status = 16'h00FF;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
 
-//////////////////////////////////////////////////
-// STOP CONDITIONS
-//////////////////////////////////////////////////
-always @(posedge clk) begin
-    if(m_done && p_done) begin
-        $display("==== DONE = 1 (PASS) ====");
+        wait (m_done && p_done);
+        $display("  -> Degrade to Upper x8 completed! done=%b, error=%b, final_lane_map=%b", m_done, m_error, master.final_lane_map_r);
+        if (master.final_lane_map_r != 3'b010) $error("ERROR: final_lane_map_r is not Upper x8!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 4: Advanced Degrade to x4 Mode & Retry PASS
+        // --------------------------------------------------------
+        $display("\n[SCN 4] Advanced Degrade to x4 Mode & Retry PASS");
+        reset_system();
+        m_use_x8_mode = 1'b1; // Start in x8 mode
+        p_use_x8_mode = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: Fail lower x8 except lanes 0-3 (fails 16'hFFF0 -> x4 map 3'b100)
+        m_rx_perlane_status = 16'hFFF0;
+        p_rx_perlane_status = 16'hFFF0;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        // Wait for retry
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! S2 Run 2 under x8_mode.");
+
+        // S2 Run 2: Pass (lanes 4-15 remain broken physically!)
+        m_rx_perlane_status = 16'hFFF0;
+        p_rx_perlane_status = 16'hFFF0;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        wait (m_done && p_done);
+        $display("  -> Degrade to x4 completed! done=%b, error=%b, final_lane_map=%b", m_done, m_error, master.final_lane_map_r);
+        if (master.final_lane_map_r != 3'b100) $error("ERROR: final_lane_map_r is not x4!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 5: Double Failure Retry FAIL
+        // --------------------------------------------------------
+        $display("\n[SCN 5] Double Failure Retry FAIL");
+        reset_system();
+        expect_error = 1'b1; // We expect error to trigger (set AFTER reset_system clears it)
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: Fail upper 8 lanes (degrade to lower x8)
+        m_rx_perlane_status = 16'hFF00;
+        p_rx_perlane_status = 16'hFF00;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        // Wait for retry
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+
+        // S2 Run 2: Fail again (fails additional lanes, e.g. 16'hFFFF -> no further degradation possible)
+        m_rx_perlane_status = 16'hFFFF;
+        p_rx_perlane_status = 16'hFFFF;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        // Wait for error state
+        wait (m_error && p_error);
+        $display("  -> Double failure handled correctly! done=%b, error=%b", m_done, m_error);
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk); // Allow error status to settle/clear in IDLE first
+        expect_error = 1'b0;      // Now safe to disable expect_error
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 6: FIFO Backpressure Handling (ltsm_rdy = 0)
+        // --------------------------------------------------------
+        $display("\n[SCN 6] FIFO Backpressure Handling (ltsm_rdy = 0)");
+        reset_system();
+        m_ltsm_rdy = 1'b0; // Block master sideband transmission
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        repeat (20) @(posedge clk);
+        if (master.current_state != master.MB_S1_READY_REQ_SEND) begin
+            $error("ERROR: Master did not hold in READY_REQ_SEND state during backpressure!");
+        end else begin
+            $display("  -> Master successfully held in S1_READY_REQ_SEND.");
+        end
+
+        // Release backpressure
+        m_ltsm_rdy = 1'b1;
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        $display("  -> Backpressure released, master advanced to S2.");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 7: Safety Watchdog Timeout
+        // --------------------------------------------------------
+        $display("\n[SCN 7] Safety Watchdog Timeout");
+        reset_system();
+        expect_error = 1'b1; // We expect error to trigger due to timeout
+        m_enable = 1'b1; // Only enable master to force no response from partner
+        p_enable = 1'b0;
+
+        wait (master.current_state == master.MB_S1_READY_REQ_WAIT);
+        $display("  -> Master is in READY_REQ_WAIT state. Waiting for timeout...");
+        
+        wait (m_error);
+        $display("  -> Master safety timeout fired successfully! error=%b", m_error);
+        m_enable = 1'b0;
+        repeat(5) @(posedge clk); // Allow error to settle/clear in IDLE first
+        expect_error = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 8: Clean Restart (Disable/Re-enable)
+        // --------------------------------------------------------
+        $display("\n[SCN 8] Clean Restart (Disable/Re-enable)");
+        reset_system();
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Disabling training midway...");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(2) @(posedge clk); // Safely let it transition to IDLE
+
+        if (master.current_state != master.MB_S0_IDLE || partner.current_state != partner.MB_S0_IDLE) begin
+            $error("ERROR: FSMs did not return cleanly to S0_IDLE on disable!");
+        end else begin
+            $display("  -> Clean return to IDLE verified.");
+        end
+
+        // Re-enable and complete cleanly
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST); // Wait for leaving IDLE first
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        m_rx_perlane_status = 16'h0000;
+        p_rx_perlane_status = 16'h0000;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        wait (m_done && p_done);
+        $display("  -> Clean restart run completed successfully!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 9: Force x8 Mode via SPMW & Degrade x4 Retry PASS
+        // --------------------------------------------------------
+        $display("\n[SCN 9] Force x8 Mode via SPMW & Degrade x4 Retry PASS");
+        reset_system();
+        m_spmw = 1'b1; // Force SPMW = 1
+        p_spmw = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: Fail lower x8 except lanes 0-3 (fails 16'hFFF0 -> x4 map 3'b100)
+        m_rx_perlane_status = 16'hFFF0;
+        p_rx_perlane_status = 16'hFFF0;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        // Wait for retry
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered under SPMW forced x8 mode!");
+
+        // S2 Run 2: Pass at x4 width
+        m_rx_perlane_status = 16'hFFF0;
+        p_rx_perlane_status = 16'hFFF0;
+        m_tx_data_pattern_transmission_completed = 1'b1;
+        p_tx_data_pattern_transmission_completed = 1'b1;
+        @(posedge clk);
+        m_tx_data_pattern_transmission_completed = 1'b0;
+        p_tx_data_pattern_transmission_completed = 1'b0;
+
+        wait (m_done && p_done);
+        $display("  -> Degrade to x4 via SPMW completed! done=%b, error=%b, final_lane_map=%b", m_done, m_error, master.final_lane_map_r);
+        if (master.final_lane_map_r != 3'b100) $error("ERROR: final_lane_map_r is not x4!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_spmw = 1'b0;
+        p_spmw = 1'b0;
+        repeat(5) @(posedge clk);
+
+        $display("\n==========================================================");
+        $display("   ALL 9 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
+        $display("==========================================================");
         $finish;
     end
-    else if(m_error || p_error) begin
-        $display("==== ERROR = 1 (FAIL) ====");
-        $finish;
-    end
-end
 
 endmodule

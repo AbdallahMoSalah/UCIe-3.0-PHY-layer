@@ -15,7 +15,7 @@ expected pattern. The error threshold is always 0 for this test.
     |     Interface with mainband         |
     |          NEW SIGNALS                |
     |  output logic mb_lane_reversal_req, |
-    |  output logic mb_reg_x8_mode_req_req,       |
+    |  output logic reg_x8_mode_req,       |
     |  output logic clear_error_req,      |
     |-------------------------------------|
         

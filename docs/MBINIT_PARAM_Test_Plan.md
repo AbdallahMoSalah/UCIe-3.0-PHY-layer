@@ -3,7 +3,7 @@
 > **Module**: `MBINIT_PARAM.sv` — UCIe 3.0 §4.5.3.2  
 > **Testbench**: `MBINIT_PARAM_tb.sv`  
 > **Date**: May 2026  
-> **Status**: ✅ **100% PASS** (10 Scenarios, 40 Checks, 0 Errors)
+> **Status**: ✅ **100% PASS** (11 Scenarios, 42 Checks, 0 Errors)
 
 ---
 
@@ -11,7 +11,7 @@
 
 This document serves as the **Verification Test Plan** and **Results** for the UCIe 3.0 Main Band Initialization Parameter Exchange (`MBINIT_PARAM`) state machine. The primary focus is to verify that the FSM negotiates physical-layer and link-layer capabilities (such as speed, width, clock phase/mode, runtime recalibration, and sideband feature extensions) correctly and in a spec-compliant, deadlock-immune manner.
 
-The verification testbench uses SystemVerilog with QuestaSim, exercising **10 comprehensive test scenarios** containing **40 precise checking points**. All tests compiled with zero warnings and executed successfully to a final **PASS** status.
+The verification testbench uses SystemVerilog with QuestaSim, exercising **11 comprehensive test scenarios** containing **42 precise checking points**. All tests compiled with zero warnings and executed successfully to a final **PASS** status.
 
 ---
 
@@ -25,7 +25,7 @@ As defined in the **UCIe Revision 3.0 Specification, Section 4.5.3.2 (MBINIT.PAR
    * Local Link requested speed (`Target_Link_Speed_ctrl`)
    * Partner's reported speed capability.
 2. **Link Width**:
-   * If either side requests X8 mode (`phy_x8_mode_ctrl` or `Target_Link_Width_ctrl == x8` or partner is in X8 mode), negotiation falls back to **X8 mode** (Status: `4'h1`).
+   * If either side requests X8 mode (`phy_x8_mode_ctrl` or `Target_Link_Width_ctrl == x8` or partner is in X8 mode) or if the **SPMW** (Standard Package Module Width) override is active, negotiation falls back to **X8 mode** (Status: `4'h1`).
    * Otherwise, the link runs in **X16 mode** (Status: `4'h2`).
 3. **Clock Phase & Mode Negotiation**:
    * > [!IMPORTANT]
@@ -90,7 +90,7 @@ To ensure maximum design clarity and ease of timing analysis, the handshake is s
 
 ## 4. Test Plan Scenario Directory
 
-The 10 verified scenarios cover the entire functionality of the parameter and feature exchange module:
+The 11 verified scenarios cover the entire functionality of the parameter and feature exchange module:
 
 ### Detailed Scenario Table
 
@@ -106,6 +106,7 @@ The 10 verified scenarios cover the entire functionality of the parameter and fe
 | **8** | Error | **Negotiation Mismatch**<br>Verifies detection of unmatched config echoes. | Partner returns mismatched speed/TARR in `configuration_resp`. | FSM exits S2_ERROR_CHECK to `MB_S5_ERROR` state. `mb_param_error = 1`. |
 | **9** | Error | **Timeout Watchdog**<br>Verifies TRAINERROR transition on timeout. | Trigger `mb_param_timeout_expired = 1` during S1 RSP_WAIT. | FSM aborts immediately to `MB_S5_ERROR` state. |
 | **10** | Control | **Clean Restart (Enable Control)**<br>Verifies clean resets and restart capability. | Disable FSM in RSP_WAIT, wait, then re-enable. | FSM clears all outputs on disable, restarts fresh from S1 on re-enable, and completes successfully. |
+| **11** | Logic | **Force x8 Mode via SPMW**<br>Verifies that active SPMW input forces negotiated width to x8 mode. | Assert `SPMW = 1` locally, partner requests x16 (bit 13 = 0). | Local configuration request bit 13 (UCIE_x8) is forced to 1. Final negotiated width is **x8** (4'h1). |
 
 ---
 
@@ -184,7 +185,11 @@ vsim -c -do "set CONFIG unit_MBINIT_PARAM; set TOP MBINIT_PARAM_tb; set MODE run
 # [4075000000] SCN10 ok  : SCN10: Restarted successfully from S1
 # [4145000000] SCN10 ok  : SCN10: Clean restart completed successfully!
 # 
-# === DONE: 40 checks, 0 errors ===
+# --- SCN 11: FORCE X8 MODE VIA SPMW ---
+# [4455000000] SCN11 ok  : SCN11: Local capabilities bit 13 (UCIE_x8) is forced to 1 by SPMW
+# [4525000000] SCN11 ok  : SCN11: Final Link Width is negotiated to x8 (4'h1) due to SPMW force
+# 
+# === DONE: 42 checks, 0 errors ===
 # RESULT: PASS
 ```
 
@@ -194,5 +199,6 @@ vsim -c -do "set CONFIG unit_MBINIT_PARAM; set TOP MBINIT_PARAM_tb; set MODE run
 
 The module `MBINIT_PARAM.sv` is **fully verified** and **100% robust**:
 * **Spec Compliance**: Features and parameters are negotiated according to the rules of UCIe 3.0 §4.5.3.2.
+* **SPMW Override**: Force x8 functionality successfully overrides the default negotiated width, allowing standard packages to fallback correctly.
 * **Deadlock Safety**: Latches early partner messages safely using the RX sticky flags, eliminating latency deadlocks.
 * **Robust Error Path**: Misaligned parameter responses or timeout events correctly force FSM into `MB_S5_ERROR` state.
