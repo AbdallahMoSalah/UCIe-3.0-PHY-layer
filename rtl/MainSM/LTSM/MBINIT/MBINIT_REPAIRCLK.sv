@@ -1,6 +1,6 @@
 import UCIe_pkg::*;
 
-module MBINIT_REPAIRCLK_NEW
+module MBINIT_REPAIRCLK
 #( parameter int CLK_FRQ_HZ = 800000000)
 (
     input  logic clk, rst_n,
@@ -171,7 +171,7 @@ end
 always_comb begin
     next_state = current_state;
 
-    if(!mb_param_enable) begin
+    if(!mb_repairclk_enable) begin
         next_state = MB_S0_IDLE;
     end
     else if(timeout_error) begin
