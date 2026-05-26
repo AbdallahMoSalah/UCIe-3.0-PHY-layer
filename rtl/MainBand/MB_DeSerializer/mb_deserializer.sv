@@ -28,9 +28,35 @@ reg sync3_toggle;
 wire valid_pulse;
 
 /* -------------------------------------------------- */
-/* Serial to Parallel & Counter (pll_clk domain)      */
+/* DDR Input Capture (Synthesizable)                 */
 /* -------------------------------------------------- */
-always @(posedge pll_clk or negedge pll_clk or negedge i_rst_n) begin 
+reg r_data_pos;
+reg r_data_neg;
+wire r_data_det;
+
+// Capture on rising edge of pll_clk
+always @(posedge pll_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        r_data_pos <= 1'b0;
+    end else if (ser_data_en) begin
+        r_data_pos <= ser_data_in;
+    end
+end
+
+// Capture on falling edge of pll_clk
+always @(negedge pll_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        r_data_neg <= 1'b0;
+    end else if (ser_data_en) begin
+        r_data_neg <= ser_data_in;
+    end
+end
+
+// Multiplexer as shown in the Dual Edge Triggered Flip-Flop diagram
+assign r_data_det = pll_clk ? r_data_pos : r_data_neg;
+
+// Shifting and counting done on posedge pll_clk (Synthesizable & timing-safe)
+always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         shift_reg        <= {DATA_WIDTH{1'b0}};
         bit_cnt          <= 6'd0;
@@ -38,10 +64,13 @@ always @(posedge pll_clk or negedge pll_clk or negedge i_rst_n) begin
         save_data_toggle <= 1'b0;
     end else begin
         if (ser_data_en) begin
-            shift_reg <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]}; // LSB first
-            if (bit_cnt == DATA_WIDTH - 1) begin
+            // Shift in: current ser_data_in (posedge bit) and r_data_neg (negedge bit)
+            // LSB first: shift right by 2
+            shift_reg <= {ser_data_in, r_data_neg, shift_reg[DATA_WIDTH-1:2]};
+            
+            if (bit_cnt == (DATA_WIDTH/2) - 1) begin
                 bit_cnt          <= 6'd0;
-                save_data        <= {ser_data_in, shift_reg[DATA_WIDTH-1:1]};
+                save_data        <= {ser_data_in, r_data_neg, shift_reg[DATA_WIDTH-1:2]};
                 save_data_toggle <= ~save_data_toggle; // Trigger CDC
             end else begin
                 bit_cnt <= bit_cnt + 6'd1;
@@ -82,7 +111,7 @@ always @(posedge MB_clk or negedge i_rst_n) begin
             par_data_out <= save_data;
             de_ser_done  <= 1'b1;
         end
-        else if (valid_pulse && enable_des_valid_frame) begin
+        else if (valid_pulse && !enable_des_valid_frame) begin
             par_data_out <= {DATA_WIDTH{1'b0}};
             de_ser_done  <= 1'b0;
         end

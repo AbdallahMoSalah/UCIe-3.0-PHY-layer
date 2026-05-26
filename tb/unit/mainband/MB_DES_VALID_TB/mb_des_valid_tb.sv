@@ -31,7 +31,7 @@ module mb_des_valid_tb;
     // Clock generation
     initial begin
         MB_clk = 0;
-        forever #5 MB_clk = ~MB_clk; // 100MHz (period = 10ns)
+        forever #32 MB_clk = ~MB_clk; // 100MHz (period = 10ns)
     end
 
     initial begin
@@ -74,6 +74,7 @@ module mb_des_valid_tb;
         
         // Wait for de_ser_done
         @(posedge de_ser_done);
+        #0.1;
         $display("[%0t] de_ser_done asserted", $time);
         
         // Check outputs
@@ -91,6 +92,7 @@ module mb_des_valid_tb;
         
         // Wait for de_ser_done
         @(posedge de_ser_done);
+        #0.1;
         $display("[%0t] de_ser_done asserted", $time);
         
         // Check outputs
@@ -108,6 +110,7 @@ module mb_des_valid_tb;
         
         // Wait for de_ser_done
         @(posedge de_ser_done);
+        #0.1;
         $display("[%0t] de_ser_done asserted", $time);
         
         // Check outputs
