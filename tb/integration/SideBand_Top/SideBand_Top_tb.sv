@@ -34,8 +34,8 @@ module SideBand_Top_tb;
 
     logic         pattern_mode [2];
     logic         start_pat_req [2];
-    logic         send_4_iter [2];
-    logic         four_iter_done [2];
+    logic [2:0]   req_iter_count [2];
+    logic         iter_done [2];
     logic         det_pat_rcvd [2];
 
     logic         traffic_req [2];
@@ -101,8 +101,8 @@ module SideBand_Top_tb;
                 .RXDATASB(RXDATASB[i]),
                 .pattern_mode(pattern_mode[i]),
                 .start_pat_req(start_pat_req[i]),
-                .send_4_iter(send_4_iter[i]),
-                .four_iter_done(four_iter_done[i]),
+                .req_iter_count(req_iter_count[i]),
+                .iter_done(iter_done[i]),
                 .det_pat_rcvd(det_pat_rcvd[i]),
                 .traffic_req(traffic_req[i]),
                 .traffic_rdy(traffic_rdy[i]),
@@ -173,7 +173,7 @@ module SideBand_Top_tb;
             pmo_en[j] = 0;
             pattern_mode[j] = 0;
             start_pat_req[j] = 0;
-            send_4_iter[j] = 0;
+            req_iter_count[j] = 3'd0;
             traffic_rdy[j] = 0;
             RDI_msg_no_send[j] = 0;
             stall_send[j] = 0;
@@ -220,7 +220,7 @@ module SideBand_Top_tb;
         @(posedge clk_sb);
         pattern_mode[0] = 1; pattern_mode[1] = 1;
         start_pat_req[0] = 1; start_pat_req[1] = 0; // Only Die 0 starts
-        send_4_iter[0] = 0; send_4_iter[1] = 0;
+        req_iter_count[0] = 3'd0; req_iter_count[1] = 3'd0;
         pmo_en[0] = 0; pmo_en[1] = 0;
         $display("[%0t] Die 0 starts pattern generation, Die 1 is waiting", $time);
 
@@ -243,12 +243,12 @@ module SideBand_Top_tb;
                 $display("[%0t] Die 0 detected pattern back! Switching to 4-iter", $time);
                 @(posedge clk_sb);
                 start_pat_req[0] = 0;
-                send_4_iter[0] = 1;
+                req_iter_count[0] = 3'd4;
 
-                wait(four_iter_done[0] == 1'b1);
+                wait(iter_done[0] == 1'b1);
                 @(posedge clk_sb);
                 $display("[%0t] Die 0 4-iter done! Switching to mapper", $time);
-                send_4_iter[0] = 0;
+                req_iter_count[0] = 3'd0;
                 pattern_mode[0] = 0;
                 pmo_en[0] = 1;
             end
@@ -277,12 +277,12 @@ module SideBand_Top_tb;
                 $display("[%0t] Die 1 detected pattern second time! Switching to 4-iter", $time);
                 @(posedge clk_sb);
                 start_pat_req[1] = 0;
-                send_4_iter[1] = 1;
+                req_iter_count[1] = 3'd4;
 
-                wait(four_iter_done[1] == 1'b1);
+                wait(iter_done[1] == 1'b1);
                 @(posedge clk_sb);
                 $display("[%0t] Die 1 4-iter done! Switching to mapper", $time);
-                send_4_iter[1] = 0;
+                req_iter_count[1] = 3'd0;
                 pattern_mode[1] = 0;
                 pmo_en[1] = 1;
             end

@@ -13,9 +13,9 @@ module Link_Controller (
     
     input   logic         pattern_mode,
     input   logic         start_pat_req,
-    input   logic         send_4_iter,
+    input   logic [2:0]   req_iter_count,
 
-    output  logic         four_iter_done,
+    output  logic         iter_done,
 
     input   logic         ser_rdy,
     output  logic [63:0]  ser_data_send,
@@ -113,8 +113,8 @@ sb_pattern_engine u_sb_pattern_engine(
     .rst_n          ( rst_n          ),
     .pattern_mode   ( pattern_mode   ),
     .start_pat_req  ( start_pat_req  ),
-    .send_4_iter    ( send_4_iter    ),
-    .four_iter_done ( four_iter_done ),
+    .req_iter_count ( req_iter_count ),
+    .iter_done      ( iter_done      ),
     .mapper_data    ( msg_send       ),
     .mapper_valid   ( msg_vld_send   ),
     .mapper_rdy   ( msg_path_rdy ),

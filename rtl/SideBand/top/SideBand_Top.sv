@@ -41,8 +41,8 @@ module SideBand_Top #(
     // =========================================================================
     input  logic         pattern_mode,
     input  logic         start_pat_req,
-    input  logic         send_4_iter,
-    output logic         four_iter_done,
+    input  logic [2:0]   req_iter_count,
+    output logic         iter_done,
     output logic         det_pat_rcvd,
 
     // =========================================================================
@@ -187,8 +187,8 @@ module SideBand_Top #(
         
         .pattern_mode     (pattern_mode),
         .start_pat_req    (start_pat_req),
-        .send_4_iter      (send_4_iter),
-        .four_iter_done   (four_iter_done),
+        .req_iter_count   (req_iter_count),
+        .iter_done        (iter_done),
 
         .ser_rdy          (ser_rdy),
         .ser_data_send    (ser_data_send),

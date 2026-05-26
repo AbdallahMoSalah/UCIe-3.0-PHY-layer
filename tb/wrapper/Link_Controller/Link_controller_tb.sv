@@ -27,9 +27,9 @@ Link_Controller dut(
     
     .pattern_mode      ( vif.pattern_mode      ),
     .start_pat_req     ( vif.start_pat_req     ),
-    .send_4_iter       ( vif.send_4_iter       ),
+    .req_iter_count    ( vif.req_iter_count    ),
     
-    .four_iter_done    ( vif.four_iter_done    ),
+    .iter_done         ( vif.iter_done         ),
     
     .ser_data_send     ( vif.ser_data_send     ),
     .ser_vld_send      ( vif.ser_vld_send      ),
@@ -78,7 +78,7 @@ initial begin
     vif.rst_n = 0;
     vif.pattern_mode = 0;
     vif.start_pat_req = 0;
-    vif.send_4_iter = 0;
+    vif.req_iter_count = 3'd0;
     vif.ser_rdy = 1;
     vif.trn_msg_send = 0;
     vif.trn_vld_send = 0;
@@ -100,9 +100,9 @@ initial begin
     #10;
     vif.start_pat_req = 0;
     
-    vif.send_4_iter = 1;
+    vif.req_iter_count = 3'd4;
     #10;
-    vif.send_4_iter = 0;
+    vif.req_iter_count = 3'd0;
     
     #500;
     vif.pattern_mode = 0; // Ensure it goes back to 0

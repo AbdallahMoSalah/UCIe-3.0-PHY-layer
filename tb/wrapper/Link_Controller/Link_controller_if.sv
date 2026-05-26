@@ -13,9 +13,9 @@ interface Link_controller_if(input bit clk);
 
       logic         pattern_mode;
       logic         start_pat_req;
-      logic         send_4_iter;
+      logic [2:0]   req_iter_count;
 
-      logic         four_iter_done;
+      logic         iter_done;
       logic         det_pat_rcvd;
 
       logic [63:0]  ser_data_send;

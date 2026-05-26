@@ -6,9 +6,9 @@ module sb_pattern_engine (
     // control
     input  logic        pattern_mode,
     input  logic        start_pat_req,
-    input  logic        send_4_iter,
+    input  logic [2:0] req_iter_count,
 
-    output logic        four_iter_done,
+    output logic        iter_done,
 
     // mapper
     input  logic [63:0] mapper_data,
@@ -36,7 +36,7 @@ typedef enum logic [2:0] {
     MAPPER,
     IDLE,
     SEND_PATTERN,
-    COUNT_4,
+    COUNT,
     DONE_HOLD
 } state_t;
 
@@ -86,8 +86,8 @@ always_comb begin
             else if(start_pat_req)
                 next_state = SEND_PATTERN;
                 
-            else if(send_4_iter)
-                next_state = COUNT_4;
+            else if(req_iter_count > 0)
+                next_state = COUNT;
         end
 
         ////////////////////////////////////////////////////
@@ -100,18 +100,18 @@ always_comb begin
             else if(!start_pat_req)
                 next_state = IDLE;
 
-            else if(send_4_iter)
-                next_state = COUNT_4;
+            else if(req_iter_count > 0)
+                next_state = COUNT;
         end
 
         ////////////////////////////////////////////////////
-        COUNT_4:
+        COUNT:
         ////////////////////////////////////////////////////
         begin
             if(!pattern_mode)
                 next_state = MAPPER;
 
-            else if((iter_cnt == 3) && ser_valid && ser_rdy)
+            else if((iter_cnt == req_iter_count - 1) && ser_valid && ser_rdy)
                 next_state = DONE_HOLD;
         end
 
@@ -137,9 +137,9 @@ always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         iter_cnt <= 0;
 
-    else if(state == COUNT_4) begin
+    else if(state == COUNT) begin
         if(ser_valid && ser_rdy) begin
-            if(iter_cnt == 3)
+            if(iter_cnt == req_iter_count - 1)
                 iter_cnt <= 0;
             else
                 iter_cnt <= iter_cnt + 1;
@@ -170,8 +170,8 @@ always_comb begin
             SEND_PATTERN:
                 ser_valid = start_pat_req;
 
-            COUNT_4:
-                ser_valid = (iter_cnt < 4);
+            COUNT:
+                ser_valid = (iter_cnt < req_iter_count);
 
             DONE_HOLD:
                 ser_valid = 0;
@@ -198,7 +198,7 @@ always_comb begin
                 ser_data = mapper_data;
 
             SEND_PATTERN,
-            COUNT_4:
+            COUNT:
                 ser_data = CLOCK_PATTERN;
 
             default:
@@ -218,7 +218,7 @@ assign mapper_rdy = (state == MAPPER) && ser_rdy;
 // done signal (latched by state)
 ////////////////////////////////////////////////////////////
 
-assign four_iter_done = (state == DONE_HOLD);
+assign iter_done = (state == DONE_HOLD);
 
 endmodule
 

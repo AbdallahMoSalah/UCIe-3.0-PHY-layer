@@ -27,8 +27,8 @@ always #(SB_CLK/2) clk_parallel = ~clk_parallel;   // 100 MHz equivalent
 
 logic start_pat_req;
 logic pattern_mode;
-logic send_4_iter;
-logic four_iter_done;
+logic [2:0] req_iter_count;
+logic iter_done;
 
 ////////////////////////////////////////////////////////////
 // Mapper Interface
@@ -60,9 +60,9 @@ sb_pattern_engine dut_pattern (
 
     .pattern_mode(pattern_mode),
     .start_pat_req(start_pat_req),
-    .send_4_iter(send_4_iter),
+    .req_iter_count(req_iter_count),
 
-    .four_iter_done(four_iter_done),
+    .iter_done(iter_done),
 
     .mapper_data(mapper_data),
     .mapper_valid(mapper_valid),
@@ -137,7 +137,7 @@ initial begin
 
     start_pat_req = 0;
     pattern_mode = 1;
-    send_4_iter  = 0;
+    req_iter_count  = 3'd0;
 
     iter_count   = 0;
 
@@ -148,17 +148,17 @@ initial begin
 // Pattern streaming without counting
 ////////////////////////////////////////////////////////////
 
-    $display("TEST1: start_pat_req=1, send_4_iter=0");
+    $display("TEST1: start_pat_req=1, req_iter_count=0");
 
     @(posedge clk_parallel);
     pattern_mode = 1;
     start_pat_req = 1;
-    send_4_iter  = 0;
+    req_iter_count  = 3'd0;
 
     repeat(49) @(posedge clk_parallel);
 
-    if(four_iter_done)
-        $fatal("ERROR: four_iter_done asserted while send_4_iter=0");
+    if(iter_done)
+        $fatal("ERROR: iter_done asserted while req_iter_count=0");
 
 ////////////////////////////////////////////////////////////
 // TEST 2
@@ -167,13 +167,13 @@ initial begin
 
     $display("TEST2: start 4 iteration counting");
 
-    send_4_iter = 1;
+    req_iter_count = 3'd4;
 
 
-    while(!four_iter_done)
+    while(!iter_done)
         @(posedge clk_parallel);
     
-    $display("four_iter_done detected");
+    $display("iter_done detected");
 
 ////////////////////////////////////////////////////////////
 // Verify iteration count
@@ -189,7 +189,7 @@ initial begin
     repeat(2) @(posedge clk_parallel);
     pattern_mode = 0;
     start_pat_req = 0;
-    send_4_iter = 0;
+    req_iter_count = 3'd0;
 
 
     prev_count = iter_count;

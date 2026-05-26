@@ -13,7 +13,7 @@ package Link_Controller_tb_pkg;
         logic mapper_rdy;
         logic pattern_mode;
         logic start_pat_req;
-        logic send_4_iter;
+        logic [2:0] req_iter_count;
 
         // Backpressure state
         sb_packet_t prev_Link_msg;
@@ -228,7 +228,7 @@ package Link_Controller_tb_pkg;
                 @(posedge vif.clk);
 
                 // Sample TX Side Inputs
-                if (vif.trn_vld_send || vif.adapter_vld_send || vif.ser_rdy || vif.start_pat_req || vif.send_4_iter) begin
+                if (vif.trn_vld_send || vif.adapter_vld_send || vif.ser_rdy || vif.start_pat_req || (vif.req_iter_count > 0)) begin
                     tx_in = new();
                     tx_in.trn_msg_send = vif.trn_msg_send;
                     tx_in.trn_vld_send = vif.trn_vld_send;
@@ -237,7 +237,7 @@ package Link_Controller_tb_pkg;
                     tx_in.ser_rdy = vif.ser_rdy;
                     tx_in.pattern_mode = vif.pattern_mode;
                     tx_in.start_pat_req = vif.start_pat_req;
-                    tx_in.send_4_iter = vif.send_4_iter;
+                    tx_in.req_iter_count = vif.req_iter_count;
                     tx_in.mapper_rdy = vif.mapper_rdy;
                     tx_in_mbx.put(tx_in);
                 end
@@ -319,9 +319,9 @@ package Link_Controller_tb_pkg;
                 mon.tx_in_mbx.get(pkt);
                 
                 if (pkt.pattern_mode) begin
-					// Predictor aligns with RTL behavior: start_pat_req packet is preempted by send_4_iter, so only the 4 iterations transmit.
-                    if (pkt.send_4_iter) begin
-                         for (int i=0; i<4; i++) begin
+					// Predictor aligns with RTL behavior: start_pat_req packet is preempted by req_iter_count, so only the iterations transmit.
+                    if (pkt.req_iter_count > 0) begin
+                         for (int i=0; i<pkt.req_iter_count; i++) begin
                              exp = new();
                              exp.ser_data_send = 64'h5555_5555_5555_5555;
                              exp.ser_vld_send = 1;
