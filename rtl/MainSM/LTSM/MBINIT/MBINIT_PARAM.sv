@@ -151,13 +151,8 @@ assign SFES_sel = L2SPD_sel || PSPT_sel || PMO_sel;
 // عايزين نشوف حوار ال SPMW
 logic UCIE_x8;
 always_comb begin
-    if(phy_x8_mode_ctrl || Target_Link_Width_ctrl == 4'b0001 ) begin
-        if(Max_Link_Width_cap >= 3'b000 || Max_Link_Width_cap == 3'b111)begin 
-            UCIE_x8 = 1'b1;
-        end
-        else begin
-            UCIE_x8 = 1'b0;
-        end
+    if(phy_x8_mode_ctrl || Target_Link_Width_ctrl == 4'h1 ) begin
+        UCIE_x8 = 1'b1;
     end
     else begin
         UCIE_x8 = 1'b0;
@@ -463,7 +458,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     // S1 NEGOTIATION (when partner S1 valid)
     ////////////////////////////////////////////////////////
     else if (param_req_rcvd) begin
-        local_Link_width_enabled_status           <= UCIE_x8        | partner_UCIE_x8_sel;
+        local_Link_width_enabled_status           <= (UCIE_x8       | partner_UCIE_x8_sel) ? 4'h1 : 4'h2;
         local_TARR_negotiated_status              <= TARR_sel       & partner_TARR_sel;
         local_SFES_negotiated                     <= SFES_sel       & partner_SFES_sel;
         local_clk_phase_negotiated_status         <= clk_phase_sel  & partner_clk_phase_sel;
@@ -580,7 +575,7 @@ assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_er
 ////////////////////////////////////////////////////////
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
-        current_state <= MB_S0_IDLE;
+        current_state <= MB_S0_IDLE;rtl/MainSM/LTSM/MBINIT/MBINIT_CAL.sv rtl/MainSM/LTSM/MBINIT/MBINIT_PARAM.sv rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRVAL.sv rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRCLK.sv
     else
         current_state <= next_state;
 end

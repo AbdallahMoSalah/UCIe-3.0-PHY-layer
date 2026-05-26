@@ -81,9 +81,6 @@ mb_repairval_state_e current_state, next_state;
 localparam logic [15:0] MB_default_MSG_Info   = 16'h0000;
 localparam logic [63:0] MB_default_data_Field = 64'h0;
 
-logic [15:0] MB_repairval_result_MSG_Info;
-assign MB_repairval_result_MSG_Info = {15'b0, RVLD_L_pass};
-
 ////////////////////////////////////////////////////////
 // TIMEOUT
 ////////////////////////////////////////////////////////
@@ -111,6 +108,10 @@ logic partner_result;         // partner's repair result (from rx MsgInfo[0] on 
 
 logic error_detect;
 assign error_detect = !partner_result; // pass = 1, fail = 0
+
+
+logic [15:0] MB_repairval_result_MSG_Info;
+assign MB_repairval_result_MSG_Info = {15'b0, repairval_result_local};
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
