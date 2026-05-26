@@ -46,7 +46,7 @@
 
 */
 
-module MBINIT_PARAM_NEW
+module MBINIT_PARAM
 
 import UCIe_pkg::*;
 
@@ -116,23 +116,22 @@ import UCIe_pkg::*;
     // --------- STATUS REG ----------
     // -------------------------------
     // From Phy 
-    output logic Clock_Phase_enable_status;
-    output logic Clock_mode_enable_status;
-    output logic TARR_enable_status;
+    output logic Clock_Phase_enable_status,
+    output logic Clock_mode_enable_status,
+    output logic TARR_enable_status,
     // From Link
-    output logic [3:0] Link_Width_enable_status;
-    output logic [3:0] Link_Speed_enable_status;
-    output logic PMO_enable_status;
-    output logic L2SPD_enable_status;
-    output logic PSPT_enable_status;
+    output logic [3:0] Link_Width_enable_status,
+    output logic [3:0] Link_Speed_enable_status,
+    output logic PMO_enable_status,
+    output logic L2SPD_enable_status,
+    output logic PSPT_enable_status,
     
     // Sideband FIFO ready (write-side handshake)
     input  logic ltsm_rdy,
 
     // Timer signals
-    output logic mb_param_timer_enable;
-    input  logic mb_param_timeout_expired;
-
+    output logic mb_param_timer_enable,
+    input  logic mb_param_timeout_expired
 );
 
 logic TARR_sel;
@@ -197,7 +196,7 @@ end
 logic clk_phase_sel;
 always_comb begin
     if(link_speed_sel <= 4'b0101) begin
-        if(Clock_phase_cap == 2'b01 || Clock_phase_cap == 2'b10)begin
+        if(Clock_Phase_cap == 2'b01 || Clock_Phase_cap == 2'b10)begin
             if(link_speed_sel== 4'b0100 || link_speed_sel== 4'b0101 ) begin
                 clk_phase_sel = Clock_Phase_ctrl;
             end
@@ -447,9 +446,9 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_clk_mode_negotiated_status           <= clk_mode_sel;
         local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
         
-        local_pmo_negotiated_status                <= pmo_sel;
-        local_l2spd_negotiated_status              <= l2spd_sel;
-        local_pspt_negotiated_status               <= pspt_sel;
+        local_pmo_negotiated_status                <= PMO_sel;
+        local_l2spd_negotiated_status              <= L2SPD_sel;
+        local_pspt_negotiated_status               <= PSPT_sel;
         local_so_negotiated                        <= so;
         local_mtp_negotiated                       <= mtp;
     end
@@ -458,22 +457,40 @@ always_ff @(posedge clk or negedge rst_n) begin
     // S1 NEGOTIATION (when partner S1 valid)
     ////////////////////////////////////////////////////////
     else if (param_req_rcvd) begin
-        local_Link_width_enabled_status           <= (UCIE_x8       | partner_UCIE_x8_sel) ? 4'h1 : 4'h2;
-        local_TARR_negotiated_status              <= TARR_sel       & partner_TARR_sel;
-        local_SFES_negotiated                     <= SFES_sel       & partner_SFES_sel;
-        local_clk_phase_negotiated_status         <= clk_phase_sel  & partner_clk_phase_sel;
-        local_clk_mode_negotiated_status          <= clk_mode_sel   & partner_clk_mode_sel;
-        local_Link_speed_enabled_negotiate_status <= (link_speed_sel <= partner_link_speed_sel) ? link_speed_sel : partner_link_speed_sel;
+        // Compute negotiated speed first
+        logic [3:0] negotiated_speed_val;
+        negotiated_speed_val = (link_speed_sel <= partner_link_speed_sel) ? link_speed_sel : partner_link_speed_sel;
+
+        local_Link_speed_enabled_negotiate_status <= negotiated_speed_val;
+
+        // Width negotiation fallback to x8
+        local_Link_width_enabled_status           <= (UCIE_x8 | partner_UCIE_x8_sel) ? 4'h1 : 4'h2;
+        local_TARR_negotiated_status              <= TARR_sel & partner_TARR_sel;
+        local_SFES_negotiated                     <= SFES_sel & partner_SFES_sel;
+
+        // Clock Phase negotiation based on negotiated speed (Quadrature phase 1 only at 24GT/32GT)
+        if (negotiated_speed_val == 4'd4 || negotiated_speed_val == 4'd5) begin
+            local_clk_phase_negotiated_status     <= clk_phase_sel & partner_clk_phase_sel;
+        end else begin
+            local_clk_phase_negotiated_status     <= 1'b0; // Forced to Differential
+        end
+
+        // Clock Mode negotiation based on negotiated speed (Continuous mode 1 optional <= 32GT, mandatory > 32GT)
+        if (negotiated_speed_val <= 4'd5) begin
+            local_clk_mode_negotiated_status      <= clk_mode_sel & partner_clk_mode_sel;
+        end else begin
+            local_clk_mode_negotiated_status      <= 1'b1; // Continuous
+        end
     end
 
     ////////////////////////////////////////////////////////
     // S2 NEGOTIATION (SBFE features)
     ////////////////////////////////////////////////////////
     else if (sbfe_req_rcvd) begin
-        local_l2spd_negotiated_status <= l2spd_sel     & partner_l2spd;
-        local_pspt_negotiated_status  <= pspt_sel      & partner_pspt;
+        local_l2spd_negotiated_status <= L2SPD_sel     & partner_l2spd;
+        local_pspt_negotiated_status  <= PSPT_sel      & partner_pspt;
         local_so_negotiated           <= so            & partner_so;
-        local_pmo_negotiated_status   <= pmo_sel       & partner_pmo;
+        local_pmo_negotiated_status   <= PMO_sel       & partner_pmo;
         local_mtp_negotiated          <= mtp           & partner_mtp;
     end
 end
@@ -505,17 +522,19 @@ end
 /////////// partner RESP Negotiation log  //////////////
 ////////////////////////////////////////////////////////
 logic partner_TARR_negotiated_status;
-logic partner_SFES_negotiated                    
-logic partner_clk_phase_negotiated_status        
-logic partner_clk_mode_negotiated_status         
-logic [3:0] partner_Link_speed_enabled_negotiate_status 
-
+logic partner_SFES_negotiated;
+logic partner_clk_phase_negotiated_status;
+logic partner_clk_mode_negotiated_status;
+logic [3:0] partner_Link_speed_enabled_negotiate_status;
 
 logic partner_l2spd_negotiated_status;
 logic partner_pspt_negotiated_status;
 logic partner_so_negotiated;
 logic partner_pmo_negotiated_status;
 logic partner_mtp_negotiated;
+
+logic is_error;
+logic is_SFES;
 
 
 
@@ -539,20 +558,21 @@ end
 
 always_comb begin
     if(current_state == MB_S2_ERROR_CHECK) begin
-        is_error != (local_TARR_negotiated_status == partner_TARR_negotiated_status) &&
-                    (local_SFES_negotiated == partner_SFES_negotiated) &&
-                    (local_clk_phase_negotiated_status == partner_clk_phase_negotiated_status) &&
-                    (local_clk_mode_negotiated_status == partner_clk_mode_negotiated_status) &&
-                    (local_Link_speed_enabled_negotiate_status == partner_Link_speed_enabled_negotiate_status);
+        is_error = !((local_TARR_negotiated_status == partner_TARR_negotiated_status) &&
+                     (local_SFES_negotiated == partner_SFES_negotiated) &&
+                     (local_clk_phase_negotiated_status == partner_clk_phase_negotiated_status) &&
+                     (local_clk_mode_negotiated_status == partner_clk_mode_negotiated_status) &&
+                     (local_Link_speed_enabled_negotiate_status == partner_Link_speed_enabled_negotiate_status));
 
         is_SFES = ((local_SFES_negotiated == 1'b1) && (partner_SFES_negotiated == 1'b1));
     end
     else if(current_state == MB_S4_ERROR_CHECK) begin
-        is_error != (local_l2spd_negotiated_status == partner_l2spd_negotiated_status) &&
-                    (local_pspt_negotiated_status == partner_pspt_negotiated_status) &&
-                    (local_so_negotiated == partner_so_negotiated) &&
-                    (local_pmo_negotiated_status == partner_pmo_negotiated_status) &&
-                    (local_mtp_negotiated == partner_mtp_negotiated);
+        is_error = !((local_l2spd_negotiated_status == partner_l2spd_negotiated_status) &&
+                     (local_pspt_negotiated_status == partner_pspt_negotiated_status) &&
+                     (local_so_negotiated == partner_so_negotiated) &&
+                     (local_pmo_negotiated_status == partner_pmo_negotiated_status) &&
+                     (local_mtp_negotiated == partner_mtp_negotiated));
+        is_SFES = 1'b0;
     end
     else begin
         is_error = 1'b0;
@@ -575,7 +595,7 @@ assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_er
 ////////////////////////////////////////////////////////
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
-        current_state <= MB_S0_IDLE;rtl/MainSM/LTSM/MBINIT/MBINIT_CAL.sv rtl/MainSM/LTSM/MBINIT/MBINIT_PARAM.sv rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRVAL.sv rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRCLK.sv
+        current_state <= MB_S0_IDLE;
     else
         current_state <= next_state;
 end
