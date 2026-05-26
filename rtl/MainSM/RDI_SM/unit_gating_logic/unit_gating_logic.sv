@@ -19,6 +19,17 @@ module unit_gating_logic#(
     localparam int COUNTER_WIDTH = $clog2(T1US_LIMIT + 1);
     logic [COUNTER_WIDTH-1:0] counter;
 
+    // Clock gating is permitted in Reset, LinkReset, Disabled and the PM states
+    // L1/L2 (UCIe spec 10.1.3).  inband_pres is asserted continuously in L1/L2,
+    // so it must only inhibit gating in the non-PM states (e.g. Reset+LINKINIT
+    // when the link is about to go Active); otherwise it would wrongly block
+    // gating in the PM states where gating is most needed.
+    wire pm_state     = (pl_state_sts == L_1) || (pl_state_sts == L_2);
+    wire gateable     = (pl_state_sts == Reset)     ||
+                        (pl_state_sts == LinkReset) ||
+                        (pl_state_sts == Disabled)  || pm_state;
+    wire inband_block = inband_pres && ~pm_state;
+
     always_ff @(posedge lclk or negedge rst_n) begin
         if (~rst_n) begin
             GATING_cs <= UNGATING;
@@ -30,15 +41,11 @@ module unit_gating_logic#(
                     if (counter < T1US_LIMIT) begin
                         counter <= counter + 1;
                     end
-                    else if (((pl_state_sts == Reset)||    //
-                              (pl_state_sts == LinkReset)||
-                              (pl_state_sts == Disabled)||
-                              (pl_state_sts == L_1)||
-                              (pl_state_sts == L_2)) &&
+                    else if (gateable      &&
                               ~phyinrecenter &&
-                              ~pl_clk_req && 
-                              ~ungating_req && 
-                              ~inband_pres)begin
+                              ~pl_clk_req    &&
+                              ~ungating_req  &&
+                              ~inband_block) begin
                         GATING_cs <= GATING;
                         counter <= 0;
                     end
@@ -48,15 +55,12 @@ module unit_gating_logic#(
                     end
                 end
             GATING:begin
-                if (pl_clk_req||ungating_req || phyinrecenter|| ~((pl_state_sts == Reset)||
-                                                                     (pl_state_sts == LinkReset)||  
-                                                                     (pl_state_sts == Disabled)||
-                                                                     (pl_state_sts == L_1)||
-                                                                     (pl_state_sts == L_2))||inband_pres)
+                if (pl_clk_req || ungating_req || phyinrecenter ||
+                    ~gateable || inband_block)
                     GATING_cs <= UNGATING;
-                else 
+                else
                     GATING_cs <= GATING;
-            end 
+            end
         endcase
     end
 

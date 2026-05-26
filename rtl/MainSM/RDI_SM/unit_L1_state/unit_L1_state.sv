@@ -85,10 +85,11 @@ module unit_L1_state (
                     cs           <= d_send_resp;
                     message_send <= RDI_DISABLE_RSP;
                 end else if (lp_state_req == Active) begin
-                    cs                    <= training;
-                    active_handshake_strt <= 1'b1;
-                end else if (message_receive == RDI_ACTIVE_REQ) begin
-                    cs        <= reset;
+                    // PM exit from L1 is performed through Retrain (UCIe spec):
+                    // the main SM moves L1 -> Retrain and the Retrain sub-SM
+                    // runs the Active handshake back to Active.
+                    cs         <= reset;
+                    next_state <= Retrain;
                 end
             end
 

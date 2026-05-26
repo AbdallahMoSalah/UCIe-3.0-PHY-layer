@@ -76,9 +76,14 @@ module unit_active_pmnak_state (
         end else begin
             case (current_state)
                 // --- STATE_DISABLED ---
+                // Rest in Active_PMNAK (the home state) on entry.  Driving
+                // next_state=Active here would make the main controller bounce
+                // straight back out of Active_PMNAK before the PMNAK state is
+                // ever observable.  The exit to Active happens only from IDLE
+                // once the adapter actually requests Active.
                 STATE_DISABLED: begin
                     current_state <= IDLE;
-                    next_state    <= Active;
+                    next_state    <= Active_PMNAK;
                 end
 
                 // --- IDLE ---

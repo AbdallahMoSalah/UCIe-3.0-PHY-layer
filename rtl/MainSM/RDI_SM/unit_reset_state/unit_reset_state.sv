@@ -141,7 +141,11 @@ module unit_reset_state (
 //===========================================================
             // NOP_rcvd: Resting state waiting for target active, linkreset, or disable states
             NOP_rcvd: begin
-                if (lp_state_req == Active & state_sts == LINKINIT) begin
+                if (lp_linkerror) begin
+                    message_send <= RDI_LINK_ERROR_REQ;
+                    cs <= le_req;
+                end
+                else if (lp_state_req == Active & state_sts == LINKINIT) begin
                     cs <= active_hs;
                     Active_handshake_strt<=1;
                 end
@@ -158,12 +162,27 @@ module unit_reset_state (
             end
 //===========================================================
             training: begin
-                if (state_sts == LINKINIT)
+                if (lp_linkerror) begin
+                    message_send <= RDI_LINK_ERROR_REQ;
+                    cs <= le_req;
+                end
+                // Active was requested before LINKINIT; once LINKINIT is seen
+                // (and Active is still held) initiate the Active handshake
+                // directly without requiring lp_state_req to toggle back to Nop.
+                else if (state_sts == LINKINIT && lp_state_req == Active) begin
+                    cs <= active_hs;
+                    Active_handshake_strt <= 1;
+                end
+                else if (state_sts == LINKINIT)
                     cs <= INPP;
             end
 //===========================================================
             INPP: begin
-                if (lp_state_req == Nop)
+                if (lp_linkerror) begin
+                    message_send <= RDI_LINK_ERROR_REQ;
+                    cs <= le_req;
+                end
+                else if (lp_state_req == Nop)
                     cs <= NOP_rcvd;
             end
 //===========================================================

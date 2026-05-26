@@ -44,4 +44,5 @@ rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv
 rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv
 
 // ---- Testbench ----
+tb/integration/RDI_SM/RDI_SM_checker.sv
 tb/integration/RDI_SM/RDI_SM_tb.sv

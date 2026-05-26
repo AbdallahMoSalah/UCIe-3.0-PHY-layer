@@ -85,10 +85,11 @@ module unit_L2_state (
                     cs           <= d_send_resp;
                     message_send <= RDI_DISABLE_RSP;
                 end else if (lp_state_req == Active) begin
-                    cs                    <= training;
-                    active_handshake_strt <= 1'b1;
-                end else if (message_receive == RDI_ACTIVE_REQ) begin
-                    cs        <= reset;
+                    // PM exit from L2 is performed through Reset (UCIe spec):
+                    // the link is fully re-brought-up, so the main SM moves
+                    // L2 -> Reset and the Reset sub-SM re-runs link bring-up.
+                    cs         <= reset;
+                    next_state <= Reset;
                 end
             end
 
