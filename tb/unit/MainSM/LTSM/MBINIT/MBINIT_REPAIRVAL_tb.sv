@@ -34,13 +34,16 @@ module MBINIT_REPAIRVAL_tb;
     logic [63:0] mb_repairval_tx_data_Field;
 
     // Valid patterns
-    logic        mb_tx_pattern_val_en;
-    logic        mb_rx_compare_val_en;
+    logic        mb_tx_pattern_en;
+    logic [2:0]  mb_tx_pattern_setup;
+    logic        mb_tx_val_pattern_sel;
+    logic        mb_rx_compare_en;
+    logic [1:0]  mb_rx_compare_setup;
 
     // Local training pass
-    logic        RVLD_L_pass;
+    logic        mb_rx_val_pass;
 
-    logic        mb_tx_val_pattern_transmission_completed;
+    logic        mb_tx_pattern_count_done;
     logic        ltsm_rdy;
     
     // Timer interface
@@ -85,8 +88,8 @@ module MBINIT_REPAIRVAL_tb;
         mb_repairval_rx_MsgInfo                  = 16'h0;
         mb_repairval_rx_data_Field               = 64'h0;
         
-        RVLD_L_pass                              = 1'b1;
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_rx_val_pass                           = 1'b1;
+        mb_tx_pattern_count_done                 = 1'b0;
 
         ltsm_rdy                                 = 1'b1;
         timeout_expired                          = 1'b0;
@@ -134,18 +137,18 @@ module MBINIT_REPAIRVAL_tb;
         send_msg(MBINIT_REPAIRVAL_init_resp, 64'h0);
 
         // Step 2: Pattern Transmission Phase
-        wait (mb_tx_pattern_val_en);
-        check(mb_rx_compare_val_en, "SCN1: Rx compare enabled during pattern transmission");
+        wait (mb_tx_pattern_en);
+        check(mb_rx_compare_en, "SCN1: Rx compare enabled during pattern transmission");
         repeat (20) @(posedge clk);
         
         // Logical block finishes transmitting
-        mb_tx_val_pattern_transmission_completed = 1'b1;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // Step 3: Result Exchange Handshake
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_req);
-        check(!mb_tx_pattern_val_en, "SCN1: Tx pattern disabled after transmission completed");
+        check(!mb_tx_pattern_en, "SCN1: Tx pattern disabled after transmission completed");
         send_msg(MBINIT_REPAIRVAL_result_req, 64'h0);
 
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_resp);
@@ -185,10 +188,10 @@ module MBINIT_REPAIRVAL_tb;
         send_msg(MBINIT_REPAIRVAL_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_val_en);
-        mb_tx_val_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S3
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_req);
@@ -213,8 +216,8 @@ module MBINIT_REPAIRVAL_tb;
         $display("\n[%0t] --- SCN %0d: LOCAL TRAINING FAILURE ---", $time, scn);
         do_reset();
         
-        // Configure local valid lane training failure: RVLD_L_pass = 0
-        RVLD_L_pass = 1'b0;
+        // Configure local valid lane training failure: mb_rx_val_pass = 0
+        mb_rx_val_pass = 1'b0;
         mb_repairval_enable = 1;
 
         // S1
@@ -224,18 +227,18 @@ module MBINIT_REPAIRVAL_tb;
         send_msg(MBINIT_REPAIRVAL_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_val_en);
-        mb_tx_val_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S3
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_req);
         send_msg(MBINIT_REPAIRVAL_result_req, 64'h0);
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_resp);
         
-        // Local results were RVLD_L_pass = 0
-        check(mb_repairval_tx_MsgInfo[0] == 1'b0, "SCN3: Local result reports RVLD_L_pass=0 correctly (bit 0 = 0)");
+        // Local results were mb_rx_val_pass = 0
+        check(mb_repairval_tx_MsgInfo[0] == 1'b0, "SCN3: Local result reports mb_rx_val_pass=0 correctly (bit 0 = 0)");
 
         mb_repairval_enable = 0;
         repeat (10) @(posedge clk);
@@ -308,7 +311,7 @@ module MBINIT_REPAIRVAL_tb;
         send_msg(MBINIT_REPAIRVAL_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_val_en);
+        wait (mb_tx_pattern_en);
         
         // Partner is very fast and sends result_req and result_resp early during our pattern transmission
         send_msg(MBINIT_REPAIRVAL_result_req, 64'h0);
@@ -316,12 +319,12 @@ module MBINIT_REPAIRVAL_tb;
         repeat (5) @(posedge clk);
 
         // FSM should still be in S2 transmitting pattern
-        check(mb_tx_pattern_val_en, "SCN6: FSM remains in S2 pattern transmission");
+        check(mb_tx_pattern_en, "SCN6: FSM remains in S2 pattern transmission");
 
         // Now pattern completes
-        mb_tx_val_pattern_transmission_completed = 1'b1;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // FSM transitions to RESULT_REQ_SEND. FIFO accepts ours immediately.
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_req);
@@ -386,10 +389,10 @@ module MBINIT_REPAIRVAL_tb;
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_init_resp);
         send_msg(MBINIT_REPAIRVAL_init_resp, 64'h0);
 
-        wait (mb_tx_pattern_val_en);
-        mb_tx_val_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_val_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         wait (mb_repairval_tx_valid && mb_repairval_tx_msg_id == MBINIT_REPAIRVAL_result_req);
         send_msg(MBINIT_REPAIRVAL_result_req, 64'h0);
