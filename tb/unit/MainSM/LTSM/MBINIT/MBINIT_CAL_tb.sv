@@ -80,7 +80,6 @@ assign A_rx_data    = B_tx_data;
 ///////////////////////////////////////////////////////
 
 MBINIT_CAL DUT_A (
-
     .clk(clk),
     .rst_n(rst_n),
 
@@ -99,7 +98,9 @@ MBINIT_CAL DUT_A (
     .mb_cal_tx_MsgInfo(A_tx_msginfo),
     .mb_cal_tx_data_Field(A_tx_data),
 
-    .timeout_error()
+    .ltsm_rdy(1'b1),
+    .timeout_cal_enable(),
+    .timeout_cal_expired(1'b0)
 );
 
 ///////////////////////////////////////////////////////
@@ -107,7 +108,6 @@ MBINIT_CAL DUT_A (
 ///////////////////////////////////////////////////////
 
 MBINIT_CAL DUT_B (
-
     .clk(clk),
     .rst_n(rst_n),
 
@@ -126,7 +126,9 @@ MBINIT_CAL DUT_B (
     .mb_cal_tx_MsgInfo(B_tx_msginfo),
     .mb_cal_tx_data_Field(B_tx_data),
 
-    .timeout_error()
+    .ltsm_rdy(1'b1),
+    .timeout_cal_enable(),
+    .timeout_cal_expired(1'b0)
 );
 
 ///////////////////////////////////////////////////////
