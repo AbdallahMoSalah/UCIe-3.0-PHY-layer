@@ -28,8 +28,6 @@ import UCIe_pkg::*;
 module MBINIT_REVERSALMB
 #( parameter int CLK_FRQ_HZ = 800000000)
 (
-    ucie_mb_cap_if.consumer cap_if,
-
     input  logic clk, rst_n,
 
     input  logic mb_reversal_enable,

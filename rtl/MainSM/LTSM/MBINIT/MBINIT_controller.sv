@@ -23,7 +23,6 @@ module MBINIT_CONTROLLER
     input  logic mbinit_enable,
     output logic mbinit_done,
     output logic mbinit_error,
-    output logic timeout_error,
 
     // =========================================================================
     // RX / TX mainband message bus (Muxed Output)
@@ -34,19 +33,6 @@ module MBINIT_CONTROLLER
     output logic [63:0] mb_tx_data_Field,
 
     // =========================================================================
-    // PHY control bus (Muxed Output)
-    // =========================================================================
-    output logic mb_tx_valid_status,
-    output logic mb_tx_track_status,
-    output logic mb_tx_clk_status,
-    output logic mb_tx_data_status,
-
-    output logic mb_rx_valid_status,
-    output logic mb_rx_track_status,
-    output logic mb_rx_clk_status,
-    output logic mb_rx_data_status,
-
-    // =========================================================================
     // SUBMODULE INTERFACES
     // =========================================================================
     
@@ -54,19 +40,15 @@ module MBINIT_CONTROLLER
     output logic param_enable,
     input  logic param_done,
     input  logic param_error,
-    input  logic param_timeout,
     input  logic        param_tx_valid,
     input  msg_no_e     param_tx_msg_id,
     input  logic [15:0] param_tx_MsgInfo,
     input  logic [63:0] param_tx_data_Field,
-    input  logic param_tx_valid_s, param_tx_track_s, param_tx_clk_s, param_tx_data_s,
-    input  logic param_rx_valid_s, param_rx_track_s, param_rx_clk_s, param_rx_data_s,
 
     // CAL
     output logic cal_enable,
     input  logic cal_done,
     input  logic cal_error,
-    input  logic cal_timeout,
     input  logic        cal_tx_valid,
     input  msg_no_e     cal_tx_msg_id,
     input  logic [15:0] cal_tx_MsgInfo,
@@ -76,7 +58,6 @@ module MBINIT_CONTROLLER
     output logic repairclk_enable,
     input  logic repairclk_done,
     input  logic repairclk_error,
-    input  logic repairclk_timeout,
     input  logic        repairclk_tx_valid,
     input  msg_no_e     repairclk_tx_msg_id,
     input  logic [15:0] repairclk_tx_MsgInfo,
@@ -86,7 +67,6 @@ module MBINIT_CONTROLLER
     output logic repairval_enable,
     input  logic repairval_done,
     input  logic repairval_error,
-    input  logic repairval_timeout,
     input  logic        repairval_tx_valid,
     input  msg_no_e     repairval_tx_msg_id,
     input  logic [15:0] repairval_tx_MsgInfo,
@@ -96,25 +76,19 @@ module MBINIT_CONTROLLER
     output logic reversalmb_enable,
     input  logic reversalmb_done,
     input  logic reversalmb_error,
-    input  logic reversalmb_timeout,
     input  logic        reversalmb_tx_valid,
     input  msg_no_e     reversalmb_tx_msg_id,
     input  logic [15:0] reversalmb_tx_MsgInfo,
     input  logic [63:0] reversalmb_tx_data_Field,
-    input  logic rev_tx_valid_s, rev_tx_track_s, rev_tx_clk_s, rev_tx_data_s,
-    input  logic rev_rx_valid_s, rev_rx_track_s, rev_rx_clk_s, rev_rx_data_s,
 
     // REPAIRMB
     output logic repairmb_enable,
     input  logic repairmb_done,
     input  logic repairmb_error,
-    input  logic repairmb_timeout,
     input  logic        repairmb_tx_valid,
     input  msg_no_e     repairmb_tx_msg_id,
     input  logic [15:0] repairmb_tx_MsgInfo,
-    input  logic [63:0] repairmb_tx_data_Field,
-    input  logic rmb_tx_valid_s, rmb_tx_track_s, rmb_tx_clk_s, rmb_tx_data_s,
-    input  logic rmb_rx_valid_s, rmb_rx_track_s, rmb_rx_clk_s, rmb_rx_data_s
+    input  logic [63:0] repairmb_tx_data_Field
 );
 
 // =============================================================================
@@ -157,37 +131,37 @@ always_comb begin
                 next_state = CTRL_PARAM;
 
         CTRL_PARAM:
-            if (param_error || param_timeout)
+            if (param_error)
                 next_state = CTRL_ERROR;
             else if (param_done)
                 next_state = CTRL_CAL;
 
         CTRL_CAL:
-            if (cal_error || cal_timeout)
+            if (cal_error)
                 next_state = CTRL_ERROR;
             else if (cal_done)
                 next_state = CTRL_REPAIRCLK;
 
         CTRL_REPAIRCLK:
-            if (repairclk_error || repairclk_timeout)
+            if (repairclk_error)
                 next_state = CTRL_ERROR;
             else if (repairclk_done)
                 next_state = CTRL_REPAIRVAL;
 
         CTRL_REPAIRVAL:
-            if (repairval_error || repairval_timeout)
+            if (repairval_error)
                 next_state = CTRL_ERROR;
             else if (repairval_done)
                 next_state = CTRL_REVERSALMB;
 
         CTRL_REVERSALMB:
-            if (reversalmb_error || reversalmb_timeout)
+            if (reversalmb_error)
                 next_state = CTRL_ERROR;
             else if (reversalmb_done)
                 next_state = CTRL_REPAIRMB;
 
         CTRL_REPAIRMB:
-            if (repairmb_error || repairmb_timeout)
+            if (repairmb_error)
                 next_state = CTRL_ERROR;
             else if (repairmb_done)
                 next_state = CTRL_DONE;
@@ -277,60 +251,9 @@ always_comb begin
 end
 
 // =============================================================================
-// PHY STATUS MUX
-// =============================================================================
-always_comb begin
-    mb_tx_valid_status = 0;
-    mb_tx_track_status = 0;
-    mb_tx_clk_status   = 0;
-    mb_tx_data_status  = 0;
-    mb_rx_valid_status = 0;
-    mb_rx_track_status = 0;
-    mb_rx_clk_status   = 0;
-    mb_rx_data_status  = 0;
-
-    case (current_state)
-        CTRL_PARAM: begin
-            mb_tx_valid_status = param_tx_valid_s;
-            mb_tx_track_status = param_tx_track_s;
-            mb_tx_clk_status   = param_tx_clk_s;
-            mb_tx_data_status  = param_tx_data_s;
-            mb_rx_valid_status = param_rx_valid_s;
-            mb_rx_track_status = param_rx_track_s;
-            mb_rx_clk_status   = param_rx_clk_s;
-            mb_rx_data_status  = param_rx_data_s;
-        end
-        // REPAIRCLK and REPAIRVAL don't have PHY status ports
-        CTRL_REVERSALMB: begin
-            mb_tx_valid_status = rev_tx_valid_s;
-            mb_tx_track_status = rev_tx_track_s;
-            mb_tx_clk_status   = rev_tx_clk_s;
-            mb_tx_data_status  = rev_tx_data_s;
-            mb_rx_valid_status = rev_rx_valid_s;
-            mb_rx_track_status = rev_rx_track_s;
-            mb_rx_clk_status   = rev_rx_clk_s;
-            mb_rx_data_status  = rev_rx_data_s;
-        end
-        CTRL_REPAIRMB: begin
-            mb_tx_valid_status = rmb_tx_valid_s;
-            mb_tx_track_status = rmb_tx_track_s;
-            mb_tx_clk_status   = rmb_tx_clk_s;
-            mb_tx_data_status  = rmb_tx_data_s;
-            mb_rx_valid_status = rmb_rx_valid_s;
-            mb_rx_track_status = rmb_rx_track_s;
-            mb_rx_clk_status   = rmb_rx_clk_s;
-            mb_rx_data_status  = rmb_rx_data_s;
-        end
-        default: ;
-    endcase
-end
-
-// =============================================================================
-// DONE / ERROR / TIMEOUT
+// DONE / ERROR
 // =============================================================================
 assign mbinit_done   = (current_state == CTRL_DONE);
 assign mbinit_error  = (current_state == CTRL_ERROR);
-assign timeout_error = param_timeout | repairclk_timeout | reversalmb_timeout |
-                       repairmb_timeout | repairval_timeout | cal_timeout;
 
 endmodule

@@ -21,9 +21,6 @@ module MBINIT_WRAPPER_tb;
     internal_ltsm_if d2c_if_master(.lclk(clk), .rst_n(rst_n));
     internal_ltsm_if d2c_if_partner(.lclk(clk), .rst_n(rst_n));
 
-    // In the wrapper, MBINIT_PARAM drives use_x8_mode on the cap_if!
-    // We must NOT drive it from the testbench.
-
     //////////////////////////////////////////////////
     // SIGNALS
     //////////////////////////////////////////////////
@@ -42,9 +39,6 @@ module MBINIT_WRAPPER_tb;
     logic [15:0] p_tx_MsgInfo;
     logic [63:0] p_tx_data;
 
-    // We do not connect all pattern/compare outputs for this top-level skeleton,
-    // we just want to ensure it compiles and initializes.
-    
     //////////////////////////////////////////////////
     // MASTER INSTANCE
     //////////////////////////////////////////////////
@@ -57,7 +51,42 @@ module MBINIT_WRAPPER_tb;
         .mbinit_error(m_error),
         .timeout_error(m_timeout),
         
-        .cap_if(cap_if_master),
+        .ltsm_rdy(1'b1),
+        .SPMW(1'b0),
+        
+        // Local Inputs
+        .local_is_x8(cap_if_master.local_is_x8),
+        .local_max_speed(cap_if_master.local_max_speed),
+        .local_sbfe(cap_if_master.local_sbfe),
+        .local_tarr(cap_if_master.local_tarr),
+        .local_l2spd(cap_if_master.local_l2spd),
+        .local_pspt(cap_if_master.local_pspt),
+        .local_so(cap_if_master.local_so),
+        .local_pmo(cap_if_master.local_pmo),
+        .local_mtp(cap_if_master.local_mtp),
+        
+        // Partner Outputs
+        .partner_is_x8(cap_if_master.partner_is_x8),
+        .partner_max_speed(cap_if_master.partner_max_speed),
+        .partner_sbfe(cap_if_master.partner_sbfe),
+        .partner_tarr(cap_if_master.partner_tarr),
+        .partner_l2spd(cap_if_master.partner_l2spd),
+        .partner_pspt(cap_if_master.partner_pspt),
+        .partner_so(cap_if_master.partner_so),
+        .partner_pmo(cap_if_master.partner_pmo),
+        .partner_mtp(cap_if_master.partner_mtp),
+        
+        // Negotiated Outputs
+        .use_x8_mode(cap_if_master.use_x8_mode),
+        .negotiated_speed(cap_if_master.negotiated_speed),
+        .negotiated_sbfe(cap_if_master.negotiated_sbfe),
+        .negotiated_tarr(cap_if_master.negotiated_tarr),
+        .negotiated_l2spd(cap_if_master.negotiated_l2spd),
+        .negotiated_pspt(cap_if_master.negotiated_pspt),
+        .negotiated_so(cap_if_master.negotiated_so),
+        .negotiated_pmo(cap_if_master.negotiated_pmo),
+        .negotiated_mtp(cap_if_master.negotiated_mtp),
+        
         .d2c_test_if(d2c_if_master),
         
         .mb_rx_valid(p_tx_valid),
@@ -69,9 +98,6 @@ module MBINIT_WRAPPER_tb;
         .mb_tx_msg_id(m_tx_msg_id),
         .mb_tx_MsgInfo(m_tx_MsgInfo),
         .mb_tx_data_Field(m_tx_data),
-
-        .mb_tx_valid_status(), .mb_tx_track_status(), .mb_tx_clk_status(), .mb_tx_data_status(),
-        .mb_rx_valid_status(), .mb_rx_track_status(), .mb_rx_clk_status(), .mb_rx_data_status(),
         
         .repairclk_tx_pattern_setup(), .repairclk_tx_clk_pattern_sel(), .repairclk_rx_compare_setup(),
         .repairclk_tx_pattern_en(), .repairclk_rx_compare_en(),
@@ -79,7 +105,7 @@ module MBINIT_WRAPPER_tb;
         
         .reversalmb_tx_pattern_setup(), .reversalmb_tx_data_pattern_sel(), .reversalmb_rx_compare_setup(),
         .reversalmb_tx_pattern_en(), .reversalmb_rx_compare_en(),
-        .reversalmb_rx_perlane_err(16'hFFFF), .reversalmb_rx_compare_done(1'b1),
+        .reversalmb_rx_perlane_err(16'h0000), .reversalmb_rx_compare_done(1'b1),
         .mb_lane_reversal_req(), .mb_x8_mode_req(), .clear_error_req(),
         
         .repairval_tx_pattern_setup(), .repairval_tx_val_pattern_sel(), .repairval_rx_compare_setup(),
@@ -99,7 +125,42 @@ module MBINIT_WRAPPER_tb;
         .mbinit_error(p_error),
         .timeout_error(p_timeout),
         
-        .cap_if(cap_if_partner),
+        .ltsm_rdy(1'b1),
+        .SPMW(1'b0),
+        
+        // Local Inputs
+        .local_is_x8(cap_if_partner.local_is_x8),
+        .local_max_speed(cap_if_partner.local_max_speed),
+        .local_sbfe(cap_if_partner.local_sbfe),
+        .local_tarr(cap_if_partner.local_tarr),
+        .local_l2spd(cap_if_partner.local_l2spd),
+        .local_pspt(cap_if_partner.local_pspt),
+        .local_so(cap_if_partner.local_so),
+        .local_pmo(cap_if_partner.local_pmo),
+        .local_mtp(cap_if_partner.local_mtp),
+        
+        // Partner Outputs
+        .partner_is_x8(cap_if_partner.partner_is_x8),
+        .partner_max_speed(cap_if_partner.partner_max_speed),
+        .partner_sbfe(cap_if_partner.partner_sbfe),
+        .partner_tarr(cap_if_partner.partner_tarr),
+        .partner_l2spd(cap_if_partner.partner_l2spd),
+        .partner_pspt(cap_if_partner.partner_pspt),
+        .partner_so(cap_if_partner.partner_so),
+        .partner_pmo(cap_if_partner.partner_pmo),
+        .partner_mtp(cap_if_partner.partner_mtp),
+        
+        // Negotiated Outputs
+        .use_x8_mode(cap_if_partner.use_x8_mode),
+        .negotiated_speed(cap_if_partner.negotiated_speed),
+        .negotiated_sbfe(cap_if_partner.negotiated_sbfe),
+        .negotiated_tarr(cap_if_partner.negotiated_tarr),
+        .negotiated_l2spd(cap_if_partner.negotiated_l2spd),
+        .negotiated_pspt(cap_if_partner.negotiated_pspt),
+        .negotiated_so(cap_if_partner.negotiated_so),
+        .negotiated_pmo(cap_if_partner.negotiated_pmo),
+        .negotiated_mtp(cap_if_partner.negotiated_mtp),
+        
         .d2c_test_if(d2c_if_partner),
         
         .mb_rx_valid(m_tx_valid),
@@ -111,9 +172,6 @@ module MBINIT_WRAPPER_tb;
         .mb_tx_msg_id(p_tx_msg_id),
         .mb_tx_MsgInfo(p_tx_MsgInfo),
         .mb_tx_data_Field(p_tx_data),
-
-        .mb_tx_valid_status(), .mb_tx_track_status(), .mb_tx_clk_status(), .mb_tx_data_status(),
-        .mb_rx_valid_status(), .mb_rx_track_status(), .mb_rx_clk_status(), .mb_rx_data_status(),
         
         .repairclk_tx_pattern_setup(), .repairclk_tx_clk_pattern_sel(), .repairclk_rx_compare_setup(),
         .repairclk_tx_pattern_en(), .repairclk_rx_compare_en(),
@@ -121,13 +179,58 @@ module MBINIT_WRAPPER_tb;
         
         .reversalmb_tx_pattern_setup(), .reversalmb_tx_data_pattern_sel(), .reversalmb_rx_compare_setup(),
         .reversalmb_tx_pattern_en(), .reversalmb_rx_compare_en(),
-        .reversalmb_rx_perlane_err(16'hFFFF), .reversalmb_rx_compare_done(1'b1),
+        .reversalmb_rx_perlane_err(16'h0000), .reversalmb_rx_compare_done(1'b1),
         .mb_lane_reversal_req(), .mb_x8_mode_req(), .clear_error_req(),
         
         .repairval_tx_pattern_setup(), .repairval_tx_val_pattern_sel(), .repairval_rx_compare_setup(),
         .repairval_tx_pattern_en(), .repairval_rx_compare_en(),
         .repairval_RVLD_L_pass(1'b1), .repairval_rx_compare_done(1'b1)
     );
+
+    // =========================================================================
+    // DEBUG TRANSITION LOGGERS
+    // =========================================================================
+    always @(master.u_controller.current_state) begin
+        $display("T=%0t | [MASTER FSM] State: %s", $time, master.u_controller.current_state.name());
+    end
+    always @(partner.u_controller.current_state) begin
+        $display("T=%0t | [PARTNER FSM] State: %s", $time, partner.u_controller.current_state.name());
+    end
+
+    always @(master.u_param.current_state) begin
+        $display("T=%0t |   [MASTER PARAM] State: %s", $time, master.u_param.current_state.name());
+    end
+    always @(partner.u_param.current_state) begin
+        $display("T=%0t |   [PARTNER PARAM] State: %s", $time, partner.u_param.current_state.name());
+    end
+
+    always @(master.u_cal.current_state) begin
+        $display("T=%0t |   [MASTER CAL] State: %s", $time, master.u_cal.current_state.name());
+    end
+    always @(partner.u_cal.current_state) begin
+        $display("T=%0t |   [PARTNER CAL] State: %s", $time, partner.u_cal.current_state.name());
+    end
+
+    always @(master.u_repairclk.current_state) begin
+        $display("T=%0t |   [MASTER REPAIRCLK] State: %s", $time, master.u_repairclk.current_state.name());
+    end
+    always @(partner.u_repairclk.current_state) begin
+        $display("T=%0t |   [PARTNER REPAIRCLK] State: %s", $time, partner.u_repairclk.current_state.name());
+    end
+
+    always @(master.u_reversalmb.current_state) begin
+        $display("T=%0t |   [MASTER REVERSAL] State: %s", $time, master.u_reversalmb.current_state.name());
+    end
+    always @(partner.u_reversalmb.current_state) begin
+        $display("T=%0t |   [PARTNER REVERSAL] State: %s", $time, partner.u_reversalmb.current_state.name());
+    end
+
+    always @(master.u_repairmb.current_state) begin
+        $display("T=%0t |   [MASTER REPAIR] State: %s", $time, master.u_repairmb.current_state.name());
+    end
+    always @(partner.u_repairmb.current_state) begin
+        $display("T=%0t |   [PARTNER REPAIR] State: %s", $time, partner.u_repairmb.current_state.name());
+    end
 
     //////////////////////////////////////////////////
     // TEST SEQUENCE

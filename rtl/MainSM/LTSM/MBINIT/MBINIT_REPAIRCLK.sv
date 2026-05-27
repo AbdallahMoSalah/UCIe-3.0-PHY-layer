@@ -145,7 +145,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
             MBINIT_REPAIRCLK_result_resp : begin
                 s3_rsp_rcvd            <= 1'b1;
-                partner_compare_result <= mb_repairclk_rx_data_Field[2:0];
+                partner_compare_result <= mb_repairclk_rx_MsgInfo[2:0];
             end
             MBINIT_REPAIRCLK_done_req    : s4_req_rcvd <= 1'b1;
             MBINIT_REPAIRCLK_done_resp   : s4_rsp_rcvd <= 1'b1;

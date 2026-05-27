@@ -1,6 +1,6 @@
 import UCIe_pkg::*;
 
-module MBINIT_CAL_NEW 
+module MBINIT_CAL 
 #(parameter int CLK_FRQ_HZ = 800000000)
 (
     input  logic clk, rst_n,
