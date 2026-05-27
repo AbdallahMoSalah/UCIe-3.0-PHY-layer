@@ -121,6 +121,11 @@ stateDiagram-v2
 
 This sequence diagram displays **Die A** (remains x16) and **Die B** (degrades to lower x8) performing independent asymmetric pair training.
 
+### High-Resolution Sequence Infographic
+![MBINIT_REPAIRMB Degradation Sequence Flow](images/repairmb_degradation_sequence.png)
+
+### Dynamic Sequence Flow Diagram
+
 ```mermaid
 sequenceDiagram
     autonumber
