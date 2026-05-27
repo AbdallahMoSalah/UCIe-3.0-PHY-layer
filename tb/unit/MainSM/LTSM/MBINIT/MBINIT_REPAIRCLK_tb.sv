@@ -33,15 +33,17 @@ module MBINIT_REPAIRCLK_tb;
     logic [63:0] mb_repairclk_tx_data_Field;
 
     // Clock patterns
-    logic        mb_tx_pattern_clk_en;
-    logic        mb_rx_compare_clk_en;
+    logic        mb_tx_pattern_en;
+    logic [2:0]  mb_tx_pattern_setup;
+    logic        mb_rx_compare_en;
+    logic [1:0]  mb_rx_compare_setup;
 
     // Local training passes
     logic        rtrk_pass;
     logic        rckn_pass;
     logic        rckp_pass;
 
-    logic        mb_tx_clk_pattern_transmission_completed;
+    logic        mb_tx_pattern_count_done;
     logic        ltsm_rdy;
     logic        timeout_repairclk_expired;
     logic        timeout_repairclk_enable;
@@ -87,7 +89,7 @@ module MBINIT_REPAIRCLK_tb;
         rtrk_pass                                = 1'b1;
         rckn_pass                                = 1'b1;
         rckp_pass                                = 1'b1;
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done                 = 1'b0;
 
         ltsm_rdy                                 = 1'b1;
         timeout_repairclk_expired                = 1'b0;
@@ -135,18 +137,18 @@ module MBINIT_REPAIRCLK_tb;
         send_msg(MBINIT_REPAIRCLK_init_resp, 64'h0);
 
         // Step 2: Pattern Transmission Phase
-        wait (mb_tx_pattern_clk_en);
-        check(mb_rx_compare_clk_en, "SCN1: Rx compare enabled during pattern transmission");
+        wait (mb_tx_pattern_en);
+        check(mb_rx_compare_en, "SCN1: Rx compare enabled during pattern transmission");
         repeat (20) @(posedge clk);
         
         // Logical block finishes transmitting
-        mb_tx_clk_pattern_transmission_completed = 1'b1;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // Step 3: Result Exchange Handshake
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_req);
-        check(!mb_tx_pattern_clk_en, "SCN1: Tx pattern disabled after transmission completed");
+        check(!mb_tx_pattern_en, "SCN1: Tx pattern disabled after transmission completed");
         send_msg(MBINIT_REPAIRCLK_result_req, 64'h0);
 
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_resp);
@@ -154,7 +156,7 @@ module MBINIT_REPAIRCLK_tb;
         check(mb_repairclk_tx_MsgInfo[2:0] == 3'b111, "SCN1: Local result is driven correctly (3'b111)");
         
         // Partner result: All pass (3'b111)
-        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0000_0000_0000_0007);
+        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0, 16'h7);
 
         // Step 4/5: Error check passed -> Finalize Handshake
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_done_req);
@@ -186,10 +188,10 @@ module MBINIT_REPAIRCLK_tb;
         send_msg(MBINIT_REPAIRCLK_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_clk_en);
-        mb_tx_clk_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S3
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_req);
@@ -197,7 +199,7 @@ module MBINIT_REPAIRCLK_tb;
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_resp);
         
         // Partner reports clock training failure: rckn_pass = 0 -> compare result = 3'b101 (5)
-        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0000_0000_0000_0005);
+        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0, 16'h5);
 
         // S4: Error check sees 0 in partner results -> transitions to S6_REPAIRCLK_ERROR
         wait (mb_repairclk_error);
@@ -225,10 +227,10 @@ module MBINIT_REPAIRCLK_tb;
         send_msg(MBINIT_REPAIRCLK_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_clk_en);
-        mb_tx_clk_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S3
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_req);
@@ -309,20 +311,20 @@ module MBINIT_REPAIRCLK_tb;
         send_msg(MBINIT_REPAIRCLK_init_resp, 64'h0);
 
         // S2
-        wait (mb_tx_pattern_clk_en);
+        wait (mb_tx_pattern_en);
         
         // Partner is very fast and sends result_req and result_resp early during our pattern transmission
         send_msg(MBINIT_REPAIRCLK_result_req, 64'h0);
-        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0000_0000_0000_0007);
+        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0, 16'h7);
         repeat (5) @(posedge clk);
 
         // FSM should still be in S2 transmitting pattern
-        check(mb_tx_pattern_clk_en, "SCN6: FSM remains in S2 pattern transmission");
+        check(mb_tx_pattern_en, "SCN6: FSM remains in S2 pattern transmission");
 
         // Now pattern completes
-        mb_tx_clk_pattern_transmission_completed = 1'b1;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // FSM transitions to RESULT_REQ_SEND. FIFO accepts ours immediately.
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_req);
@@ -387,15 +389,15 @@ module MBINIT_REPAIRCLK_tb;
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_init_resp);
         send_msg(MBINIT_REPAIRCLK_init_resp, 64'h0);
 
-        wait (mb_tx_pattern_clk_en);
-        mb_tx_clk_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_clk_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_req);
         send_msg(MBINIT_REPAIRCLK_result_req, 64'h0);
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_resp);
-        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0000_0000_0000_0007);
+        send_msg(MBINIT_REPAIRCLK_result_resp, 64'h0, 16'h7);
 
         wait (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_done_req);
         send_msg(MBINIT_REPAIRCLK_done_req, 64'h0);
