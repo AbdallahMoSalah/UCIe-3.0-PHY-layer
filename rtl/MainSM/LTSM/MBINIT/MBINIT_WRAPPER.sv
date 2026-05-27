@@ -357,12 +357,12 @@ module MBINIT_WRAPPER
         .mb_repairclk_tx_msg_id(repairclk_tx_msg_id),
         .mb_repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
         .mb_repairclk_tx_data_Field(repairclk_tx_data_Field),
-        .mb_tx_pattern_clk_en(repairclk_tx_pattern_en),
-        .mb_rx_compare_clk_en(repairclk_rx_compare_en),
+        .mb_tx_pattern_en(repairclk_tx_pattern_en),
+        .mb_rx_compare_en(repairclk_rx_compare_en),
         .rtrk_pass(repairclk_rtrk_pass),
         .rckn_pass(repairclk_rckn_pass),
         .rckp_pass(repairclk_rckp_pass),
-        .mb_tx_clk_pattern_transmission_completed(repairclk_rx_compare_done),
+        .mb_tx_pattern_count_done(repairclk_rx_compare_done),
         .ltsm_rdy(ltsm_rdy),
         .timeout_repairclk_expired(repairclk_timeout_expired),
         .timeout_repairclk_enable(repairclk_timer_enable)
@@ -383,10 +383,10 @@ module MBINIT_WRAPPER
         .mb_repairval_tx_msg_id(repairval_tx_msg_id),
         .mb_repairval_tx_MsgInfo(repairval_tx_MsgInfo),
         .mb_repairval_tx_data_Field(repairval_tx_data_Field),
-        .mb_tx_pattern_val_en(repairval_tx_pattern_en),
-        .mb_rx_compare_val_en(repairval_rx_compare_en),
-        .RVLD_L_pass(repairval_RVLD_L_pass),
-        .mb_tx_val_pattern_transmission_completed(repairval_rx_compare_done),
+        .mb_tx_pattern_en(repairval_tx_pattern_en),
+        .mb_rx_compare_en(repairval_rx_compare_en),
+        .mb_rx_val_pass(repairval_RVLD_L_pass),
+        .mb_tx_pattern_count_done(repairval_rx_compare_done),
         .ltsm_rdy(ltsm_rdy),
         .timer_enable(repairval_timer_enable),
         .timeout_expired(repairval_timeout_expired)
@@ -407,13 +407,13 @@ module MBINIT_WRAPPER
         .mb_reversal_tx_msg_id(reversalmb_tx_msg_id),
         .mb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
         .mb_reversal_tx_data_Field(reversalmb_tx_data_Field),
-        .reg_x8_mode_req(reg_x8_mode_req_w),
+        .Link_Width_enable_status(link_width_enable_status_w),
         .mb_tx_data_pattern_sel(reversal_tx_data_pattern_sel_w),
         .mb_rx_compare_setup(reversal_rx_compare_setup_w),
-        .mb_tx_data_pattern_en(reversal_tx_data_pattern_en),
-        .mb_rx_data_compare_en(reversal_rx_data_compare_en),
-        .mb_rx_perlane_status(~reversalmb_rx_perlane_err),
-        .mb_tx_data_pattern_transmission_completed(reversalmb_rx_compare_done),
+        .mb_tx_pattern_en(reversal_tx_data_pattern_en),
+        .mb_rx_compare_en(reversal_rx_data_compare_en),
+        .mb_rx_perlane_pass(~reversalmb_rx_perlane_err),
+        .mb_tx_pattern_count_done(reversalmb_rx_compare_done),
         .mb_lane_reversal_req(mb_lane_reversal_req),
         .clear_error_req(reversal_clear_error_req),
         .ltsm_rdy(ltsm_rdy),
@@ -517,5 +517,42 @@ module MBINIT_WRAPPER
     assign repairmb_timeout_expired   = timer_timeout_expired;
 
     assign timeout_error = timer_timeout_expired;
+
+// =============================================================================
+// SYSTEMVERILOG ASSERTIONS (SVA) FOR WRAPPER INTEGRITY
+// =============================================================================
+`ifdef SIMULATION
+    // 1. Safety Check: Done and Error are mutually exclusive
+    assert_wrapper_never_done_and_error: assert property (
+        @(posedge clk) disable iff (!rst_n) 
+        !(mbinit_done && mbinit_error)
+    );
+
+    // 2. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    property p_wrapper_tx_stability;
+        @(posedge clk) disable iff (!rst_n || !mbinit_enable)
+        (mb_tx_valid && !ltsm_rdy) |-> 
+        ##1 (mb_tx_valid && 
+             $stable(mb_tx_msg_id) && 
+             $stable(mb_tx_MsgInfo) && 
+             $stable(mb_tx_data_Field));
+    endproperty
+    assert_wrapper_tx_stability: assert property(p_wrapper_tx_stability);
+
+    // 3. Error Check: Watchdog timeout assertion leading to top error
+    property p_wrapper_timeout_leads_to_error;
+        @(posedge clk) disable iff (!rst_n)
+        timeout_error |-> ##[1:5] mbinit_error;
+    endproperty
+    assert_wrapper_timeout_leads_to_error: assert property(p_wrapper_timeout_leads_to_error);
+
+    // 4. Safety Check: Substate errors properly trigger top level error FSM transition
+    property p_wrapper_sub_error_leads_to_top_error;
+        @(posedge clk) disable iff (!rst_n)
+        (param_error || cal_error || repairclk_error || repairval_error || reversalmb_error || repairmb_error)
+        |-> ##[1:5] (mbinit_error);
+    endproperty
+    assert_wrapper_sub_error_leads_to_top_error: assert property(p_wrapper_sub_error_leads_to_top_error);
+`endif
 
 endmodule
