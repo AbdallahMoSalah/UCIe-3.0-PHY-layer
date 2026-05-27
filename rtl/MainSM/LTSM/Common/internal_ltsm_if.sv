@@ -122,11 +122,13 @@ interface internal_ltsm_if #(
     logic [11:0] mb_rx_max_err_thresh_perlane; // Max error Threshold in per Lane comparison.
     logic [1:0]  mb_rx_compare_setup         ; // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
     logic [15:0] mb_rx_aggr_err              ; // The total calculated Aggregate Errors on Rx.
-    logic [15:0] mb_rx_perlane_err           ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
-    logic        mb_rx_val_err               ; // The error coming from Valid Lane receiver in MB.
+    logic [15:0] mb_rx_perlane_pass          ; // The Per-Lane Errors (Each bit represents one fail Data Lane).
+    logic        mb_rx_val_pass              ; // The error coming from Valid Lane receiver in MB.
     logic        mb_rx_clk_err               ; // The error coming from Clock Lane receiver in MB.
     logic        mb_rx_compare_done          ; // From MB to LTSM to tell that comparison of burst_count, track, clock, valid signals receiveing is done.
-
+    logic        rtrk_pass                   ; // From MB to LTSM to tell that Track Lane receiver in MB passed.
+    logic        rckn_pass                   ; // From MB to LTSM to tell that Negative Clock Lane receiver in MB passed.
+    logic        rckp_pass                   ; // From MB to LTSM to tell that Positive Clock Lane receiver in MB passed.
     //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
 
     // MB Lane Control
@@ -400,11 +402,13 @@ interface internal_ltsm_if #(
         output mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
         output mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
         input  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
-        input  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
-        input  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
-        input  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
+        input  mb_rx_perlane_pass           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        input  mb_rx_val_pass               , // The error coming from Valid Lane receiver in MB.
+        //input  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
         input  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
-
+        input  rtrk_pass                   , // From MB to LTSM to tell that Track Lane receiver in MB passed.
+        input  rckn_pass                   , // From MB to LTSM to tell that Negative Clock Lane receiver in MB passed.
+        input  rckp_pass                   , // From MB to LTSM to tell that Positive Clock Lane receiver in MB passed.
         //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
         // MB Lane Control
         output mb_rx_data_lane_mask, // Describes the Functional Rx Lanes (Active Lanes).
@@ -474,8 +478,8 @@ interface internal_ltsm_if #(
         input  mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
         input  mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
         output mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
-        output mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
-        output mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        output mb_rx_perlane_pass          , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output mb_rx_val_pass              , // The error coming from Valid Lane receiver in MB.
         output mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
         output mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
 
@@ -953,8 +957,8 @@ interface internal_ltsm_if #(
         output mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
         output mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
         input  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
-        input  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
-        input  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        input  mb_rx_perlane_pass          , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        input  mb_rx_val_pass              , // The error coming from Valid Lane receiver in MB.
         input  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
         input  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
 
@@ -1039,8 +1043,8 @@ interface internal_ltsm_if #(
         input   mb_rx_max_err_thresh_perlane, // Max error Threshold in per Lane comparison.
         input   mb_rx_compare_setup         , // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
         output  mb_rx_aggr_err              , // The total calculated Aggregate Errors on Rx.
-        output  mb_rx_perlane_err           , // The Per-Lane Errors (Each bit represents one fail Data Lane).
-        output  mb_rx_val_err               , // The error coming from Valid Lane receiver in MB.
+        output  mb_rx_perlane_pass          , // The Per-Lane Errors (Each bit represents one fail Data Lane).
+        output  mb_rx_val_pass              , // The error coming from Valid Lane receiver in MB.
         output  mb_rx_clk_err               , // The error coming from Clock Lane receiver in MB.
         output  mb_rx_compare_done          , // From MB to LTSM to tell that comparison of burst_count is done.
 

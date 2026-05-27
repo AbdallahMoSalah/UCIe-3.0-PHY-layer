@@ -425,7 +425,7 @@ module MBINIT_WRAPPER
     MBINIT_REPAIRMB #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_repairmb (
         .clk(clk),
         .rst_n(rst_n),
-        .reg_x8_mode_req(reg_x8_mode_req_w),
+        .Link_Width_enable_status(link_width_enable_status_w),
         .SPMW(SPMW),
         .mb_repairmb_enable(repairmb_enable),
         .mb_repairmb_done(repairmb_done),
@@ -438,16 +438,19 @@ module MBINIT_WRAPPER
         .mb_repairmb_tx_msg_id(repairmb_tx_msg_id),
         .mb_repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
         .mb_repairmb_tx_data_Field(repairmb_tx_data_Field),
-        .mb_tx_data_pattern_sel(repair_tx_data_pattern_sel_w),
-        .mb_rx_compare_setup(repair_rx_compare_setup_w),
-        .mb_tx_data_pattern_en(repair_tx_data_pattern_en),
-        .mb_rx_data_compare_en(repair_rx_data_compare_en),
-        .mb_rx_perlane_status(reversalmb_rx_perlane_err),
-        .mb_tx_data_pattern_transmission_completed(reversalmb_rx_compare_done),
-        .clear_error_req(repair_clear_error_req),
-        .ltsm_rdy(ltsm_rdy),
         .timeout_repair_expired(repairmb_timeout_expired),
-        .timeout_repair_enable(repairmb_timer_enable)
+        .timeout_repair_enable(repairmb_timer_enable),
+        .ltsm_rdy(ltsm_rdy),
+        .tx_pt_en(d2c_test_if.tx_pt_en),
+        .d2c_pattern_setup(d2c_test_if.d2c_pattern_setup),
+        .d2c_data_pattern_sel(d2c_test_if.d2c_data_pattern_sel),
+        .d2c_pattern_mode(d2c_test_if.d2c_pattern_mode),
+        .d2c_compare_setup(d2c_test_if.d2c_compare_setup),
+        .d2c_perlane_pass(d2c_test_if.mb_rx_perlane_pass),
+        .test_d2c_done(d2c_test_if.test_d2c_done),
+        .clear_error_req(repair_clear_error_req),
+        .mbinit_rx_data_lane_mask(d2c_test_if.mbinit_rx_data_lane_mask),
+        .mbinit_tx_data_lane_mask(d2c_test_if.mbinit_tx_data_lane_mask)
     );
 
     // =========================================================================

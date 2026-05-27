@@ -18,7 +18,7 @@ module MBINIT_REPAIRMB
 (
     input  logic clk, rst_n,
 
-    input  logic reg_x8_mode_req,
+    input  logic [3:0] Link_Width_enable_status,
     input  logic SPMW,
     input  logic mb_repairmb_enable,
 
@@ -44,17 +44,24 @@ module MBINIT_REPAIRMB
     // FIFO handshake
     input  logic            ltsm_rdy,
 
-    // Pattern Generator & Comparator Interface
-    output logic            mb_tx_data_pattern_sel, // 1: per lane id, 0: lfsr
-    output logic            mb_rx_compare_setup,   // 1: per lane, 0: aggregate
-    output logic            mb_tx_data_pattern_en,
-    output logic            mb_rx_data_compare_en,
-    input  logic    [15:0]  mb_rx_perlane_status,
-    input  logic            mb_tx_data_pattern_transmission_completed,
+
+    // d2cptest interface
+    output logic            tx_pt_en,
+    output logic [2:0]      d2c_pattern_setup,// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+    output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
+    output logic [1:0]      d2c_compare_setup, // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+
+    input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
+
+    input logic test_d2c_done,
 
     // Clear Error request to comparator
-    output logic            clear_error_req
+    output logic            clear_error_req,
 
+    // Output lane maps
+    output logic [2:0]      mbinit_rx_data_lane_mask,
+    output logic [2:0]      mbinit_tx_data_lane_mask
 );
 
     ////////////////////////////////////////////////////////
@@ -104,92 +111,113 @@ module MBINIT_REPAIRMB
     ////////////////////////////////////////////////////////
     logic [2:0]  local_lane_map;
     logic [2:0]  partner_lane_map;
-    logic [2:0]  final_lane_map;
-    logic [2:0]  final_lane_map_r;
+    logic [2:0]  prev_partner_lane_map;
     logic [2:0]  prev_lane_map;
     logic        degrade_not_possible;
     logic        degrade_not_possible_r;
     logic        width_changed_r;
+    logic        retry_done;
+    logic        retry_start;
+
+    logic        s1_req_rcvd;
+    logic        s1_rsp_rcvd;
+    logic        s3_req_rcvd;
+    logic        s3_rsp_rcvd;
+    logic        s5_req_rcvd;
+    logic        s5_rsp_rcvd;
+    logic        s5_degrade_rsp_pending;
 
     logic [15:0] mb_rx_perlane_result;
     logic        allow_x4_mode;
 
+    logic reg_x8_mode_req;
+    assign reg_x8_mode_req = (Link_Width_enable_status == 4'h1);
+
     assign allow_x4_mode = reg_x8_mode_req || SPMW;
 
+    logic [2:0] mbinit_rx_data_lane_mask_r;
+    logic [2:0] mbinit_tx_data_lane_mask_r;
+    assign mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
+    assign mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            mbinit_rx_data_lane_mask_r <= 3'b011;
+            mbinit_tx_data_lane_mask_r <= 3'b011;
+        end
+        else if (current_state == MB_S0_IDLE) begin
+            mbinit_rx_data_lane_mask_r <= 3'b011;
+            mbinit_tx_data_lane_mask_r <= 3'b011;
+        end
+        else begin
+            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+                mbinit_tx_data_lane_mask_r <= local_lane_map;
+            end
+            if (mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
+                mbinit_rx_data_lane_mask_r <= mb_repairmb_rx_MsgInfo[2:0];
+            end
+        end
+    end
+
     // Local Degrade Map calculation based on per-lane error results
+    // d2c_perlane_pass bit is 1 for pass and 0 for fail
     always_comb begin
-        // default - all lanes good (x16 mode)
-        local_lane_map = 3'b011; 
-
-        if (mb_rx_perlane_result == 16'hFFFF) begin
-            local_lane_map = 3'b000; // degrade not possible
-        end
-        else if (mb_rx_perlane_result == 16'h0000) begin
-            local_lane_map = 3'b011; // x16 full width
-        end
-        else if (mb_rx_perlane_result == 16'hFF00) begin
-            local_lane_map = 3'b001; // lower x8 operational
-        end
-        else if (mb_rx_perlane_result == 16'h00FF) begin
-            local_lane_map = 3'b010; // upper x8 operational
-        end
-        else if (allow_x4_mode) begin
-            if (mb_rx_perlane_result == 16'hFFF0) begin
-                local_lane_map = 3'b100; // lanes 0-3 operational
-            end
-            else if (mb_rx_perlane_result == 16'hFF0F) begin
-                local_lane_map = 3'b101; // lanes 4-7 operational
-            end
-            else begin
-                local_lane_map = 3'b000; // other errors -> fail
-            end
+        if (retry_done) begin
+            local_lane_map = prev_lane_map;
         end
         else begin
-            local_lane_map = 3'b000; // other errors -> fail
+            local_lane_map = 3'b000; // default to fail
+
+            // Priority Encoder logic:
+            // 1. x16 full width: if negotiated x16 and all lanes pass
+            if (!allow_x4_mode && (mb_rx_perlane_result == 16'hFFFF)) begin
+                local_lane_map = 3'b011; // x16 full width (all lanes pass)
+            end
+            // 2. lower x8 operational: if lanes 0-7 pass
+            else if (mb_rx_perlane_result[7:0] == 8'hFF) begin
+                local_lane_map = 3'b001; // lower x8 operational (Lanes 0-7 PASS)
+            end
+            // 3. upper x8 operational: if lanes 8-15 pass
+            else if (mb_rx_perlane_result[15:8] == 8'hFF) begin
+                local_lane_map = 3'b010; // upper x8 operational (Lanes 8-15 PASS)
+            end
+            // 4. lanes 0-3 operational (under x4 mode allow)
+            else if (allow_x4_mode && (mb_rx_perlane_result[3:0] == 4'hF)) begin
+                local_lane_map = 3'b100; // lanes 0-3 operational (Lanes 0-3 PASS)
+            end
+            // 5. lanes 4-7 operational (under x4 mode allow)
+            else if (allow_x4_mode && (mb_rx_perlane_result[7:4] == 4'hF)) begin
+                local_lane_map = 3'b101; // lanes 4-7 operational (Lanes 4-7 PASS)
+            end
         end
     end
 
-    // Agreement Resolution Logic (Combines local and partner capabilities)
+    // Agreement Resolution Logic (Asymmetric Link Support)
+    // The Tx on each Die is configured according to local_lane_map,
+    // and the Rx is configured according to partner_lane_map.
+    logic [15:0] partner_mask;
     always_comb begin
-        degrade_not_possible = 1'b0;
-        final_lane_map = 3'b000;
-
-        if (local_lane_map == 3'b000 || partner_lane_map == 3'b000) begin
-            final_lane_map = 3'b000;
-            degrade_not_possible = 1'b1;
-        end
-        else if (local_lane_map == 3'b011 && partner_lane_map == 3'b011) begin
-            final_lane_map = 3'b011; // remain at x16
-        end
-        else if ((local_lane_map inside {3'b011, 3'b001}) && (partner_lane_map inside {3'b011, 3'b001})) begin
-            final_lane_map = 3'b001; // Lower x8
-        end
-        else if ((local_lane_map inside {3'b011, 3'b010}) && (partner_lane_map inside {3'b011, 3'b010})) begin
-            final_lane_map = 3'b010; // Upper x8
-        end
-        else if (allow_x4_mode) begin
-            if ((local_lane_map inside {3'b011, 3'b001, 3'b100}) && (partner_lane_map inside {3'b011, 3'b001, 3'b100})) begin
-                final_lane_map = 3'b100; // lanes 0-3
-            end
-            else if ((local_lane_map inside {3'b011, 3'b001, 3'b101}) && (partner_lane_map inside {3'b011, 3'b001, 3'b101})) begin
-                final_lane_map = 3'b101; // lanes 4-7
-            end
-            else begin
-                final_lane_map = 3'b000;
-                degrade_not_possible = 1'b1;
-            end
-        end
-        else begin
-            final_lane_map = 3'b000;
-            degrade_not_possible = 1'b1;
-        end
+        case (partner_lane_map)
+            3'b011:  partner_mask = 16'hFFFF;
+            3'b001:  partner_mask = 16'h00FF;
+            3'b010:  partner_mask = 16'hFF00;
+            3'b100:  partner_mask = 16'h000F;
+            3'b101:  partner_mask = 16'h00F0;
+            default: partner_mask = 16'h0000;
+        endcase
     end
+
+    logic retry_rx_pass;
+    assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
+
+    assign degrade_not_possible = (local_lane_map == 3'b000) ||
+                                  (partner_lane_map == 3'b000) ||
+                                  (retry_done && !retry_rx_pass) ||
+                                  (retry_done && (partner_lane_map != prev_partner_lane_map));
 
     ////////////////////////////////////////////////////////
     // RETRY & TIMER CONTROLS
     ////////////////////////////////////////////////////////
-    logic retry_done;
-    logic retry_start;
 
     assign retry_start = (current_state == MB_S4_DEGRADE_VERIFICATION) && width_changed_r && !degrade_not_possible_r;
 
@@ -214,47 +242,42 @@ module MBINIT_REPAIRMB
     ////////////////////////////////////////////////////////
     // STICKY HANDSHAKE FLAGS & CAPTURES
     ////////////////////////////////////////////////////////
-    logic s1_req_rcvd;
-    logic s1_rsp_rcvd;
-    logic s3_req_rcvd;
-    logic s3_rsp_rcvd;
-    logic s5_req_rcvd;
-    logic s5_rsp_rcvd;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            s1_req_rcvd          <= 1'b0;
-            s1_rsp_rcvd          <= 1'b0;
-            s3_req_rcvd          <= 1'b0;
-            s3_rsp_rcvd          <= 1'b0;
-            s5_req_rcvd          <= 1'b0;
-            s5_rsp_rcvd          <= 1'b0;
-            partner_lane_map     <= 3'b000;
-            mb_rx_perlane_result <= 16'h0;
+            s1_req_rcvd           <= 1'b0;
+            s1_rsp_rcvd           <= 1'b0;
+            s3_req_rcvd           <= 1'b0;
+            s3_rsp_rcvd           <= 1'b0;
+            s5_req_rcvd           <= 1'b0;
+            s5_rsp_rcvd           <= 1'b0;
+            partner_lane_map      <= 3'b000;
+            prev_partner_lane_map <= 3'b000;
+            mb_rx_perlane_result  <= 16'h0;
         end
         else if (current_state == MB_S0_IDLE) begin
-            s1_req_rcvd          <= 1'b0;
-            s1_rsp_rcvd          <= 1'b0;
-            s3_req_rcvd          <= 1'b0;
-            s3_rsp_rcvd          <= 1'b0;
-            s5_req_rcvd          <= 1'b0;
-            s5_rsp_rcvd          <= 1'b0;
-            partner_lane_map     <= 3'b000;
-            mb_rx_perlane_result <= 16'h0;
+            s1_req_rcvd           <= 1'b0;
+            s1_rsp_rcvd           <= 1'b0;
+            s3_req_rcvd           <= 1'b0;
+            s3_rsp_rcvd           <= 1'b0;
+            s5_req_rcvd           <= 1'b0;
+            s5_rsp_rcvd           <= 1'b0;
+            partner_lane_map      <= allow_x4_mode ? 3'b001 : 3'b011;
+            prev_partner_lane_map <= 3'b000;
+            mb_rx_perlane_result  <= 16'h0;
         end
         else if (retry_start) begin
-            // Clear S3 & S5 handshakes on retry, but keep S1
+            // Clear S3 & S5 handshakes on retry, but keep S1 and partner_lane_map
             s3_req_rcvd          <= 1'b0;
             s3_rsp_rcvd          <= 1'b0;
             s5_req_rcvd          <= 1'b0;
             s5_rsp_rcvd          <= 1'b0;
-            partner_lane_map     <= 3'b000;
             mb_rx_perlane_result <= 16'h0;
         end
         else begin
             // Latch per-lane status when the point test completes
-            if (current_state == MB_S2_D2C_POINT_TEST && mb_tx_data_pattern_transmission_completed) begin
-                mb_rx_perlane_result <= mb_rx_perlane_status;
+            if (current_state == MB_S2_D2C_POINT_TEST && test_d2c_done) begin
+                mb_rx_perlane_result <= d2c_perlane_pass;
             end
 
             // Capture partner sideband messages
@@ -282,25 +305,44 @@ module MBINIT_REPAIRMB
                     default: ;
                 endcase
             end
+
+            if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd && !retry_done) begin
+                prev_partner_lane_map <= partner_lane_map;
+            end
+        end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            s5_degrade_rsp_pending <= 1'b0;
+        end
+        else if (current_state == MB_S0_IDLE) begin
+            s5_degrade_rsp_pending <= 1'b0;
+        end
+        else begin
+            if (current_state == MB_S5_FINALIZE_REQ_WAIT && 
+                mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
+                s5_degrade_rsp_pending <= 1'b1;
+            end
+            else if (current_state == MB_S3_DEGRADE_RSP_SEND && ltsm_rdy) begin
+                s5_degrade_rsp_pending <= 1'b0;
+            end
         end
     end
 
     // Track width changes & decision registrations
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            final_lane_map_r       <= 3'b011;
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
         end
         else if (current_state == MB_S0_IDLE) begin
-            final_lane_map_r       <= reg_x8_mode_req ? 3'b001 : 3'b011;
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
         end
         else if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd) begin
-            final_lane_map_r       <= final_lane_map;
             degrade_not_possible_r <= degrade_not_possible;
-            width_changed_r        <= (final_lane_map != prev_lane_map);
+            width_changed_r        <= (local_lane_map != prev_lane_map);
         end
     end
 
@@ -309,10 +351,10 @@ module MBINIT_REPAIRMB
             prev_lane_map <= 3'b011;
         end
         else if (current_state == MB_S0_IDLE) begin
-            prev_lane_map <= reg_x8_mode_req ? 3'b001 : 3'b011;
+            prev_lane_map <= 3'b011;
         end
         else if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
-            prev_lane_map <= final_lane_map_r;
+            prev_lane_map <= local_lane_map;
         end
     end
 
@@ -365,7 +407,7 @@ module MBINIT_REPAIRMB
 
                 // ── S2 Point Test ──
                 MB_S2_D2C_POINT_TEST: begin
-                    if (mb_tx_data_pattern_transmission_completed)
+                    if (test_d2c_done)
                         next_state = MB_S3_DEGRADE_REQ_SEND;
                 end
 
@@ -374,12 +416,20 @@ module MBINIT_REPAIRMB
                     if (ltsm_rdy)       next_state = MB_S3_DEGRADE_REQ_WAIT;
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
-                    if (s3_req_rcvd)    next_state = MB_S3_DEGRADE_RSP_SEND;
+                    if (s3_req_rcvd)
+                        next_state = MB_S3_DEGRADE_RSP_SEND;
+                    else if (s3_rsp_rcvd)
+                        next_state = MB_S3_DEGRADE_RSP_WAIT;
                 end
 
                 // ── S3 Degrade RSP ──
                 MB_S3_DEGRADE_RSP_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S3_DEGRADE_RSP_WAIT;
+                    if (ltsm_rdy) begin
+                        if (s5_degrade_rsp_pending)
+                            next_state = MB_S5_FINALIZE_REQ_WAIT;
+                        else
+                            next_state = MB_S3_DEGRADE_RSP_WAIT;
+                    end
                 end
                 MB_S3_DEGRADE_RSP_WAIT: begin
                     if (s3_rsp_rcvd)    next_state = MB_S4_DEGRADE_VERIFICATION;
@@ -406,7 +456,10 @@ module MBINIT_REPAIRMB
                     if (ltsm_rdy)       next_state = MB_S5_FINALIZE_REQ_WAIT;
                 end
                 MB_S5_FINALIZE_REQ_WAIT: begin
-                    if (s5_req_rcvd)    next_state = MB_S5_FINALIZE_RSP_SEND;
+                    if (mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req))
+                        next_state = MB_S3_DEGRADE_RSP_SEND;
+                    else if (s5_req_rcvd)
+                        next_state = MB_S5_FINALIZE_RSP_SEND;
                 end
 
                 // ── S5 Finalize RSP ──
@@ -457,9 +510,8 @@ module MBINIT_REPAIRMB
             end
 
             MB_S3_DEGRADE_RSP_SEND: begin
-                mb_repairmb_tx_valid   = 1'b1;
-                mb_repairmb_tx_msg_id  = MBINIT_REPAIRMB_apply_degrade_resp;
-                mb_repairmb_tx_MsgInfo = {13'b0, final_lane_map_r};
+                mb_repairmb_tx_valid  = 1'b1;
+                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_apply_degrade_resp;
             end
 
             MB_S5_FINALIZE_REQ_SEND: begin
@@ -479,27 +531,18 @@ module MBINIT_REPAIRMB
     ////////////////////////////////////////////////////////
     // PATTERN ENGINE CONTROLS
     ////////////////////////////////////////////////////////
-    assign mb_tx_data_pattern_sel = 1'b1; // per-lane ID pattern
-    assign mb_rx_compare_setup    = 1'b1; // per-lane comparison
+    
+    
 
-    assign mb_tx_data_pattern_en  = (current_state == MB_S2_D2C_POINT_TEST);
+    assign d2c_pattern_setup = 3'b001; // Data pattern
+    assign d2c_pattern_mode = 1'b0; // Continuous Pattern Mode
+    assign d2c_data_pattern_sel = 2'b01; // per-lane ID pattern
 
-    // RX compare enable timing logic
-    always_comb begin
-        mb_rx_data_compare_en = 1'b0;
-        case (current_state)
-            MB_S1_READY_RSP_SEND,
-            MB_S1_READY_RSP_WAIT,
-            MB_S2_D2C_POINT_TEST,
-            MB_S3_DEGRADE_REQ_SEND,
-            MB_S3_DEGRADE_REQ_WAIT: begin
-                mb_rx_data_compare_en = 1'b1;
-            end
-            default: begin
-                mb_rx_data_compare_en = 1'b0;
-            end
-        endcase
-    end
+
+    assign d2c_compare_setup    = 2'b01; // per-lane comparison
+    assign tx_pt_en  = (current_state == MB_S2_D2C_POINT_TEST);
+
+    // RX compare enable timing logic (No longer needed since mb_rx_data_compare_en port is removed)
 
     // Clear Error to RX comparator
     always_comb begin
@@ -521,13 +564,130 @@ module MBINIT_REPAIRMB
     end
 
     ////////////////////////////////////////////////////////
-    // DEBUG DISPLAY
+    // DEBUG DISPLAY & SYSTEMVERILOG ASSERTIONS
     ////////////////////////////////////////////////////////
-    always @(posedge clk) begin
-        if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
-            $display("DUT DEBUG: current_state=S4, width_changed_r=%b, degrade_not_possible_r=%b, retry_start=%b, retry_done=%b, prev_lane_map=%b, final_lane_map_r=%b",
-                width_changed_r, degrade_not_possible_r, retry_start, retry_done, prev_lane_map, final_lane_map_r);
+    `ifdef SIMULATION
+        always @(posedge clk) begin
+            if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
+                $display("DUT DEBUG: current_state=S4, width_changed_r=%b, degrade_not_possible_r=%b, retry_start=%b, retry_done=%b, prev_lane_map=%b, local_lane_map=%b",
+                    width_changed_r, degrade_not_possible_r, retry_start, retry_done, prev_lane_map, local_lane_map);
+            end
         end
-    end
+
+        // ========================================================
+        // SYSTEMVERILOG ASSERTIONS (SVA) FOR REPAIRMB ROBUSTNESS
+        // ========================================================
+
+        // 1. Handshake Integrity: No start_resp sent without start_req received first
+        property p_tx_start_resp_after_req;
+            @(posedge clk) disable iff (!rst_n)
+            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_start_resp) |-> s1_req_rcvd;
+        endproperty
+        assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
+
+        // 2. Handshake Integrity: No apply_degrade_resp sent without apply_degrade_req received first
+        property p_tx_degrade_resp_after_req;
+            @(posedge clk) disable iff (!rst_n)
+            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_apply_degrade_resp) |-> (s3_req_rcvd || s5_degrade_rsp_pending);
+        endproperty
+        assert_tx_degrade_resp_after_req: assert property(p_tx_degrade_resp_after_req);
+
+        // 3. Handshake Integrity: No end_resp sent without end_req received first
+        property p_tx_end_resp_after_req;
+            @(posedge clk) disable iff (!rst_n)
+            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_end_resp) |-> s5_req_rcvd;
+        endproperty
+        assert_tx_end_resp_after_req: assert property(p_tx_end_resp_after_req);
+
+        // 4. Bounded Liveness: start_req must eventually be answered or enter S6 error
+        property p_start_req_leads_to_resp_or_error;
+            @(posedge clk) disable iff (!rst_n)
+            (current_state == MB_S1_READY_REQ_WAIT) |-> (##[1:2000] (s1_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+        endproperty
+        assert_start_req_leads_to_resp_or_error: assert property(p_start_req_leads_to_resp_or_error);
+
+        // 5. Bounded Liveness: apply_degrade_req must eventually be answered or enter S6 error
+        property p_degrade_req_leads_to_resp_or_error;
+            @(posedge clk) disable iff (!rst_n)
+            (current_state == MB_S3_DEGRADE_RSP_WAIT) |-> (##[1:2000] (s3_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+        endproperty
+        assert_degrade_req_leads_to_resp_or_error: assert property(p_degrade_req_leads_to_resp_or_error);
+
+        // 6. Bounded Liveness: end_req must eventually be answered or enter S6 error
+        property p_end_req_leads_to_resp_or_error;
+            @(posedge clk) disable iff (!rst_n)
+            (current_state == MB_S5_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s5_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+        endproperty
+        assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
+
+        // 7. Initial Check: First point test must check all 16 lanes (force x16 mask regardless of allow_x4_mode)
+        property p_first_test_uses_x16;
+            @(posedge clk) disable iff (!rst_n)
+            (current_state == MB_S2_D2C_POINT_TEST && !retry_done) |-> 
+            (mbinit_rx_data_lane_mask == 3'b011 && mbinit_tx_data_lane_mask == 3'b011);
+        endproperty
+        assert_first_test_uses_x16: assert property(p_first_test_uses_x16);
+
+        // 8. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+        property p_tx_stability_until_rdy;
+            @(posedge clk) disable iff (!rst_n || !mb_repairmb_enable)
+            (mb_repairmb_tx_valid && !ltsm_rdy) |-> 
+            ##1 (mb_repairmb_tx_valid && 
+                 $stable(mb_repairmb_tx_msg_id) && 
+                 $stable(mb_repairmb_tx_MsgInfo) && 
+                 $stable(mb_repairmb_tx_data_Field));
+        endproperty
+        assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
+
+        // 9. Error Check: Error states raise error flag
+        property p_error_condition_raises_error;
+            @(posedge clk) disable iff (!rst_n)
+            (timeout_repair_expired && mb_repairmb_enable) ||
+            (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible_r) ||
+            (current_state == MB_S4_DEGRADE_VERIFICATION && width_changed_r && retry_done)
+            |-> ##[1:5] (current_state == MB_S6_REPAIR_ERROR && mb_repairmb_error == 1'b1);
+        endproperty
+        assert_error_condition_raises_error: assert property(p_error_condition_raises_error);
+
+        // 10. Success Check: Done state asserts done flag
+        property p_success_path_leads_to_done;
+            @(posedge clk) disable iff (!rst_n)
+            (current_state == MB_S5_FINALIZE_RSP_WAIT && s5_rsp_rcvd && !timeout_repair_expired)
+            |-> ##[1:5] (current_state == MB_S7_REPAIR_DONE && mb_repairmb_done == 1'b1);
+        endproperty
+        assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);
+
+        // 11. Safety Check: Done and Error are mutually exclusive
+        assert_never_done_and_error: assert property (
+            @(posedge clk) disable iff (!rst_n) 
+            !(mb_repairmb_done && mb_repairmb_error)
+        );
+
+        // 12. Safety Check: retry_done is sticky until return to S0 IDLE
+        property p_retry_done_sticky;
+            @(posedge clk) disable iff (!rst_n)
+            (retry_done) |-> (retry_done) until (current_state == MB_S0_IDLE);
+        endproperty
+        assert_retry_done_sticky: assert property(p_retry_done_sticky);
+
+        // 13. State Coverage Checks
+        cover_state_idle:         cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S0_IDLE);
+        cover_state_s1_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_REQ_SEND);
+        cover_state_s1_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_REQ_WAIT);
+        cover_state_s1_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_RSP_SEND);
+        cover_state_s1_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_RSP_WAIT);
+        cover_state_s2_point_test:cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S2_D2C_POINT_TEST);
+        cover_state_s3_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S3_DEGRADE_REQ_SEND);
+        cover_state_s3_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S3_DEGRADE_REQ_WAIT);
+        cover_state_s3_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S3_DEGRADE_RSP_SEND);
+        cover_state_s3_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S3_DEGRADE_RSP_WAIT);
+        cover_state_s4_verify:    cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S4_DEGRADE_VERIFICATION);
+        cover_state_s5_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_REQ_SEND);
+        cover_state_s5_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_REQ_WAIT);
+        cover_state_s5_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_RSP_SEND);
+        cover_state_s5_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_RSP_WAIT);
+        cover_state_s6_error:     cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_REPAIR_ERROR);
+        cover_state_s7_done:      cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S7_REPAIR_DONE);
+    `endif
 
 endmodule
