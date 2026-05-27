@@ -45,18 +45,20 @@ module MBINIT_REVERSALMB
     output logic [15:0] mb_reversal_tx_MsgInfo,
     output logic [63:0] mb_reversal_tx_data_Field,
 
-    input  logic reg_x8_mode_req,
+    input  logic [3:0] Link_Width_enable_status,
+    
     ////////////////////////////////////////////////////
 
-    // PATTERN
-    output logic  mb_tx_data_pattern_sel, // 1: per lane id pattern    0: lfsr pattern
-    output logic  mb_rx_compare_setup, // 1: per lane comparison   0: aggregate comparison
+    // Pattern Generation & Comparison Signals
+    output logic       mb_tx_pattern_en      , // 1: Send pattern immediately, 0: Don't send pattern.
+    output logic [2:0] mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    output logic [1:0] mb_tx_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
 
-    output logic mb_tx_data_pattern_en,
-    output logic mb_rx_data_compare_en,
+    output logic       mb_rx_compare_en      , // 1: Enable the Rx comparison circuit, 0: Disable.
+    output logic [1:0] mb_rx_compare_setup   , // 00b: Aggregate, 01b: Per-Lane, 10b: Valid Pattern, 11b: Clock Pattern.
 
-    input logic [15:0] mb_rx_perlane_status,
-    input logic mb_tx_data_pattern_transmission_completed,
+    input logic [15:0] mb_rx_perlane_pass,
+    input logic mb_tx_pattern_count_done,
 
     //new signals to be added to the interface with MB team.
     output logic mb_lane_reversal_req,
@@ -125,6 +127,8 @@ state_e current_state, next_state;
 logic retry_done;
 logic [15:0] partner_result; // latched in always_ff below
 logic [4:0] success_count;
+logic reg_x8_mode_req;
+assign reg_x8_mode_req = (Link_Width_enable_status == 4'h1);
 
 always_comb begin
     success_count = 0;
@@ -159,14 +163,14 @@ localparam logic [63:0] MB_default_data_Field = 64'h0;
 ////////////////////////////////////////////////////////
 // RESULT
 ////////////////////////////////////////////////////////
-logic [15:0] mb_rx_perlane_status_result;
+logic [15:0] mb_rx_perlane_pass_result;
 
 logic [63:0] MB_local_result_exchange_data_Field;
 always_comb begin
     if (reg_x8_mode_req)
-        MB_local_result_exchange_data_Field = {56'h0, mb_rx_perlane_status_result[7:0]};
+        MB_local_result_exchange_data_Field = {56'h0, mb_rx_perlane_pass_result[7:0]};
     else
-        MB_local_result_exchange_data_Field = {48'h0, mb_rx_perlane_status_result[15:0]};
+        MB_local_result_exchange_data_Field = {48'h0, mb_rx_perlane_pass_result[15:0]};
 end
 
 ////////////////////////////////////////////////////////
@@ -217,7 +221,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_req_rcvd    <= 1'b0;
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
-        mb_rx_perlane_status_result <= 16'h0;
+        mb_rx_perlane_pass_result <= 16'h0;
     end else if (current_state == MB_S0_IDLE) begin
         s1_req_rcvd    <= 1'b0;
         s1_rsp_rcvd    <= 1'b0;
@@ -228,7 +232,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_req_rcvd    <= 1'b0;
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
-        mb_rx_perlane_status_result <= 16'h0;
+        mb_rx_perlane_pass_result <= 16'h0;
     end else if (retry_start) begin
         s2_req_rcvd    <= 1'b0;
         s2_rsp_rcvd    <= 1'b0;
@@ -250,7 +254,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 
             MBINIT_REVERSALMB_result_req      : begin 
                 s4_req_rcvd <= 1'b1;
-                mb_rx_perlane_status_result <= mb_rx_perlane_status;
+                mb_rx_perlane_pass_result <= mb_rx_perlane_pass;
             end
             MBINIT_REVERSALMB_result_resp     : begin
                 s4_rsp_rcvd <= 1'b1;
@@ -333,7 +337,7 @@ always_comb begin
 
             // S3 Pattern Transmission
             MB_S3_PATTERN_TRANSMISSION: begin
-                if (mb_tx_data_pattern_transmission_completed)
+                if (mb_tx_pattern_count_done)
                     next_state = MB_S4_RESULT_REQ_SEND;
             end
 
@@ -452,14 +456,15 @@ end
 ////////////////////////////////////////////////////////
 // PATTERN
 ////////////////////////////////////////////////////////
-assign mb_tx_data_pattern_en   = (current_state == MB_S3_PATTERN_TRANSMISSION);
-
+assign mb_tx_pattern_en   = (current_state == MB_S3_PATTERN_TRANSMISSION);
+assign mb_tx_pattern_setup = 3'b001;
 ////////////////////////////////////////////////////////
 // RX CLOCK EN
 ////////////////////////////////////////////////////////
 always_comb begin
 
-    mb_rx_data_compare_en = 0;
+    mb_rx_compare_en = 0;
+    mb_rx_compare_setup = 2'b01;
     case(current_state)
 
         MB_S1_READY_RSP_SEND,
@@ -467,17 +472,17 @@ always_comb begin
         MB_S3_PATTERN_TRANSMISSION,
         MB_S4_RESULT_REQ_SEND,
         MB_S4_RESULT_REQ_WAIT: begin
-            mb_rx_data_compare_en = 1;
+            mb_rx_compare_en = 1;
         end
         default: begin
-            mb_rx_data_compare_en = 0;
+            mb_rx_compare_en = 0;
         end
     endcase
 end
 
 
-assign mb_tx_data_pattern_sel = 1'b1;  // 1'b1; per_lan_id_pattern
-assign mb_rx_compare_setup    = 1'b1;  // per lane comparison
+assign mb_tx_data_pattern_sel = 2'b01;  // 1'b1; per_lan_id_pattern
+// assign mb_rx_compare_setup    = 1'b1;  // per lane comparison
 
 ////////////////////////////////////////////////////////
 // DONE
@@ -492,5 +497,123 @@ end
 always_comb begin
     mb_reversal_error = (current_state == MB_S7_REVERSAL_ERROR);
 end
+
+////////////////////////////////////////////////////////
+// SYSTEMVERILOG ASSERTIONS (SVA) FOR REVERSALMB
+////////////////////////////////////////////////////////
+`ifdef SIMULATION
+    // 1. Handshake Integrity: No init_resp sent without init_req received first
+    property p_tx_start_resp_after_req;
+        @(posedge clk) disable iff (!rst_n)
+        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_init_resp) |-> s1_req_rcvd;
+    endproperty
+    assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
+
+    // 2. Handshake Integrity: No clear_error_resp sent without clear_error_req received first
+    property p_tx_clear_resp_after_req;
+        @(posedge clk) disable iff (!rst_n)
+        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_clear_error_resp) |-> s2_req_rcvd;
+    endproperty
+    assert_tx_clear_resp_after_req: assert property(p_tx_clear_resp_after_req);
+
+    // 3. Handshake Integrity: No result_resp sent without result_req received first
+    property p_tx_result_resp_after_req;
+        @(posedge clk) disable iff (!rst_n)
+        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_resp) |-> s4_req_rcvd;
+    endproperty
+    assert_tx_result_resp_after_req: assert property(p_tx_result_resp_after_req);
+
+    // 4. Handshake Integrity: No done_resp sent without done_req received first
+    property p_tx_end_resp_after_req;
+        @(posedge clk) disable iff (!rst_n)
+        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_done_resp) |-> s6_req_rcvd;
+    endproperty
+    assert_tx_end_resp_after_req: assert property(p_tx_end_resp_after_req);
+
+    // 5. Bounded Liveness: init_req must eventually be answered or enter S7 error
+    property p_start_req_leads_to_resp_or_error;
+        @(posedge clk) disable iff (!rst_n)
+        (current_state == MB_S1_READY_REQ_WAIT) |-> (##[1:2000] (s1_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+    endproperty
+    assert_start_req_leads_to_resp_or_error: assert property(p_start_req_leads_to_resp_or_error);
+
+    // 6. Bounded Liveness: clear_error_req must eventually be answered or enter S7 error
+    property p_clear_req_leads_to_resp_or_error;
+        @(posedge clk) disable iff (!rst_n)
+        (current_state == MB_S2_ERROR_RESET_REQ_WAIT) |-> (##[1:2000] (s2_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+    endproperty
+    assert_clear_req_leads_to_resp_or_error: assert property(p_clear_req_leads_to_resp_or_error);
+
+    // 7. Bounded Liveness: result_req must eventually be answered or enter S7 error
+    property p_degrade_req_leads_to_resp_or_error;
+        @(posedge clk) disable iff (!rst_n)
+        (current_state == MB_S4_RESULT_RSP_WAIT) |-> (##[1:2000] (s4_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+    endproperty
+    assert_degrade_req_leads_to_resp_or_error: assert property(p_degrade_req_leads_to_resp_or_error);
+
+    // 8. Bounded Liveness: done_req must eventually be answered or enter S7 error
+    property p_end_req_leads_to_resp_or_error;
+        @(posedge clk) disable iff (!rst_n)
+        (current_state == MB_S6_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s6_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+    endproperty
+    assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
+
+    // 9. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    property p_tx_stability_until_rdy;
+        @(posedge clk) disable iff (!rst_n || !mb_reversal_enable)
+        (mb_reversal_tx_valid && !ltsm_rdy) |-> 
+        ##1 (mb_reversal_tx_valid && 
+             $stable(mb_reversal_tx_msg_id) && 
+             $stable(mb_reversal_tx_MsgInfo) && 
+             $stable(mb_reversal_tx_data_Field));
+    endproperty
+    assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
+
+    // 10. Error Check: Error states raise error flag
+    property p_error_condition_raises_error;
+        @(posedge clk) disable iff (!rst_n)
+        (timeout_reversal_expired && mb_reversal_enable) ||
+        (current_state == MB_S5_DECISION && !majority_success && retry_done)
+        |-> ##[1:5] (current_state == MB_S7_REVERSAL_ERROR && mb_reversal_error == 1'b1);
+    endproperty
+    assert_error_condition_raises_error: assert property(p_error_condition_raises_error);
+
+    // 11. Success Check: Done state asserts done flag
+    property p_success_path_leads_to_done;
+        @(posedge clk) disable iff (!rst_n)
+        (current_state == MB_S6_FINALIZE_RSP_WAIT && s6_rsp_rcvd && !timeout_reversal_expired)
+        |-> ##[1:5] (current_state == MB_S8_REVERSAL_DONE && mb_reversal_done == 1'b1);
+    endproperty
+    assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);
+
+    // 12. Safety Check: Done and Error are mutually exclusive
+    assert_never_done_and_error: assert property (
+        @(posedge clk) disable iff (!rst_n) 
+        !(mb_reversal_done && mb_reversal_error)
+    );
+
+    // 13. FSM State Coverage Checks
+    cover_state_idle:         cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S0_IDLE);
+    cover_state_s1_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_REQ_SEND);
+    cover_state_s1_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_REQ_WAIT);
+    cover_state_s1_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_RSP_SEND);
+    cover_state_s1_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S1_READY_RSP_WAIT);
+    cover_state_s2_reset_send:cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S2_ERROR_RESET_REQ_SEND);
+    cover_state_s2_reset_wait:cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S2_ERROR_RESET_REQ_WAIT);
+    cover_state_s2_reset_rsp_send:cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S2_ERROR_RESET_RSP_SEND);
+    cover_state_s2_reset_rsp_wait:cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S2_ERROR_RESET_RSP_WAIT);
+    cover_state_s3_pattern:   cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S3_PATTERN_TRANSMISSION);
+    cover_state_s4_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S4_RESULT_REQ_SEND);
+    cover_state_s4_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S4_RESULT_REQ_WAIT);
+    cover_state_s4_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S4_RESULT_RSP_SEND);
+    cover_state_s4_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S4_RESULT_RSP_WAIT);
+    cover_state_s5_decision:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_DECISION);
+    cover_state_s6_req_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_FINALIZE_REQ_SEND);
+    cover_state_s6_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_FINALIZE_REQ_WAIT);
+    cover_state_s6_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_FINALIZE_RSP_SEND);
+    cover_state_s6_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_FINALIZE_RSP_WAIT);
+    cover_state_s7_error:     cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S7_REVERSAL_ERROR);
+    cover_state_s8_done:      cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S8_REVERSAL_DONE);
+`endif
 
 endmodule

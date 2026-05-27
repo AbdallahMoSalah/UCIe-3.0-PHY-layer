@@ -16,9 +16,6 @@ module MBINIT_REVERSALMB_tb;
     logic clk;
     logic rst_n;
 
-    // Interface with mainband
-    ucie_mb_cap_if cap_if(); // Not directly used since reg_x8_mode_req is input now
-
     // DUT ports
     logic        mb_reversal_enable;
     logic        mb_reversal_done;
@@ -37,15 +34,18 @@ module MBINIT_REVERSALMB_tb;
     logic [63:0] mb_reversal_tx_data_Field;
 
     logic        reg_x8_mode_req;
+    logic [3:0]  Link_Width_enable_status;
+    assign Link_Width_enable_status = reg_x8_mode_req ? 4'h1 : 4'h0;
 
-    // Pattern control
-    logic        mb_tx_data_pattern_sel;
-    logic        mb_rx_compare_setup;
-    logic        mb_tx_data_pattern_en;
-    logic        mb_rx_data_compare_en;
+    // Pattern Generation & Comparison Signals
+    logic        mb_tx_pattern_en;
+    logic [2:0]  mb_tx_pattern_setup;
+    logic [1:0]  mb_tx_data_pattern_sel;
+    logic        mb_rx_compare_en;
+    logic [1:0]  mb_rx_compare_setup;
 
-    logic [15:0] mb_rx_perlane_status;
-    logic        mb_tx_data_pattern_transmission_completed;
+    logic [15:0] mb_rx_perlane_pass;
+    logic        mb_tx_pattern_count_done;
 
     logic        mb_lane_reversal_req;
     logic        clear_error_req;
@@ -107,8 +107,8 @@ module MBINIT_REVERSALMB_tb;
         mb_reversal_rx_data_Field                 = 64'h0;
         
         reg_x8_mode_req                           = 1'b0; // default x16
-        mb_rx_perlane_status                      = 16'hFFFF; // default all lanes PASS
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_rx_perlane_pass                        = 16'hFFFF; // default all lanes PASS
+        mb_tx_pattern_count_done                  = 1'b0;
 
         ltsm_rdy                                  = 1'b1;
 
@@ -164,21 +164,21 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // Step 3: Pattern Transmission Phase
-        wait (mb_tx_data_pattern_en);
+        wait (mb_tx_pattern_en);
         #1;
-        check(mb_rx_data_compare_en, "SCN1: Rx compare enabled during pattern transmission");
-        check(mb_tx_data_pattern_sel == 1'b1, "SCN1: Pattern selection is per-lane ID (1'b1)");
-        check(mb_rx_compare_setup == 1'b1, "SCN1: Compare setup is per-lane (1'b1)");
+        check(mb_rx_compare_en, "SCN1: Rx compare enabled during pattern transmission");
+        check(mb_tx_data_pattern_sel == 2'b01, "SCN1: Pattern selection is per-lane ID (2'b01)");
+        check(mb_rx_compare_setup == 2'b01, "SCN1: Compare setup is per-lane (2'b01)");
         repeat (20) @(posedge clk);
         
         // Logical block finishes transmitting
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // Step 4: Result Exchange Handshake
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
-        check(!mb_tx_data_pattern_en, "SCN1: Tx pattern disabled after transmission completed");
+        check(!mb_tx_pattern_en, "SCN1: Tx pattern disabled after transmission completed");
         send_msg(MBINIT_REVERSALMB_result_req, 64'h0);
 
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_resp);
@@ -224,12 +224,12 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // Step 3: Pattern (First Run - Fails)
-        wait (mb_tx_data_pattern_en);
-        // Configure local status as fail on 1st run: mb_rx_perlane_status = 16'h0000
-        mb_rx_perlane_status = 16'h0000;
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        // Configure local status as fail on 1st run: mb_rx_perlane_pass = 16'h0000
+        mb_rx_perlane_pass = 16'h0000;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // Step 4: Result Exchange (First Run - Fail)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -258,11 +258,11 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // Step 3: Pattern (Second Run - PASS after reversal)
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'hFFFF; // Now passing
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'hFFFF; // Now passing
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // Step 4: Result Exchange (Second Run - PASS)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -306,11 +306,11 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // S3 (1st pattern fail)
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'h0000;
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'h0000;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S4 (1st result exchange fail)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -331,11 +331,11 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // S3 (2nd pattern fail)
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'h0000; // Still failing
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'h0000; // Still failing
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S4 (2nd result exchange fail)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -373,12 +373,12 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // S3
-        wait (mb_tx_data_pattern_en);
+        wait (mb_tx_pattern_en);
         // Only active lower 8 lanes are passing (status 1 = PASS)
-        mb_rx_perlane_status = 16'h00FF;
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        mb_rx_perlane_pass = 16'h00FF;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S4
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -426,11 +426,11 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // S3 (1st pattern fail)
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'h0000;
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'h0000;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S4 (1st result exchange fail)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -451,11 +451,11 @@ module MBINIT_REVERSALMB_tb;
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
         // S3 (2nd pattern pass)
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'h00FF; // lower 8 active lanes PASS
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'h00FF; // lower 8 active lanes PASS
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         // S4 (2nd result exchange pass)
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
@@ -553,11 +553,11 @@ module MBINIT_REVERSALMB_tb;
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_clear_error_resp);
         send_msg(MBINIT_REVERSALMB_clear_error_resp, 64'h0);
 
-        wait (mb_tx_data_pattern_en);
-        mb_rx_perlane_status = 16'hFFFF;
-        mb_tx_data_pattern_transmission_completed = 1'b1;
+        wait (mb_tx_pattern_en);
+        mb_rx_perlane_pass = 16'hFFFF;
+        mb_tx_pattern_count_done = 1'b1;
         @(posedge clk);
-        mb_tx_data_pattern_transmission_completed = 1'b0;
+        mb_tx_pattern_count_done = 1'b0;
 
         wait (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_req);
         send_msg(MBINIT_REVERSALMB_result_req, 64'h0);
