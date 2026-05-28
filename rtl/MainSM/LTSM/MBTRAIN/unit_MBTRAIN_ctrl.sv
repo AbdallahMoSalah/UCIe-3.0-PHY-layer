@@ -26,7 +26,7 @@ module unit_MBTRAIN_ctrl (
     always_ff @(posedge itf.lclk or negedge itf.rst_n) begin
         if (!itf.rst_n) begin
             current_state <= MBTRAIN_IDLE;
-        end 
+        end
         else if (!itf.is_ltsm_out_of_reset) begin
             current_state <= MBTRAIN_IDLE;
         end
@@ -65,15 +65,15 @@ module unit_MBTRAIN_ctrl (
         itf.repair_en           = 1'b0;
 
         // -----------------------------------------------------------------------
-        // Normal FSM and Global priority interrupts
+        // Normal FSM and Global priority interrupts to TRAINERROR
         // -----------------------------------------------------------------------
-        // Reason trainerror_req can be asserted inside MBTRAIN:
+        // Reason why trainerror_req can be asserted inside MBTRAIN:
         //   1. Global 8 ms timeout (handled externally by ltsm_ctrl).
         //   2. Receiving a {TRAINERROR Entry req} SB message.
         //   3. VALVREF: fatal — no valid Vref found for the Valid Lane.
         //   4. SPEEDIDLE: entering from LINKSPEED/PHYRETRAIN while already at 4 GT/s.
         //   5. RXCLKCAL: partner TCKN shift out of range after all IQ retries.
-        //   6. RXDESKEW: Receiving {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} SB message after 4 arc iterations to DTC1
+        //   6. RXDESKEW: Receiving {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} SB message after 4 arc iterations to DATATRAINCENTER1
         //   7. REPAIR: partner responds with "Degrade not possible".
         // When asserted, hold the current state; ltsm_ctrl will move to TRAINERROR.
         if (itf.trainerror_req) begin
