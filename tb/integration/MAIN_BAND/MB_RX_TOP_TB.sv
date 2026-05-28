@@ -220,6 +220,27 @@ module MB_RX_TOP_TB;
     endfunction
 
     // =========================================================================
+    // Function: tb_init_lane_23
+    // -------------------------------------------------------------------------
+    // Replicates the RTL's init_lane_23 function for cycle-0 seed mapping.
+    // =========================================================================
+    function automatic [8:0] tb_init_lane_23(input [22:0] s);
+        logic [8:0] o;
+        begin
+            o[8] = s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            o[7] = s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0];
+            o[6] = s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            o[5] = s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0];
+            o[4] = s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0] ^ s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            o[3] = s[17] ^ s[15] ^ s[10] ^ s[0] ^ s[2]  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1] ^ s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3];
+            o[2] = s[16] ^ s[14] ^ s[9]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0] ^ s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0] ^ s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            o[1] = s[15] ^ s[13] ^ s[8]  ^ s[0] ^ s[0]  ^ s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1] ^ s[17] ^ s[15] ^ s[10] ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1] ^ s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3];
+            o[0] = s[14] ^ s[12] ^ s[7] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1] ^ s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0] ^ s[16] ^ s[14] ^ s[9]  ^ s[1] ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0] ^ s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0] ^ s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2] ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            tb_init_lane_23 = o;
+        end
+    endfunction
+
+    // =========================================================================
     // Task: send_valid_frame
     // -------------------------------------------------------------------------
     // Sends a 32-bit word serially on the VALID lane (SER_out) using DDR:
@@ -426,10 +447,12 @@ module MB_RX_TOP_TB;
         repeat (5) @(posedge MB_clk);
         $display("[%0t] CLK Results → clk_p_err=%b  clk_n_err=%b  track_err=%b",
                   $time, clk_p_pattern_error, clk_n_pattern_error, track_pattern_error);
-        if (!clk_p_pattern_error && !clk_n_pattern_error && !track_pattern_error)
+        if (!clk_p_pattern_error && !clk_n_pattern_error && !track_pattern_error) begin
             $display("[%0t] TEST 1 PASSED: All clock patterns detected successfully.", $time);
-        else
-            $display("[%0t] TEST 1 NOTE: Check CLK detector flags (1=error, 0=detected OK).", $time);
+        end else begin
+            $display("[%0t] TEST 1 FAILED: Clock pattern error detected.", $time);
+            $fatal("Test 1 Failed");
+        end
         clk_detector_en = 1'b0;
 
         // ==================================================================
@@ -456,10 +479,12 @@ module MB_RX_TOP_TB;
         repeat (5) @(posedge MB_clk);
         $display("[%0t] Valid Detector → detection_result=%b  o_valid_frame_detect=%b",
                   $time, detection_result, o_valid_frame_detect);
-        if (detection_result)
+        if (detection_result && !o_valid_frame_detect) begin
             $display("[%0t] TEST 2 PASSED: Valid pattern detected.", $time);
-        else
-            $display("[%0t] TEST 2 NOTE: detection_result still 0 - may need more frames.", $time);
+        end else begin
+            $display("[%0t] TEST 2 FAILED: Valid pattern detection failed.", $time);
+            $fatal("Test 2 Failed");
+        end
         i_enable_detector = 1'b0;
 
         // ==================================================================
@@ -468,11 +493,20 @@ module MB_RX_TOP_TB;
         // i_state = 3'b010 → LFSR_RX enters PATTERN_LFSR
         // LFSR generates reference words → Pattern Comparator compares
         // Data in: send known data frames, comparator checks vs LFSR output
+        // We send 135 frames to allow the comparator to complete its 128 cycles.
         // ==================================================================
         $display("\n--- TEST 3: LFSR Training Mode - PATTERN_LFSR ---");
         begin
             logic [31:0] tx_data [0:15];
             integer lane;
+            integer frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
 
             // First: clear LFSR seeds
             i_state = 3'b001; // CLEAR_LFSR
@@ -484,20 +518,45 @@ module MB_RX_TOP_TB;
             i_active_state_entered = 1'b0;   // Not active → goes to comparator
             i_enable_buffer        = 1'b1;
 
-            // Send 5 frames while in PATTERN_LFSR state
-            repeat (5) begin
-                // Simple incrementing data per lane
-                for (lane = 0; lane < 16; lane++) tx_data[lane] = lane * 32'h01010101;
-                @(posedge pll_clk);
-                send_full_frame(32'hF0F0F0F0, tx_data);
-                wait_for_data_done(8);
-                repeat (2) @(posedge MB_clk);
-            end
+            @(posedge MB_clk);
+            @(posedge pll_clk);
 
-            repeat (3) @(posedge MB_clk);
-            $display("[%0t] PATTERN_LFSR → pattern_comp_en internal, per_lane_err=%h, err_cnt=%0d",
-                      $time, o_per_lane_error, o_error_counter);
-            $display("[%0t] TEST 3 DONE: Check waveform for LFSR pattern comparison.", $time);
+            fork
+                begin
+                    // Send 135 frames back-to-back (64ns spacing)
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        // Simple incrementing data per lane (mismatches the LFSR seeds)
+                        for (lane = 0; lane < 16; lane++) tx_data[lane] = lane * 32'h01010101 + frame_idx;
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
+            repeat (5) @(posedge MB_clk);
+            $display("[%0t] PATTERN_LFSR → per_lane_err=%h, err_cnt=%0d, o_error_done=%b",
+                      $time, captured_per_lane_error, captured_error_counter, captured_error_done);
+            
+            if (captured_error_done && captured_error_counter > 0) begin
+                $display("[%0t] TEST 3 PASSED: LFSR training comparison completed with expected errors.", $time);
+            end else begin
+                $display("[%0t] TEST 3 FAILED: LFSR comparison did not complete or had no errors.", $time);
+                $fatal("Test 3 Failed");
+            end
 
             // Return to IDLE
             i_state = 3'b000;
@@ -508,30 +567,61 @@ module MB_RX_TOP_TB;
         // TEST 4: Training Mode — PER_LANE_IDE
         // ------------------------------------------------------------------
         // i_state = 3'b011 → LFSR_RX drives Lane-ID tokens as reference
-        // Pattern: 1010_<lane_index_8bit>_1010 for each lane
+        // Pattern: 1010_<lane_index_8bit>_1010 for each lane (repeated twice to fill 32 bits)
         // ==================================================================
         $display("\n--- TEST 4: LFSR Training Mode - PER_LANE_IDE ---");
         begin
             logic [31:0] tx_data [0:15];
             integer lane;
+            integer frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
 
-            // Correct Lane-ID tokens: 1010_<8bit_index>_1010 = {4'hA, lane[7:0], 4'hA}
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
+
+            // Correct Lane-ID tokens matching {LANE_ID, LANE_ID}
             for (lane = 0; lane < 16; lane++)
-                tx_data[lane] = {16'b0, 4'hA, lane[7:0], 4'hA}; // lower 16-bit token × 2
+                tx_data[lane] = { {4'hA, lane[7:0], 4'hA}, {4'hA, lane[7:0], 4'hA} };
 
             i_state                = 3'b011; // PER_LANE_IDE
             i_active_state_entered = 1'b0;
 
-            repeat (5) begin
-                @(posedge pll_clk);
-                send_full_frame(32'hF0F0F0F0, tx_data);
-                wait_for_data_done(8);
-                repeat (2) @(posedge MB_clk);
-            end
+            fork
+                begin
+                    repeat (135) begin
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
 
-            repeat (3) @(posedge MB_clk);
-            $display("[%0t] PER_LANE_IDE → per_lane_err=%h", $time, o_per_lane_error);
-            $display("[%0t] TEST 4 DONE: Check waveform for Lane-ID comparison.", $time);
+            repeat (5) @(posedge MB_clk);
+            $display("[%0t] PER_LANE_IDE → per_lane_err=%h, err_cnt=%0d, o_error_done=%b", 
+                      $time, captured_per_lane_error, captured_error_counter, captured_error_done);
+            
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
+                $display("[%0t] TEST 4 PASSED: Lane-ID matched reference with 0 errors.", $time);
+            end else begin
+                $display("[%0t] TEST 4 FAILED: Lane-ID comparison failed or had errors.", $time);
+                $fatal("Test 4 Failed");
+            end
 
             // Return to IDLE
             i_state = 3'b000;
@@ -600,15 +690,37 @@ module MB_RX_TOP_TB;
             fork
                 begin
                     wait(pl_valid == 1'b1);
-                    $display("[%0t] TEST 5 PASSED: pl_valid asserted! Demapper output ready.", $time);
-                    $display("  o_out_data[31:0]   (lane 0 byte0-3): %h", o_out_data[31:0]);
-                    $display("  o_out_data[63:32]  (lane 1 byte0-3): %h", o_out_data[63:32]);
-                    $display("  o_out_data[95:64]  (lane 2 byte0-3): %h", o_out_data[95:64]);
-                    $display("  o_out_data[127:96] (lane 3 byte0-3): %h", o_out_data[127:96]);
+                    $display("[%0t] pl_valid asserted! Demapper output ready.", $time);
+                    
+                    // Verify all lanes
+                    begin
+                        logic [31:0] reconstructed_lane;
+                        logic failed;
+                        failed = 0;
+                        for (lane = 0; lane < 16; lane++) begin
+                            reconstructed_lane = {
+                                o_out_data[128 - 8*(lane+1) +: 8],
+                                o_out_data[256 - 8*(lane+1) +: 8],
+                                o_out_data[384 - 8*(lane+1) +: 8],
+                                o_out_data[512 - 8*(lane+1) +: 8]
+                            };
+                            if (reconstructed_lane !== tx_data[lane]) begin
+                                $display("ERROR: Lane %0d mismatch! Sent: %h, Recv: %h", lane, tx_data[lane], reconstructed_lane);
+                                failed = 1;
+                            end
+                        end
+                        if (!failed) begin
+                            $display("[%0t] TEST 5 PASSED: Demapper output verified successfully.", $time);
+                        end else begin
+                            $display("[%0t] TEST 5 FAILED: Demapper mismatch.", $time);
+                            $fatal("Test 5 Failed");
+                        end
+                    end
                 end
                 begin
                     repeat (50) @(posedge MB_clk);
-                    $display("[%0t] TEST 5 NOTE: Timeout waiting for pl_valid.", $time);
+                    $display("[%0t] TEST 5 FAILED: Timeout waiting for pl_valid.", $time);
+                    $fatal("Test 5 Failed");
                 end
             join_any
             disable fork;
@@ -622,18 +734,21 @@ module MB_RX_TOP_TB;
         // o_Data_by == o_final_gene → Pattern Comparator must report 0 errors.
         //
         // Seed values from LFSR_RX.sv (x16 mode: lanes 8-15 reuse seeds 0-7)
-        //   SEED[0]=23'h1DBFBC  SEED[1]=23'h0607BB  SEED[2]=23'h1EC760
-        //   SEED[3]=23'h18C0DB  SEED[4]=23'h010F12  SEED[5]=23'h19CFC9
-        //   SEED[6]=23'h0277CE  SEED[7]=23'h1BB807
-        //
-        // o_final_gene[i] = {raw[22:0], raw[31:23]}  where raw=tb_next_lfsr_state(seed)
         // ==================================================================
         $display("\n--- TEST 6: PATTERN_LFSR with MATCHING data (expect 0 comparator errors) ---");
         begin
             logic [22:0] seeds [0:7];
+            logic [22:0] cur_state [0:7];
             logic [31:0] raw   [0:7];
             logic [31:0] tx_data [0:15];
-            integer      lane;
+            integer      lane, frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
 
             // Fixed seeds (must match LFSR_RX.sv)
             seeds[0] = 23'h1DBFBC;  seeds[1] = 23'h0607BB;
@@ -641,41 +756,85 @@ module MB_RX_TOP_TB;
             seeds[4] = 23'h010F12;  seeds[5] = 23'h19CFC9;
             seeds[6] = 23'h0277CE;  seeds[7] = 23'h1BB807;
 
-            // Compute first LFSR output word per physical seed
             for (lane = 0; lane < 8; lane++) begin
-                raw[lane]  = tb_next_lfsr_state(seeds[lane]);
-                // RTL: o_final_gene[i] = {rx_lfsr_lane[i], o_lane_23[i]}
-                //                      = {raw[22:0], raw[31:23]}
-                tx_data[lane]     = {raw[lane][22:0], raw[lane][31:23]};
-                tx_data[lane + 8] = {raw[lane][22:0], raw[lane][31:23]}; // x16: lanes 8-15 mirror 0-7
+                cur_state[lane] = seeds[lane];
             end
 
-            $display("[%0t] Expected TX data per lane (first LFSR word):", $time);
-            for (lane = 0; lane < 16; lane++)
-                $display("  Lane %0d : %h", lane, tx_data[lane]);
-
-            // Enter PATTERN_LFSR (clear seeds first)
+            // Return FSM to IDLE first so it can register the state change to CLEAR_LFSR
             i_active_state_entered = 1'b0;
+            i_state = 3'b000; // IDLE
+            @(posedge MB_clk);
+
+            // Now enter CLEAR_LFSR (clear seeds)
             i_state = 3'b001; // CLEAR_LFSR → reloads seeds
-            @(posedge MB_clk); @(posedge MB_clk);
+            @(posedge MB_clk);
+            @(posedge MB_clk);
+
+            // Now transition to PATTERN_LFSR
             i_state = 3'b010; // PATTERN_LFSR
             i_enable_buffer = 1'b1;
+            @(posedge MB_clk);
 
-            // Send matching data frame (valid + all 16 data lanes)
-            @(posedge pll_clk);
-            send_full_frame(32'hF0F0F0F0, tx_data);
-            wait_for_data_done(10);
+            fork
+                begin
+                    // Loop 135 times with safe spacing
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        // Compute next LFSR state and output word
+                        for (lane = 0; lane < 8; lane++) begin
+                            if (frame_idx == 0) begin
+                                // For the very first frame, the DUT o_final_gene uses the initial/reset states: SEED and init_lane_23(SEED)
+                                tx_data[lane]     = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                tx_data[lane + 8] = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                // Note: do not advance cur_state here, so that frame 1 uses the first next state
+                            end else begin
+                                raw[lane] = tb_next_lfsr_state(cur_state[lane]);
+                                tx_data[lane]     = {raw[lane][22:0], raw[lane][31:23]};
+                                tx_data[lane + 8] = {raw[lane][22:0], raw[lane][31:23]};
+                                cur_state[lane]   = raw[lane][22:0]; // update state
+                            end
+                        end
+
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    integer print_count;
+                    print_count = 0;
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (print_count < 15 && dut.u_LFSR_RX.pattern_comp_en) begin
+                            $display("[%0t] MONITOR: i_local_gen_0=%h, i_data_0=%h, de_ser_done=%b, rx_lfsr_lane[0]=%h",
+                                     $time, dut.u_MB_Pattern_comparator.i_local_gen_0, dut.u_MB_Pattern_comparator.i_data_0, de_ser_done, dut.u_LFSR_RX.rx_lfsr_lane[0]);
+                            print_count++;
+                        end
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
             repeat (5) @(posedge MB_clk);
 
             // Check comparator result
             $display("[%0t] Comparator results after matching TX:", $time);
-            $display("  o_error_counter  = %0d  (expect 0)", o_error_counter);
-            $display("  o_per_lane_error = %h  (expect 0000)", o_per_lane_error);
+            $display("  o_error_counter  = %0d  (expect 0)", captured_error_counter);
+            $display("  o_per_lane_error = %h  (expect 0000)", captured_per_lane_error);
+            $display("  o_error_done     = %b  (expect 1)", captured_error_done);
 
-            if (o_error_counter == 0 && o_per_lane_error == 16'h0000)
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
                 $display("[%0t] TEST 6 PASSED: Zero errors - TX matched LFSR pattern perfectly.", $time);
-            else
-                $display("[%0t] TEST 6 NOTE: Check waveform - CDC delay may shift comparison by 1 cycle.", $time);
+            end else begin
+                $display("[%0t] TEST 6 FAILED: Errors detected in LFSR matching.", $time);
+                $fatal("Test 6 Failed");
+            end
 
             // Return LFSR to IDLE
             i_state = 3'b000;
@@ -686,7 +845,7 @@ module MB_RX_TOP_TB;
         // Simulation End
         // ==================================================================
         $display("\n==========================================================");
-        $display("[%0t] ALL TESTS COMPLETE", $time);
+        $display("[%0t] ALL TESTS COMPLETE - ALL PASSED", $time);
         $display("==========================================================");
         repeat (10) @(posedge MB_clk);
         $finish;

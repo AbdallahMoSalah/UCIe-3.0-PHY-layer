@@ -108,15 +108,19 @@ module MB_RX_TOP #(
     // =========================================================================
     // Internal Wires Declaration
     // =========================================================================
-    logic                    enable_des_valid_frame_w;
-    logic [DATA_WIDTH-1:0]   valid_par_data_w;
+    logic                    enable_des_valid_frame_w; // From Valid_Deserializer 
+    logic [DATA_WIDTH-1:0]   valid_par_data_w;        //  output 32_bit of Valid_Deserializer 
     
-    logic [DATA_WIDTH-1:0]   deser_data_w [0:15];
-    logic [DATA_WIDTH-1:0]   lfsr_data_w  [0:15];
-    logic [DATA_WIDTH-1:0]   lfsr_gen_w   [0:15];
+    logic [DATA_WIDTH-1:0]   deser_data_w [0:15];    // 32_bit output from 16_LANE 
+    logic [DATA_WIDTH-1:0]   lfsr_data_w  [0:15];   //  output_16_lane_32_bit_from_active_data_for_training_or_active_mode
+    logic [DATA_WIDTH-1:0]   lfsr_gen_w   [0:15];  //   outputs_for_compare
     logic                    pattern_comp_en_w;
     
-    logic [DATA_WIDTH-1:0]   comp_data_w  [0:15];
+    logic [DATA_WIDTH-1:0]   comp_data_w  [0:15];  // py_pass_data_from_pattern_comparator_at_active_mode_to_demapper
+
+    // Gated enables to fix CDC delay & training desync issues
+    wire                     data_deser_enable = enable_des_valid_frame_w || de_ser_done;
+    wire                     gated_enable_buffer = i_enable_buffer && ( (i_state == 3'b010 || i_state == 3'b011) ? de_ser_done : 1'b1 );
 
     // =========================================================================
     // Block 1: Valid Lane Deserializer (MB_DES_VALID)
@@ -148,112 +152,112 @@ module MB_RX_TOP #(
     // Lane 0
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_0 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[0]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[0]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[0]), .de_ser_done(de_ser_done_data_0)
     );
 
     // Lane 1
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_1 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[1]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[1]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[1]), .de_ser_done(de_ser_done_data_1)
     );
 
     // Lane 2
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_2 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[2]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[2]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[2]), .de_ser_done(de_ser_done_data_2)
     );
 
     // Lane 3
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_3 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[3]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[3]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[3]), .de_ser_done(de_ser_done_data_3)
     );
 
     // Lane 4
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_4 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[4]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[4]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[4]), .de_ser_done(de_ser_done_data_4)
     );
 
     // Lane 5
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_5 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[5]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[5]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[5]), .de_ser_done(de_ser_done_data_5)
     );
 
     // Lane 6
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_6 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[6]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[6]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[6]), .de_ser_done(de_ser_done_data_6)
     );
 
     // Lane 7
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_7 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[7]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[7]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[7]), .de_ser_done(de_ser_done_data_7)
     );
 
     // Lane 8
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_8 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[8]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[8]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[8]), .de_ser_done(de_ser_done_data_8)
     );
 
     // Lane 9
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_9 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[9]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[9]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[9]), .de_ser_done(de_ser_done_data_9)
     );
 
     // Lane 10
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_10 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[10]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[10]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[10]), .de_ser_done(de_ser_done_data_10)
     );
 
     // Lane 11
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_11 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[11]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[11]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[11]), .de_ser_done(de_ser_done_data_11)
     );
 
     // Lane 12
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_12 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[12]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[12]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[12]), .de_ser_done(de_ser_done_data_12)
     );
 
     // Lane 13
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_13 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[13]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[13]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[13]), .de_ser_done(de_ser_done_data_13)
     );
 
     // Lane 14
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_14 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[14]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[14]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[14]), .de_ser_done(de_ser_done_data_14)
     );
 
     // Lane 15
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_15 (
         .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[15]), .enable_des_valid_frame(enable_des_valid_frame_w), 
+        .ser_data_in(ser_data_in[15]), .enable_des_valid_frame(data_deser_enable), 
         .par_data_out(deser_data_w[15]), .de_ser_done( de_ser_done_data_15)
     );
 
@@ -292,7 +296,7 @@ module MB_RX_TOP #(
         .i_width_deg_lfsr(i_width_deg_lfsr),
         .i_active_state_entered(i_active_state_entered),
         .i_descramble_en(i_descramble_en),
-        .i_enable_buffer(i_enable_buffer),
+        .i_enable_buffer(gated_enable_buffer),
         .i_data_in(deser_data_w),
         .o_Data_by(lfsr_data_w),
         .o_final_gene(lfsr_gen_w),
