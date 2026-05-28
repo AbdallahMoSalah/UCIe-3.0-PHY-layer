@@ -4,137 +4,144 @@
 // =============================================================================
 
 module wrapper_D2C_PT_local (
-    // =========================================================================
-    // Group 1: Clock and Reset Signals
-    // =========================================================================
-    input  logic        lclk,                           // LTSM clock domain (1 GHz or 2 GHz). All transitions synchronous to lclk.
-    input  logic        rst_n,                          // Active-low reset (0: reset, 1: operational). Synchronously resets FSM.
+        // =========================================================================
+        // Group 1: Clock and Reset Signals
+        // =========================================================================
+        input  logic        lclk,                           // LTSM clock domain (1 GHz or 2 GHz). All transitions synchronous to lclk.
+        input  logic        rst_n,                          // Active-low reset (0: reset, 1: operational). Synchronously resets FSM.
 
-    // =========================================================================
-    // Group 2: LTSM Control and Configuration Signals
-    // =========================================================================
-    input  logic        tx_pt_en,                       // Enable TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-    input  logic        rx_pt_en,                       // Enable RX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-    output logic        test_d2c_done,                  // D2C point training completed (1: sequence complete, 0: in progress or inactive).
-    input  logic [1:0]  d2c_clk_sampling,               // Clock phase sampling setup (00: Eye Center/In-phase, 01: Left Edge, 10: Right Edge).
-    input  logic [2:0]  d2c_pattern_setup,              // Active pattern components setup (Bit0: Data Pattern, Bit1: Valid, Bit2: Clock).
-    input  logic [1:0]  d2c_data_pattern_sel,           // Data pattern selection (00: LFSR pattern, 01: Per-Lane ID pattern, 10: Fixed All Zeros).
-    input  logic        d2c_val_pattern_sel,            // Valid Lane pattern selection (0: VALTRAIN functional pattern, 1: Held Low / Operational).
-    input  logic        d2c_pattern_mode,               // Pattern generation mode (0: Continuous mode, 1: Burst mode using UI counts).
-    input  logic [15:0] d2c_burst_count,                // Burst active duration UI count (16-bit unsigned).
-    input  logic [15:0] d2c_idle_count,                 // Idle low-level duration UI count (16-bit unsigned).
-    input  logic [15:0] d2c_iter_count,                 // Number of burst-idle loop iterations to run (16-bit unsigned).
-    input  logic [1:0]  d2c_compare_setup,              // Comparison target mode (00: Per-Lane, 01: Aggregate, 10: Valid Lane, 11: Clock Lane).
-    input  logic [11:0] cfg_max_err_thresh_perlane,     // Max error threshold allowed per data lane before flagging failure (12-bit unsigned).
-    input  logic [15:0] cfg_max_err_thresh_aggr,        // Max combined error threshold allowed across all lanes before flagging aggregate failure.
-    output logic [15:0] d2c_perlane_pass,               // Per-lane pass status (each bit=1 if that lane did not exceed the error threshold).
-    output logic        d2c_aggr_pass,                  // Aggregate pass status (1: cumulative errors within threshold, 0: failed).
-    output logic        d2c_val_pass,                   // Valid Lane pass status (1: Valid Lane training matches successfully, 0: failed).
-    input  logic        timeout_8ms_occured,            // LTSM watchdog timer status (1: 8ms timeout occurred, 0: normal operation) (Unused in D2C).
+        // =========================================================================
+        // Group 2: LTSM Control and Configuration Signals
+        // =========================================================================
+        input  logic        tx_pt_en,                       // Enable TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+        input  logic        rx_pt_en,                       // Enable RX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+        output logic        test_d2c_done,                  // D2C point training completed (1: sequence complete, 0: in progress or inactive).
+        input  logic [1:0]  d2c_clk_sampling,               // 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
+        input  logic [2:0]  d2c_pattern_setup,              // Bit0: Data Pattern Enable, Bit1: Valid Pattern Enable, Bit2: Clock Pattern Enable.
+        input  logic [1:0]  d2c_data_pattern_sel,           // 00: LFSR pattern, 01: Per-Lane ID, 10: Fixed All Zeros, 11: Reserved.
+        input  logic        d2c_val_pattern_sel,            // 0: VALTRAIN/functional pattern, 1: Held Low / Operational Valid.
+        input  logic        d2c_pattern_mode,               // 0: Continuous mode (indefinite), 1: Burst mode (burst/idle counts).
+        input  logic [15:0] d2c_burst_count,                // Unsigned 16-bit burst duration in Unit Intervals (UI).
+        input  logic [15:0] d2c_idle_count,                 // Unsigned 16-bit idle duration in Unit Intervals (UI).
+        input  logic [15:0] d2c_iter_count,                 // Unsigned 16-bit iteration count of burst-idle cycles.
+        input  logic [1:0]  d2c_compare_setup,              // 00: Per-Lane comparison, 01: Aggregate, 10: Valid Lane, 11: Clock Lane.
+        input  logic [11:0] cfg_max_err_thresh_perlane,     // Unsigned 12-bit max error threshold per lane from Register File.
+        input  logic [15:0] cfg_max_err_thresh_aggr,        // Unsigned 16-bit max aggregate error threshold from Register File.
+        output logic [15:0] d2c_perlane_pass,               // Per-lane error status; each bit=1 if that lane passed. (didn't excesse the threshold)
+        output logic        d2c_aggr_pass,                  // 16-bit aggregate error count across all data lanes. (1: success, 0: failed)
+        output logic        d2c_val_pass,                   // 1: No Valid Lane error, 0: Valid Lane pattern mismatch detected.
 
-    // =========================================================================
-    // Group 3: MB Signals (Mainband Control & Status)
-    // =========================================================================
-    output logic [1:0]  mb_tx_clk_lane_sel,             // Tx Clock Lane logical mode (00: Driven Low, 01: Active Pattern, 10: Tri-Stated).
-    output logic [1:0]  mb_tx_data_lane_sel,            // Tx Data Lanes logical mode (00: Driven Low, 01: Active Pattern, 10: Tri-Stated).
-    output logic [1:0]  mb_tx_val_lane_sel,             // Tx Valid Lane logical mode (00: Driven Low, 01: Active Pattern, 10: Tri-Stated).
-    output logic [1:0]  mb_tx_trk_lane_sel,             // Tx Tracking Lane logical mode (00: Driven Low, 01: Active Pattern, 10: Tri-Stated).
-    output logic        mb_rx_clk_lane_sel,             // Enables logical clock lane receiver circuit (0: Disabled/low, 1: Active).
-    output logic        mb_rx_data_lane_sel,            // Enables logical data lanes receiver circuits (0: Disabled/low, 1: Active).
-    output logic        mb_rx_val_lane_sel,             // Enables logical valid lane receiver circuit (0: Disabled/low, 1: Active).
-    output logic        mb_rx_trk_lane_sel,             // Enables logical tracking lane receiver circuit (0: Disabled/low, 1: Active).
-    output logic        mb_tx_pattern_en,               // Enables MB transmitter pattern generators to drive active patterns on lanes.
-    output logic [2:0]  mb_tx_pattern_setup,            // Sub-patterns enabled (Bit0: Data Pattern, Bit1: Valid Pattern, Bit2: Clock Pattern).
-    output logic        mb_tx_lfsr_en,                  // Enables LFSR scrambler on transmitter lanes.
-    output logic        mb_tx_lfsr_rst,                 // Resets Mainband transmitter LFSR generators to default seed (active-high).
-    output logic        mb_rx_lfsr_en,                  // Enables LFSR descrambler on the receiver lanes.
-    output logic        mb_rx_lfsr_rst,                 // Resets Mainband receiver LFSR descrambler to default seed (active-high).
-    output logic        mb_rx_compare_en,               // Activates Mainband comparison logic to evaluate inputs and record errors.
-    output logic [1:0]  mb_rx_compare_setup,            // Comparison mode (00: Per-Lane, 01: Aggregate, 10: Valid Lane, 11: Clock Lane).
-    output logic [11:0] mb_rx_max_err_thresh_perlane,   // Maximum error count allowed on any single lane before asserting failure.
-    output logic [15:0] mb_rx_max_err_thresh_aggr,      // Maximum combined error count allowed across all lanes before asserting failure.
-    output logic        mb_tx_clk_sampling_en,          // Updates physical clock phase on Mainband transmitters using mb_tx_clk_sampling.
-    output logic [1:0]  mb_tx_clk_sampling,             // Clock sampling phase setup (00: Eye Center, 01: Left Edge, 10: Right Edge).
-    output logic        mb_tx_pattern_mode,             // Mainband pattern generation mode (0: Continuous, 1: Burst mode).
-    output logic [15:0] mb_tx_burst_count,              // Duration of pattern burst in UI (16-bit unsigned).
-    output logic [15:0] mb_tx_idle_count,               // Duration of idle (low level) in UI (16-bit unsigned).
-    output logic [15:0] mb_tx_iter_count,               // Number of burst-idle loops (16-bit unsigned).
-    output logic [1:0]  mb_tx_data_pattern_sel,         // Training pattern type (00: LFSR pattern, 01: Per-Lane ID pattern, 10: Fixed All Zeros).
-    output logic        mb_tx_val_pattern_sel,          // Valid pattern select (0: VALTRAIN pattern, 1: Held Low).
-    input  logic        mb_tx_pattern_count_done,       // Handshake from MB Tx (1: transmitter finished driving all iterations, 0: active).
-    input  logic        mb_rx_compare_done,             // Feedback from MB Rx (1: comparison of configured iterations is complete, 0: active).
-    input  logic        mb_rx_aggr_pass,                // Feedback from MB Rx (1: total accumulated errors are within thresholds, 0: failed).
-    input  logic [15:0] mb_rx_perlane_pass,             // Feedback from MB Rx (vector showing pass (1) or fail (0) status for 16 lanes).
-    input  logic        mb_rx_val_pass,                 // Feedback from MB Rx (1: Valid Lane comparison was successful, 0: failed).
+        // =========================================================================
+        // Group 3: MB Signals (Mainband Control & Status)
+        // =========================================================================
+        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
+        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
+        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
+        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
+        output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
+        output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
+        output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
+        output logic        mb_rx_data_lane_sel,            // 0: Disabled. 1: Enabled (RX logical data lanes active).
 
-    // =========================================================================
-    // Group 4: SB Signals (Sideband Control & Status)
-    // =========================================================================
-    output logic        tx_sb_msg_valid,                // Sideband transmit request pulse (asserted for exactly 1 lclk cycle to enqueue).
-    output logic [7:0]  tx_sb_msg,                      // MsgCode of sideband message to transmit.
-    output logic [15:0] tx_msginfo,                     // 16-bit message information payload to transmit.
-    output logic [63:0] tx_data_field,                  // 64-bit data payload to transmit.
-    input  logic        rx_sb_msg_valid,                // Sideband receive strobe pulse (asserted for exactly 1 lclk cycle when message arrives).
-    input  logic [7:0]  rx_sb_msg,                      // MsgCode of received sideband message.
-    input  logic [15:0] rx_msginfo,                     // 16-bit message information payload from received message.
-    input  logic [63:0] rx_data_field                   // 64-bit data payload from received message.
-);
+        output logic        mb_tx_pattern_en,               // 0: TX in static idle. 1: Drive active training pattern on configured TX lanes.
+        output logic [2:0]  mb_tx_pattern_setup,            // Bit0: Data Enable, Bit1: Valid Enable, Bit2: Clock Enable.
+        output logic [2:0]  mb_rx_pattern_setup,            // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+        output logic        mb_tx_lfsr_en,                  // 0: Disable TX LFSR. 1: Enable TX LFSR scrambler.
+        output logic        mb_tx_lfsr_rst,                 // 0: Normal operation. 1: Synchronously reset TX LFSR to default seed.
+        output logic        mb_rx_lfsr_en,                  // 0: Disable RX LFSR descrambler. 1: Enable RX LFSR descrambler.
+        output logic        mb_rx_lfsr_rst,                 // 0: Normal operation. 1: Synchronously reset RX LFSR to default seed.
+        output logic [15:0] mb_rx_iter_count,               // (For Rx) Iteration Count: Indicates the iteration count of bursts followed by idle.
+        output logic [15:0] mb_rx_idle_count,               // (For Rx) IDLE Count: Indicates the duration of low following the burst (UI count).
+        output logic [15:0] mb_rx_burst_count,              // (For Rx) Burst Count: Indicates the duration of selected pattern (UI count).
+        output logic        mb_rx_pattern_mode,             // (For Rx) 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
+        output logic        mb_rx_val_pattern_sel,          // (For Rx) 0: VALTRAIN pattern, 1: Don't use VALTRAIN, 2: Operational Valid.
+        output logic [1:0]  mb_rx_data_pattern_sel,         // (For Rx) Data pattern used during training: 0h: LFSR; 1h: ID, or all 0.
+        output logic        mb_rx_compare_en,               // 0: Disable RX comparison circuit. 1: Enable RX comparison, start error accumulation.
+        output logic [1:0]  mb_rx_compare_setup,            // 00: Per-Lane, 01: Aggregate, 10: Valid Lane, 11: Clock Lane comparison.
+        output logic [11:0] mb_rx_max_err_thresh_perlane,   // Drives per-lane max error threshold to RX comparison block.
+        output logic [15:0] mb_rx_max_err_thresh_aggr,      // Drives aggregate max error threshold to RX comparison block.
+        output logic        mb_tx_clk_sampling_en,          // 0: TX Clock phase unchanged. 1: Update TX Clock phase.
+        output logic [1:0]  mb_tx_clk_sampling,             // 00: Eye Center, 01: Left Edge, 10: Right Edge.
+        output logic        mb_tx_pattern_mode,             // 0: Continuous mode, 1: Burst mode.
+        output logic [15:0] mb_tx_burst_count,              // Unsigned 16-bit burst duration UI count.
+        output logic [15:0] mb_tx_idle_count,               // Unsigned 16-bit idle duration UI count.
+        output logic [15:0] mb_tx_iter_count,               // Unsigned 16-bit iteration count.
+        output logic [1:0]  mb_tx_data_pattern_sel,         // 00: LFSR, 01: Per-Lane ID, 10: Fixed All Zeros.
+        output logic        mb_tx_val_pattern_sel,          // 0: VALTRAIN/functional, 1: Held Low.
+        input  logic        mb_tx_pattern_count_done,       // 0: TX pattern generator is transmitting. 1: Completed all iterations.
+        input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
+        input  logic        mb_rx_aggr_pass,                // 1: Aggregate comparison passed (error count within threshold). 0: Failed.
+        input  logic [15:0] mb_rx_perlane_pass,             // 16-bit status vector; each bit corresponds to an operational lane.
+        input  logic        mb_rx_val_pass,                 // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
+
+        // =========================================================================
+        // Group 4: SB Signals (Sideband Control & Status)
+        // =========================================================================
+        output logic        tx_sb_msg_valid,                // Asserted for exactly 1 lclk cycle to transmit a sideband message.
+        output logic [7:0]  tx_sb_msg,                      // MsgCode value to transmit. See SB message table above.
+        output logic [15:0] tx_msginfo,                     // MsgInfo payload field (varies by message type).
+        output logic [63:0] tx_data_field,                  // 64-bit data payload (varies by message type).
+        input  logic        rx_sb_msg_valid,                // Pulse (1 lclk cycle) when a valid sideband message has been received from partner.
+        input  logic [7:0]  rx_sb_msg,                      // Received MsgCode value from partner die.
+        input  logic [15:0] rx_msginfo,                     // Received MsgInfo payload field.
+        input  logic [63:0] rx_data_field                   // Received 64-bit data payload.
+    );
 
     // =========================================================================
     // Internal Logic Wires for Sub-module Outputs
     // =========================================================================
     // From unit_TX_D2C_PT_local:
-    logic        tx_test_d2c_done;              // Completed status from TX local module
-    logic [15:0] tx_d2c_perlane_pass;           // Per-lane pass status from TX local module
-    logic        tx_d2c_aggr_pass;              // Aggregate pass status from TX local module
-    logic        tx_d2c_val_pass;               // Valid Lane pass status from TX local module
-    logic        tx_mb_tx_clk_sampling_en;      // Updates physical clock phase on MB transmitter
-    logic [1:0]  tx_mb_tx_clk_sampling;         // Clock sampling phase setup
-    logic        tx_mb_tx_pattern_en;           // Enables MB transmitter pattern generator
-    logic [2:0]  tx_mb_tx_pattern_setup;        // Sub-patterns enabled
-    logic        tx_mb_tx_lfsr_en;              // Enables LFSR scrambler on transmitter lanes
-    logic        tx_mb_tx_lfsr_rst;             // Resets MB transmitter LFSR generator
-    logic        tx_mb_tx_pattern_mode;         // MB pattern generation mode
-    logic [15:0] tx_mb_tx_burst_count;          // Duration of pattern burst in UI
-    logic [15:0] tx_mb_tx_idle_count;           // Duration of idle in UI
-    logic [15:0] tx_mb_tx_iter_count;           // Number of burst-idle loops
-    logic [1:0]  tx_mb_tx_data_pattern_sel;     // Training pattern type
-    logic        tx_mb_tx_val_pattern_sel;      // Valid pattern select
-    logic [1:0]  tx_mb_tx_trk_lane_sel;         // Tx Tracking Lane logical mode
-    logic [1:0]  tx_mb_tx_clk_lane_sel;         // Tx Clock Lane logical mode
-    logic [1:0]  tx_mb_tx_val_lane_sel;         // Tx Valid Lane logical mode
-    logic [1:0]  tx_mb_tx_data_lane_sel;        // Tx Data Lanes logical mode
-    logic        tx_tx_sb_msg_valid;            // Sideband transmit request pulse
-    logic [7:0]  tx_tx_sb_msg;                  // MsgCode of sideband message to transmit
-    logic [15:0] tx_tx_msginfo;                 // 16-bit message information payload to transmit
-    logic [63:0] tx_tx_data_field;              // 64-bit data payload to transmit
+    logic        tx_test_d2c_done;               // Completed status from TX local module
+    logic [15:0] tx_d2c_perlane_pass;            // Per-lane pass status from TX local module
+    logic        tx_d2c_aggr_pass;               // Aggregate pass status from TX local module
+    logic        tx_d2c_val_pass;                // Valid Lane pass status from TX local module
+    logic        tx_mb_tx_clk_sampling_en;       // Updates physical clock phase on MB transmitter
+    logic [1:0]  tx_mb_tx_clk_sampling;          // Clock sampling phase setup
+    logic        tx_mb_tx_pattern_en;            // Enables MB transmitter pattern generator
+    logic [2:0]  tx_mb_tx_pattern_setup;         // Sub-patterns enabled
+    logic        tx_mb_tx_lfsr_en;               // Enables LFSR scrambler on transmitter lanes
+    logic        tx_mb_tx_lfsr_rst;              // Resets MB transmitter LFSR generator
+    logic        tx_mb_tx_pattern_mode;          // MB pattern generation mode
+    logic [15:0] tx_mb_tx_burst_count;           // Duration of pattern burst in UI
+    logic [15:0] tx_mb_tx_idle_count;            // Duration of idle in UI
+    logic [15:0] tx_mb_tx_iter_count;            // Number of burst-idle loops
+    logic [1:0]  tx_mb_tx_data_pattern_sel;      // Training pattern type
+    logic        tx_mb_tx_val_pattern_sel;       // Valid pattern select
+    logic [1:0]  tx_mb_tx_trk_lane_sel;          // Tx Tracking Lane logical mode
+    logic [1:0]  tx_mb_tx_clk_lane_sel;          // Tx Clock Lane logical mode
+    logic [1:0]  tx_mb_tx_val_lane_sel;          // Tx Valid Lane logical mode
+    logic [1:0]  tx_mb_tx_data_lane_sel;         // Tx Data Lanes logical mode
+    logic        tx_tx_sb_msg_valid;             // Sideband transmit request pulse
+    logic [7:0]  tx_tx_sb_msg;                   // MsgCode of sideband message to transmit
+    logic [15:0] tx_tx_msginfo;                  // 16-bit message information payload to transmit
+    logic [63:0] tx_tx_data_field;               // 64-bit data payload to transmit
 
     // From unit_RX_D2C_PT_local:
-    logic        rx_test_d2c_done;              // Completed status from RX local module
-    logic [15:0] rx_d2c_perlane_pass;           // Per-lane pass status from RX local module
-    logic        rx_d2c_aggr_pass;              // Aggregate pass status from RX local module
-    logic        rx_d2c_val_pass;               // Valid Lane pass status from RX local module
-    logic [2:0]  rx_mb_rx_pattern_setup;        // Pattern components enabled
-    logic        rx_mb_rx_lfsr_en;              // Enables LFSR descrambler on the receiver lanes
-    logic        rx_mb_rx_lfsr_rst;             // Resets MB receiver LFSR descrambler
-    logic [15:0] rx_mb_rx_iter_count;           // Expected number of burst-idle loops to evaluate
-    logic [15:0] rx_mb_rx_idle_count;           // Expected duration of idle low interval in UI
-    logic [15:0] rx_mb_rx_burst_count;          // Expected duration of active burst in UI
-    logic        rx_mb_rx_pattern_mode;         // Receiver evaluation mode
-    logic        rx_mb_rx_val_pattern_sel;      // Expected Valid pattern type
-    logic [1:0]  rx_mb_rx_data_pattern_sel;     // Expected data pattern type
-    logic        rx_mb_rx_compare_en;           // Activates MB comparison logic to evaluate inputs
+    logic        rx_test_d2c_done;               // Completed status from RX local module
+    logic [15:0] rx_d2c_perlane_pass;            // Per-lane pass status from RX local module
+    logic        rx_d2c_aggr_pass;               // Aggregate pass status from RX local module
+    logic        rx_d2c_val_pass;                // Valid Lane pass status from RX local module
+    logic [2:0]  rx_mb_rx_pattern_setup;         // Pattern components enabled
+    logic        rx_mb_rx_lfsr_en;               // Enables LFSR descrambler on the receiver lanes
+    logic        rx_mb_rx_lfsr_rst;              // Resets MB receiver LFSR descrambler
+    logic [15:0] rx_mb_rx_iter_count;            // Expected number of burst-idle loops to evaluate
+    logic [15:0] rx_mb_rx_idle_count;            // Expected duration of idle low interval in UI
+    logic [15:0] rx_mb_rx_burst_count;           // Expected duration of active burst in UI
+    logic        rx_mb_rx_pattern_mode;          // Receiver evaluation mode
+    logic        rx_mb_rx_val_pattern_sel;       // Expected Valid pattern type
+    logic [1:0]  rx_mb_rx_data_pattern_sel;      // Expected data pattern type
+    logic        rx_mb_rx_compare_en;            // Activates MB comparison logic to evaluate inputs
     logic [11:0] rx_mb_rx_max_err_thresh_perlane;// Maximum error count allowed on any single lane
     logic [15:0] rx_mb_rx_max_err_thresh_aggr;   // Maximum combined error count allowed
-    logic [1:0]  rx_mb_rx_compare_setup;        // Comparison mode
-    logic        rx_mb_rx_trk_lane_sel;         // Enables logical tracking lane receiver circuit
-    logic        rx_mb_rx_clk_lane_sel;         // Enables logical clock lane receiver circuit
-    logic        rx_mb_rx_val_lane_sel;         // Enables logical valid lane receiver circuit
-    logic        rx_mb_rx_data_lane_sel;        // Enables logical data lanes receiver circuits
-    logic        rx_tx_sb_msg_valid;            // Sideband transmit request pulse
-    logic [7:0]  rx_tx_sb_msg;                  // MsgCode of sideband message to transmit
-    logic [15:0] rx_tx_msginfo;                 // 16-bit message information payload to transmit
-    logic [63:0] rx_tx_data_field;              // 64-bit data payload to transmit
+    logic [1:0]  rx_mb_rx_compare_setup;         // Comparison mode
+    logic        rx_mb_rx_trk_lane_sel;          // Enables logical tracking lane receiver circuit
+    logic        rx_mb_rx_clk_lane_sel;          // Enables logical clock lane receiver circuit
+    logic        rx_mb_rx_val_lane_sel;          // Enables logical valid lane receiver circuit
+    logic        rx_mb_rx_data_lane_sel;         // Enables logical data lanes receiver circuits
+    logic        rx_tx_sb_msg_valid;             // Sideband transmit request pulse
+    logic [7:0]  rx_tx_sb_msg;                   // MsgCode of sideband message to transmit
+    logic [15:0] rx_tx_msginfo;                  // 16-bit message information payload to transmit
+    logic [63:0] rx_tx_data_field;               // 64-bit data payload to transmit
 
     // =========================================================================
     // 1st: Port Mapping of unit_TX_D2C_PT_local (Broadcasting Inputs)
@@ -279,6 +286,13 @@ module wrapper_D2C_PT_local (
             mb_tx_iter_count                = tx_mb_tx_iter_count;
             mb_tx_data_pattern_sel          = tx_mb_tx_data_pattern_sel;
             mb_tx_val_pattern_sel           = tx_mb_tx_val_pattern_sel;
+            mb_rx_pattern_setup             = 3'b000;
+            mb_rx_iter_count                = 16'd0;
+            mb_rx_idle_count                = 16'd0;
+            mb_rx_burst_count               = 16'd0;
+            mb_rx_pattern_mode              = 1'b0;
+            mb_rx_val_pattern_sel           = 1'b0;
+            mb_rx_data_pattern_sel          = 2'b00;
         end else if (rx_pt_en) begin
             mb_tx_clk_lane_sel              = 2'b00; // TX is inactive
             mb_tx_data_lane_sel             = 2'b00; // TX is inactive
@@ -306,6 +320,13 @@ module wrapper_D2C_PT_local (
             mb_tx_iter_count                = 16'd0; // TX is inactive
             mb_tx_data_pattern_sel          = 2'b00; // TX is inactive
             mb_tx_val_pattern_sel           = 1'b0; // TX is inactive
+            mb_rx_pattern_setup             = rx_mb_rx_pattern_setup;
+            mb_rx_iter_count                = rx_mb_rx_iter_count;
+            mb_rx_idle_count                = rx_mb_rx_idle_count;
+            mb_rx_burst_count               = rx_mb_rx_burst_count;
+            mb_rx_pattern_mode              = rx_mb_rx_pattern_mode;
+            mb_rx_val_pattern_sel           = rx_mb_rx_val_pattern_sel;
+            mb_rx_data_pattern_sel          = rx_mb_rx_data_pattern_sel;
         end else begin
             // All inactive default safe ties:
             mb_tx_clk_lane_sel              = 2'b00;
@@ -334,6 +355,13 @@ module wrapper_D2C_PT_local (
             mb_tx_iter_count                = 16'd0;
             mb_tx_data_pattern_sel          = 2'b00;
             mb_tx_val_pattern_sel           = 1'b0;
+            mb_rx_pattern_setup             = 3'b000;
+            mb_rx_iter_count                = 16'd0;
+            mb_rx_idle_count                = 16'd0;
+            mb_rx_burst_count               = 16'd0;
+            mb_rx_pattern_mode              = 1'b0;
+            mb_rx_val_pattern_sel           = 1'b0;
+            mb_rx_data_pattern_sel          = 2'b00;
         end
     end
 

@@ -32,6 +32,7 @@ module wrapper_D2C_PT_tb;
     reg [1:0]  d2c_compare_setup = 0;            // Target (00: Per-Lane, 01: Aggregate, 10: Valid, 11: Clock)
     reg [11:0] cfg_max_err_thresh_perlane = 0;
     reg [15:0] cfg_max_err_thresh_aggr = 0;
+    wire [2:0] mb_rx_data_lane_mask = d2c_pattern_setup; // Cast from pattern setup
 
     // =========================================================================
     // Local Wrapper Wires
@@ -44,20 +45,24 @@ module wrapper_D2C_PT_tb;
     wire [7:0]  req_tx_sb_msg;
     wire [15:0] req_tx_msginfo;
     wire [63:0] req_tx_data_field;
-    
+
     wire        req_rx_sb_msg_valid;
     wire [7:0]  req_rx_sb_msg;
     wire [15:0] req_rx_msginfo;
     wire [63:0] req_rx_data_field;
-    
+
     wire [1:0]  req_mb_tx_clk_lane_sel, req_mb_tx_data_lane_sel, req_mb_tx_val_lane_sel, req_mb_tx_trk_lane_sel;
     wire        req_mb_rx_clk_lane_sel, req_mb_rx_data_lane_sel, req_mb_rx_val_lane_sel, req_mb_rx_trk_lane_sel;
     wire        req_mb_tx_pattern_en;
     wire [2:0]  req_mb_tx_pattern_setup;
+    wire [2:0]  req_mb_rx_pattern_setup;
     wire        req_mb_tx_lfsr_en, req_mb_tx_lfsr_rst, req_mb_rx_lfsr_en, req_mb_rx_lfsr_rst, req_mb_rx_compare_en;
     wire [1:0]  req_mb_rx_compare_setup;
     wire [11:0] req_mb_rx_max_err_thresh_perlane;
     wire [15:0] req_mb_rx_max_err_thresh_aggr;
+    wire [15:0] req_mb_rx_iter_count, req_mb_rx_idle_count, req_mb_rx_burst_count;
+    wire        req_mb_rx_pattern_mode, req_mb_rx_val_pattern_sel;
+    wire [1:0]  req_mb_rx_data_pattern_sel;
     wire        req_mb_tx_clk_sampling_en;
     wire [1:0]  req_mb_tx_clk_sampling;
     wire        req_mb_tx_pattern_mode;
@@ -92,10 +97,14 @@ module wrapper_D2C_PT_tb;
     wire        resp_mb_rx_clk_lane_sel, resp_mb_rx_data_lane_sel, resp_mb_rx_val_lane_sel, resp_mb_rx_trk_lane_sel;
     wire        resp_mb_tx_pattern_en;
     wire [2:0]  resp_mb_tx_pattern_setup;
+    wire [2:0]  resp_mb_rx_pattern_setup;
     wire        resp_mb_tx_lfsr_en, resp_mb_tx_lfsr_rst, resp_mb_rx_lfsr_en, resp_mb_rx_lfsr_rst, resp_mb_rx_compare_en;
     wire [1:0]  resp_mb_rx_compare_setup;
     wire [11:0] resp_mb_rx_max_err_thresh_perlane;
     wire [15:0] resp_mb_rx_max_err_thresh_aggr;
+    wire [15:0] resp_mb_rx_iter_count, resp_mb_rx_idle_count, resp_mb_rx_burst_count;
+    wire        resp_mb_rx_pattern_mode, resp_mb_rx_val_pattern_sel;
+    wire [1:0]  resp_mb_rx_data_pattern_sel;
     wire        resp_mb_tx_clk_sampling_en;
     wire [1:0]  resp_mb_tx_clk_sampling;
     wire        resp_mb_tx_pattern_mode;
@@ -137,7 +146,6 @@ module wrapper_D2C_PT_tb;
         .d2c_perlane_pass               (req_d2c_perlane_pass           ), // Output per-lane pass status
         .d2c_aggr_pass                  (req_d2c_aggr_pass              ), // Output aggregate pass status
         .d2c_val_pass                   (req_d2c_val_pass               ), // Output Valid lane pass status
-        .timeout_8ms_occured            (timeout_8ms_occured            ), // Watchdog status input
         .mb_tx_clk_lane_sel             (req_mb_tx_clk_lane_sel         ), // MB Tx Clock Lane mode select
         .mb_tx_data_lane_sel            (req_mb_tx_data_lane_sel        ), // MB Tx Data Lanes mode select
         .mb_tx_val_lane_sel             (req_mb_tx_val_lane_sel         ), // MB Tx Valid Lane mode select
@@ -166,6 +174,13 @@ module wrapper_D2C_PT_tb;
         .mb_tx_val_pattern_sel          (req_mb_tx_val_pattern_sel      ), // MB Tx Valid pattern select setup
         .mb_tx_pattern_count_done       (req_mb_tx_pattern_count_done   ), // Input transmitter done status
         .mb_rx_compare_done             (req_mb_rx_compare_done         ), // Input comparison complete status
+        .mb_rx_pattern_setup            (req_mb_rx_pattern_setup        ),
+        .mb_rx_iter_count               (req_mb_rx_iter_count           ),
+        .mb_rx_idle_count               (req_mb_rx_idle_count           ),
+        .mb_rx_burst_count              (req_mb_rx_burst_count          ),
+        .mb_rx_pattern_mode             (req_mb_rx_pattern_mode         ),
+        .mb_rx_val_pattern_sel          (req_mb_rx_val_pattern_sel      ),
+        .mb_rx_data_pattern_sel         (req_mb_rx_data_pattern_sel     ),
         .mb_rx_aggr_pass                (req_mb_rx_aggr_pass            ), // Input aggregate comparison status
         .mb_rx_perlane_pass             (req_mb_rx_perlane_pass         ), // Input per-lane comparison pass vector
         .mb_rx_val_pass                 (req_mb_rx_val_pass             ), // Input Valid lane comparison status
@@ -187,22 +202,8 @@ module wrapper_D2C_PT_tb;
         .rst_n                          (rst_n                          ), // Active-low reset
         .tx_pt_en                       (tx_pt_en                       ), // TX Point Test trigger
         .rx_pt_en                       (rx_pt_en                       ), // RX Point Test trigger
+        .mb_rx_data_lane_mask           (mb_rx_data_lane_mask           ), // Input negotiated lanes mask
         .test_d2c_done                  (resp_test_done                 ), // Completed status output
-        .d2c_clk_sampling               (d2c_clk_sampling               ), // Clock sampling config input
-        .d2c_pattern_setup              (d2c_pattern_setup              ), // Pattern setup components input
-        .d2c_data_pattern_sel           (d2c_data_pattern_sel           ), // Data pattern selection input
-        .d2c_val_pattern_sel            (d2c_val_pattern_sel            ), // Valid pattern selection input
-        .d2c_pattern_mode               (d2c_pattern_mode               ), // Continuous vs Burst mode
-        .d2c_burst_count                (d2c_burst_count                ), // Burst count duration in UI
-        .d2c_idle_count                 (d2c_idle_count                 ), // Idle count duration in UI
-        .d2c_iter_count                 (d2c_iter_count                 ), // Iteration count loops to run
-        .d2c_compare_setup              (d2c_compare_setup              ), // Comparison setup target mode
-        .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane     ), // Max error threshold per lane
-        .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr        ), // Max aggregate error threshold
-        .d2c_perlane_pass               (resp_d2c_perlane_pass          ), // Output per-lane pass status
-        .d2c_aggr_pass                  (resp_d2c_aggr_pass             ), // Output aggregate pass status
-        .d2c_val_pass                   (resp_d2c_val_pass              ), // Output Valid lane pass status
-        .timeout_8ms_occured            (timeout_8ms_occured            ), // Watchdog status input
         .mb_tx_clk_lane_sel             (resp_mb_tx_clk_lane_sel        ), // MB Tx Clock Lane mode select
         .mb_tx_data_lane_sel            (resp_mb_tx_data_lane_sel       ), // MB Tx Data Lanes mode select
         .mb_tx_val_lane_sel             (resp_mb_tx_val_lane_sel        ), // MB Tx Valid Lane mode select
@@ -229,8 +230,15 @@ module wrapper_D2C_PT_tb;
         .mb_tx_iter_count               (resp_mb_tx_iter_count           ), // MB Tx iterations loops count
         .mb_tx_data_pattern_sel         (resp_mb_tx_data_pattern_sel     ), // MB Tx data pattern select setup
         .mb_tx_val_pattern_sel          (resp_mb_tx_val_pattern_sel      ), // MB Tx Valid pattern select setup
-        .mb_tx_pattern_count_done       (resp_mb_tx_pattern_count_done   ), // Input transmitter done status
-        .mb_rx_compare_done             (resp_mb_rx_compare_done         ), // Input comparison complete status
+        .mb_tx_pattern_count_done       (resp_mb_tx_pattern_count_done  ), // Input transmitter done status
+        .mb_rx_compare_done             (resp_mb_rx_compare_done        ), // Input comparison complete status
+        .mb_rx_pattern_setup            (resp_mb_rx_pattern_setup       ),
+        .mb_rx_iter_count               (resp_mb_rx_iter_count          ),
+        .mb_rx_idle_count               (resp_mb_rx_idle_count          ),
+        .mb_rx_burst_count              (resp_mb_rx_burst_count         ),
+        .mb_rx_pattern_mode             (resp_mb_rx_pattern_mode        ),
+        .mb_rx_val_pattern_sel          (resp_mb_rx_val_pattern_sel     ),
+        .mb_rx_data_pattern_sel         (resp_mb_rx_data_pattern_sel    ),
         .mb_rx_aggr_pass                (resp_mb_rx_aggr_pass            ), // Input aggregate comparison status
         .mb_rx_perlane_pass             (resp_mb_rx_perlane_pass         ), // Input per-lane comparison pass vector
         .mb_rx_val_pass                 (resp_mb_rx_val_pass             ), // Input Valid lane comparison status
@@ -482,9 +490,9 @@ module wrapper_D2C_PT_tb;
     assign rx_req_state  = rx_req_fsm_t'(u_req.u_RX_D2C_PT_local.current_state);
     assign rx_resp_state = rx_resp_fsm_t'(u_resp.u_RX_D2C_PT_partner.current_state);
 
-    always @(tx_req_state)  if (tb_verbose && tx_pt_en) $display("%12t ps [LOCAL TX ] FSM = %s", $time, tx_req_state.name());
+    always @(tx_req_state)  if (tb_verbose && tx_pt_en) $display("%12t ps [LOCAL   TX] FSM = %s", $time, tx_req_state.name());
     always @(tx_resp_state) if (tb_verbose && tx_pt_en) $display("%12t ps [PARTNER TX] FSM = %s", $time, tx_resp_state.name());
-    always @(rx_req_state)  if (tb_verbose && rx_pt_en) $display("%12t ps [LOCAL RX ] FSM = %s", $time, rx_req_state.name());
+    always @(rx_req_state)  if (tb_verbose && rx_pt_en) $display("%12t ps [LOCAL   RX] FSM = %s", $time, rx_req_state.name());
     always @(rx_resp_state) if (tb_verbose && rx_pt_en) $display("%12t ps [PARTNER RX] FSM = %s", $time, rx_resp_state.name());
 
     // =========================================================================
@@ -520,16 +528,16 @@ module wrapper_D2C_PT_tb;
     endtask
 
     task automatic set_config(
-        input [1:0]  cs,
-        input [2:0]  ps,
-        input [1:0]  dp,
-        input        vp,
-        input        pm,
-        input [15:0] bc,
-        input [15:0] ic,
-        input [15:0] nc,
-        input [1:0]  cmp
-    );
+            input [1:0]  cs,
+            input [2:0]  ps,
+            input [1:0]  dp,
+            input        vp,
+            input        pm,
+            input [15:0] bc,
+            input [15:0] ic,
+            input [15:0] nc,
+            input [1:0]  cmp
+        );
         d2c_clk_sampling     = cs;
         d2c_pattern_setup    = ps;
         d2c_data_pattern_sel = dp;
@@ -601,15 +609,15 @@ module wrapper_D2C_PT_tb;
     // Interface check tasks for happy paths
     // =========================================================================
     task automatic check_tx_mb_signals(
-        input string context_str,
-        input logic  exp_mb_tx_pattern_en,
-        input logic [2:0] exp_mb_tx_pattern_setup,
-        input logic  exp_mb_tx_lfsr_en,
-        input logic  exp_mb_tx_lfsr_rst,
-        input logic [1:0] exp_mb_tx_clk_lane_sel,
-        input logic [1:0] exp_mb_tx_val_lane_sel,
-        input logic [1:0] exp_mb_tx_data_lane_sel
-    );
+            input string context_str,
+            input logic  exp_mb_tx_pattern_en,
+            input logic [2:0] exp_mb_tx_pattern_setup,
+            input logic  exp_mb_tx_lfsr_en,
+            input logic  exp_mb_tx_lfsr_rst,
+            input logic [1:0] exp_mb_tx_clk_lane_sel,
+            input logic [1:0] exp_mb_tx_val_lane_sel,
+            input logic [1:0] exp_mb_tx_data_lane_sel
+        );
         if (req_mb_tx_pattern_en !== exp_mb_tx_pattern_en) begin
             $display("  [FAIL] %s: mb_tx_pattern_en=%b, expected=%b", context_str, req_mb_tx_pattern_en, exp_mb_tx_pattern_en);
             fail_count++; $stop;
@@ -641,14 +649,14 @@ module wrapper_D2C_PT_tb;
     endtask
 
     task automatic check_rx_mb_signals(
-        input string context_str,
-        input logic  exp_mb_rx_compare_en,
-        input logic  exp_mb_rx_lfsr_en,
-        input logic  exp_mb_rx_lfsr_rst,
-        input logic  exp_mb_rx_clk_lane_sel,
-        input logic  exp_mb_rx_val_lane_sel,
-        input logic  exp_mb_rx_data_lane_sel
-    );
+            input string context_str,
+            input logic  exp_mb_rx_compare_en,
+            input logic  exp_mb_rx_lfsr_en,
+            input logic  exp_mb_rx_lfsr_rst,
+            input logic  exp_mb_rx_clk_lane_sel,
+            input logic  exp_mb_rx_val_lane_sel,
+            input logic  exp_mb_rx_data_lane_sel
+        );
         if (req_mb_rx_compare_en !== exp_mb_rx_compare_en) begin
             $display("  [FAIL] %s: mb_rx_compare_en=%b, expected=%b", context_str, req_mb_rx_compare_en, exp_mb_rx_compare_en);
             fail_count++; $stop;
@@ -693,9 +701,9 @@ module wrapper_D2C_PT_tb;
         wait(tx_req_state == TX_PT_PATTERN_GEN);
         @(negedge lclk);
         check_tx_mb_signals("PATTERN_GEN", 1'b1, d2c_pattern_setup, exp_lfsr_en, 1'b0,
-                            d2c_pattern_setup[2] ? 2'b01 : 2'b00,
-                            d2c_pattern_setup[1] ? 2'b01 : 2'b00,
-                            d2c_pattern_setup[0] ? 2'b01 : 2'b00);
+            d2c_pattern_setup[2] ? 2'b01 : 2'b00,
+            d2c_pattern_setup[1] ? 2'b01 : 2'b00,
+            d2c_pattern_setup[0] ? 2'b01 : 2'b00);
 
         wait(tx_req_state == TX_PT_DONE);
         @(negedge lclk);
