@@ -95,7 +95,8 @@ module MBINIT_REPAIRMB
         MB_S5_FINALIZE_RSP_WAIT,
 
         MB_S6_REPAIR_ERROR,
-        MB_S7_REPAIR_DONE
+        MB_S7_REPAIR_DONE,
+        MB_S8_ALIGN_CHECK
     } state_e;
 
     state_e current_state, next_state;
@@ -137,6 +138,62 @@ module MBINIT_REPAIRMB
 
     logic [2:0] mbinit_rx_data_lane_mask_r;
     logic [2:0] mbinit_tx_data_lane_mask_r;
+
+    logic        local_lower_x4_pass;
+    logic        local_upper_x4_pass;
+
+    // Helper functions for width alignment
+    function automatic int get_width(logic [2:0] map);
+        case (map)
+            3'b011:  return 16;
+            3'b001:  return 8;
+            3'b010:  return 8;
+            3'b100:  return 4;
+            3'b101:  return 4;
+            default: return 0;
+        endcase
+    endfunction
+
+    function automatic logic [2:0] degrade_map_to_width(logic [2:0] orig_map, int target_w, logic lower_x4, logic upper_x4);
+        int orig_w;
+        orig_w = get_width(orig_map);
+        if (orig_w <= target_w) return orig_map;
+        
+        case (target_w)
+            8: begin
+                if (orig_map == 3'b011) return 3'b001; // Degrade x16 to lower x8
+                else return orig_map;
+            end
+            4: begin
+                if (orig_map == 3'b011 || orig_map == 3'b001) begin
+                    if (lower_x4) return 3'b100;
+                    else if (upper_x4) return 3'b101;
+                    else return 3'b000;
+                end
+                else if (orig_map == 3'b010) begin
+                    if (upper_x4) return 3'b101;
+                    else if (lower_x4) return 3'b100;
+                    else return 3'b000;
+                end
+                else return 3'b000;
+            end
+            default: return orig_map;
+        endcase
+    endfunction
+
+    logic [2:0] aligned_tx;
+    logic [2:0] aligned_rx;
+
+    always_comb begin
+        int tx_w, rx_w, min_w;
+        tx_w = get_width(mbinit_tx_data_lane_mask_r);
+        rx_w = get_width(mbinit_rx_data_lane_mask_r);
+        min_w = (tx_w < rx_w) ? tx_w : rx_w;
+
+        aligned_tx = degrade_map_to_width(mbinit_tx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
+        aligned_rx = degrade_map_to_width(mbinit_rx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
+    end
+
     assign mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
     assign mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
 
@@ -156,38 +213,64 @@ module MBINIT_REPAIRMB
             if (mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
                 mbinit_rx_data_lane_mask_r <= mb_repairmb_rx_MsgInfo[2:0];
             end
+
+            if (current_state == MB_S8_ALIGN_CHECK) begin
+                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
+                    mbinit_rx_data_lane_mask_r <= 3'b000;
+                    mbinit_tx_data_lane_mask_r <= 3'b000;
+                end
+                else begin
+                    mbinit_rx_data_lane_mask_r <= aligned_rx;
+                    mbinit_tx_data_lane_mask_r <= aligned_tx;
+                end
+            end
         end
     end
 
     // Local Degrade Map calculation based on per-lane error results
     // d2c_perlane_pass bit is 1 for pass and 0 for fail
+    logic [2:0] raw_local_map;
+    always_comb begin
+        raw_local_map = 3'b000; // default to fail
+
+        // Priority Encoder logic:
+        // 1. x16 full width: if negotiated x16 and all lanes pass
+        if (!allow_x4_mode && (mb_rx_perlane_result == 16'hFFFF)) begin
+            raw_local_map = 3'b011; // x16 full width (all lanes pass)
+        end
+        // 2. lower x8 operational: if lanes 0-7 pass
+        else if (mb_rx_perlane_result[7:0] == 8'hFF) begin
+            raw_local_map = 3'b001; // lower x8 operational (Lanes 0-7 PASS)
+        end
+        // 3. upper x8 operational: if lanes 8-15 pass
+        else if (mb_rx_perlane_result[15:8] == 8'hFF) begin
+            raw_local_map = 3'b010; // upper x8 operational (Lanes 8-15 PASS)
+        end
+        // 4. lanes 0-3 operational (under x4 mode allow)
+        else if (allow_x4_mode && (mb_rx_perlane_result[3:0] == 4'hF)) begin
+            raw_local_map = 3'b100; // lanes 0-3 operational (Lanes 0-3 PASS)
+        end
+        // 5. lanes 4-7 operational (under x4 mode allow)
+        else if (allow_x4_mode && (mb_rx_perlane_result[7:4] == 4'hF)) begin
+            raw_local_map = 3'b101; // lanes 4-7 operational (Lanes 4-7 PASS)
+        end
+    end
+
     always_comb begin
         if (retry_done) begin
             local_lane_map = prev_lane_map;
         end
         else begin
-            local_lane_map = 3'b000; // default to fail
+            if (current_state >= MB_S3_DEGRADE_RSP_WAIT) begin
+                int local_w, partner_w, min_w;
+                local_w   = get_width(raw_local_map);
+                partner_w = get_width(partner_lane_map);
+                min_w     = (local_w < partner_w) ? local_w : partner_w;
 
-            // Priority Encoder logic:
-            // 1. x16 full width: if negotiated x16 and all lanes pass
-            if (!allow_x4_mode && (mb_rx_perlane_result == 16'hFFFF)) begin
-                local_lane_map = 3'b011; // x16 full width (all lanes pass)
+                local_lane_map = degrade_map_to_width(raw_local_map, min_w, local_lower_x4_pass, local_upper_x4_pass);
             end
-            // 2. lower x8 operational: if lanes 0-7 pass
-            else if (mb_rx_perlane_result[7:0] == 8'hFF) begin
-                local_lane_map = 3'b001; // lower x8 operational (Lanes 0-7 PASS)
-            end
-            // 3. upper x8 operational: if lanes 8-15 pass
-            else if (mb_rx_perlane_result[15:8] == 8'hFF) begin
-                local_lane_map = 3'b010; // upper x8 operational (Lanes 8-15 PASS)
-            end
-            // 4. lanes 0-3 operational (under x4 mode allow)
-            else if (allow_x4_mode && (mb_rx_perlane_result[3:0] == 4'hF)) begin
-                local_lane_map = 3'b100; // lanes 0-3 operational (Lanes 0-3 PASS)
-            end
-            // 5. lanes 4-7 operational (under x4 mode allow)
-            else if (allow_x4_mode && (mb_rx_perlane_result[7:4] == 4'hF)) begin
-                local_lane_map = 3'b101; // lanes 4-7 operational (Lanes 4-7 PASS)
+            else begin
+                local_lane_map = raw_local_map;
             end
         end
     end
@@ -207,13 +290,25 @@ module MBINIT_REPAIRMB
         endcase
     end
 
+    logic [2:0] expected_partner_lane_map;
+    always_comb begin
+        if (retry_done) begin
+            int partner_w;
+            partner_w = get_width(partner_lane_map);
+            expected_partner_lane_map = degrade_map_to_width(prev_partner_lane_map, partner_w, local_lower_x4_pass, local_upper_x4_pass);
+        end
+        else begin
+            expected_partner_lane_map = prev_partner_lane_map;
+        end
+    end
+
     logic retry_rx_pass;
     assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
 
     assign degrade_not_possible = (local_lane_map == 3'b000) ||
                                   (partner_lane_map == 3'b000) ||
                                   (retry_done && !retry_rx_pass) ||
-                                  (retry_done && (partner_lane_map != prev_partner_lane_map));
+                                  (retry_done && (partner_lane_map != expected_partner_lane_map));
 
     ////////////////////////////////////////////////////////
     // RETRY & TIMER CONTROLS
@@ -254,6 +349,8 @@ module MBINIT_REPAIRMB
             partner_lane_map      <= 3'b000;
             prev_partner_lane_map <= 3'b000;
             mb_rx_perlane_result  <= 16'h0;
+            local_lower_x4_pass   <= 1'b0;
+            local_upper_x4_pass   <= 1'b0;
         end
         else if (current_state == MB_S0_IDLE) begin
             s1_req_rcvd           <= 1'b0;
@@ -265,6 +362,8 @@ module MBINIT_REPAIRMB
             partner_lane_map      <= allow_x4_mode ? 3'b001 : 3'b011;
             prev_partner_lane_map <= 3'b000;
             mb_rx_perlane_result  <= 16'h0;
+            local_lower_x4_pass   <= 1'b0;
+            local_upper_x4_pass   <= 1'b0;
         end
         else if (retry_start) begin
             // Clear S3 & S5 handshakes on retry, but keep S1 and partner_lane_map
@@ -278,6 +377,8 @@ module MBINIT_REPAIRMB
             // Latch per-lane status when the point test completes
             if (current_state == MB_S2_D2C_POINT_TEST && test_d2c_done) begin
                 mb_rx_perlane_result <= d2c_perlane_pass;
+                local_lower_x4_pass   <= (d2c_perlane_pass[3:0] == 4'hF);
+                local_upper_x4_pass   <= (d2c_perlane_pass[7:4] == 4'hF);
             end
 
             // Capture partner sideband messages
@@ -467,7 +568,16 @@ module MBINIT_REPAIRMB
                     if (ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
                 end
                 MB_S5_FINALIZE_RSP_WAIT: begin
-                    if (s5_rsp_rcvd)    next_state = MB_S7_REPAIR_DONE;
+                    if (s5_rsp_rcvd)    next_state = MB_S8_ALIGN_CHECK;
+                end
+
+                MB_S8_ALIGN_CHECK: begin
+                    if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
+                        next_state = MB_S6_REPAIR_ERROR;
+                    end
+                    else begin
+                        next_state = MB_S7_REPAIR_DONE;
+                    end
                 end
 
                 MB_S6_REPAIR_ERROR: begin

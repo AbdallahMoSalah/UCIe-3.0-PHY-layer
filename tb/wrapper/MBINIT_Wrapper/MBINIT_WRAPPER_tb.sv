@@ -546,9 +546,47 @@ module MBINIT_WRAPPER_tb;
         join_any
         disable fork;
 
+        // ------------------------------------------------
+        // SCENARIO 7: Asymmetric Width Degradation with x4 Pass Flags
+        // ------------------------------------------------
+        $display("\n--------------------------------------------------");
+        $display(" [SCENARIO 7] ASYMMETRIC WIDTH DEGRADATION (TO UPPER x4) ");
+        $display("--------------------------------------------------");
+        reset_system();
+        cap_if_master.local_is_x8 = 1'b1;
+        cap_if_partner.local_is_x8 = 1'b1;
+
+        // Master passes lanes 4-15 (so raw map is 3'b010 (upper x8), and local_upper_x4_pass is 1)
+        d2c_if_master.mb_rx_perlane_pass = 16'hFFF0; 
+        // Partner only passes lanes 4-7 (so raw map is 3'b101 (upper x4))
+        d2c_if_partner.mb_rx_perlane_pass = 16'h00F0;
+
+        @(posedge clk);
+        m_enable = 1;
+        p_enable = 1;
+
+        fork
+            begin
+                wait(m_done && p_done);
+                $display("T=%0t | [SCENARIO 7 SUCCESS] Successfully aligned master and partner to upper x4 map.", $time);
+                $display("T=%0t | Master RX Lane Mask: %b, TX Lane Mask: %b (Expected: 101)", $time, master.u_repairmb.mbinit_rx_data_lane_mask, master.u_repairmb.mbinit_tx_data_lane_mask);
+            end
+            begin
+                wait(m_error || p_error);
+                $display("T=%0t | [SCENARIO 7 FAIL] Alignment check caused error abort.", $time);
+                $finish;
+            end
+            begin
+                #2000000;
+                $display("T=%0t | [SCENARIO 7 TIMEOUT] FSM hung.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
 
         $display("\n==================================================");
-        $display("   ALL 6 SCENARIOS COMPLETED SUCCESSFULLY!");
+        $display("    ALL 7 SCENARIOS COMPLETED SUCCESSFULLY!");
         $display("==================================================\n");
         $finish;
     end
