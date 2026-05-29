@@ -29,12 +29,12 @@ module MBINIT_CONTROLLER
     input  logic timer_timeout_expired,
 
     // =========================================================================
-    // RX / TX mainband message bus (Muxed Output)
+    // RX / TX sideband message bus (Muxed Output)
     // =========================================================================
-    output logic        mb_tx_valid,
-    output msg_no_e     mb_tx_msg_id,
-    output logic [15:0] mb_tx_MsgInfo,
-    output logic [63:0] mb_tx_data_Field,
+    output logic        sb_tx_valid,
+    output msg_no_e     sb_tx_msg_id,
+    output logic [15:0] sb_tx_MsgInfo,
+    output logic [63:0] sb_tx_data_Field,
 
     // =========================================================================
     // Unified Mainband Outputs (Muxed / Latched)
@@ -255,47 +255,47 @@ end
 // TX MUX  (only the active submodule drives the bus)
 // =============================================================================
 always_comb begin
-    mb_tx_valid      = 0;
-    mb_tx_msg_id     = msg_no_e'(0);
-    mb_tx_MsgInfo    = 16'h0;
-    mb_tx_data_Field = 64'h0;
+    sb_tx_valid      = 0;
+    sb_tx_msg_id     = msg_no_e'(0);
+    sb_tx_MsgInfo    = 16'h0;
+    sb_tx_data_Field = 64'h0;
 
     case (current_state)
         CTRL_PARAM: begin
-            mb_tx_valid      = param_tx_valid;
-            mb_tx_msg_id     = param_tx_msg_id;
-            mb_tx_MsgInfo    = param_tx_MsgInfo;
-            mb_tx_data_Field = param_tx_data_Field;
+            sb_tx_valid      = param_tx_valid;
+            sb_tx_msg_id     = param_tx_msg_id;
+            sb_tx_MsgInfo    = param_tx_MsgInfo;
+            sb_tx_data_Field = param_tx_data_Field;
         end
         CTRL_REPAIRCLK: begin
-            mb_tx_valid      = repairclk_tx_valid;
-            mb_tx_msg_id     = repairclk_tx_msg_id;
-            mb_tx_MsgInfo    = repairclk_tx_MsgInfo;
-            mb_tx_data_Field = repairclk_tx_data_Field;
+            sb_tx_valid      = repairclk_tx_valid;
+            sb_tx_msg_id     = repairclk_tx_msg_id;
+            sb_tx_MsgInfo    = repairclk_tx_MsgInfo;
+            sb_tx_data_Field = repairclk_tx_data_Field;
         end
         CTRL_REVERSALMB: begin
-            mb_tx_valid      = reversalmb_tx_valid;
-            mb_tx_msg_id     = reversalmb_tx_msg_id;
-            mb_tx_MsgInfo    = reversalmb_tx_MsgInfo;
-            mb_tx_data_Field = reversalmb_tx_data_Field;
+            sb_tx_valid      = reversalmb_tx_valid;
+            sb_tx_msg_id     = reversalmb_tx_msg_id;
+            sb_tx_MsgInfo    = reversalmb_tx_MsgInfo;
+            sb_tx_data_Field = reversalmb_tx_data_Field;
         end
         CTRL_REPAIRMB: begin
-            mb_tx_valid      = repairmb_tx_valid;
-            mb_tx_msg_id     = repairmb_tx_msg_id;
-            mb_tx_MsgInfo    = repairmb_tx_MsgInfo;
-            mb_tx_data_Field = repairmb_tx_data_Field;
+            sb_tx_valid      = repairmb_tx_valid;
+            sb_tx_msg_id     = repairmb_tx_msg_id;
+            sb_tx_MsgInfo    = repairmb_tx_MsgInfo;
+            sb_tx_data_Field = repairmb_tx_data_Field;
         end
         CTRL_REPAIRVAL: begin
-            mb_tx_valid      = repairval_tx_valid;
-            mb_tx_msg_id     = repairval_tx_msg_id;
-            mb_tx_MsgInfo    = repairval_tx_MsgInfo;
-            mb_tx_data_Field = repairval_tx_data_Field;
+            sb_tx_valid      = repairval_tx_valid;
+            sb_tx_msg_id     = repairval_tx_msg_id;
+            sb_tx_MsgInfo    = repairval_tx_MsgInfo;
+            sb_tx_data_Field = repairval_tx_data_Field;
         end
         CTRL_CAL: begin
-            mb_tx_valid      = cal_tx_valid;
-            mb_tx_msg_id     = cal_tx_msg_id;
-            mb_tx_MsgInfo    = cal_tx_MsgInfo;
-            mb_tx_data_Field = cal_tx_data_Field;
+            sb_tx_valid      = cal_tx_valid;
+            sb_tx_msg_id     = cal_tx_msg_id;
+            sb_tx_MsgInfo    = cal_tx_MsgInfo;
+            sb_tx_data_Field = cal_tx_data_Field;
         end
         default: ;
     endcase
@@ -367,8 +367,17 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-assign mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_reg;
-assign mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_reg;
+always_comb begin
+    mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_reg;
+    mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_reg;
+    if (current_state == CTRL_IDLE) begin
+        mbinit_rx_data_lane_mask = 3'b011;
+        mbinit_tx_data_lane_mask = 3'b011;
+    end else if (current_state == CTRL_REPAIRMB) begin
+        mbinit_rx_data_lane_mask = repairmb_rx_data_lane_mask;
+        mbinit_tx_data_lane_mask = repairmb_tx_data_lane_mask;
+    end
+end
 
 // =============================================================================
 // SEQUENTIAL LATCHING FOR REVERSAL REQUEST
@@ -385,7 +394,14 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 
-assign mb_lane_reversal_req = mb_lane_reversal_req_reg;
+always_comb begin
+    mb_lane_reversal_req = mb_lane_reversal_req_reg;
+    if (current_state == CTRL_IDLE) begin
+        mb_lane_reversal_req = 1'b0;
+    end else if (current_state == CTRL_REVERSALMB) begin
+        mb_lane_reversal_req = reversalmb_lane_reversal_req;
+    end
+end
 
 // =============================================================================
 // SHARED TIMER CONTROL SIGNALS

@@ -131,7 +131,7 @@ module MBINIT_WRAPPER_tb;
         .timer_rst_n(m_timer_rst_n),
         .timer_timeout_expired(m_timer_timeout_expired),
         
-        .ltsm_rdy(1'b1),
+        .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
         
         // Capability interface (Discrete Normal Ports)
@@ -185,15 +185,15 @@ module MBINIT_WRAPPER_tb;
         .test_d2c_done(d2c_if_module.test_d2c_done),
 
         // Mainband
-        .mb_rx_valid(p_tx_valid),
-        .mb_rx_msg_id(p_tx_msg_id),
-        .mb_rx_MsgInfo(p_tx_MsgInfo),
-        .mb_rx_data_Field(p_tx_data),
+        .sb_rx_valid(p_tx_valid),
+        .sb_rx_msg_id(p_tx_msg_id),
+        .sb_rx_MsgInfo(p_tx_MsgInfo),
+        .sb_rx_data_Field(p_tx_data),
         
-        .mb_tx_valid(m_tx_valid),
-        .mb_tx_msg_id(m_tx_msg_id),
-        .mb_tx_MsgInfo(m_tx_MsgInfo),
-        .mb_tx_data_Field(m_tx_data),
+        .sb_tx_valid(m_tx_valid),
+        .sb_tx_msg_id(m_tx_msg_id),
+        .sb_tx_MsgInfo(m_tx_MsgInfo),
+        .sb_tx_data_Field(m_tx_data),
 
         // Unified Mainband training/comparison
         .mb_tx_pattern_en(),
@@ -232,7 +232,7 @@ module MBINIT_WRAPPER_tb;
         .timer_rst_n(p_timer_rst_n),
         .timer_timeout_expired(p_timer_timeout_expired),
         
-        .ltsm_rdy(1'b1),
+        .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
         
         // Capability interface (Discrete Normal Ports)
@@ -286,15 +286,15 @@ module MBINIT_WRAPPER_tb;
         .test_d2c_done(d2c_if_partner.test_d2c_done),
 
         // Mainband
-        .mb_rx_valid(m_tx_valid),
-        .mb_rx_msg_id(m_tx_msg_id),
-        .mb_rx_MsgInfo(m_tx_MsgInfo),
-        .mb_rx_data_Field(m_tx_data),
+        .sb_rx_valid(m_tx_valid),
+        .sb_rx_msg_id(m_tx_msg_id),
+        .sb_rx_MsgInfo(m_tx_MsgInfo),
+        .sb_rx_data_Field(m_tx_data),
         
-        .mb_tx_valid(p_tx_valid),
-        .mb_tx_msg_id(p_tx_msg_id),
-        .mb_tx_MsgInfo(p_tx_MsgInfo),
-        .mb_tx_data_Field(p_tx_data),
+        .sb_tx_valid(p_tx_valid),
+        .sb_tx_msg_id(p_tx_msg_id),
+        .sb_tx_MsgInfo(p_tx_MsgInfo),
+        .sb_tx_data_Field(p_tx_data),
 
         // Unified Mainband training/comparison
         .mb_tx_pattern_en(),

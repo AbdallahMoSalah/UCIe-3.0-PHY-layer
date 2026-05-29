@@ -14,7 +14,7 @@ module MBINIT_WRAPPER
     output logic mbinit_error,
     
     // FIFO handshake & SPMW Strap
-    input  logic ltsm_rdy,
+    input  logic sb_ltsm_rdy,
     input  logic SPMW,
 
     // =========================================================================
@@ -81,17 +81,17 @@ module MBINIT_WRAPPER
 
 
     // =========================================================================
-    // RX / TX mainband message bus
+    // RX / TX sideband message bus
     // =========================================================================
-    input  logic        mb_rx_valid,
-    input  msg_no_e     mb_rx_msg_id,
-    input  logic [15:0] mb_rx_MsgInfo,
-    input  logic [63:0] mb_rx_data_Field,
+    input  logic        sb_rx_valid,
+    input  msg_no_e     sb_rx_msg_id,
+    input  logic [15:0] sb_rx_MsgInfo,
+    input  logic [63:0] sb_rx_data_Field,
 
-    output logic        mb_tx_valid,
-    output msg_no_e     mb_tx_msg_id,
-    output logic [15:0] mb_tx_MsgInfo,
-    output logic [63:0] mb_tx_data_Field,
+    output logic        sb_tx_valid,
+    output msg_no_e     sb_tx_msg_id,
+    output logic [15:0] sb_tx_MsgInfo,
+    output logic [63:0] sb_tx_data_Field,
 
     // =========================================================================
     // Unified Mainband Outputs (Muxed / Latched)
@@ -191,11 +191,11 @@ module MBINIT_WRAPPER
         .timer_rst_n(timer_rst_n),
         .timer_timeout_expired(timer_timeout_expired),
 
-        // Mainband Muxed Outputs
-        .mb_tx_valid(mb_tx_valid),
-        .mb_tx_msg_id(mb_tx_msg_id),
-        .mb_tx_MsgInfo(mb_tx_MsgInfo),
-        .mb_tx_data_Field(mb_tx_data_Field),
+        // Sideband Muxed Outputs
+        .sb_tx_valid(sb_tx_valid),
+        .sb_tx_msg_id(sb_tx_msg_id),
+        .sb_tx_MsgInfo(sb_tx_MsgInfo),
+        .sb_tx_data_Field(sb_tx_data_Field),
 
         // Unified Mainband Outputs
         .mb_tx_pattern_en(mb_tx_pattern_en),
@@ -295,15 +295,15 @@ module MBINIT_WRAPPER
         .mb_param_done(param_done),
         .mb_param_error(param_error),
         
-        .mb_param_rx_valid(mb_rx_valid),
-        .mb_param_rx_msg_id(mb_rx_msg_id),
-        .mb_param_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_param_rx_data_Field(mb_rx_data_Field),
+        .sb_param_rx_valid(sb_rx_valid),
+        .sb_param_rx_msg_id(sb_rx_msg_id),
+        .sb_param_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_param_rx_data_Field(sb_rx_data_Field),
         
-        .mb_param_tx_valid(param_tx_valid),
-        .mb_param_tx_msg_id(param_tx_msg_id),
-        .mb_param_tx_MsgInfo(param_tx_MsgInfo),
-        .mb_param_tx_data_Field(param_tx_data_Field),
+        .sb_param_tx_valid(param_tx_valid),
+        .sb_param_tx_msg_id(param_tx_msg_id),
+        .sb_param_tx_MsgInfo(param_tx_MsgInfo),
+        .sb_param_tx_data_Field(param_tx_data_Field),
         
         .Supported_TX_Vswing(reg_Supported_TX_Vswing),
         .so(reg_so),
@@ -340,7 +340,7 @@ module MBINIT_WRAPPER
         .L2SPD_enable_status(reg_L2SPD_enable_status),
         .PSPT_enable_status(reg_PSPT_enable_status),
         
-        .ltsm_rdy(ltsm_rdy),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)
     );
 
@@ -352,15 +352,15 @@ module MBINIT_WRAPPER
         .mb_cal_enable(cal_enable),
         .mb_cal_done(cal_done),
         .mb_cal_error(cal_error),
-        .mb_cal_rx_valid(mb_rx_valid),
-        .mb_cal_rx_msg_id(mb_rx_msg_id),
-        .mb_cal_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_cal_rx_data_Field(mb_rx_data_Field),
-        .mb_cal_tx_valid(cal_tx_valid),
-        .mb_cal_tx_msg_id(cal_tx_msg_id),
-        .mb_cal_tx_MsgInfo(cal_tx_MsgInfo),
-        .mb_cal_tx_data_Field(cal_tx_data_Field),
-        .ltsm_rdy(ltsm_rdy),
+        .sb_cal_rx_valid(sb_rx_valid),
+        .sb_cal_rx_msg_id(sb_rx_msg_id),
+        .sb_cal_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_cal_rx_data_Field(sb_rx_data_Field),
+        .sb_cal_tx_valid(cal_tx_valid),
+        .sb_cal_tx_msg_id(cal_tx_msg_id),
+        .sb_cal_tx_MsgInfo(cal_tx_MsgInfo),
+        .sb_cal_tx_data_Field(cal_tx_data_Field),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)
     );
 
@@ -371,14 +371,14 @@ module MBINIT_WRAPPER
         .mb_repairclk_enable(repairclk_enable),
         .mb_repairclk_done(repairclk_done),
         .mb_repairclk_error(repairclk_error),
-        .mb_repairclk_rx_valid(mb_rx_valid),
-        .mb_repairclk_rx_msg_id(mb_rx_msg_id),
-        .mb_repairclk_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_repairclk_rx_data_Field(mb_rx_data_Field),
-        .mb_repairclk_tx_valid(repairclk_tx_valid),
-        .mb_repairclk_tx_msg_id(repairclk_tx_msg_id),
-        .mb_repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
-        .mb_repairclk_tx_data_Field(repairclk_tx_data_Field),
+        .sb_repairclk_rx_valid(sb_rx_valid),
+        .sb_repairclk_rx_msg_id(sb_rx_msg_id),
+        .sb_repairclk_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_repairclk_rx_data_Field(sb_rx_data_Field),
+        .sb_repairclk_tx_valid(repairclk_tx_valid),
+        .sb_repairclk_tx_msg_id(repairclk_tx_msg_id),
+        .sb_repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
+        .sb_repairclk_tx_data_Field(repairclk_tx_data_Field),
         .mb_tx_pattern_en(repairclk_tx_pattern_en),
         .mb_tx_pattern_setup(repairclk_tx_pattern_setup),
         .mb_rx_compare_en(repairclk_rx_compare_en),
@@ -387,7 +387,7 @@ module MBINIT_WRAPPER
         .rckn_pass(repairclk_rckn_pass),
         .rckp_pass(repairclk_rckp_pass),
         .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
-        .ltsm_rdy(ltsm_rdy),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)
     );
 
@@ -398,14 +398,14 @@ module MBINIT_WRAPPER
         .mb_repairval_enable(repairval_enable),
         .mb_repairval_done(repairval_done),
         .mb_repairval_error(repairval_error),
-        .mb_repairval_rx_valid(mb_rx_valid),
-        .mb_repairval_rx_msg_id(mb_rx_msg_id),
-        .mb_repairval_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_repairval_rx_data_Field(mb_rx_data_Field),
-        .mb_repairval_tx_valid(repairval_tx_valid),
-        .mb_repairval_tx_msg_id(repairval_tx_msg_id),
-        .mb_repairval_tx_MsgInfo(repairval_tx_MsgInfo),
-        .mb_repairval_tx_data_Field(repairval_tx_data_Field),
+        .sb_repairval_rx_valid(sb_rx_valid),
+        .sb_repairval_rx_msg_id(sb_rx_msg_id),
+        .sb_repairval_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_repairval_rx_data_Field(sb_rx_data_Field),
+        .sb_repairval_tx_valid(repairval_tx_valid),
+        .sb_repairval_tx_msg_id(repairval_tx_msg_id),
+        .sb_repairval_tx_MsgInfo(repairval_tx_MsgInfo),
+        .sb_repairval_tx_data_Field(repairval_tx_data_Field),
         .mb_tx_pattern_en(repairval_tx_pattern_en),
         .mb_tx_pattern_setup(repairval_tx_pattern_setup),
         .mb_tx_val_pattern_sel(repairval_tx_val_pattern_sel),
@@ -413,7 +413,7 @@ module MBINIT_WRAPPER
         .mb_rx_compare_setup(repairval_rx_compare_setup),
         .mb_rx_val_pass(repairval_RVLD_L_pass),
         .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
-        .ltsm_rdy(ltsm_rdy),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)
     );
 
@@ -424,14 +424,14 @@ module MBINIT_WRAPPER
         .mb_reversal_enable(reversalmb_enable),
         .mb_reversal_done(reversalmb_done),
         .mb_reversal_error(reversalmb_error),
-        .mb_reversal_rx_valid(mb_rx_valid),
-        .mb_reversal_rx_msg_id(mb_rx_msg_id),
-        .mb_reversal_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_reversal_rx_data_Field(mb_rx_data_Field),
-        .mb_reversal_tx_valid(reversalmb_tx_valid),
-        .mb_reversal_tx_msg_id(reversalmb_tx_msg_id),
-        .mb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
-        .mb_reversal_tx_data_Field(reversalmb_tx_data_Field),
+        .sb_reversal_rx_valid(sb_rx_valid),
+        .sb_reversal_rx_msg_id(sb_rx_msg_id),
+        .sb_reversal_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_reversal_rx_data_Field(sb_rx_data_Field),
+        .sb_reversal_tx_valid(reversalmb_tx_valid),
+        .sb_reversal_tx_msg_id(reversalmb_tx_msg_id),
+        .sb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
+        .sb_reversal_tx_data_Field(reversalmb_tx_data_Field),
         .Link_Width_enable_status(reg_Link_Width_enable_status),
         .mb_tx_data_pattern_sel(reversalmb_tx_data_pattern_sel),
         .mb_tx_pattern_setup(reversalmb_tx_pattern_setup),
@@ -442,7 +442,7 @@ module MBINIT_WRAPPER
         .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
         .mb_lane_reversal_req(reversalmb_lane_reversal_req),
         .clear_error_req(reversalmb_clear_error_req),
-        .ltsm_rdy(ltsm_rdy),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)
     );
 
@@ -455,16 +455,16 @@ module MBINIT_WRAPPER
         .mb_repairmb_enable(repairmb_enable),
         .mb_repairmb_done(repairmb_done),
         .mb_repairmb_error(repairmb_error),
-        .mb_repairmb_rx_valid(mb_rx_valid),
-        .mb_repairmb_rx_msg_id(mb_rx_msg_id),
-        .mb_repairmb_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_repairmb_rx_data_Field(mb_rx_data_Field),
-        .mb_repairmb_tx_valid(repairmb_tx_valid),
-        .mb_repairmb_tx_msg_id(repairmb_tx_msg_id),
-        .mb_repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
-        .mb_repairmb_tx_data_Field(repairmb_tx_data_Field),
+        .sb_repairmb_rx_valid(sb_rx_valid),
+        .sb_repairmb_rx_msg_id(sb_rx_msg_id),
+        .sb_repairmb_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_repairmb_rx_data_Field(sb_rx_data_Field),
+        .sb_repairmb_tx_valid(repairmb_tx_valid),
+        .sb_repairmb_tx_msg_id(repairmb_tx_msg_id),
+        .sb_repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
+        .sb_repairmb_tx_data_Field(repairmb_tx_data_Field),
         .global_error(mbinit_error),
-        .ltsm_rdy(ltsm_rdy),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
         .tx_pt_en(tx_pt_en),
         .d2c_pattern_setup(d2c_pattern_setup),
         .d2c_data_pattern_sel(d2c_data_pattern_sel),
@@ -489,14 +489,14 @@ module MBINIT_WRAPPER
         !(mbinit_done && mbinit_error)
     );
 
-    // 2. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    // 2. Protocol Rule: Sideband TX stability until sb_ltsm_rdy asserts
     property p_wrapper_tx_stability;
         @(posedge clk) disable iff (!rst_n || !mbinit_enable)
-        (mb_tx_valid && !ltsm_rdy) |-> 
-        ##1 (mb_tx_valid && 
-             $stable(mb_tx_msg_id) && 
-             $stable(mb_tx_MsgInfo) && 
-             $stable(mb_tx_data_Field));
+        (sb_tx_valid && !sb_ltsm_rdy) |-> 
+        ##1 (sb_tx_valid && 
+             $stable(sb_tx_msg_id) && 
+             $stable(sb_tx_MsgInfo) && 
+             $stable(sb_tx_data_Field));
     endproperty
     assert_wrapper_tx_stability: assert property(p_wrapper_tx_stability);
 

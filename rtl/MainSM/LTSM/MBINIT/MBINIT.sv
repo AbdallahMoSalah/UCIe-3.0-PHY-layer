@@ -85,16 +85,16 @@ module MBINIT
     // =========================================================================
     // RX / TX sideband message bus
     // =========================================================================
-    input  logic        mb_rx_valid,
-    input  msg_no_e     mb_rx_msg_id,
-    input  logic [15:0] mb_rx_MsgInfo,
-    input  logic [63:0] mb_rx_data_Field,
+    input  logic        sb_rx_valid,
+    input  msg_no_e     sb_rx_msg_id,
+    input  logic [15:0] sb_rx_MsgInfo,
+    input  logic [63:0] sb_rx_data_Field,
 
-    output logic        mb_tx_valid,
-    input  logic        ltsm_rdy,
-    output msg_no_e     mb_tx_msg_id,
-    output logic [15:0] mb_tx_MsgInfo,
-    output logic [63:0] mb_tx_data_Field,
+    output logic        sb_tx_valid,
+    input  logic        sb_ltsm_rdy,
+    output msg_no_e     sb_tx_msg_id,
+    output logic [15:0] sb_tx_MsgInfo,
+    output logic [63:0] sb_tx_data_Field,
 
     // =========================================================================
     // Unified Mainband Outputs (Muxed / Latched)
@@ -215,16 +215,16 @@ module MBINIT
         // =========================================================================
         // RX / TX sideband message bus
         // =========================================================================
-        .mb_rx_valid(mb_rx_valid),
-        .mb_rx_msg_id(mb_rx_msg_id),
-        .mb_rx_MsgInfo(mb_rx_MsgInfo),
-        .mb_rx_data_Field(mb_rx_data_Field),
+        .sb_rx_valid(sb_rx_valid),
+        .sb_rx_msg_id(sb_rx_msg_id),
+        .sb_rx_MsgInfo(sb_rx_MsgInfo),
+        .sb_rx_data_Field(sb_rx_data_Field),
     
-        .mb_tx_valid(mb_tx_valid),
-        .ltsm_rdy(ltsm_rdy),
-        .mb_tx_msg_id(mb_tx_msg_id),
-        .mb_tx_MsgInfo(mb_tx_MsgInfo),
-        .mb_tx_data_Field(mb_tx_data_Field),
+        .sb_tx_valid(sb_tx_valid),
+        .sb_ltsm_rdy(sb_ltsm_rdy),
+        .sb_tx_msg_id(sb_tx_msg_id),
+        .sb_tx_MsgInfo(sb_tx_MsgInfo),
+        .sb_tx_data_Field(sb_tx_data_Field),
     
         // =========================================================================
         // Unified Mainband Outputs (Muxed / Latched)
