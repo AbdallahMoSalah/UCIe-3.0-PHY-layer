@@ -21,42 +21,64 @@ module MBINIT_WRAPPER
     // Capability interface (Discrete Normal Ports)
     // =========================================================================
     // Local Inputs (from registers)
-    input  logic        local_is_x8,
+    input  logic        reg_phy_x8_mode_ctrl,
     input  logic [3:0]  local_max_speed,
     input  logic        local_sbfe,
-    input  logic        local_tarr,
-    input  logic        local_l2spd,
-    input  logic        local_pspt,
+    input  logic        reg_TARR_support_local_cap,
+    input  logic        reg_L2SPD_support_local_cap,
+    input  logic        reg_PSPT_support_local_cap,
     input  logic        local_so,
-    input  logic        local_pmo,
+    input  logic        reg_PMO_support_local_cap,
+    input  logic [2:0]  reg_Max_Link_Width_cap,
+    input  logic [3:0]  reg_Max_Link_Speed_cap,
     input  logic        local_mtp,
 
-    // Partner Outputs (to registers)
-    output logic        partner_is_x8,
-    output logic [3:0]  partner_max_speed,
-    output logic        partner_sbfe,
-    output logic        partner_tarr,
-    output logic        partner_l2spd,
-    output logic        partner_pspt,
-    output logic        partner_so,
-    output logic        partner_pmo,
-    output logic        partner_mtp,
+    input  logic [4:0]  reg_Supported_TX_Vswing,
+    input  logic        reg_so,
+    input  logic        reg_mtp,
+    input  logic [1:0]  reg_Module_ID,
+    input  logic [1:0]  reg_Clock_Phase_cap,
+    input  logic [1:0]  reg_Clock_mode_cap,
+    input  logic        reg_TARR_support_local_ctrl,
+    input  logic        reg_PMO_support_local_ctrl,
+    input  logic        reg_Clock_Phase_ctrl,
+    input  logic        reg_Clock_mode_ctrl,
 
-    // Negotiated Outputs (to registers / consumed by others)
-    output logic        use_x8_mode,
-    output logic [3:0]  negotiated_speed,
-    output logic        negotiated_sbfe,
-    output logic        negotiated_tarr,
-    output logic        negotiated_l2spd,
-    output logic        negotiated_pspt,
-    output logic        negotiated_so,
-    output logic        negotiated_pmo,
-    output logic        negotiated_mtp,
+    // From Link
+    input  logic        reg_L2SPD_support_local_ctrl,
+    input  logic        reg_PSPT_support_local_ctrl,
+    input  logic [3:0]  reg_Target_Link_Width_ctrl,
+    input  logic [3:0]  reg_Target_Link_Speed_ctrl,
+
+
+    // -------------------------------
+    // --------- STATUS REG ----------
+    // -------------------------------
+    // From Phy 
+    output logic        reg_Clock_Phase_enable_status,
+    output logic        reg_Clock_mode_enable_status,
+    output logic        reg_TARR_enable_status,
+    // From Link
+    output logic [3:0]  reg_Link_Width_enable_status,
+    output logic [3:0]  reg_Link_Speed_enable_status,
+    output logic        reg_PMO_enable_status,
+    output logic        reg_L2SPD_enable_status,
+    output logic        reg_PSPT_enable_status,
 
     // =========================================================================
     // D2C point-test interface (for MBINIT_REPAIRMB)
     // =========================================================================
-    internal_ltsm_if d2c_test_if,
+        // d2cptest interface
+    output logic            tx_pt_en,
+    output logic [2:0]      d2c_pattern_setup,// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+    output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
+    output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
+    output logic [1:0]      d2c_compare_setup, // 0: Per-Lane, 1: Aggregate,  2: Valid Lane, 3: Clock Lane Comparison.
+
+    input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
+
+    input logic test_d2c_done,
+
 
     // =========================================================================
     // RX / TX mainband message bus
@@ -72,47 +94,39 @@ module MBINIT_WRAPPER
     output logic [63:0] mb_tx_data_Field,
 
     // =========================================================================
-    // REPAIRCLK pattern / compare
+    // Unified Mainband Outputs (Muxed / Latched)
     // =========================================================================
-    output logic [2:0] repairclk_tx_pattern_setup,
-    output logic [1:0] repairclk_tx_clk_pattern_sel,
-    output logic [1:0] repairclk_rx_compare_setup,
-    output logic       repairclk_tx_pattern_en,
-    output logic       repairclk_rx_compare_en,
-    input  logic       repairclk_rtrk_pass,
-    input  logic       repairclk_rckn_pass,
-    input  logic       repairclk_rckp_pass,
-    input  logic       repairclk_rx_compare_done,
+    output logic       mb_tx_pattern_en,
+    output logic [2:0] mb_tx_pattern_setup,
+    output logic [1:0] mb_tx_data_pattern_sel,
+    output logic       mb_tx_val_pattern_sel,
+    output logic       mb_rx_compare_en,
+    output logic [1:0] mb_rx_compare_setup,
+    output logic       clear_error_req,
+    output logic [2:0] mbinit_rx_data_lane_mask,
+    output logic [2:0] mbinit_tx_data_lane_mask,
 
     // =========================================================================
-    // REVERSALMB / REPAIRMB pattern / compare (Shared)
+    // Unified Mainband Inputs
     // =========================================================================
-    output logic [2:0] reversalmb_tx_pattern_setup,
-    output logic [1:0] reversalmb_tx_data_pattern_sel,
-    output logic [1:0] reversalmb_rx_compare_setup,
-    output logic       reversalmb_tx_pattern_en,
-    output logic       reversalmb_rx_compare_en,
-    input  logic [15:0] reversalmb_rx_perlane_err,
-    input  logic        reversalmb_rx_compare_done,
+    input  logic [15:0] mb_rx_perlane_pass,
+    input  logic        mb_tx_pattern_count_done,
+
+    // =========================================================================
+    // Substate Discrete Outputs/Inputs
+    // =========================================================================
     output logic        mb_lane_reversal_req,
-    output logic        mb_x8_mode_req,
-    output logic        clear_error_req,
+    input  logic        repairclk_rtrk_pass,
+    input  logic        repairclk_rckn_pass,
+    input  logic        repairclk_rckp_pass,
+    input  logic        repairval_RVLD_L_pass,
 
     // =========================================================================
-    // REPAIRVAL pattern / compare
+    // External Watchdog Timer Interface
     // =========================================================================
-    output logic [2:0] repairval_tx_pattern_setup,
-    output logic       repairval_tx_val_pattern_sel,
-    output logic [1:0] repairval_rx_compare_setup,
-    output logic       repairval_tx_pattern_en,
-    output logic       repairval_rx_compare_en,
-    input  logic       repairval_RVLD_L_pass,
-    input  logic       repairval_rx_compare_done,
-
-    // =========================================================================
-    // Aggregated timeout error
-    // =========================================================================
-    output logic timeout_error
+    output logic timer_enable,
+    output logic timer_rst_n,
+    input  logic timer_timeout_expired
 );
 
     // =========================================================================
@@ -133,42 +147,34 @@ module MBINIT_WRAPPER
     logic        repairval_tx_valid;  msg_no_e repairval_tx_msg_id;  logic [15:0] repairval_tx_MsgInfo;  logic [63:0] repairval_tx_data_Field;
     logic        cal_tx_valid;        msg_no_e cal_tx_msg_id;        logic [15:0] cal_tx_MsgInfo;        logic [63:0] cal_tx_data_Field;
 
-    // Watchdog Timer Handshakes
-    logic param_timer_enable,      param_timeout_expired;
-    logic cal_timer_enable,        cal_timeout_expired;
-    logic repairclk_timer_enable,  repairclk_timeout_expired;
-    logic repairval_timer_enable,  repairval_timeout_expired;
-    logic reversalmb_timer_enable, reversalmb_timeout_expired;
-    logic repairmb_timer_enable,   repairmb_timeout_expired;
+    // Reversal request handshaking wire
+    logic reversalmb_lane_reversal_req;
 
-    // Mux outputs
-    logic reversal_tx_data_pattern_sel_w;
-    logic reversal_rx_compare_setup_w;
-    logic reversal_tx_data_pattern_en;
-    logic reversal_rx_data_compare_en;
-    logic reversal_clear_error_req;
+    // REPAIRCLK pattern / compare
+    logic       repairclk_tx_pattern_en;
+    logic [2:0] repairclk_tx_pattern_setup;
+    logic       repairclk_rx_compare_en;
+    logic [1:0] repairclk_rx_compare_setup;
 
-    logic repair_tx_data_pattern_sel_w;
-    logic repair_rx_compare_setup_w;
-    logic repair_tx_data_pattern_en;
-    logic repair_rx_data_compare_en;
-    logic repair_clear_error_req;
+    // REPAIRVAL pattern / compare
+    logic       repairval_tx_pattern_en;
+    logic [2:0] repairval_tx_pattern_setup;
+    logic       repairval_tx_val_pattern_sel;
+    logic       repairval_rx_compare_en;
+    logic [1:0] repairval_rx_compare_setup;
 
-    // Width negotiation signals
-    logic [3:0] link_width_enable_status_w;
-    logic reg_x8_mode_req_w;
-    assign reg_x8_mode_req_w = (link_width_enable_status_w == 4'h1);
+    // REVERSALMB pattern / compare
+    logic       reversalmb_tx_pattern_en;
+    logic [2:0] reversalmb_tx_pattern_setup;
+    logic [1:0] reversalmb_tx_data_pattern_sel;
+    logic       reversalmb_rx_compare_en;
+    logic [1:0] reversalmb_rx_compare_setup;
+    logic       reversalmb_clear_error_req;
 
-    // Hardcoded Pattern Setup Outputs
-    assign repairclk_tx_pattern_setup   = 3'b100; // 100b: Clock Pattern
-    assign repairclk_tx_clk_pattern_sel = 2'b01;  // clock pattern select
-    assign repairclk_rx_compare_setup   = 2'b01;  // clock compare setup
-
-    assign reversalmb_tx_pattern_setup  = 3'b001; // 001b: Data Pattern
-
-    assign repairval_tx_pattern_setup   = 3'b010; // 010b: Valid Pattern
-    assign repairval_tx_val_pattern_sel = 1'b1;   // valid pattern select
-    assign repairval_rx_compare_setup   = 2'b01;  // valid compare setup
+    // REPAIRMB pattern / compare
+    logic       repairmb_clear_error_req;
+    logic [2:0] repairmb_rx_data_lane_mask;
+    logic [2:0] repairmb_tx_data_lane_mask;
 
     // =========================================================================
     // CONTROLLER INSTANTIATION
@@ -181,12 +187,27 @@ module MBINIT_WRAPPER
         .mbinit_enable(mbinit_enable),
         .mbinit_done(mbinit_done),
         .mbinit_error(mbinit_error),
+        .timer_enable(timer_enable),
+        .timer_rst_n(timer_rst_n),
+        .timer_timeout_expired(timer_timeout_expired),
 
         // Mainband Muxed Outputs
         .mb_tx_valid(mb_tx_valid),
         .mb_tx_msg_id(mb_tx_msg_id),
         .mb_tx_MsgInfo(mb_tx_MsgInfo),
         .mb_tx_data_Field(mb_tx_data_Field),
+
+        // Unified Mainband Outputs
+        .mb_tx_pattern_en(mb_tx_pattern_en),
+        .mb_tx_pattern_setup(mb_tx_pattern_setup),
+        .mb_tx_data_pattern_sel(mb_tx_data_pattern_sel),
+        .mb_tx_val_pattern_sel(mb_tx_val_pattern_sel),
+        .mb_rx_compare_en(mb_rx_compare_en),
+        .mb_rx_compare_setup(mb_rx_compare_setup),
+        .clear_error_req(clear_error_req),
+        .mbinit_rx_data_lane_mask(mbinit_rx_data_lane_mask),
+        .mbinit_tx_data_lane_mask(mbinit_tx_data_lane_mask),
+        .mb_lane_reversal_req(mb_lane_reversal_req),
 
         // PARAM
         .param_enable(param_enable),
@@ -214,6 +235,10 @@ module MBINIT_WRAPPER
         .repairclk_tx_msg_id(repairclk_tx_msg_id),
         .repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
         .repairclk_tx_data_Field(repairclk_tx_data_Field),
+        .repairclk_tx_pattern_en(repairclk_tx_pattern_en),
+        .repairclk_tx_pattern_setup(repairclk_tx_pattern_setup),
+        .repairclk_rx_compare_en(repairclk_rx_compare_en),
+        .repairclk_rx_compare_setup(repairclk_rx_compare_setup),
 
         // REPAIRVAL
         .repairval_enable(repairval_enable),
@@ -223,6 +248,11 @@ module MBINIT_WRAPPER
         .repairval_tx_msg_id(repairval_tx_msg_id),
         .repairval_tx_MsgInfo(repairval_tx_MsgInfo),
         .repairval_tx_data_Field(repairval_tx_data_Field),
+        .repairval_tx_pattern_en(repairval_tx_pattern_en),
+        .repairval_tx_pattern_setup(repairval_tx_pattern_setup),
+        .repairval_tx_val_pattern_sel(repairval_tx_val_pattern_sel),
+        .repairval_rx_compare_en(repairval_rx_compare_en),
+        .repairval_rx_compare_setup(repairval_rx_compare_setup),
 
         // REVERSALMB
         .reversalmb_enable(reversalmb_enable),
@@ -232,6 +262,13 @@ module MBINIT_WRAPPER
         .reversalmb_tx_msg_id(reversalmb_tx_msg_id),
         .reversalmb_tx_MsgInfo(reversalmb_tx_MsgInfo),
         .reversalmb_tx_data_Field(reversalmb_tx_data_Field),
+        .reversalmb_tx_pattern_en(reversalmb_tx_pattern_en),
+        .reversalmb_tx_pattern_setup(reversalmb_tx_pattern_setup),
+        .reversalmb_tx_data_pattern_sel(reversalmb_tx_data_pattern_sel),
+        .reversalmb_rx_compare_en(reversalmb_rx_compare_en),
+        .reversalmb_rx_compare_setup(reversalmb_rx_compare_setup),
+        .reversalmb_clear_error_req(reversalmb_clear_error_req),
+        .reversalmb_lane_reversal_req(reversalmb_lane_reversal_req),
 
         // REPAIRMB
         .repairmb_enable(repairmb_enable),
@@ -240,7 +277,10 @@ module MBINIT_WRAPPER
         .repairmb_tx_valid(repairmb_tx_valid),
         .repairmb_tx_msg_id(repairmb_tx_msg_id),
         .repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
-        .repairmb_tx_data_Field(repairmb_tx_data_Field)
+        .repairmb_tx_data_Field(repairmb_tx_data_Field),
+        .repairmb_clear_error_req(repairmb_clear_error_req),
+        .repairmb_rx_data_lane_mask(repairmb_rx_data_lane_mask),
+        .repairmb_tx_data_lane_mask(repairmb_tx_data_lane_mask)
     );
 
     // =========================================================================
@@ -265,63 +305,46 @@ module MBINIT_WRAPPER
         .mb_param_tx_MsgInfo(param_tx_MsgInfo),
         .mb_param_tx_data_Field(param_tx_data_Field),
         
-        .Supported_TX_Vswing(5'b00000),
-        .so(1'b0),
-        .mtp(1'b0),
-        .Module_ID(2'b00),
+        .Supported_TX_Vswing(reg_Supported_TX_Vswing),
+        .so(reg_so),
+        .mtp(reg_mtp),
+        .Module_ID(reg_Module_ID),
         
-        .TARR_support_local_cap(local_tarr),
-        .Clock_Phase_cap(2'b00),
-        .Clock_mode_cap(2'b00),
-        .L2SPD_support_local_cap(local_l2spd),
-        .PSPT_support_local_cap(local_pspt),
-        .PMO_support_local_cap(local_pmo),
-        .Max_Link_Width_cap(local_is_x8 ? 3'h1 : 3'h2),
-        .Max_Link_Speed_cap(local_max_speed),
+        .TARR_support_local_cap(reg_TARR_support_local_cap),
+        .Clock_Phase_cap(reg_Clock_Phase_cap),
+        .Clock_mode_cap(reg_Clock_mode_cap),
+        .L2SPD_support_local_cap(reg_L2SPD_support_local_cap),
+        .PSPT_support_local_cap(reg_PSPT_support_local_cap),
+        .PMO_support_local_cap(reg_PMO_support_local_cap),
+        .Max_Link_Width_cap(reg_Max_Link_Width_cap),
+        .Max_Link_Speed_cap(reg_Max_Link_Speed_cap),
         
-        .TARR_support_local_ctrl(local_tarr),
-        .phy_x8_mode_ctrl(local_is_x8),
+        .TARR_support_local_ctrl(reg_TARR_support_local_ctrl),
+        .phy_x8_mode_ctrl(reg_phy_x8_mode_ctrl),
         .SPMW(SPMW),
-        .Clock_Phase_ctrl(1'b0),
-        .Clock_mode_ctrl(1'b0),
+        .Clock_Phase_ctrl(reg_Clock_Phase_ctrl),
+        .Clock_mode_ctrl(reg_Clock_mode_ctrl),
         
-        .L2SPD_support_local_ctrl(local_l2spd),
-        .PSPT_support_local_ctrl(local_pspt),
-        .PMO_support_local_ctrl(local_pmo),
-        .Target_Link_Width_ctrl(local_is_x8 ? 4'h1 : 4'h2),
-        .Target_Link_Speed_ctrl(local_max_speed),
+        .L2SPD_support_local_ctrl(reg_L2SPD_support_local_ctrl),
+        .PSPT_support_local_ctrl(reg_PSPT_support_local_ctrl),
+        .PMO_support_local_ctrl(reg_PMO_support_local_ctrl),
+        .Target_Link_Width_ctrl(reg_Target_Link_Width_ctrl),
+        .Target_Link_Speed_ctrl(reg_Target_Link_Speed_ctrl),
         
-        .Clock_Phase_enable_status(),
-        .Clock_mode_enable_status(),
-        .TARR_enable_status(negotiated_tarr),
-        .Link_Width_enable_status(link_width_enable_status_w),
-        .Link_Speed_enable_status(negotiated_speed),
-        .PMO_enable_status(negotiated_pmo),
-        .L2SPD_enable_status(negotiated_l2spd),
-        .PSPT_enable_status(negotiated_pspt),
+        .Clock_Phase_enable_status(reg_Clock_Phase_enable_status),
+        .Clock_mode_enable_status(reg_Clock_mode_enable_status),
+        .TARR_enable_status(reg_TARR_enable_status),
+        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .Link_Speed_enable_status(reg_Link_Speed_enable_status),
+        .PMO_enable_status(reg_PMO_enable_status),
+        .L2SPD_enable_status(reg_L2SPD_enable_status),
+        .PSPT_enable_status(reg_PSPT_enable_status),
         
         .ltsm_rdy(ltsm_rdy),
-        .mb_param_timer_enable(param_timer_enable),
-        .mb_param_timeout_expired(param_timeout_expired)
+        .global_error(mbinit_error)
     );
 
-    // Map Partner capability registers directly using hierarchical paths
-    assign partner_is_x8       = u_param.partner_UCIE_x8_sel;
-    assign partner_max_speed   = u_param.partner_link_speed_sel;
-    assign partner_sbfe        = u_param.partner_SFES_sel;
-    assign partner_tarr        = u_param.partner_TARR_sel;
-    assign partner_l2spd       = u_param.partner_l2spd;
-    assign partner_pspt        = u_param.partner_pspt;
-    assign partner_so          = u_param.partner_so;
-    assign partner_pmo         = u_param.partner_pmo;
-    assign partner_mtp         = u_param.partner_mtp;
-
-    // Map Negotiated capability outputs
-    assign use_x8_mode         = reg_x8_mode_req_w;
-    assign negotiated_sbfe     = u_param.local_SFES_negotiated;
-    assign negotiated_so       = u_param.local_so_negotiated;
-    assign negotiated_mtp      = u_param.local_mtp_negotiated;
-
+ 
     // S2: CAL
     MBINIT_CAL #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_cal (
         .clk(clk),
@@ -338,8 +361,7 @@ module MBINIT_WRAPPER
         .mb_cal_tx_MsgInfo(cal_tx_MsgInfo),
         .mb_cal_tx_data_Field(cal_tx_data_Field),
         .ltsm_rdy(ltsm_rdy),
-        .timeout_cal_enable(cal_timer_enable),
-        .timeout_cal_expired(cal_timeout_expired)
+        .global_error(mbinit_error)
     );
 
     // S3: REPAIRCLK
@@ -358,14 +380,15 @@ module MBINIT_WRAPPER
         .mb_repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
         .mb_repairclk_tx_data_Field(repairclk_tx_data_Field),
         .mb_tx_pattern_en(repairclk_tx_pattern_en),
+        .mb_tx_pattern_setup(repairclk_tx_pattern_setup),
         .mb_rx_compare_en(repairclk_rx_compare_en),
+        .mb_rx_compare_setup(repairclk_rx_compare_setup),
         .rtrk_pass(repairclk_rtrk_pass),
         .rckn_pass(repairclk_rckn_pass),
         .rckp_pass(repairclk_rckp_pass),
-        .mb_tx_pattern_count_done(repairclk_rx_compare_done),
+        .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
         .ltsm_rdy(ltsm_rdy),
-        .timeout_repairclk_expired(repairclk_timeout_expired),
-        .timeout_repairclk_enable(repairclk_timer_enable)
+        .global_error(mbinit_error)
     );
 
     // S4: REPAIRVAL
@@ -384,12 +407,14 @@ module MBINIT_WRAPPER
         .mb_repairval_tx_MsgInfo(repairval_tx_MsgInfo),
         .mb_repairval_tx_data_Field(repairval_tx_data_Field),
         .mb_tx_pattern_en(repairval_tx_pattern_en),
+        .mb_tx_pattern_setup(repairval_tx_pattern_setup),
+        .mb_tx_val_pattern_sel(repairval_tx_val_pattern_sel),
         .mb_rx_compare_en(repairval_rx_compare_en),
+        .mb_rx_compare_setup(repairval_rx_compare_setup),
         .mb_rx_val_pass(repairval_RVLD_L_pass),
-        .mb_tx_pattern_count_done(repairval_rx_compare_done),
+        .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
         .ltsm_rdy(ltsm_rdy),
-        .timer_enable(repairval_timer_enable),
-        .timeout_expired(repairval_timeout_expired)
+        .global_error(mbinit_error)
     );
 
     // S5: REVERSALMB
@@ -407,25 +432,25 @@ module MBINIT_WRAPPER
         .mb_reversal_tx_msg_id(reversalmb_tx_msg_id),
         .mb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
         .mb_reversal_tx_data_Field(reversalmb_tx_data_Field),
-        .Link_Width_enable_status(link_width_enable_status_w),
-        .mb_tx_data_pattern_sel(reversal_tx_data_pattern_sel_w),
-        .mb_rx_compare_setup(reversal_rx_compare_setup_w),
-        .mb_tx_pattern_en(reversal_tx_data_pattern_en),
-        .mb_rx_compare_en(reversal_rx_data_compare_en),
-        .mb_rx_perlane_pass(~reversalmb_rx_perlane_err),
-        .mb_tx_pattern_count_done(reversalmb_rx_compare_done),
-        .mb_lane_reversal_req(mb_lane_reversal_req),
-        .clear_error_req(reversal_clear_error_req),
+        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .mb_tx_data_pattern_sel(reversalmb_tx_data_pattern_sel),
+        .mb_tx_pattern_setup(reversalmb_tx_pattern_setup),
+        .mb_rx_compare_setup(reversalmb_rx_compare_setup),
+        .mb_tx_pattern_en(reversalmb_tx_pattern_en),
+        .mb_rx_compare_en(reversalmb_rx_compare_en),
+        .mb_rx_perlane_pass(mb_rx_perlane_pass),
+        .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
+        .mb_lane_reversal_req(reversalmb_lane_reversal_req),
+        .clear_error_req(reversalmb_clear_error_req),
         .ltsm_rdy(ltsm_rdy),
-        .timeout_reversal_expired(reversalmb_timeout_expired),
-        .timeout_reversal_enable(reversalmb_timer_enable)
+        .global_error(mbinit_error)
     );
 
     // S6: REPAIRMB
     MBINIT_REPAIRMB #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_repairmb (
         .clk(clk),
         .rst_n(rst_n),
-        .Link_Width_enable_status(link_width_enable_status_w),
+        .Link_Width_enable_status(reg_Link_Width_enable_status),
         .SPMW(SPMW),
         .mb_repairmb_enable(repairmb_enable),
         .mb_repairmb_done(repairmb_done),
@@ -438,85 +463,21 @@ module MBINIT_WRAPPER
         .mb_repairmb_tx_msg_id(repairmb_tx_msg_id),
         .mb_repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
         .mb_repairmb_tx_data_Field(repairmb_tx_data_Field),
-        .timeout_repair_expired(repairmb_timeout_expired),
-        .timeout_repair_enable(repairmb_timer_enable),
+        .global_error(mbinit_error),
         .ltsm_rdy(ltsm_rdy),
-        .tx_pt_en(d2c_test_if.tx_pt_en),
-        .d2c_pattern_setup(d2c_test_if.d2c_pattern_setup),
-        .d2c_data_pattern_sel(d2c_test_if.d2c_data_pattern_sel),
-        .d2c_pattern_mode(d2c_test_if.d2c_pattern_mode),
-        .d2c_compare_setup(d2c_test_if.d2c_compare_setup),
-        .d2c_perlane_pass(d2c_test_if.mb_rx_perlane_pass),
-        .test_d2c_done(d2c_test_if.test_d2c_done),
-        .clear_error_req(repair_clear_error_req),
-        .mbinit_rx_data_lane_mask(d2c_test_if.mbinit_rx_data_lane_mask),
-        .mbinit_tx_data_lane_mask(d2c_test_if.mbinit_tx_data_lane_mask)
+        .tx_pt_en(tx_pt_en),
+        .d2c_pattern_setup(d2c_pattern_setup),
+        .d2c_data_pattern_sel(d2c_data_pattern_sel),
+        .d2c_pattern_mode(d2c_pattern_mode),
+        .d2c_compare_setup(d2c_compare_setup),
+        .d2c_perlane_pass(d2c_perlane_pass),
+        .test_d2c_done(test_d2c_done),
+        .clear_error_req(repairmb_clear_error_req),
+        .mbinit_rx_data_lane_mask(repairmb_rx_data_lane_mask),
+        .mbinit_tx_data_lane_mask(repairmb_tx_data_lane_mask)
     );
 
-    // =========================================================================
-    // DYNAMIC PATTERN / COMPARE MULTIPLEXERS
-    // =========================================================================
-    always_comb begin
-        if (repairmb_enable) begin
-            reversalmb_tx_data_pattern_sel = {1'b0, repair_tx_data_pattern_sel_w};
-            reversalmb_rx_compare_setup    = {1'b0, repair_rx_compare_setup_w};
-            reversalmb_tx_pattern_en       = repair_tx_data_pattern_en;
-            reversalmb_rx_compare_en       = repair_rx_data_compare_en;
-            clear_error_req                = repair_clear_error_req;
-        end else begin
-            // Default to reversalmb's outputs
-            reversalmb_tx_data_pattern_sel = {1'b0, reversal_tx_data_pattern_sel_w};
-            reversalmb_rx_compare_setup    = {1'b0, reversal_rx_compare_setup_w};
-            reversalmb_tx_pattern_en       = reversal_tx_data_pattern_en;
-            reversalmb_rx_compare_en       = reversal_rx_data_compare_en;
-            clear_error_req                = reversal_clear_error_req;
-        end
-    end
 
-    assign mb_x8_mode_req = reg_x8_mode_req_w;
-
-    // =========================================================================
-    // SHARED SINGLE WATCHDOG TIMER WITH AUTO-RESET ON STATE CHANGE
-    // =========================================================================
-    logic [3:0] prev_state;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            prev_state <= 4'h0;
-        else
-            prev_state <= u_controller.current_state;
-    end
-    
-    logic state_changed;
-    assign state_changed = (prev_state != u_controller.current_state);
-    
-    logic timer_rst_n;
-    assign timer_rst_n = rst_n && !state_changed;
-
-    logic timer_enable;
-    logic timer_timeout_expired;
-    
-    assign timer_enable = param_timer_enable || 
-                          cal_timer_enable || 
-                          repairclk_timer_enable || 
-                          repairval_timer_enable || 
-                          reversalmb_timer_enable || 
-                          repairmb_timer_enable;
-
-    timeout_counter #(.CLK_FRQ_HZ(CLK_FRQ_HZ), .TIME_OUT(8)) u_shared_timer (
-        .clk(clk),
-        .timeout_rst_n(timer_rst_n),
-        .enable_timeout(timer_enable),
-        .timeout_expired(timer_timeout_expired)
-    );
-
-    assign param_timeout_expired      = timer_timeout_expired;
-    assign cal_timeout_expired        = timer_timeout_expired;
-    assign repairclk_timeout_expired  = timer_timeout_expired;
-    assign repairval_timeout_expired  = timer_timeout_expired;
-    assign reversalmb_timeout_expired = timer_timeout_expired;
-    assign repairmb_timeout_expired   = timer_timeout_expired;
-
-    assign timeout_error = timer_timeout_expired;
 
 // =============================================================================
 // SYSTEMVERILOG ASSERTIONS (SVA) FOR WRAPPER INTEGRITY
@@ -542,7 +503,7 @@ module MBINIT_WRAPPER
     // 3. Error Check: Watchdog timeout assertion leading to top error
     property p_wrapper_timeout_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        timeout_error |-> ##[1:5] mbinit_error;
+        timer_timeout_expired |-> ##[1:5] mbinit_error;
     endproperty
     assert_wrapper_timeout_leads_to_error: assert property(p_wrapper_timeout_leads_to_error);
 

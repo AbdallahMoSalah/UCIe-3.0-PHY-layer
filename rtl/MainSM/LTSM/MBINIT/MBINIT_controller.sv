@@ -24,6 +24,10 @@ module MBINIT_CONTROLLER
     output logic mbinit_done,
     output logic mbinit_error,
 
+    output logic timer_enable,
+    output logic timer_rst_n,
+    input  logic timer_timeout_expired,
+
     // =========================================================================
     // RX / TX mainband message bus (Muxed Output)
     // =========================================================================
@@ -31,6 +35,20 @@ module MBINIT_CONTROLLER
     output msg_no_e     mb_tx_msg_id,
     output logic [15:0] mb_tx_MsgInfo,
     output logic [63:0] mb_tx_data_Field,
+
+    // =========================================================================
+    // Unified Mainband Outputs (Muxed / Latched)
+    // =========================================================================
+    output logic       mb_tx_pattern_en,
+    output logic [2:0] mb_tx_pattern_setup,
+    output logic [1:0] mb_tx_data_pattern_sel,
+    output logic       mb_tx_val_pattern_sel,
+    output logic       mb_rx_compare_en,
+    output logic [1:0] mb_rx_compare_setup,
+    output logic       clear_error_req,
+    output logic [2:0] mbinit_rx_data_lane_mask,
+    output logic [2:0] mbinit_tx_data_lane_mask,
+    output logic       mb_lane_reversal_req,
 
     // =========================================================================
     // SUBMODULE INTERFACES
@@ -62,6 +80,10 @@ module MBINIT_CONTROLLER
     input  msg_no_e     repairclk_tx_msg_id,
     input  logic [15:0] repairclk_tx_MsgInfo,
     input  logic [63:0] repairclk_tx_data_Field,
+    input  logic       repairclk_tx_pattern_en,
+    input  logic [2:0] repairclk_tx_pattern_setup,
+    input  logic       repairclk_rx_compare_en,
+    input  logic [1:0] repairclk_rx_compare_setup,
 
     // REPAIRVAL
     output logic repairval_enable,
@@ -71,6 +93,11 @@ module MBINIT_CONTROLLER
     input  msg_no_e     repairval_tx_msg_id,
     input  logic [15:0] repairval_tx_MsgInfo,
     input  logic [63:0] repairval_tx_data_Field,
+    input  logic       repairval_tx_pattern_en,
+    input  logic [2:0] repairval_tx_pattern_setup,
+    input  logic       repairval_tx_val_pattern_sel,
+    input  logic       repairval_rx_compare_en,
+    input  logic [1:0] repairval_rx_compare_setup,
 
     // REVERSALMB
     output logic reversalmb_enable,
@@ -80,6 +107,13 @@ module MBINIT_CONTROLLER
     input  msg_no_e     reversalmb_tx_msg_id,
     input  logic [15:0] reversalmb_tx_MsgInfo,
     input  logic [63:0] reversalmb_tx_data_Field,
+    input  logic       reversalmb_tx_pattern_en,
+    input  logic [2:0] reversalmb_tx_pattern_setup,
+    input  logic [1:0] reversalmb_tx_data_pattern_sel,
+    input  logic       reversalmb_rx_compare_en,
+    input  logic [1:0] reversalmb_rx_compare_setup,
+    input  logic       reversalmb_clear_error_req,
+    input  logic       reversalmb_lane_reversal_req,
 
     // REPAIRMB
     output logic repairmb_enable,
@@ -88,7 +122,10 @@ module MBINIT_CONTROLLER
     input  logic        repairmb_tx_valid,
     input  msg_no_e     repairmb_tx_msg_id,
     input  logic [15:0] repairmb_tx_MsgInfo,
-    input  logic [63:0] repairmb_tx_data_Field
+    input  logic [63:0] repairmb_tx_data_Field,
+    input  logic       repairmb_clear_error_req,
+    input  logic [2:0] repairmb_rx_data_lane_mask,
+    input  logic [2:0] repairmb_tx_data_lane_mask
 );
 
 // =============================================================================
@@ -124,58 +161,72 @@ end
 always_comb begin
     next_state = current_state;
 
-    case (current_state)
+    if(!mbinit_enable)begin
+        next_state = CTRL_IDLE;
+    end
+    else if (timer_timeout_expired && !mbinit_done) begin
+        next_state = CTRL_ERROR;
+    end else begin
+        case (current_state)
 
-        CTRL_IDLE:
-            if (mbinit_enable && !mbinit_done && !mbinit_error)
-                next_state = CTRL_PARAM;
+            CTRL_IDLE: begin
+                if (mbinit_enable)
+                    next_state = CTRL_PARAM;
+            end
 
-        CTRL_PARAM:
-            if (param_error)
-                next_state = CTRL_ERROR;
-            else if (param_done)
-                next_state = CTRL_CAL;
+            CTRL_PARAM: begin
+                if (param_error)
+                    next_state = CTRL_ERROR;
+                else if (param_done)
+                    next_state = CTRL_CAL;
+            end
 
-        CTRL_CAL:
-            if (cal_error)
-                next_state = CTRL_ERROR;
-            else if (cal_done)
-                next_state = CTRL_REPAIRCLK;
+            CTRL_CAL: begin
+                if (cal_error)
+                    next_state = CTRL_ERROR;
+                else if (cal_done)
+                    next_state = CTRL_REPAIRCLK;
+            end
 
-        CTRL_REPAIRCLK:
-            if (repairclk_error)
-                next_state = CTRL_ERROR;
-            else if (repairclk_done)
-                next_state = CTRL_REPAIRVAL;
+            CTRL_REPAIRCLK: begin
+                if (repairclk_error)
+                    next_state = CTRL_ERROR;
+                else if (repairclk_done)
+                    next_state = CTRL_REPAIRVAL;
+            end
 
-        CTRL_REPAIRVAL:
-            if (repairval_error)
-                next_state = CTRL_ERROR;
-            else if (repairval_done)
-                next_state = CTRL_REVERSALMB;
+            CTRL_REPAIRVAL: begin
+                if (repairval_error)
+                    next_state = CTRL_ERROR;
+                else if (repairval_done)
+                    next_state = CTRL_REVERSALMB;
+            end
 
-        CTRL_REVERSALMB:
-            if (reversalmb_error)
-                next_state = CTRL_ERROR;
-            else if (reversalmb_done)
-                next_state = CTRL_REPAIRMB;
+            CTRL_REVERSALMB: begin
+                if (reversalmb_error)
+                    next_state = CTRL_ERROR;
+                else if (reversalmb_done)
+                    next_state = CTRL_REPAIRMB;
+            end
 
-        CTRL_REPAIRMB:
-            if (repairmb_error)
-                next_state = CTRL_ERROR;
-            else if (repairmb_done)
-                next_state = CTRL_DONE;
+            CTRL_REPAIRMB: begin
+                if (repairmb_error)
+                    next_state = CTRL_ERROR;
+                else if (repairmb_done)
+                    next_state = CTRL_DONE;
+            end
 
-        CTRL_DONE:
-            if (!mbinit_enable)
-                next_state = CTRL_IDLE;
+            CTRL_DONE: begin 
+                // stay in this state until mbinit_enable deasserts
+            end
+ 
+            CTRL_ERROR: begin 
+                // stay in this state until mbinit_enable deasserts
+            end
 
-        CTRL_ERROR:
-            if (!mbinit_enable)
-                next_state = CTRL_IDLE;
-
-        default: next_state = CTRL_IDLE;
-    endcase
+            default: next_state = CTRL_IDLE;
+        endcase
+    end
 end
 
 // =============================================================================
@@ -249,6 +300,108 @@ always_comb begin
         default: ;
     endcase
 end
+
+// =============================================================================
+// MAINBAND TRAINING & COMPARISON MUX
+// =============================================================================
+always_comb begin
+    mb_tx_pattern_en         = 1'b0;
+    mb_tx_pattern_setup      = 3'b000;
+    mb_tx_data_pattern_sel   = 2'b00;
+    mb_tx_val_pattern_sel    = 1'b0;
+    mb_rx_compare_en         = 1'b0;
+    mb_rx_compare_setup      = 2'b00;
+    clear_error_req          = 1'b0;
+
+    case (current_state)
+        CTRL_REPAIRCLK: begin
+            mb_tx_pattern_en         = repairclk_tx_pattern_en;
+            mb_tx_pattern_setup      = repairclk_tx_pattern_setup;
+            mb_rx_compare_en         = repairclk_rx_compare_en;
+            mb_rx_compare_setup      = repairclk_rx_compare_setup;
+        end
+
+        CTRL_REPAIRVAL: begin
+            mb_tx_pattern_en         = repairval_tx_pattern_en;
+            mb_tx_pattern_setup      = repairval_tx_pattern_setup;
+            mb_tx_val_pattern_sel    = repairval_tx_val_pattern_sel;
+            mb_rx_compare_en         = repairval_rx_compare_en;
+            mb_rx_compare_setup      = repairval_rx_compare_setup;
+        end
+
+        CTRL_REVERSALMB: begin
+            mb_tx_pattern_en         = reversalmb_tx_pattern_en;
+            mb_tx_pattern_setup      = reversalmb_tx_pattern_setup;
+            mb_tx_data_pattern_sel   = reversalmb_tx_data_pattern_sel;
+            mb_rx_compare_en         = reversalmb_rx_compare_en;
+            mb_rx_compare_setup      = reversalmb_rx_compare_setup;
+            clear_error_req          = reversalmb_clear_error_req;
+        end
+
+        CTRL_REPAIRMB: begin
+            clear_error_req          = repairmb_clear_error_req;
+        end
+
+        default: ;
+    endcase
+end
+
+// =============================================================================
+// SEQUENTIAL LATCHING FOR NEGOTIATED LANE MASKS
+// =============================================================================
+logic [2:0] mbinit_rx_data_lane_mask_reg;
+logic [2:0] mbinit_tx_data_lane_mask_reg;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        mbinit_rx_data_lane_mask_reg <= 3'b011;
+        mbinit_tx_data_lane_mask_reg <= 3'b011;
+    end else if (current_state == CTRL_IDLE) begin
+        mbinit_rx_data_lane_mask_reg <= 3'b011;
+        mbinit_tx_data_lane_mask_reg <= 3'b011;
+    end else if (current_state == CTRL_REPAIRMB) begin
+        // Active tracking: Submodule plays with the bus
+        // Latch: Freeze the final negotiated map values
+        mbinit_rx_data_lane_mask_reg <= repairmb_rx_data_lane_mask;
+        mbinit_tx_data_lane_mask_reg <= repairmb_tx_data_lane_mask;
+    end
+end
+
+assign mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_reg;
+assign mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_reg;
+
+// =============================================================================
+// SEQUENTIAL LATCHING FOR REVERSAL REQUEST
+// =============================================================================
+logic mb_lane_reversal_req_reg;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        mb_lane_reversal_req_reg <= 1'b0;
+    end else if (current_state == CTRL_IDLE) begin
+        mb_lane_reversal_req_reg <= 1'b0;
+    end else if (current_state == CTRL_REVERSALMB) begin
+        mb_lane_reversal_req_reg <= reversalmb_lane_reversal_req;
+    end
+end
+
+assign mb_lane_reversal_req = mb_lane_reversal_req_reg;
+
+// =============================================================================
+// SHARED TIMER CONTROL SIGNALS
+// =============================================================================
+assign timer_enable = (current_state != CTRL_IDLE) && (current_state != CTRL_DONE) && (current_state != CTRL_ERROR);
+
+logic timer_rst_n_reg;
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        timer_rst_n_reg <= 1'b0;
+    else if (next_state != current_state)
+        timer_rst_n_reg <= 1'b0; // reset the timer on state transition
+    else
+        timer_rst_n_reg <= 1'b1;
+end
+assign timer_rst_n = timer_rst_n_reg;
 
 // =============================================================================
 // DONE / ERROR
