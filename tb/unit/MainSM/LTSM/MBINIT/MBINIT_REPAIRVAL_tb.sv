@@ -48,7 +48,10 @@ module MBINIT_REPAIRVAL_tb;
     
     // Timer interface
     logic        timer_enable;
+    assign timer_enable = mb_repairval_enable && !mb_repairval_done && !mb_repairval_error;
     logic        timeout_expired;
+    logic        global_error;
+    assign global_error = timeout_expired;
 
     int errors;
     int checks;
@@ -64,7 +67,29 @@ module MBINIT_REPAIRVAL_tb;
     end
 
     // Instantiate DUT
-    MBINIT_REPAIRVAL dut (.*);
+    MBINIT_REPAIRVAL dut (
+        .clk,
+        .rst_n,
+        .mb_repairval_enable,
+        .mb_repairval_done,
+        .mb_repairval_error,
+        .sb_repairval_rx_valid     (mb_repairval_rx_valid),
+        .sb_repairval_rx_msg_id    (mb_repairval_rx_msg_id),
+        .sb_repairval_rx_MsgInfo   (mb_repairval_rx_MsgInfo),
+        .sb_repairval_rx_data_Field(mb_repairval_rx_data_Field),
+        .sb_repairval_tx_valid     (mb_repairval_tx_valid),
+        .sb_repairval_tx_msg_id    (mb_repairval_tx_msg_id),
+        .sb_repairval_tx_MsgInfo   (mb_repairval_tx_MsgInfo),
+        .sb_repairval_tx_data_Field(mb_repairval_tx_data_Field),
+        .mb_tx_pattern_en,
+        .mb_tx_pattern_setup,
+        .mb_rx_compare_en,
+        .mb_rx_compare_setup,
+        .mb_rx_val_pass            (mb_rx_val_pass),
+        .mb_tx_pattern_count_done,
+        .sb_ltsm_rdy               (ltsm_rdy),
+        .global_error
+    );
 
     // ========================================================================
     // Helper Tasks
