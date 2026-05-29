@@ -13,11 +13,11 @@ module unit_VALVREF #(
         // ======================= //
         // D2C signals.            //
         // ======================= //
-        internal_ltsm_if.substate2d2c_mp d2c_if
+        internal_ltsm_if.mbtrain2d2c_mp d2c_if
     );
     // For analog Voltage control.
     localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE + 1);
-    //reg [1:0] clk_sampling; // To know if the fsm has looped on all Clock sampling values (0h(Eye Center), 1h(Left edge), 2h(Right edge)).
+    //reg [1:0] clk_sampling; // To know the Tx Clock sampling values (0h(Eye Center), 1h(Left edge), 2h(Right edge)).
     // To get the used SB messages for: (valvref_if.tx_sb_msg, sb_it.rx_sb_msg)
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_VALVREF_start_req ; // Msg Number: d35
@@ -38,21 +38,88 @@ module unit_VALVREF #(
     VALVREF_END_RESP      = 4'h8, // (S8)
     TO_DATAVREF           = 4'h9, // (S9)
     TO_TRAINERROR         = 4'hA; // (S10)
-    reg [3:0] current_state, next_state; // The Current, Next states, and Previous state of the FSM.
+    reg [3:0] current_state, next_state, previous_state; // The Current, Next states, and Previous state of the FSM.
     wire valvref_fail_flag; // To know if there is no successful Valid Receiver Vref Code.
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    wire is_tx_sb_msg_valid = (current_state == next_state);
+    wire is_tx_sb_msg_valid;
+    assign is_tx_sb_msg_valid =
+        (current_state != previous_state) && (
+            (current_state == VALVREF_START_REQ ) ||
+            (current_state == VALVREF_START_RESP) ||
+            (current_state == VALVREF_END_REQ   ) ||
+            (current_state == VALVREF_END_RESP  ) );
+
+
+    // >> =====================  For the VALVREF stuck issue (To fix the issue of waiting for the SB message)  ===================== << //
+    reg end_req_sb_msg_rcvd       ; // To detect the `end_req` SB MSG after the D2C_PT state. this is a flag.
+    reg ready_for_end_resp_sb_msg ; // To detect the `ready_for_end_resp` after the D2C_PT state. this is a flag.
+    always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin : AFTER_D2C_PT_SB_MSGS
+        if(!valvref_if.rst_n) begin
+            end_req_sb_msg_rcvd       <= 1'b0;
+            ready_for_end_resp_sb_msg <= 1'b0;
+        end
+        else if (current_state == VALVREF_IDLE) begin // Reset the register once the LTSM gets out of reset.
+            ready_for_end_resp_sb_msg <= 1'b0;
+            end_req_sb_msg_rcvd       <= 1'b0;
+        end
+        else if(   (current_state == VALVREF_SET_VREF_CODE ||
+                    current_state == VALVREF_RX_D2C_PT     ||
+                    current_state == VALVREF_LOG_RESULT    ||
+                    current_state == VALVREF_CALC_APPLY    ||
+                    current_state == VALVREF_END_REQ       ) &&
+                valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_req && valvref_if.rx_sb_msg_valid == 1'b1) begin
+            end_req_sb_msg_rcvd <= 1'b1;
+        end
+        else if (current_state == VALVREF_END_REQ && (end_req_sb_msg_rcvd || (valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_req && valvref_if.rx_sb_msg_valid == 1'b1))) begin
+            // Since we can't send 2 consecutive pulses on the signal `is_tx_sb_msg_valid` without a `0` in between for 1 lclk at least; 
+            // When this scenario happens when the partner Die applies less RX_D2C_PT iterations than our Die.
+            // If we assume we won't use the `end_req_sb_msg_rcvd` signal, the FSM flow (in our Die) will be: 
+            //      [loop] -> 'VALVREF_RX_D2C_PT' -> 'VALVREF_LOG_RESULT' -> 'VALVREF_CALC_APPLY' -> 'VALVREF_END_REQ' (for 1 lclk duration) -> 'VALVREF_END_RESP'
+            // We need this signal `ready_for_end_resp_sb_msg` extend the waiting time to wait 2 lclk cycles at least in the FSM state 'VALVREF_END_REQ' instead 1 lclk duration:
+            //      1 lclk cycle for the HIGH period of the pulse.
+            //      1 lclk cycle for the LOW  period of the pulse.
+            ready_for_end_resp_sb_msg <= 1'b1;
+        end
+    end
+
+    // >> =====================  For the RX_D2C_PT local-partner modules seperation  ===================== << //
+    assign d2c_if.partner_tx_pt_en = 1'b0;
+    always @(posedge valvref_if.lclk or negedge valvref_if.rst_n)
+    begin
+        if(!valvref_if.rst_n) begin
+            d2c_if.partner_rx_pt_en <= 1'b0;
+        end
+        else if(current_state == VALVREF_IDLE || current_state == VALVREF_END_RESP) begin // To force the synchronization when we send and receive the {... end req} SB message.
+            d2c_if.partner_rx_pt_en <= 1'b0;
+        end
+        else if(current_state == VALVREF_SET_VREF_CODE ||
+                current_state == VALVREF_RX_D2C_PT     ||
+                current_state == VALVREF_LOG_RESULT    ||
+                current_state == VALVREF_CALC_APPLY    ||
+                current_state == VALVREF_END_REQ       ) begin
+            if(d2c_if.partner_test_d2c_done) begin
+                d2c_if.partner_rx_pt_en <= 1'b0;
+            end else begin
+                d2c_if.partner_rx_pt_en <= 1'b1;
+            end
+        end
+    end
+    // >> ===================== * ================================================ * ===================== << //
+
     // Current State Logic of the FSM:
     always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin
         if (!valvref_if.rst_n) begin
             current_state  <= VALVREF_IDLE;
-        end 
+            previous_state <= VALVREF_IDLE;
+        end
         else if (!valvref_if.is_ltsm_out_of_reset) begin
             current_state  <= VALVREF_IDLE;
+            previous_state <= VALVREF_IDLE;
         end
         else begin
-            current_state  <= next_state;
+            current_state  <= next_state   ;
+            previous_state <= current_state;
         end
     end
     // Next State Logic of the FSM:
@@ -85,7 +152,7 @@ module unit_VALVREF #(
                 // (S4) Implement the test (Rx Init Data to Clock Point Test).
                 VALVREF_RX_D2C_PT: begin
                     // if (d2c_if.d2c_timeout_or_error) next_state = TO_TRAINERROR;
-                    if (d2c_if.test_d2c_done) next_state = VALVREF_LOG_RESULT;
+                    if (d2c_if.local_test_d2c_done) next_state = VALVREF_LOG_RESULT;
                     else next_state = VALVREF_RX_D2C_PT;
                 end
                 // (S5) Log the current vref_code value if the received pattern on MB Receiver is valid.
@@ -97,19 +164,21 @@ module unit_VALVREF #(
                 VALVREF_CALC_APPLY: begin
                     next_state = VALVREF_END_REQ;
                 end
-                // (S7) Send & Receive SB Message: {MBTRAIN.VALVREFF end resp}. Also, drive Vref_code to the PHY MB Receiver Valid Lane.
+                // (S7) Send & Receive SB Message: {MBTRAIN.VALVREFF end req}. Also, drive Vref_code to the PHY MB Receiver Valid Lane.
                 VALVREF_END_REQ: begin
-                    if (valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_req && valvref_if.rx_sb_msg_valid == 1'b1) next_state = VALVREF_END_RESP;
+                    // if (valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_req && valvref_if.rx_sb_msg_valid == 1'b1) next_state = VALVREF_END_RESP;
+                    // We need to store if the {MBTRAIN.VALVREFF end req} SB Message has received while the partner still in the test RX_D2C_PT, so we use `end_req_sb_msg_rcvd`.
+                    if (end_req_sb_msg_rcvd && ready_for_end_resp_sb_msg) next_state = VALVREF_END_RESP;
                     else next_state = VALVREF_END_REQ;
                 end
-                // (S8) Send & Receive SB Message: {End Rx Init D to C point test req}.
+                // (S8) Send & Receive SB Message: {MBTRAIN.VALVREFF end resp}.
                 VALVREF_END_RESP: begin
                     if (valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_resp && valvref_if.rx_sb_msg_valid == 1'b1) next_state = TO_DATAVREF;
                     else next_state = VALVREF_END_RESP;
                 end
-                // (S9) Send & Receive SB Message: {End Rx Init D to C point test resp}.
+                // (S9) Waiting to exit to DATAVREF substate.
                 TO_DATAVREF: begin
-                    next_state = (valvref_if.valvref_en)? TO_DATAVREF : VALVREF_IDLE; // Stay here till "ltsm_if.valvref_en" is cleared.
+                    next_state = (valvref_if.valvref_en)? TO_DATAVREF : VALVREF_IDLE; // Stay here till "valvref_if.valvref_en" is cleared.
                 end
                 // (S10) TRAINERROR state:
                 TO_TRAINERROR: begin
@@ -140,13 +209,12 @@ module unit_VALVREF #(
         //=================================================
         // Control Signals For (Rx init D to C point test):
         //=================================================
-        d2c_if.rx_pt_en = 1'b0; // To enable Rx init Data to Clock Point Test
-        d2c_if.tx_pt_en = 1'b0; // To enable Tx init Data to Clock Point Test
+        d2c_if.local_rx_pt_en = 1'b0; // To enable Rx init Data to Clock Point Test
+        d2c_if.local_tx_pt_en = 1'b0; // To enable Tx init Data to Clock Point Test
         // Clock sampling.
         d2c_if.d2c_clk_sampling = 2'b00;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
-        d2c_if.d2c_lfsr_en          = 1'b0  ; // 1: Enable the Tx & Rx LFSR when use the Rx or Tx FSM Test, 0: Disable the Tx & Rx LFSR.
         d2c_if.d2c_pattern_setup    = 3'b010; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         d2c_if.d2c_data_pattern_sel = 2'b11 ; // Data pattern used during training: LFSR, ID, or all 0.
         d2c_if.d2c_val_pattern_sel  = 1'b0  ; // 0: VALTRAIN pattern, 1: Held Low.
@@ -161,10 +229,10 @@ module unit_VALVREF #(
         // // MB signals:
         // //=========================
         // Lane Behavior Control
-        valvref_if.mb_tx_clk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Clock Lane).
-        valvref_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Data Lanes).
-        valvref_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Valid Lane).
-        valvref_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 1xb: Tri-state (Tx Logical Track Lane).
+        valvref_if.mb_tx_clk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 10b: Tri-state (Tx Logical Clock Lane).
+        valvref_if.mb_tx_data_lane_sel = 2'b00; // 00b: Low, 01b: Active, 10b: Tri-state (Tx Logical Data Lanes).
+        valvref_if.mb_tx_val_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 10b: Tri-state (Tx Logical Valid Lane).
+        valvref_if.mb_tx_trk_lane_sel  = 2'b00; // 00b: Low, 01b: Active, 10b: Tri-state (Tx Logical Track Lane).
         valvref_if.mb_rx_clk_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Clock Lane).
         valvref_if.mb_rx_data_lane_sel = 1'b0 ; // 0b: Disabled, 1b: Enabled (Rx Logical Data Lanes).
         valvref_if.mb_rx_val_lane_sel  = 1'b1 ; // 0b: Disabled, 1b: Enabled (Rx Logical Valid Lane).
@@ -210,7 +278,7 @@ module unit_VALVREF #(
                 //=================================================
                 // Control Signals For (Rx init D to C point test):
                 //=================================================
-                d2c_if.rx_pt_en = 1'b1; // To enable Rx init Data to Clock Point Test.
+                d2c_if.local_rx_pt_en = 1'b1; // To enable Rx init Data to Clock Point Test.
             end
             // (S5) Log the current vref_code value if the received pattern on MB Receiver is valid.
             VALVREF_LOG_RESULT: begin
@@ -364,8 +432,8 @@ module unit_VALVREF #(
             temp_min_vref      <=   '0;
         end
         else if(current_state == VALVREF_LOG_RESULT) begin
-            // ─── PASS: d2c_val_err == 0 ──────────────────────────────────────
-            if (!d2c_if.d2c_val_err) begin
+            // ─── PASS: d2c_val_pass == 1 ──────────────────────────────────────
+            if (d2c_if.d2c_val_pass) begin
                 // Zone A: entering a fresh contiguous pass zone.
                 // Handles two sub-cases:
                 //   a) After a fail (is_in_valid_region was 0).
@@ -391,7 +459,7 @@ module unit_VALVREF #(
                     end
                 end
             end
-            // ─── FAIL: d2c_val_err == 1 ──────────────────────────────────────
+            // ─── FAIL: d2c_val_pass == 0 ──────────────────────────────────────
             // Hole in the Valid-lane Vref eye: close the current contiguous zone.
             // Zone A will restart on the next passing code.
             else begin
@@ -399,4 +467,6 @@ module unit_VALVREF #(
             end
         end
     end
+
+
 endmodule
