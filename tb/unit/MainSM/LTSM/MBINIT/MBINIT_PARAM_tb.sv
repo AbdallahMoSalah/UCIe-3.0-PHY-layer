@@ -72,7 +72,10 @@ module MBINIT_PARAM_tb;
 
     logic        ltsm_rdy;
     logic        mb_param_timer_enable;
+    assign mb_param_timer_enable = (dut.current_state != dut.MB_S0_IDLE && dut.current_state != dut.MB_S6_DONE && dut.current_state != dut.MB_S5_ERROR);
     logic        mb_param_timeout_expired;
+    logic        global_error;
+    assign global_error = mb_param_timeout_expired;
 
     int errors;
     int checks;
@@ -88,7 +91,53 @@ module MBINIT_PARAM_tb;
     end
 
     // Instantiate DUT
-    MBINIT_PARAM dut (.*);
+    MBINIT_PARAM dut (
+        .clk,
+        .rst_n,
+        .mb_param_enable,
+        .mb_param_done,
+        .mb_param_error,
+        .sb_param_rx_valid     (mb_param_rx_valid),
+        .sb_param_rx_msg_id    (mb_param_rx_msg_id),
+        .sb_param_rx_MsgInfo   (mb_param_rx_MsgInfo),
+        .sb_param_rx_data_Field(mb_param_rx_data_Field),
+        .sb_param_tx_valid     (mb_param_tx_valid),
+        .sb_param_tx_msg_id    (mb_param_tx_msg_id),
+        .sb_param_tx_MsgInfo   (mb_param_tx_MsgInfo),
+        .sb_param_tx_data_Field(mb_param_tx_data_Field),
+        .Supported_TX_Vswing,
+        .so,
+        .mtp,
+        .Module_ID,
+        .TARR_support_local_cap,
+        .Clock_Phase_cap,
+        .Clock_mode_cap,
+        .L2SPD_support_local_cap,
+        .PSPT_support_local_cap,
+        .PMO_support_local_cap,
+        .Max_Link_Width_cap,
+        .Max_Link_Speed_cap,
+        .TARR_support_local_ctrl,
+        .phy_x8_mode_ctrl,
+        .SPMW,
+        .Clock_Phase_ctrl,
+        .Clock_mode_ctrl,
+        .L2SPD_support_local_ctrl,
+        .PSPT_support_local_ctrl,
+        .PMO_support_local_ctrl,
+        .Target_Link_Width_ctrl,
+        .Target_Link_Speed_ctrl,
+        .Clock_Phase_enable_status,
+        .Clock_mode_enable_status,
+        .TARR_enable_status,
+        .Link_Width_enable_status,
+        .Link_Speed_enable_status,
+        .PMO_enable_status,
+        .L2SPD_enable_status,
+        .PSPT_enable_status,
+        .sb_ltsm_rdy           (ltsm_rdy),
+        .global_error
+    );
 
     // ========================================================================
     // Helper Tasks

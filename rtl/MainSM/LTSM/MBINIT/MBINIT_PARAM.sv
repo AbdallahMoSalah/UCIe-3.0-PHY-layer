@@ -63,24 +63,24 @@ import UCIe_pkg::*;
     output logic mb_param_error,
 
     // RX from partner
-    input  logic mb_param_rx_valid,
-    input  msg_no_e mb_param_rx_msg_id,
-    input  logic [15:0] mb_param_rx_MsgInfo,
-    input  logic [63:0] mb_param_rx_data_Field,
+    input  logic sb_param_rx_valid,
+    input  msg_no_e sb_param_rx_msg_id,
+    input  logic [15:0] sb_param_rx_MsgInfo,
+    input  logic [63:0] sb_param_rx_data_Field,
 
     // TX to partner
-    output logic mb_param_tx_valid,
-    output msg_no_e mb_param_tx_msg_id,
-    output logic [15:0] mb_param_tx_MsgInfo,
-    output logic [63:0] mb_param_tx_data_Field,
+    output logic sb_param_tx_valid,
+    output msg_no_e sb_param_tx_msg_id,
+    output logic [15:0] sb_param_tx_MsgInfo,
+    output logic [63:0] sb_param_tx_data_Field,
 
     //--------------------------------
     //-------- Hard code signal ------
     //--------------------------------
-    input logic [4:0] Supported_TX_Vswing,  // hard code to 0
-    input  logic so ,                       // hard code to 0
-    input  logic mtp ,                      // hard code to 0
-    input logic [1:0] Module_ID,            // hard code to 0
+    input logic [4:0] Supported_TX_Vswing,  
+    input logic so ,                       
+    input logic mtp ,                      
+    input logic [1:0] Module_ID,            
     
     // -------------------------------
     // ------- CAPABILITY REG --------
@@ -128,7 +128,7 @@ import UCIe_pkg::*;
     output logic PSPT_enable_status,
     
     // Sideband FIFO ready (write-side handshake)
-    input  logic ltsm_rdy,
+    input  logic sb_ltsm_rdy,
 
     // Timer / Global Error signals
     input  logic global_error
@@ -321,9 +321,11 @@ logic param_rsp_rcvd;
 logic sbfe_req_rcvd;
 logic sbfe_rsp_rcvd;
 
-logic [63:0] partner_capabilities_DataField_S1;
-logic [63:0] partner_capabilities_DataField_S2;
+logic [63:0] partner_S1_REQ;
+logic [63:0] partner_S1_RESP;
+logic [63:0] partner_S2_REQ;
 logic [63:0] partner_S2_RESP;
+logic [63:0] partner_S4_REQ;
 logic [63:0] partner_S4_RESP;
 
 always_ff @(posedge clk or negedge rst_n) begin
@@ -332,73 +334,45 @@ always_ff @(posedge clk or negedge rst_n) begin
         param_rsp_rcvd                     <= 1'b0;
         sbfe_req_rcvd                      <= 1'b0;
         sbfe_rsp_rcvd                      <= 1'b0;
-        partner_capabilities_DataField_S1  <= 64'h0;
-        partner_capabilities_DataField_S2  <= 64'h0;
+        partner_S1_REQ                     <= 64'h0;
+        partner_S1_RESP                    <= 64'h0;
+        partner_S2_REQ                     <= 64'h0;
         partner_S2_RESP                    <= 64'h0;
+        partner_S4_REQ                     <= 64'h0;
         partner_S4_RESP                    <= 64'h0;
     end else if (current_state == MB_S0_IDLE) begin
         param_req_rcvd <= 1'b0;
         param_rsp_rcvd <= 1'b0;
         sbfe_req_rcvd  <= 1'b0;
         sbfe_rsp_rcvd  <= 1'b0;
-    end else if (mb_param_rx_valid) begin
-        case (mb_param_rx_msg_id)
-            MBINIT_PARAM_configuration_req : begin
-                param_req_rcvd                    <= 1'b1;
-                partner_capabilities_DataField_S1 <= mb_param_rx_data_Field;
+    end else if (sb_param_rx_valid) begin
+        case (sb_param_rx_msg_id)
+            MBINIT_PARAM_configuration_req: begin
+                param_req_rcvd  <= 1'b1;
+                partner_S1_REQ  <= sb_param_rx_data_Field;
             end
-            MBINIT_PARAM_configuration_resp : begin
-                param_rsp_rcvd  <= 1'b1;
-                partner_S2_RESP <= mb_param_rx_data_Field;
+            MBINIT_PARAM_configuration_resp: begin
+                if(current_state > MB_S1_PARAM_REQ_SEND) begin
+                    param_rsp_rcvd  <= 1'b1;
+                    partner_S2_RESP <= sb_param_rx_data_Field;
+                end
             end
-            MBINIT_PARAM_SBFE_req : begin
-                sbfe_req_rcvd                     <= 1'b1;
-                partner_capabilities_DataField_S2 <= mb_param_rx_data_Field;
+            MBINIT_PARAM_SBFE_req: begin
+                if((current_state > MB_S1_PARAM_RSP_SEND) && param_rsp_rcvd) begin
+                    sbfe_req_rcvd   <= 1'b1;
+                    partner_S2_REQ  <= sb_param_rx_data_Field;
+                end
             end
-            MBINIT_PARAM_SBFE_resp : begin
-                sbfe_rsp_rcvd   <= 1'b1;
-                partner_S4_RESP <= mb_param_rx_data_Field;
+            MBINIT_PARAM_SBFE_resp: begin
+                if(current_state > MB_S3_FEATURE_REQ_SEND) begin
+                    sbfe_rsp_rcvd   <= 1'b1;
+                    partner_S4_RESP <= sb_param_rx_data_Field;
+                end
             end
             default : ; // ignore unrelated messages
         endcase
     end
 end
-
-logic partner_TARR_sel;
-logic partner_SFES_sel;
-logic partner_UCIE_x8_sel;
-logic [1:0] partner_Module_ID_sel;
-logic partner_clk_phase_sel;
-logic partner_clk_mode_sel;
-logic [4:0] partner_Supported_TX_Vswing_sel;
-logic [3:0] partner_link_speed_sel;
-
-always_comb begin
-    partner_TARR_sel                = partner_capabilities_DataField_S1[15];
-    partner_SFES_sel                = partner_capabilities_DataField_S1[14];
-    partner_UCIE_x8_sel             = partner_capabilities_DataField_S1[13];
-    partner_Module_ID_sel           = partner_capabilities_DataField_S1[12:11];
-    partner_clk_phase_sel           = partner_capabilities_DataField_S1[10];
-    partner_clk_mode_sel            = partner_capabilities_DataField_S1[9];
-    partner_Supported_TX_Vswing_sel = partner_capabilities_DataField_S1[8:4];
-    partner_link_speed_sel          = partner_capabilities_DataField_S1[3:0];
-end
-
-/////////////////////////////////////////////////////////
-
-logic partner_l2spd;
-logic partner_pspt;
-logic partner_so;
-logic partner_pmo;
-logic partner_mtp;
-
-// Decode
-
-assign partner_l2spd = partner_capabilities_DataField_S2[4];
-assign partner_pspt  = partner_capabilities_DataField_S2[3];
-assign partner_so    = partner_capabilities_DataField_S2[2];
-assign partner_pmo   = partner_capabilities_DataField_S2[1];
-assign partner_mtp   = partner_capabilities_DataField_S2[0];
 
 ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////
@@ -424,16 +398,100 @@ logic local_mtp_negotiated;
 logic [3:0] local_Link_width_enabled_status;
 
 // regester file outputs
-//S1_req
-assign Link_Width_enable_status   = local_Link_width_enabled_status;
-assign Link_Speed_enable_status   = local_Link_speed_enabled_negotiate_status;
-assign Clock_Phase_enable_status  = local_clk_phase_negotiated_status;
-assign Clock_mode_enable_status   = local_clk_mode_negotiated_status;
-assign TARR_enable_status         = local_TARR_negotiated_status;
-//S2_req
-assign PMO_enable_status          = local_pmo_negotiated_status;
-assign L2SPD_enable_status        = local_l2spd_negotiated_status;
-assign PSPT_enable_status         = local_pspt_negotiated_status;
+// Combinatorial lookahead logic for S1 capabilities:
+logic [63:0] comb_partner_S1_REQ;
+assign comb_partner_S1_REQ = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ? 
+                             sb_param_rx_data_Field : partner_S1_REQ;
+
+logic [3:0] comb_partner_link_speed_sel;
+logic comb_partner_UCIE_x8_sel;
+logic comb_partner_TARR_sel;
+logic comb_partner_SFES_sel;
+logic comb_partner_clk_phase_sel;
+logic comb_partner_clk_mode_sel;
+
+assign comb_partner_link_speed_sel = comb_partner_S1_REQ[3:0];
+assign comb_partner_UCIE_x8_sel    = comb_partner_S1_REQ[13];
+assign comb_partner_TARR_sel       = comb_partner_S1_REQ[15];
+assign comb_partner_SFES_sel       = comb_partner_S1_REQ[14];
+assign comb_partner_clk_phase_sel  = comb_partner_S1_REQ[10];
+assign comb_partner_clk_mode_sel   = comb_partner_S1_REQ[9];
+
+logic [3:0] comb_negotiated_speed_val;
+assign comb_negotiated_speed_val = (link_speed_sel <= comb_partner_link_speed_sel) ? link_speed_sel : comb_partner_link_speed_sel;
+
+logic [3:0] lookahead_Link_speed;
+logic [3:0] lookahead_Link_width;
+logic       lookahead_TARR;
+logic       lookahead_SFES;
+logic       lookahead_clk_phase;
+logic       lookahead_clk_mode;
+
+assign lookahead_Link_speed = comb_negotiated_speed_val;
+assign lookahead_Link_width = (UCIE_x8 | comb_partner_UCIE_x8_sel) ? 4'h1 : 4'h2;
+assign lookahead_TARR       = TARR_sel & comb_partner_TARR_sel;
+assign lookahead_SFES       = SFES_sel & comb_partner_SFES_sel;
+
+assign lookahead_clk_phase = (comb_negotiated_speed_val == 4'd4 || comb_negotiated_speed_val == 4'd5) ? 
+                             (clk_phase_sel & comb_partner_clk_phase_sel) : 1'b0;
+
+assign lookahead_clk_mode  = (comb_negotiated_speed_val <= 4'd5) ? 
+                             (clk_mode_sel & comb_partner_clk_mode_sel) : 1'b1;
+
+// Combinatorial lookahead logic for S2 (SBFE) features:
+logic [63:0] comb_partner_S2_REQ;
+assign comb_partner_S2_REQ = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)) ? 
+                             sb_param_rx_data_Field : partner_S2_REQ;
+
+logic comb_partner_l2spd;
+logic comb_partner_pspt;
+logic comb_partner_so;
+logic comb_partner_pmo;
+logic comb_partner_mtp;
+
+assign comb_partner_l2spd = comb_partner_S2_REQ[4];
+assign comb_partner_pspt  = comb_partner_S2_REQ[3];
+assign comb_partner_so    = comb_partner_S2_REQ[2];
+assign comb_partner_pmo   = comb_partner_S2_REQ[1];
+assign comb_partner_mtp   = comb_partner_S2_REQ[0];
+
+logic lookahead_l2spd;
+logic lookahead_pspt;
+logic lookahead_so;
+logic lookahead_pmo;
+logic lookahead_mtp;
+
+assign lookahead_l2spd = L2SPD_sel & comb_partner_l2spd;
+assign lookahead_pspt  = PSPT_sel  & comb_partner_pspt;
+assign lookahead_so    = so        & comb_partner_so;
+assign lookahead_pmo   = PMO_sel   & comb_partner_pmo;
+assign lookahead_mtp   = mtp       & comb_partner_mtp;
+
+always_comb begin
+    Link_Width_enable_status   = local_Link_width_enabled_status;
+    Link_Speed_enable_status   = local_Link_speed_enabled_negotiate_status;
+    Clock_Phase_enable_status  = local_clk_phase_negotiated_status;
+    Clock_mode_enable_status   = local_clk_mode_negotiated_status;
+    TARR_enable_status         = local_TARR_negotiated_status;
+
+    PMO_enable_status          = local_pmo_negotiated_status;
+    L2SPD_enable_status        = local_l2spd_negotiated_status;
+    PSPT_enable_status         = local_pspt_negotiated_status;
+
+    if (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) begin
+        Link_Speed_enable_status  = lookahead_Link_speed;
+        Link_Width_enable_status  = lookahead_Link_width;
+        TARR_enable_status        = lookahead_TARR;
+        Clock_Phase_enable_status = lookahead_clk_phase;
+        Clock_mode_enable_status  = lookahead_clk_mode;
+    end
+
+    if (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)) begin
+        PMO_enable_status          = lookahead_pmo;
+        L2SPD_enable_status        = lookahead_l2spd;
+        PSPT_enable_status         = lookahead_pspt;
+    end
+end
 
 always_ff @(posedge clk or negedge rst_n) begin
     ////////////////////////////////////////////////////////
@@ -445,6 +503,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_clk_phase_negotiated_status          <= clk_phase_sel;
         local_clk_mode_negotiated_status           <= clk_mode_sel;
         local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
+        local_Link_width_enabled_status            <= UCIE_x8 ? 4'h1 : 4'h2;
         
         local_pmo_negotiated_status                <= PMO_sel;
         local_l2spd_negotiated_status              <= L2SPD_sel;
@@ -456,42 +515,24 @@ always_ff @(posedge clk or negedge rst_n) begin
     ////////////////////////////////////////////////////////
     // S1 NEGOTIATION (when partner S1 valid)
     ////////////////////////////////////////////////////////
-    else if (param_req_rcvd) begin
-        // Compute negotiated speed first
-        logic [3:0] negotiated_speed_val;
-        negotiated_speed_val = (link_speed_sel <= partner_link_speed_sel) ? link_speed_sel : partner_link_speed_sel;
-
-        local_Link_speed_enabled_negotiate_status <= negotiated_speed_val;
-
-        // Width negotiation fallback to x8
-        local_Link_width_enabled_status           <= (UCIE_x8 | partner_UCIE_x8_sel) ? 4'h1 : 4'h2;
-        local_TARR_negotiated_status              <= TARR_sel & partner_TARR_sel;
-        local_SFES_negotiated                     <= SFES_sel & partner_SFES_sel;
-
-        // Clock Phase negotiation based on negotiated speed (Quadrature phase 1 only at 24GT/32GT)
-        if (negotiated_speed_val == 4'd4 || negotiated_speed_val == 4'd5) begin
-            local_clk_phase_negotiated_status     <= clk_phase_sel & partner_clk_phase_sel;
-        end else begin
-            local_clk_phase_negotiated_status     <= 1'b0; // Forced to Differential
-        end
-
-        // Clock Mode negotiation based on negotiated speed (Continuous mode 1 optional <= 32GT, mandatory > 32GT)
-        if (negotiated_speed_val <= 4'd5) begin
-            local_clk_mode_negotiated_status      <= clk_mode_sel & partner_clk_mode_sel;
-        end else begin
-            local_clk_mode_negotiated_status      <= 1'b1; // Continuous
-        end
+    else if (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) begin
+        local_Link_speed_enabled_negotiate_status <= lookahead_Link_speed;
+        local_Link_width_enabled_status            <= lookahead_Link_width;
+        local_TARR_negotiated_status               <= lookahead_TARR;
+        local_SFES_negotiated                      <= lookahead_SFES;
+        local_clk_phase_negotiated_status          <= lookahead_clk_phase;
+        local_clk_mode_negotiated_status           <= lookahead_clk_mode;
     end
 
     ////////////////////////////////////////////////////////
     // S2 NEGOTIATION (SBFE features)
     ////////////////////////////////////////////////////////
-    else if (sbfe_req_rcvd) begin
-        local_l2spd_negotiated_status <= L2SPD_sel     & partner_l2spd;
-        local_pspt_negotiated_status  <= PSPT_sel      & partner_pspt;
-        local_so_negotiated           <= so            & partner_so;
-        local_pmo_negotiated_status   <= PMO_sel       & partner_pmo;
-        local_mtp_negotiated          <= mtp           & partner_mtp;
+    else if (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)) begin
+        local_l2spd_negotiated_status <= lookahead_l2spd;
+        local_pspt_negotiated_status  <= lookahead_pspt;
+        local_pmo_negotiated_status   <= lookahead_pmo;
+        local_so_negotiated           <= lookahead_so;
+        local_mtp_negotiated          <= lookahead_mtp;
     end
 end
 //////////////////////////////////////////////////////////////
@@ -614,14 +655,14 @@ always_comb begin
             end
             // ── S1 Param Request ──────────────────────────────────────────────
             MB_S1_PARAM_REQ_SEND: begin
-                if(ltsm_rdy)             next_state = MB_S1_PARAM_REQ_WAIT;
+                if(sb_ltsm_rdy)             next_state = MB_S1_PARAM_REQ_WAIT;
             end
             MB_S1_PARAM_REQ_WAIT: begin
                 if(param_req_rcvd)       next_state = MB_S1_PARAM_RSP_SEND;
             end
             // ── S1 Param Response ─────────────────────────────────────────────
             MB_S1_PARAM_RSP_SEND: begin
-                if(ltsm_rdy)             next_state = MB_S1_PARAM_RSP_WAIT;
+                if(sb_ltsm_rdy)             next_state = MB_S1_PARAM_RSP_WAIT;
             end
             MB_S1_PARAM_RSP_WAIT: begin
                 if(param_rsp_rcvd)       next_state = MB_S2_ERROR_CHECK;
@@ -636,14 +677,14 @@ always_comb begin
             end
             // ── S3 Feature Request ────────────────────────────────────────────
             MB_S3_FEATURE_REQ_SEND: begin
-                if(ltsm_rdy)             next_state = MB_S3_FEATURE_REQ_WAIT;
+                if(sb_ltsm_rdy)             next_state = MB_S3_FEATURE_REQ_WAIT;
             end
             MB_S3_FEATURE_REQ_WAIT: begin
                 if(sbfe_req_rcvd)        next_state = MB_S3_FEATURE_RSP_SEND;
             end
             // ── S3 Feature Response ───────────────────────────────────────────
             MB_S3_FEATURE_RSP_SEND: begin
-                if(ltsm_rdy)             next_state = MB_S3_FEATURE_RSP_WAIT;
+                if(sb_ltsm_rdy)             next_state = MB_S3_FEATURE_RSP_WAIT;
             end
             MB_S3_FEATURE_RSP_WAIT: begin
                 if(sbfe_rsp_rcvd)        next_state = MB_S4_ERROR_CHECK;
@@ -669,45 +710,45 @@ end
 ////////////////////////////////////////////////////////
 always_comb begin
     // Default outputs.
-    mb_param_tx_valid       = 1'b0;
-    mb_param_tx_msg_id      = msg_no_e'(NOTHING);
-    mb_param_tx_MsgInfo     = MB_default_MSG_Info;
-    mb_param_tx_data_Field  = MB_default_data_Field;
+    sb_param_tx_valid       = 1'b0;
+    sb_param_tx_msg_id      = msg_no_e'(NOTHING);
+    sb_param_tx_MsgInfo     = MB_default_MSG_Info;
+    sb_param_tx_data_Field  = MB_default_data_Field;
 
     case(current_state)
         // ── S1 Param REQ SEND: drive msg every cycle until FIFO accepts ──
         MB_S1_PARAM_REQ_SEND: begin
-            mb_param_tx_valid      = 1'b1;
-            mb_param_tx_msg_id     = MBINIT_PARAM_configuration_req;
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = local_capabilities_DataField_S1;
+            sb_param_tx_valid      = 1'b1;
+            sb_param_tx_msg_id     = MBINIT_PARAM_configuration_req;
+            sb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            sb_param_tx_data_Field = local_capabilities_DataField_S1;
         end
         // ── S1 Param RSP SEND ─────────────────────────────────────────────
         MB_S1_PARAM_RSP_SEND: begin
-            mb_param_tx_valid      = 1'b1;
-            mb_param_tx_msg_id     = MBINIT_PARAM_configuration_resp;
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = negotiated_capabilities_S1;
+            sb_param_tx_valid      = 1'b1;
+            sb_param_tx_msg_id     = MBINIT_PARAM_configuration_resp;
+            sb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            sb_param_tx_data_Field = negotiated_capabilities_S1;
         end
         // ── S3 Feature REQ SEND ───────────────────────────────────────────
         MB_S3_FEATURE_REQ_SEND: begin
-            mb_param_tx_valid      = 1'b1;
-            mb_param_tx_msg_id     = MBINIT_PARAM_SBFE_req;
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = local_capabilities_DataField_S2;
+            sb_param_tx_valid      = 1'b1;
+            sb_param_tx_msg_id     = MBINIT_PARAM_SBFE_req;
+            sb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            sb_param_tx_data_Field = local_capabilities_DataField_S2;
         end
         // ── S3 Feature RSP SEND ───────────────────────────────────────────
         MB_S3_FEATURE_RSP_SEND: begin
-            mb_param_tx_valid      = 1'b1;
-            mb_param_tx_msg_id     = MBINIT_PARAM_SBFE_resp;
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = negotiated_capabilities_S2;
+            sb_param_tx_valid      = 1'b1;
+            sb_param_tx_msg_id     = MBINIT_PARAM_SBFE_resp;
+            sb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            sb_param_tx_data_Field = negotiated_capabilities_S2;
         end
         default: begin
-            mb_param_tx_valid      = 1'b0;
-            mb_param_tx_msg_id     = msg_no_e'(NOTHING);
-            mb_param_tx_MsgInfo    = MB_default_MSG_Info;
-            mb_param_tx_data_Field = MB_default_data_Field;
+            sb_param_tx_valid      = 1'b0;
+            sb_param_tx_msg_id     = msg_no_e'(NOTHING);
+            sb_param_tx_MsgInfo    = MB_default_MSG_Info;
+            sb_param_tx_data_Field = MB_default_data_Field;
         end
     endcase
 end
