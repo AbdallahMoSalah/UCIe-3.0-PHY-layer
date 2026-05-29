@@ -226,10 +226,15 @@ module wrapper_D2C_PT_partner (
     // MB outputs assignments:
     always_comb begin : MB_OUTPUTS_MUX
         if (tx_pt_en) begin
+            // The Reference Says for the "Transmitter initiated Data to Clock Point Test":
+            //     "When not performing the actions relevant to this state:
+            //        * Data, Valid, and Track Transmitters drive low.
+            //        * Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)"
             mb_tx_trk_lane_sel              = 2'b00                          ; // TX partner only has RX control
             mb_tx_clk_lane_sel              = 2'b00                          ; // TX partner only has RX control
             mb_tx_val_lane_sel              = 2'b00                          ; // TX partner only has RX control
             mb_tx_data_lane_sel             = 2'b00                          ; // TX partner only has RX control
+
             mb_rx_trk_lane_sel              = tx_mb_rx_trk_lane_sel          ;
             mb_rx_clk_lane_sel              = tx_mb_rx_clk_lane_sel          ;
             mb_rx_val_lane_sel              = tx_mb_rx_val_lane_sel          ;
@@ -260,14 +265,20 @@ module wrapper_D2C_PT_partner (
             mb_tx_data_pattern_sel          = 2'b00                          ; // TX partner only has RX control
             mb_tx_val_pattern_sel           = 1'b0                           ; // TX partner only has RX control
         end else if (rx_pt_en) begin
-            mb_tx_clk_lane_sel              = rx_mb_tx_clk_lane_sel          ;
-            mb_tx_data_lane_sel             = rx_mb_tx_data_lane_sel         ;
-            mb_tx_val_lane_sel              = rx_mb_tx_val_lane_sel          ;
             mb_tx_trk_lane_sel              = rx_mb_tx_trk_lane_sel          ;
-            mb_rx_clk_lane_sel              = 1'b0                           ; // RX partner only has TX control
-            mb_rx_data_lane_sel             = 1'b0                           ; // RX partner only has TX control
-            mb_rx_val_lane_sel              = 1'b0                           ; // RX partner only has TX control
+            mb_tx_clk_lane_sel              = rx_mb_tx_clk_lane_sel          ;
+            mb_tx_val_lane_sel              = rx_mb_tx_val_lane_sel          ;
+            mb_tx_data_lane_sel             = rx_mb_tx_data_lane_sel         ;
+
+            // The Reference Says for the "Receiver initiated Data to Clock Point Test":
+            //     "When not performing the actions relevant to this state:
+            //        * Data, Valid, and Clock Receivers are enabled.
+            //        * Track Receiver is permitted to be disabled."
             mb_rx_trk_lane_sel              = 1'b0                           ; // RX partner only has TX control
+            mb_rx_clk_lane_sel              = 1'b1                           ; // RX partner only has TX control
+            mb_rx_val_lane_sel              = 1'b1                           ; // RX partner only has TX control
+            mb_rx_data_lane_sel             = 1'b1                           ; // RX partner only has TX control
+
             mb_tx_pattern_en                = rx_mb_tx_pattern_en            ;
             mb_tx_pattern_setup             = rx_mb_tx_pattern_setup         ;
             mb_rx_pattern_setup             = 3'b000                         ;

@@ -264,10 +264,16 @@ module wrapper_D2C_PT_local (
             mb_tx_data_lane_sel             = tx_mb_tx_data_lane_sel;
             mb_tx_val_lane_sel              = tx_mb_tx_val_lane_sel;
             mb_tx_trk_lane_sel              = tx_mb_tx_trk_lane_sel;
-            mb_rx_clk_lane_sel              = 1'b0; // RX is inactive
-            mb_rx_data_lane_sel             = 1'b0; // RX is inactive
-            mb_rx_val_lane_sel              = 1'b0; // RX is inactive
-            mb_rx_trk_lane_sel              = 1'b0; // RX is inactive
+
+            // The Reference Says for the "Transmitter initiated Data to Clock Point Test":
+            //     "When not performing the actions relevant to this state:
+            //        * Data, Valid, and Clock Receivers are enabled.
+            //        * Track Receiver is permitted to be disabled."
+            mb_rx_trk_lane_sel              = 1'b0; // RX is inactive, but we give them the default value.
+            mb_rx_clk_lane_sel              = 1'b1; // RX is inactive, but we give them the default value.
+            mb_rx_val_lane_sel              = 1'b1; // RX is inactive, but we give them the default value.
+            mb_rx_data_lane_sel             = 1'b1; // RX is inactive, but we give them the default value.
+
             mb_tx_pattern_en                = tx_mb_tx_pattern_en;
             mb_tx_pattern_setup             = tx_mb_tx_pattern_setup;
             mb_tx_lfsr_en                   = tx_mb_tx_lfsr_en;
@@ -294,10 +300,15 @@ module wrapper_D2C_PT_local (
             mb_rx_val_pattern_sel           = 1'b0;
             mb_rx_data_pattern_sel          = 2'b00;
         end else if (rx_pt_en) begin
+            // The Reference Says for the "Receiver initiated Data to Clock Point Test":
+            //     "When not performing the actions relevant to this state:
+            //        * Data, Valid, and Track Transmitters drive low.
+            //        * Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)"
             mb_tx_clk_lane_sel              = 2'b00; // TX is inactive
             mb_tx_data_lane_sel             = 2'b00; // TX is inactive
             mb_tx_val_lane_sel              = 2'b00; // TX is inactive
             mb_tx_trk_lane_sel              = 2'b00; // TX is inactive
+
             mb_rx_clk_lane_sel              = rx_mb_rx_clk_lane_sel;
             mb_rx_data_lane_sel             = rx_mb_rx_data_lane_sel;
             mb_rx_val_lane_sel              = rx_mb_rx_val_lane_sel;
