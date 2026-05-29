@@ -1,26 +1,3 @@
-// UCIe 3.0 §4.5.3.7 PHYRETRAIN state.
-//
-// Pre-entry steps (RDI stall handshake, {LinkMgmt.RDI.Req.Retrain} exchange,
-// pl_error for framing-error case) all happen *before* this state — in
-// ACTIVE / LINKSPEED — and are not implemented here.
-//
-// Inside PHYRETRAIN:
-//   1. Send {PHYRETRAIN.retrain start req} with local retrain encoding
-//      (Table 4-11: 001=TXSELFCAL, 010=SPEEDIDLE, 100=REPAIR) in MsgInfo[2:0].
-//   2. Receive partner's {PHYRETRAIN.retrain start req} carrying their encoding.
-//   3. Resolve per Table 4-12 priority: SPEEDIDLE > REPAIR > TXSELFCAL.
-//   4. Send {PHYRETRAIN.retrain start resp} with the resolved encoding.
-//   5. Receive partner's {PHYRETRAIN.retrain start resp}.
-//   6. Exit with resolved_retrain_enc valid; top hops to MBTRAIN and uses the
-//      encoding to pick the entry substate (TXSELFCAL / SPEEDIDLE / REPAIR).
-//
-// Local encoding (per §4.5.3.7 Step 5) is sourced by the top from Runtime
-// Link Test Control register; passed in as local_retrain_enc.
-//
-// Race handling: 4 parallel stickies (req_sent / req_rcvd / rsp_sent /
-// rsp_rcvd) so messages may arrive in any order without deadlock; same
-// shape as the SBINIT Step-8 fix.
-
 module PHYRETRAIN
     import UCIe_pkg::*;
 (

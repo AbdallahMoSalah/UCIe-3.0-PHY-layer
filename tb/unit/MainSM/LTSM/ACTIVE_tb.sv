@@ -1,11 +1,8 @@
-// Testbench for rtl/MainSM/LTSM/ACTIVE.sv against UCIe 3.0 §4.5.3.6.
-//
-// ACTIVE is a residency + exit-trigger detector.  Each exit trigger is latched
-// in a sticky while in ACTIVE_RUN so single-cycle pulses survive until the
-// state transitions to DONE_HOLD.  active_done is held until active_enable
-// deasserts.
-
+// Testbench for rtl/MainSM/LTSM/ACTIVE.sv
 `timescale 1ns/1ps
+
+import RDI_SM_pkg::*;
+import ltsm_state_n_pkg::*;
 
 module ACTIVE_tb;
 
@@ -15,34 +12,29 @@ module ACTIVE_tb;
     logic clk;
     logic rst_n;
     logic active_enable;
-    logic phyretrain_req;
-    logic l1_req;
-    logic l2_req;
-    logic linkreset_req;
-    logic linkerror_req;
-    logic trainerror_req;
-    logic active_done;
+    RDI_state rdi_state;
+    logic Start_UCIe_Link_Training;
+    logic active_error;
+    ltsm_ctrl_state_e next_ltsm_state;
 
+    // Instantiate DUT
     ACTIVE dut (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        .active_enable  (active_enable),
-        .phyretrain_req (phyretrain_req),
-        .l1_req         (l1_req),
-        .l2_req         (l2_req),
-        .linkreset_req  (linkreset_req),
-        .linkerror_req  (linkerror_req),
-        .trainerror_req (trainerror_req),
-        .active_done    (active_done)
+        .clk                       (clk),
+        .rst_n                     (rst_n),
+        .active_enable             (active_enable),
+        .rdi_state                 (rdi_state),
+        .Start_UCIe_Link_Training  (Start_UCIe_Link_Training),
+        .active_error              (active_error),
+        .next_ltsm_state           (next_ltsm_state)
     );
 
-    // Clock
+    // Clock Generation
     initial begin
         clk = 1'b0;
         forever #(CLK_PERIOD/2.0) clk = ~clk;
     end
 
-    // Scoreboard
+    // Error Tracking
     int errors = 0;
     task automatic check(input bit cond, input string msg);
         if (!cond) begin
@@ -53,173 +45,114 @@ module ACTIVE_tb;
         end
     endtask
 
-    task automatic clear_triggers();
-        phyretrain_req = 1'b0;
-        l1_req         = 1'b0;
-        l2_req         = 1'b0;
-        linkreset_req  = 1'b0;
-        linkerror_req  = 1'b0;
-        trainerror_req = 1'b0;
-    endtask
-
-    task automatic do_async_reset();
-        rst_n         = 1'b0;
+    task automatic do_reset();
+        rst_n = 1'b0;
         active_enable = 1'b0;
-        clear_triggers();
+        rdi_state = Nop;
+        Start_UCIe_Link_Training = 1'b0;
         repeat (3) @(posedge clk);
         @(negedge clk) rst_n = 1'b1;
         @(posedge clk);
     endtask
 
-    // ---------------- Tests ----------------
+    // Tests
     initial begin
         $display("==== ACTIVE_tb start ====");
 
-        do_async_reset();
-        check(active_done === 1'b0, "after rst_n: active_done low (IDLE)");
+        // Test 1: Reset Behavior
+        do_reset();
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_NOP, "Test 1: Reset state outputs incorrect");
 
-        // ---- Scenario 1: residency — no trigger -> stay forever, done stays low ----
-        $display("\n-- Scenario 1: residency, no trigger --");
-        @(negedge clk) active_enable = 1'b1;
-        clear_triggers();
-        repeat (200) @(posedge clk); #1;
-        check(active_done === 1'b0, "1: no trigger -> done stays low over long residency");
-
-        // ---- Scenario 2: each trigger independently asserts done (level-driven) ----
-        $display("\n-- Scenario 2: each trigger independently asserts done --");
-        begin : per_trigger_level
-            static string names[6] = '{"phyretrain_req", "l1_req", "l2_req",
-                                       "linkreset_req", "linkerror_req", "trainerror_req"};
-            for (int i = 0; i < 6; i++) begin
-                do_async_reset();
-                @(negedge clk) active_enable = 1'b1;
-                repeat (3) @(posedge clk);
-                check(active_done === 1'b0, $sformatf("2.%0d: in ACTIVE_RUN, done low pre-trigger", i));
-                @(negedge clk);
-                case (i)
-                    0: phyretrain_req = 1'b1;
-                    1: l1_req         = 1'b1;
-                    2: l2_req         = 1'b1;
-                    3: linkreset_req  = 1'b1;
-                    4: linkerror_req  = 1'b1;
-                    5: trainerror_req = 1'b1;
-                endcase
-                fork
-                    begin wait (active_done === 1'b1); end
-                    begin repeat (10) @(posedge clk); $error("2.%0d trigger timeout", i); errors++; end
-                join_any; disable fork;
-                check(active_done === 1'b1, $sformatf("2.%0d: done asserted on %s", i, names[i]));
-                @(negedge clk) active_enable = 1'b0; clear_triggers();
-                @(posedge clk); #1;
-                check(active_done === 1'b0, $sformatf("2.%0d: done deasserts after enable drop", i));
-            end
-        end
-
-        // ---- Scenario 3: 1-cycle pulse on each trigger is latched ----
-        $display("\n-- Scenario 3: 1-cycle pulse on each trigger is latched --");
-        begin : per_trigger_pulse
-            static string names[6] = '{"phyretrain_req", "l1_req", "l2_req",
-                                       "linkreset_req", "linkerror_req", "trainerror_req"};
-            for (int i = 0; i < 6; i++) begin
-                do_async_reset();
-                @(negedge clk) active_enable = 1'b1;
-                repeat (5) @(posedge clk);                // residency
-                @(negedge clk);
-                case (i)
-                    0: phyretrain_req = 1'b1;
-                    1: l1_req         = 1'b1;
-                    2: l2_req         = 1'b1;
-                    3: linkreset_req  = 1'b1;
-                    4: linkerror_req  = 1'b1;
-                    5: trainerror_req = 1'b1;
-                endcase
-                @(negedge clk) clear_triggers();           // 1-cycle pulse only
-                fork
-                    begin wait (active_done === 1'b1); end
-                    begin repeat (10) @(posedge clk); $error("3.%0d pulse timeout", i); errors++; end
-                join_any; disable fork;
-                check(active_done === 1'b1, $sformatf("3.%0d: pulse on %s latched -> done", i, names[i]));
-                @(negedge clk) active_enable = 1'b0;
-                @(posedge clk);
-            end
-        end
-
-        // ---- Scenario 4: done held until active_enable deasserts ----
-        $display("\n-- Scenario 4: done held until active_enable drops --");
-        do_async_reset();
-        @(negedge clk) active_enable = 1'b1;
-        repeat (3) @(posedge clk);
-        @(negedge clk) phyretrain_req = 1'b1;
-        @(negedge clk) phyretrain_req = 1'b0;
-        wait (active_done === 1'b1);
-        repeat (50) @(posedge clk);                       // sit in DONE_HOLD a long time
-        check(active_done === 1'b1, "4: done remains high in DONE_HOLD");
-        @(negedge clk) active_enable = 1'b0;
-        @(posedge clk); #1;
-        check(active_done === 1'b0, "4: done drops after enable=0");
-
-        // ---- Scenario 5: stickies cleared on IDLE re-entry; new dwell honored ----
-        $display("\n-- Scenario 5: re-entry clears stickies --");
-        do_async_reset();
-        @(negedge clk) active_enable = 1'b1;
-        @(negedge clk) l2_req = 1'b1;
-        @(negedge clk) l2_req = 1'b0;
-        wait (active_done === 1'b1);
-        @(negedge clk) active_enable = 1'b0;              // back to IDLE -> clear stickies
-        @(posedge clk); #1;
-        check(active_done === 1'b0, "5: done cleared after enable drop");
-        // re-enter with no trigger; done must stay low
-        @(negedge clk) active_enable = 1'b1;
-        repeat (50) @(posedge clk); #1;
-        check(active_done === 1'b0, "5: re-entry with no trigger -> done stays low");
-        // fresh trigger fires
-        @(negedge clk) l1_req = 1'b1;
-        wait (active_done === 1'b1);
-        check(active_done === 1'b1, "5: fresh trigger after re-entry -> done");
-        @(negedge clk) active_enable = 1'b0; clear_triggers();
-        @(posedge clk);
-
-        // ---- Scenario 6: trigger arriving while active_enable=0 must NOT linger ----
-        $display("\n-- Scenario 6: trigger while disabled is not retained --");
-        do_async_reset();
-        // enable low; pulse a trigger
-        @(negedge clk) phyretrain_req = 1'b1;
-        @(negedge clk) phyretrain_req = 1'b0;
+        // Test 2: Stay in IDLE when active_enable is low
+        @(negedge clk);
+        rdi_state = Retrain;
         repeat (5) @(posedge clk);
-        @(negedge clk) active_enable = 1'b1;              // now enable
-        repeat (50) @(posedge clk); #1;
-        check(active_done === 1'b0,
-              "6: pulse while disabled is NOT carried into enabled run");
-        @(negedge clk) active_enable = 1'b0;
-        @(posedge clk);
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_NOP, "Test 2: active_enable low, should stay IDLE");
 
-        // ---- Scenario 7: multiple concurrent triggers — single done assertion ----
-        $display("\n-- Scenario 7: concurrent triggers (any/all) -> done --");
-        do_async_reset();
-        @(negedge clk) active_enable = 1'b1;
-        repeat (3) @(posedge clk);
-        @(negedge clk) begin
-            phyretrain_req = 1'b1;
-            linkerror_req  = 1'b1;
-            l1_req         = 1'b1;
-        end
-        wait (active_done === 1'b1);
-        check(active_done === 1'b1, "7: any of several concurrent triggers asserts done");
-        @(negedge clk) active_enable = 1'b0; clear_triggers();
-        @(posedge clk);
+        // Test 3: transition to ACTIVE_RUN
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_ACTIVE, "Test 3: Transition to ACTIVE_RUN");
 
-        // ---- Scenario 8: async rst_n returns FSM to IDLE ----
-        $display("\n-- Scenario 8: async rst_n -> IDLE --");
-        @(negedge clk) active_enable = 1'b1;
-        @(negedge clk) trainerror_req = 1'b1;
-        wait (active_done === 1'b1);
-        rst_n = 1'b0;
-        #(CLK_PERIOD * 1.5);
-        check(active_done === 1'b0, "8: async rst_n -> done deasserts immediately");
-        rst_n = 1'b1;
+        // Test 4: Transition to PHYRETRAIN
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
         @(posedge clk);
+        @(negedge clk);
+        rdi_state = Retrain;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_PHYRETRAIN, "Test 4: Transition to PHYRETRAIN");
 
-        // ---- Done ----
+        // Test 5: Transition to L1
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        rdi_state = L_1;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_L1, "Test 5: Transition to L1");
+
+        // Test 6: Transition to L2
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        rdi_state = L_2;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_L2, "Test 6: Transition to L2");
+
+        // Test 7: Transition to TRAINERROR via rdi_state = LinkError
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        rdi_state = LinkError;
+        @(posedge clk); #1;
+        check(active_error === 1'b1 && next_ltsm_state === CTRL_TRAINERROR, "Test 7: Transition to TRAINERROR (rdi_state=LinkError)");
+
+        // Test 8: Transition to TRAINERROR via Start_UCIe_Link_Training
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        Start_UCIe_Link_Training = 1'b1;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_TRAINERROR, "Test 8: Transition to TRAINERROR (Start_UCIe_Link_Training=1)");
+
+        // Test 10: Transition to TRAINERROR via rdi_state = LinkReset
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        rdi_state = LinkReset;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_TRAINERROR, "Test 10: Transition to TRAINERROR (rdi_state=LinkReset)");
+
+        // Test 11: Transition to TRAINERROR via rdi_state = Disabled
+        do_reset();
+        @(negedge clk);
+        active_enable = 1'b1;
+        @(posedge clk);
+        @(negedge clk);
+        rdi_state = Disabled;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_TRAINERROR, "Test 11: Transition to TRAINERROR (rdi_state=Disabled)");
+
+        // Test 9: Deasserting active_enable returns to IDLE
+        @(negedge clk);
+        active_enable = 1'b0;
+        @(posedge clk); #1;
+        check(active_error === 1'b0 && next_ltsm_state === CTRL_NOP, "Test 9: Deasserting active_enable returns to IDLE");
+
+        // Summary
         $display("\n==== ACTIVE_tb summary: %0d error(s) ====", errors);
         if (errors == 0) $display("ALL TESTS PASSED");
         else             $display("TESTS FAILED");
@@ -228,7 +161,7 @@ module ACTIVE_tb;
 
     // Watchdog
     initial begin
-        #(CLK_PERIOD * 100000);
+        #(CLK_PERIOD * 1000);
         $error("Global TB watchdog expired");
         $finish;
     end

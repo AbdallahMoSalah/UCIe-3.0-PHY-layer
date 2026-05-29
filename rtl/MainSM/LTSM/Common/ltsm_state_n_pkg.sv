@@ -41,7 +41,8 @@ package ltsm_state_n_pkg;
         CTRL_PHYRETRAIN = 4'd6,
         CTRL_L1         = 4'd7,
         CTRL_L2         = 4'd8,
-        CTRL_TRAINERROR = 4'd9
+        CTRL_TRAINERROR = 4'd9,
+        CTRL_NOP        = 4'd10
     } ltsm_ctrl_state_e;
 
     // for current `mbinit` sub-state
