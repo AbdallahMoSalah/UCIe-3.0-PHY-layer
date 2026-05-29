@@ -28,7 +28,6 @@ module rdi_de_aggregator
 
     sb_packet_t   msg_reg;
     logic [127:0] msg_flat;
-    logic [127:0] in_msg_flat;
     logic [2:0]   chunk_cnt;
     logic [2:0]   expected_chunks;
     
@@ -36,7 +35,6 @@ module rdi_de_aggregator
     logic [2:0]   next_expected_chunks;
 
     assign msg_flat = msg_reg;
-    assign in_msg_flat = pl_msg;
 
     ////////////////////////////////////////
     // opcode decode

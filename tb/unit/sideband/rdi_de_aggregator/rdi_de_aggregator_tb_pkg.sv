@@ -40,7 +40,6 @@ package rdi_de_aggregator_tb_pkg;
 
         rand bit in_valid = 0;
 
-        sb_srcid_e prev_srcid = ADAPTER;
         sb_packet_t prev_data_drive = '0;
 
 
@@ -213,7 +212,7 @@ package rdi_de_aggregator_tb_pkg;
                     pkt = new();
                     pkt.data_drive = sb_packet_t'(vif.pl_msg);
 
-                    in_mbx.put(pkt); // target 
+                    in_mbx.put(pkt); 
 
                 end
 
@@ -223,7 +222,7 @@ package rdi_de_aggregator_tb_pkg;
                     wd = new();
                     wd.data = vif.pl_cfg;
 
-                    out_mbx.put(wd); // target 
+                    out_mbx.put(wd); 
 
                 end
 
