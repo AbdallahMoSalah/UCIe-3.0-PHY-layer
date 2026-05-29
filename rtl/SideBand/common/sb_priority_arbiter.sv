@@ -37,18 +37,17 @@ module sb_priority_arbiter #(
         hip_rdy = out_rdy;
         lop_rdy = out_rdy && !hip_vld;
    
-   
-   // DEBUG
-// synthesis translate_off
-    sb_packet = out_msg; 
-    if (out_vld) begin
-    $display("[%0t] [sb_priority_arbiter %m] Received Message! dstid=%0s out_msg[127:64]=%h [63:0]=%s", 
-             $time, sb_packet.header.req.dstid, sb_packet.payload, sb_packet.header.req.opcode);
-    end
-// synthesis translate_on
-   
-   
-   
+        `ifdef SIMULATION
+             // DEBUG
+             // synthesis translate_off
+             sb_packet = out_msg; 
+             if (out_vld) begin
+             $display("[%0t] [sb_priority_arbiter %m] Received Message! dstid=%0s out_msg[127:64]=%h [63:0]=%s", 
+                      $time, sb_packet.header.req.dstid, sb_packet.payload, sb_packet.header.req.opcode);
+             end
+             // synthesis translate_on
+        `endif
+
     end
 
 endmodule
