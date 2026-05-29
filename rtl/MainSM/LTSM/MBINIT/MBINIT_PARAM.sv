@@ -130,9 +130,8 @@ import UCIe_pkg::*;
     // Sideband FIFO ready (write-side handshake)
     input  logic ltsm_rdy,
 
-    // Timer signals
-    output logic mb_param_timer_enable,
-    input  logic mb_param_timeout_expired
+    // Timer / Global Error signals
+    input  logic global_error
 );
 
 logic TARR_sel;
@@ -583,13 +582,7 @@ end
 
 
 // Entry-detection flip-flops removed – _SEND states handle first-cycle TX.
-////////////////////////////////////////////////////////
-/////////////////// TIMEOUT TIMER //////////////////////
-////////////////////////////////////////////////////////
-logic mb_param_timeout_error;
-assign mb_param_timeout_error = mb_param_timeout_expired && !mb_param_done;
 
-assign mb_param_timer_enable = mb_param_enable && !mb_param_done && !mb_param_error;
 
 ////////////////////////////////////////////////////////
 ////////////////// STATE REGISTER //////////////////////
@@ -610,7 +603,7 @@ always_comb begin
     if(!mb_param_enable)begin
         next_state = MB_S0_IDLE;
     end
-    else if(mb_param_timeout_error)begin
+    else if(global_error && !mb_param_done)begin
         next_state = MB_S5_ERROR;
     end
     else begin

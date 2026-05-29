@@ -55,7 +55,7 @@ module MBINIT_REVERSALMB
     output logic [1:0] mb_tx_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
 
     output logic       mb_rx_compare_en      , // 1: Enable the Rx comparison circuit, 0: Disable.
-    output logic [1:0] mb_rx_compare_setup   , // 00b: Aggregate, 01b: Per-Lane, 10b: Valid Pattern, 11b: Clock Pattern.
+    output logic [1:0] mb_rx_compare_setup   , // 00b: Per-Lane, 01b: Aggregate, 10b: Valid Pattern, 11b: Clock Pattern.
 
     input logic [15:0] mb_rx_perlane_pass,
     input logic mb_tx_pattern_count_done,
@@ -70,9 +70,8 @@ module MBINIT_REVERSALMB
     // FIFO ready
     input  logic ltsm_rdy,
 
-    // Timer signals
-    input  logic timeout_reversal_expired,
-    output logic timeout_reversal_enable
+    // Timer / Global Error signals
+    input  logic global_error
 );
 
 ////////////////////////////////////////////////////////
@@ -147,11 +146,11 @@ assign majority_success = reg_x8_mode_req ? (success_count >= 4 ) : (success_cou
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         mb_lane_reversal_req <= 1'b0;
+    else if (current_state == MB_S0_IDLE)
+        mb_lane_reversal_req <= 1'b0;
     else if (current_state == MB_S5_DECISION && !majority_success && !retry_done) begin
         mb_lane_reversal_req <= 1'b1;
     end
-    else if (mb_lane_reversal_req)
-        mb_lane_reversal_req <= 1'b0;
 end
 
 ////////////////////////////////////////////////////////
@@ -172,13 +171,6 @@ always_comb begin
     else
         MB_local_result_exchange_data_Field = {48'h0, mb_rx_perlane_pass_result[15:0]};
 end
-
-////////////////////////////////////////////////////////
-// TIMEOUT
-////////////////////////////////////////////////////////
-logic timeout_error;
-assign timeout_error = timeout_reversal_expired && !mb_reversal_done;
-assign timeout_reversal_enable = mb_reversal_enable && !mb_reversal_done && !mb_reversal_error;
 
 ////////////////////////////////////////////////////////
 // RETRY LOGIC
@@ -293,7 +285,7 @@ always_comb begin
     if(!mb_reversal_enable) begin
         next_state = MB_S0_IDLE;
     end
-    else if (timeout_error) begin
+    else if (global_error && !mb_reversal_done) begin
         next_state = MB_S7_REVERSAL_ERROR;
     end
     else begin
@@ -464,7 +456,7 @@ assign mb_tx_pattern_setup = 3'b001;
 always_comb begin
 
     mb_rx_compare_en = 0;
-    mb_rx_compare_setup = 2'b01;
+    mb_rx_compare_setup = 2'b00;
     case(current_state)
 
         MB_S1_READY_RSP_SEND,
@@ -572,7 +564,7 @@ end
     // 10. Error Check: Error states raise error flag
     property p_error_condition_raises_error;
         @(posedge clk) disable iff (!rst_n)
-        (timeout_reversal_expired && mb_reversal_enable) ||
+        (global_error && mb_reversal_enable) ||
         (current_state == MB_S5_DECISION && !majority_success && retry_done)
         |-> ##[1:5] (current_state == MB_S7_REVERSAL_ERROR && mb_reversal_error == 1'b1);
     endproperty
@@ -581,7 +573,7 @@ end
     // 11. Success Check: Done state asserts done flag
     property p_success_path_leads_to_done;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S6_FINALIZE_RSP_WAIT && s6_rsp_rcvd && !timeout_reversal_expired)
+        (current_state == MB_S6_FINALIZE_RSP_WAIT && s6_rsp_rcvd && !global_error)
         |-> ##[1:5] (current_state == MB_S8_REVERSAL_DONE && mb_reversal_done == 1'b1);
     endproperty
     assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);

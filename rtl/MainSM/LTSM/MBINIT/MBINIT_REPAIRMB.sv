@@ -37,9 +37,8 @@ module MBINIT_REPAIRMB
     output logic    [15:0]  mb_repairmb_tx_MsgInfo,
     output logic    [63:0]  mb_repairmb_tx_data_Field,
 
-    // Timer Interface (Externalized)
-    input  logic            timeout_repair_expired,
-    output logic            timeout_repair_enable,
+    // Timer / Global Error signals
+    input  logic            global_error,
 
     // FIFO handshake
     input  logic            ltsm_rdy,
@@ -50,7 +49,7 @@ module MBINIT_REPAIRMB
     output logic [2:0]      d2c_pattern_setup,// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
     output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
     output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
-    output logic [1:0]      d2c_compare_setup, // 0: Aggregate, 1: Per-Lane, 2: Valid Lane, 3: Clock Lane Comparison.
+    output logic [1:0]      d2c_compare_setup, // 0: Per-Lane, 1: Aggregate,  2: Valid Lane, 3: Clock Lane Comparison.
 
     input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
 
@@ -328,11 +327,7 @@ module MBINIT_REPAIRMB
         end
     end
 
-    // Watchdog Timer Enable
-    assign timeout_repair_enable = mb_repairmb_enable && !mb_repairmb_done && !mb_repairmb_error;
-    
-    logic timeout_error;
-    assign timeout_error = timeout_repair_expired && !mb_repairmb_done;
+
 
     ////////////////////////////////////////////////////////
     // STICKY HANDSHAKE FLAGS & CAPTURES
@@ -480,7 +475,7 @@ module MBINIT_REPAIRMB
         if (!mb_repairmb_enable) begin
             next_state = MB_S0_IDLE;
         end
-        else if (timeout_error) begin
+        else if (global_error && !mb_repairmb_done) begin
             next_state = MB_S6_REPAIR_ERROR;
         end
         else begin
@@ -649,7 +644,7 @@ module MBINIT_REPAIRMB
     assign d2c_data_pattern_sel = 2'b01; // per-lane ID pattern
 
 
-    assign d2c_compare_setup    = 2'b01; // per-lane comparison
+    assign d2c_compare_setup    = 2'b00; // per-lane comparison
     assign tx_pt_en  = (current_state == MB_S2_D2C_POINT_TEST);
 
     // RX compare enable timing logic (No longer needed since mb_rx_data_compare_en port is removed)
@@ -752,7 +747,7 @@ module MBINIT_REPAIRMB
         // 9. Error Check: Error states raise error flag
         property p_error_condition_raises_error;
             @(posedge clk) disable iff (!rst_n)
-            (timeout_repair_expired && mb_repairmb_enable) ||
+            (global_error && mb_repairmb_enable) ||
             (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible_r) ||
             (current_state == MB_S4_DEGRADE_VERIFICATION && width_changed_r && retry_done)
             |-> ##[1:5] (current_state == MB_S6_REPAIR_ERROR && mb_repairmb_error == 1'b1);
@@ -762,7 +757,7 @@ module MBINIT_REPAIRMB
         // 10. Success Check: Done state asserts done flag
         property p_success_path_leads_to_done;
             @(posedge clk) disable iff (!rst_n)
-            (current_state == MB_S5_FINALIZE_RSP_WAIT && s5_rsp_rcvd && !timeout_repair_expired)
+            (current_state == MB_S5_FINALIZE_RSP_WAIT && s5_rsp_rcvd && !global_error)
             |-> ##[1:5] (current_state == MB_S7_REPAIR_DONE && mb_repairmb_done == 1'b1);
         endproperty
         assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);

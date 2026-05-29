@@ -25,7 +25,7 @@ module MBINIT_REPAIRCLK
     output logic [2:0] mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
     
     output logic       mb_rx_compare_en            , // 1: Enable the Rx comparison circuit, 0: Disable.
-    output logic [1:0] mb_rx_compare_setup   , // 00b: Aggregate, 01b: Per-Lane, 10b: Valid Lane, 11b: Clock Lane Comparison.
+    output logic [1:0] mb_rx_compare_setup   , // 00b: Per-Lane, 01b: Aggregate, 10b: Valid Lane, 11b: Clock Lane Comparison.
 
     input logic rtrk_pass,
     input logic rckn_pass,
@@ -36,9 +36,8 @@ module MBINIT_REPAIRCLK
     // FIFO ready
     input  logic ltsm_rdy,
 
-    //Timer signals
-    input logic timeout_repairclk_expired,
-    output logic timeout_repairclk_enable
+    // Timer / Global Error signals
+    input  logic global_error
 );
 
 ////////////////////////////////////////////////////////
@@ -89,13 +88,6 @@ logic [2:0] partner_compare_result; // latched in s3_rsp_rcvd ff below
 logic error_detect;
 assign error_detect = !(&partner_compare_result);
 
-
-////////////////////////////////////////////////////////
-// TIMEOUT
-////////////////////////////////////////////////////////
-logic timeout_error;
-assign timeout_error = timeout_repairclk_expired && !mb_repairclk_done;
-assign timeout_repairclk_enable = mb_repairclk_enable && !mb_repairclk_done && !mb_repairclk_error;
 
 ////////////////////////////////////////////////////////
 // HANDSHAKE FLAGS + DATA CAPTURE
@@ -170,7 +162,7 @@ always_comb begin
     if(!mb_repairclk_enable) begin
         next_state = MB_S0_IDLE;
     end
-    else if(timeout_error) begin
+    else if(global_error && !mb_repairclk_done) begin
         next_state = MB_S6_REPAIRCLK_ERROR;
     end
     else begin
@@ -399,7 +391,7 @@ end
     // 8. Error Check: Error states raise error flag
     property p_error_condition_raises_error;
         @(posedge clk) disable iff (!rst_n)
-        (timeout_repairclk_expired && mb_repairclk_enable) ||
+        (global_error && mb_repairclk_enable) ||
         (current_state == MB_S4_ERROR_CHECK && error_detect)
         |-> ##[1:5] (current_state == MB_S6_REPAIRCLK_ERROR && mb_repairclk_error == 1'b1);
     endproperty
@@ -408,7 +400,7 @@ end
     // 9. Success Check: Done state asserts done flag
     property p_success_path_leads_to_done;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S5_FINALIZE_RSP_WAIT && s4_rsp_rcvd && !timeout_repairclk_expired)
+        (current_state == MB_S5_FINALIZE_RSP_WAIT && s4_rsp_rcvd && !global_error)
         |-> ##[1:5] (current_state == MB_S7_REPAIRCLK_DONE && mb_repairclk_done == 1'b1);
     endproperty
     assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);

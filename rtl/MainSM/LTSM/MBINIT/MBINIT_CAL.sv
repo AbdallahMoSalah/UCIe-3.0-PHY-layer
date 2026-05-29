@@ -27,10 +27,8 @@ module MBINIT_CAL
     // FIFO ready
     input  logic ltsm_rdy,
 
-    // Timer signals
-    output logic timeout_cal_enable,
-    input  logic timeout_cal_expired
-
+    // Timer / Global Error signals
+    input  logic global_error
 );
 
 ////////////////////////////////////////////////////////
@@ -57,12 +55,7 @@ mb_cal_state_e current_state , next_state ;
 localparam logic [15:0] MB_default_MSG_Info = 16'h0000;
 localparam logic [63:0] MB_default_data_Field = 64'h0000000000000000;
 
-////////////////////////////////////////////////////////
-/////////////////// TIMEOUT TIMER //////////////////////
-////////////////////////////////////////////////////////
-logic timeout_error;
-assign timeout_error = timeout_cal_expired && !mb_cal_done;
-assign timeout_cal_enable = mb_cal_enable && !mb_cal_done && !mb_cal_error;
+//
 
 ////////////////////////////////////////////////////////
 //////////////// HANDSHAKE FLAGS /////////////////////
@@ -110,9 +103,9 @@ end
 always_comb begin 
     next_state = current_state;
 
-    if(!mb_cal_enable) begin
+    if (!mb_cal_enable) begin
         next_state = MB_S0_IDLE;
-    end else if(timeout_error) begin
+    end else if (global_error && !mb_cal_done) begin
         next_state = MB_S3_ERROR;
     end else begin
         
@@ -228,7 +221,7 @@ end
     // 4. Error Check: Error states raise error flag
     property p_error_condition_raises_error;
         @(posedge clk) disable iff (!rst_n)
-        (timeout_cal_expired && mb_cal_enable)
+        (global_error && mb_cal_enable)
         |-> ##[1:5] (current_state == MB_S3_ERROR && mb_cal_error == 1'b1);
     endproperty
     assert_error_condition_raises_error: assert property(p_error_condition_raises_error);
@@ -236,7 +229,7 @@ end
     // 5. Success Check: Done state asserts done flag
     property p_success_path_leads_to_done;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S1_CAL_RSP_WAIT && cal_rsp_rcvd && !timeout_cal_expired)
+        (current_state == MB_S1_CAL_RSP_WAIT && cal_rsp_rcvd && !global_error)
         |-> ##[1:5] (current_state == MB_S2_DONE && mb_cal_done == 1'b1);
     endproperty
     assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);
