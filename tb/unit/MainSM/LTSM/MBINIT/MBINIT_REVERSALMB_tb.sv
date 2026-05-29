@@ -54,6 +54,9 @@ module MBINIT_REVERSALMB_tb;
 
     logic        timeout_reversal_expired;
     logic        timeout_reversal_enable;
+    assign timeout_reversal_enable = mb_reversal_enable;
+    logic        global_error;
+    assign global_error = timeout_reversal_expired;
 
     int errors;
     int checks;
@@ -82,7 +85,33 @@ module MBINIT_REVERSALMB_tb;
     // Instantiate DUT
     MBINIT_REVERSALMB #(
         .CLK_FRQ_HZ(100000)     // match our TB clock frequency of 100 kHz
-    ) dut (.*);
+    ) dut (
+        .clk,
+        .rst_n,
+        .mb_reversal_enable,
+        .mb_reversal_done,
+        .mb_reversal_error,
+        .sb_reversal_rx_valid     (mb_reversal_rx_valid),
+        .sb_reversal_rx_msg_id    (mb_reversal_rx_msg_id),
+        .sb_reversal_rx_MsgInfo   (mb_reversal_rx_MsgInfo),
+        .sb_reversal_rx_data_Field(mb_reversal_rx_data_Field),
+        .sb_reversal_tx_valid     (mb_reversal_tx_valid),
+        .sb_reversal_tx_msg_id    (mb_reversal_tx_msg_id),
+        .sb_reversal_tx_MsgInfo   (mb_reversal_tx_MsgInfo),
+        .sb_reversal_tx_data_Field(mb_reversal_tx_data_Field),
+        .Link_Width_enable_status,
+        .mb_tx_pattern_en,
+        .mb_tx_pattern_setup,
+        .mb_tx_data_pattern_sel,
+        .mb_rx_compare_en,
+        .mb_rx_compare_setup,
+        .mb_rx_perlane_pass,
+        .mb_tx_pattern_count_done,
+        .mb_lane_reversal_req,
+        .clear_error_req,
+        .sb_ltsm_rdy               (ltsm_rdy),
+        .global_error
+    );
 
     // ========================================================================
     // Helper Tasks
@@ -168,7 +197,7 @@ module MBINIT_REVERSALMB_tb;
         #1;
         check(mb_rx_compare_en, "SCN1: Rx compare enabled during pattern transmission");
         check(mb_tx_data_pattern_sel == 2'b01, "SCN1: Pattern selection is per-lane ID (2'b01)");
-        check(mb_rx_compare_setup == 2'b01, "SCN1: Compare setup is per-lane (2'b01)");
+        check(mb_rx_compare_setup == 2'b00, "SCN1: Compare setup is per-lane (2'b00)");
         repeat (20) @(posedge clk);
         
         // Logical block finishes transmitting

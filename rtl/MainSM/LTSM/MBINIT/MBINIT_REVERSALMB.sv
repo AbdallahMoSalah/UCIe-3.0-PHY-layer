@@ -35,15 +35,15 @@ module MBINIT_REVERSALMB
     output logic mb_reversal_done,
     output logic mb_reversal_error,
 
-    input  logic mb_reversal_rx_valid,
-    input  msg_no_e mb_reversal_rx_msg_id,
-    input  logic [15:0] mb_reversal_rx_MsgInfo,
-    input  logic [63:0] mb_reversal_rx_data_Field,
+    input  logic sb_reversal_rx_valid,
+    input  msg_no_e sb_reversal_rx_msg_id,
+    input  logic [15:0] sb_reversal_rx_MsgInfo,
+    input  logic [63:0] sb_reversal_rx_data_Field,
 
-    output logic mb_reversal_tx_valid,
-    output msg_no_e mb_reversal_tx_msg_id,
-    output logic [15:0] mb_reversal_tx_MsgInfo,
-    output logic [63:0] mb_reversal_tx_data_Field,
+    output logic sb_reversal_tx_valid,
+    output msg_no_e sb_reversal_tx_msg_id,
+    output logic [15:0] sb_reversal_tx_MsgInfo,
+    output logic [63:0] sb_reversal_tx_data_Field,
 
     input  logic [3:0] Link_Width_enable_status,
     
@@ -68,7 +68,7 @@ module MBINIT_REVERSALMB
     ////////////////////////////////////////////////////
 
     // FIFO ready
-    input  logic ltsm_rdy,
+    input  logic sb_ltsm_rdy,
 
     // Timer / Global Error signals
     input  logic global_error
@@ -143,15 +143,30 @@ end
 logic majority_success;
 assign majority_success = reg_x8_mode_req ? (success_count >= 4 ) : (success_count >= 8 );
 
-always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n)
-        mb_lane_reversal_req <= 1'b0;
-    else if (current_state == MB_S0_IDLE)
-        mb_lane_reversal_req <= 1'b0;
-    else if (current_state == MB_S5_DECISION && !majority_success && !retry_done) begin
-        mb_lane_reversal_req <= 1'b1;
+    logic mb_lane_reversal_req_r;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if(!rst_n)
+            mb_lane_reversal_req_r <= 1'b0;
+        else if (current_state == MB_S0_IDLE)
+            mb_lane_reversal_req_r <= 1'b0;
+        else if (current_state == MB_S5_DECISION && !majority_success && !retry_done) begin
+            mb_lane_reversal_req_r <= 1'b1;
+        end else begin
+            mb_lane_reversal_req_r <= 1'b0;
+        end
     end
-end
+
+    always_comb begin
+        mb_lane_reversal_req = mb_lane_reversal_req_r;
+        if (current_state == MB_S0_IDLE) begin
+            mb_lane_reversal_req = 1'b0;
+        end
+        else begin
+            if (current_state == MB_S5_DECISION && !majority_success && !retry_done) begin
+                mb_lane_reversal_req = 1'b1;
+            end
+        end
+    end
 
 ////////////////////////////////////////////////////////
 // DEFAULTS
@@ -233,31 +248,56 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_req_rcvd    <= 1'b0;
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
-    end else if (mb_reversal_rx_valid) begin
-        case (mb_reversal_rx_msg_id)
-            MBINIT_REVERSALMB_init_req : s1_req_rcvd <= 1'b1;
-            MBINIT_REVERSALMB_init_resp: s1_rsp_rcvd <= 1'b1;
+    end else if (sb_reversal_rx_valid) begin
+        case (sb_reversal_rx_msg_id)
+            MBINIT_REVERSALMB_init_req : begin
+                s1_req_rcvd <= 1'b1;
+            end
+            MBINIT_REVERSALMB_init_resp: begin
+                if (current_state > MB_S1_READY_REQ_SEND) begin
+                    s1_rsp_rcvd <= 1'b1;
+                end
+            end
 
             MBINIT_REVERSALMB_clear_error_req : begin 
-                s2_req_rcvd <= 1'b1;
-                clear_error_req <= 1'b1;
+                if (current_state > MB_S1_READY_RSP_SEND && s1_rsp_rcvd) begin
+                    s2_req_rcvd <= 1'b1;
+                    clear_error_req <= 1'b1;
+                end else begin
+                    clear_error_req <= 1'b0;
+                end
             end
-            MBINIT_REVERSALMB_clear_error_resp: s2_rsp_rcvd <= 1'b1;
+            MBINIT_REVERSALMB_clear_error_resp: begin
+                if (current_state > MB_S2_ERROR_RESET_REQ_SEND)
+                    s2_rsp_rcvd <= 1'b1;
+            end
 
             MBINIT_REVERSALMB_result_req      : begin 
-                s4_req_rcvd <= 1'b1;
-                mb_rx_perlane_pass_result <= mb_rx_perlane_pass;
+                if (current_state > MB_S2_ERROR_RESET_RSP_SEND && s2_rsp_rcvd) begin
+                    s4_req_rcvd <= 1'b1;
+                    mb_rx_perlane_pass_result <= mb_rx_perlane_pass;
+                end
             end
             MBINIT_REVERSALMB_result_resp     : begin
-                s4_rsp_rcvd <= 1'b1;
-                if (reg_x8_mode_req)
-                    partner_result <= {8'b0, mb_reversal_rx_data_Field[7:0]};
-                else
-                    partner_result <= mb_reversal_rx_data_Field[15:0];
+                if (current_state > MB_S4_RESULT_REQ_SEND) begin
+                    s4_rsp_rcvd <= 1'b1;
+                    if (reg_x8_mode_req)
+                        partner_result <= {8'b0, sb_reversal_rx_data_Field[7:0]};
+                    else
+                        partner_result <= sb_reversal_rx_data_Field[15:0];
+                end
             end
-
-            MBINIT_REVERSALMB_done_req        : s6_req_rcvd <= 1'b1;
-            MBINIT_REVERSALMB_done_resp       : s6_rsp_rcvd <= 1'b1;
+            
+            MBINIT_REVERSALMB_done_req        : begin
+                if (current_state > MB_S4_RESULT_RSP_SEND && s4_rsp_rcvd) begin
+                    s6_req_rcvd <= 1'b1;
+                end
+            end
+            MBINIT_REVERSALMB_done_resp       : begin
+                if (current_state > MB_S6_FINALIZE_REQ_SEND) begin
+                    s6_rsp_rcvd <= 1'b1;
+                end
+            end
             default                           : clear_error_req <= 1'b0;
         endcase
     end
@@ -297,7 +337,7 @@ always_comb begin
 
             // S1 Readiness REQ
             MB_S1_READY_REQ_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S1_READY_REQ_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S1_READY_REQ_WAIT;
             end
             MB_S1_READY_REQ_WAIT: begin
                 if (s1_req_rcvd)    next_state = MB_S1_READY_RSP_SEND;
@@ -305,7 +345,7 @@ always_comb begin
 
             // S1 Readiness RSP
             MB_S1_READY_RSP_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S1_READY_RSP_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S1_READY_RSP_WAIT;
             end
             MB_S1_READY_RSP_WAIT: begin
                 if (s1_rsp_rcvd)    next_state = MB_S2_ERROR_RESET_REQ_SEND;
@@ -313,7 +353,7 @@ always_comb begin
 
             // S2 Error Reset REQ
             MB_S2_ERROR_RESET_REQ_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S2_ERROR_RESET_REQ_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S2_ERROR_RESET_REQ_WAIT;
             end
             MB_S2_ERROR_RESET_REQ_WAIT: begin
                 if (s2_req_rcvd)    next_state = MB_S2_ERROR_RESET_RSP_SEND;
@@ -321,7 +361,7 @@ always_comb begin
 
             // S2 Error Reset RSP
             MB_S2_ERROR_RESET_RSP_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S2_ERROR_RESET_RSP_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S2_ERROR_RESET_RSP_WAIT;
             end
             MB_S2_ERROR_RESET_RSP_WAIT: begin
                 if (s2_rsp_rcvd)    next_state = MB_S3_PATTERN_TRANSMISSION;
@@ -335,7 +375,7 @@ always_comb begin
 
             // S4 Result REQ
             MB_S4_RESULT_REQ_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S4_RESULT_REQ_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S4_RESULT_REQ_WAIT;
             end
             MB_S4_RESULT_REQ_WAIT: begin
                 if (s4_req_rcvd)    next_state = MB_S4_RESULT_RSP_SEND;
@@ -343,7 +383,7 @@ always_comb begin
 
             // S4 Result RSP
             MB_S4_RESULT_RSP_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S4_RESULT_RSP_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S4_RESULT_RSP_WAIT;
             end
             MB_S4_RESULT_RSP_WAIT: begin
                 if (s4_rsp_rcvd)    next_state = MB_S5_DECISION;
@@ -361,7 +401,7 @@ always_comb begin
 
             // S6 Finalize REQ
             MB_S6_FINALIZE_REQ_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S6_FINALIZE_REQ_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S6_FINALIZE_REQ_WAIT;
             end
             MB_S6_FINALIZE_REQ_WAIT: begin
                 if (s6_req_rcvd)    next_state = MB_S6_FINALIZE_RSP_SEND;
@@ -369,7 +409,7 @@ always_comb begin
 
             // S6 Finalize RSP
             MB_S6_FINALIZE_RSP_SEND: begin
-                if (ltsm_rdy)       next_state = MB_S6_FINALIZE_RSP_WAIT;
+                if (sb_ltsm_rdy)       next_state = MB_S6_FINALIZE_RSP_WAIT;
             end
             MB_S6_FINALIZE_RSP_WAIT: begin
                 if (s6_rsp_rcvd)    next_state = MB_S8_REVERSAL_DONE;
@@ -392,51 +432,52 @@ end
 // TX SB LOGIC
 ////////////////////////////////////////////////////////
 always_comb begin
-    mb_reversal_tx_valid      = 1'b0;
-    mb_reversal_tx_msg_id     = msg_no_e'(NOTHING);
-    mb_reversal_tx_MsgInfo    = MB_default_MSG_Info;
-    mb_reversal_tx_data_Field = MB_default_data_Field;
+    sb_reversal_tx_valid      = 1'b0;
+    sb_reversal_tx_msg_id     = msg_no_e'(NOTHING);
+    sb_reversal_tx_MsgInfo    = MB_default_MSG_Info;
+    sb_reversal_tx_data_Field = MB_default_data_Field;
 
     case (current_state)
+
         MB_S1_READY_REQ_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_init_req;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_init_req;
         end
 
         MB_S1_READY_RSP_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_init_resp;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_init_resp;
         end
 
         MB_S2_ERROR_RESET_REQ_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_clear_error_req;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_clear_error_req;
         end
 
         MB_S2_ERROR_RESET_RSP_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_clear_error_resp;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_clear_error_resp;
         end
 
         MB_S4_RESULT_REQ_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_result_req;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_result_req;
         end
 
         MB_S4_RESULT_RSP_SEND: begin
-            mb_reversal_tx_valid      = 1'b1;
-            mb_reversal_tx_msg_id     = MBINIT_REVERSALMB_result_resp;
-            mb_reversal_tx_data_Field = MB_local_result_exchange_data_Field;
+            sb_reversal_tx_valid      = 1'b1;
+            sb_reversal_tx_msg_id     = MBINIT_REVERSALMB_result_resp;
+            sb_reversal_tx_data_Field = MB_local_result_exchange_data_Field;
         end
 
         MB_S6_FINALIZE_REQ_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_done_req;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_done_req;
         end
 
         MB_S6_FINALIZE_RSP_SEND: begin
-            mb_reversal_tx_valid  = 1'b1;
-            mb_reversal_tx_msg_id = MBINIT_REVERSALMB_done_resp;
+            sb_reversal_tx_valid  = 1'b1;
+            sb_reversal_tx_msg_id = MBINIT_REVERSALMB_done_resp;
         end
 
         default: begin
@@ -497,28 +538,28 @@ end
     // 1. Handshake Integrity: No init_resp sent without init_req received first
     property p_tx_start_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_init_resp) |-> s1_req_rcvd;
+        (sb_reversal_tx_valid && sb_reversal_tx_msg_id == MBINIT_REVERSALMB_init_resp) |-> s1_req_rcvd;
     endproperty
     assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
 
     // 2. Handshake Integrity: No clear_error_resp sent without clear_error_req received first
-    property p_tx_clear_resp_after_req;
+    property p_tx_clear_error_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_clear_error_resp) |-> s2_req_rcvd;
+        (sb_reversal_tx_valid && sb_reversal_tx_msg_id == MBINIT_REVERSALMB_clear_error_resp) |-> s2_req_rcvd;
     endproperty
-    assert_tx_clear_resp_after_req: assert property(p_tx_clear_resp_after_req);
+    assert_tx_clear_error_resp_after_req: assert property(p_tx_clear_error_resp_after_req);
 
     // 3. Handshake Integrity: No result_resp sent without result_req received first
-    property p_tx_result_resp_after_req;
+    property p_tx_degrade_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_resp) |-> s4_req_rcvd;
+        (sb_reversal_tx_valid && sb_reversal_tx_msg_id == MBINIT_REVERSALMB_result_resp) |-> s4_req_rcvd;
     endproperty
-    assert_tx_result_resp_after_req: assert property(p_tx_result_resp_after_req);
+    assert_tx_degrade_resp_after_req: assert property(p_tx_degrade_resp_after_req);
 
     // 4. Handshake Integrity: No done_resp sent without done_req received first
     property p_tx_end_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_reversal_tx_valid && mb_reversal_tx_msg_id == MBINIT_REVERSALMB_done_resp) |-> s6_req_rcvd;
+        (sb_reversal_tx_valid && sb_reversal_tx_msg_id == MBINIT_REVERSALMB_done_resp) |-> s6_req_rcvd;
     endproperty
     assert_tx_end_resp_after_req: assert property(p_tx_end_resp_after_req);
 
@@ -550,14 +591,14 @@ end
     endproperty
     assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
 
-    // 9. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    // 9. Protocol Rule: Sideband TX stability until sb_ltsm_rdy asserts
     property p_tx_stability_until_rdy;
         @(posedge clk) disable iff (!rst_n || !mb_reversal_enable)
-        (mb_reversal_tx_valid && !ltsm_rdy) |-> 
-        ##1 (mb_reversal_tx_valid && 
-             $stable(mb_reversal_tx_msg_id) && 
-             $stable(mb_reversal_tx_MsgInfo) && 
-             $stable(mb_reversal_tx_data_Field));
+        (sb_reversal_tx_valid && !sb_ltsm_rdy) |-> 
+        ##1 (sb_reversal_tx_valid && 
+             $stable(sb_reversal_tx_msg_id) && 
+             $stable(sb_reversal_tx_MsgInfo) && 
+             $stable(sb_reversal_tx_data_Field));
     endproperty
     assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
 
