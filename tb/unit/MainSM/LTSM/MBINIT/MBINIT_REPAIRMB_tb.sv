@@ -71,6 +71,8 @@ module MBINIT_REPAIRMB_tb;
     logic         m_timeout_repair_enable;
     logic         p_timeout_repair_expired;
     logic         p_timeout_repair_enable;
+    assign m_timeout_repair_enable = m_enable;
+    assign p_timeout_repair_enable = p_enable;
 
     // PHY status signals (monitored)
     logic         m_tx_valid_status, m_tx_track_status, m_tx_clk_status, m_tx_data_status;
@@ -120,23 +122,22 @@ module MBINIT_REPAIRMB_tb;
         .mb_repairmb_error(m_error),
 
         // RX
-        .mb_repairmb_rx_valid(p_tx_valid),
-        .mb_repairmb_rx_msg_id(p_tx_msg_id),
-        .mb_repairmb_rx_MsgInfo(p_tx_MsgInfo),
-        .mb_repairmb_rx_data_Field(p_tx_data_Field),
+        .sb_repairmb_rx_valid(p_tx_valid),
+        .sb_repairmb_rx_msg_id(p_tx_msg_id),
+        .sb_repairmb_rx_MsgInfo(p_tx_MsgInfo),
+        .sb_repairmb_rx_data_Field(p_tx_data_Field),
 
         // TX
-        .mb_repairmb_tx_valid(m_tx_valid),
-        .mb_repairmb_tx_msg_id(m_tx_msg_id),
-        .mb_repairmb_tx_MsgInfo(m_tx_MsgInfo),
-        .mb_repairmb_tx_data_Field(m_tx_data_Field),
+        .sb_repairmb_tx_valid(m_tx_valid),
+        .sb_repairmb_tx_msg_id(m_tx_msg_id),
+        .sb_repairmb_tx_MsgInfo(m_tx_MsgInfo),
+        .sb_repairmb_tx_data_Field(m_tx_data_Field),
 
         // Timer
-        .timeout_repair_expired(m_timeout_repair_expired),
-        .timeout_repair_enable(m_timeout_repair_enable),
+        .global_error(m_timeout_repair_expired),
 
         // FIFO ready
-        .ltsm_rdy(m_ltsm_rdy),
+        .sb_ltsm_rdy(m_ltsm_rdy),
 
         // d2cptest
         .tx_pt_en(m_tx_pt_en),
@@ -163,23 +164,22 @@ module MBINIT_REPAIRMB_tb;
         .mb_repairmb_error(p_error),
 
         // RX
-        .mb_repairmb_rx_valid(m_tx_valid),
-        .mb_repairmb_rx_msg_id(m_tx_msg_id),
-        .mb_repairmb_rx_MsgInfo(m_tx_MsgInfo),
-        .mb_repairmb_rx_data_Field(m_tx_data_Field),
+        .sb_repairmb_rx_valid(m_tx_valid),
+        .sb_repairmb_rx_msg_id(m_tx_msg_id),
+        .sb_repairmb_rx_MsgInfo(m_tx_MsgInfo),
+        .sb_repairmb_rx_data_Field(m_tx_data_Field),
 
         // TX
-        .mb_repairmb_tx_valid(p_tx_valid),
-        .mb_repairmb_tx_msg_id(p_tx_msg_id),
-        .mb_repairmb_tx_MsgInfo(p_tx_MsgInfo),
-        .mb_repairmb_tx_data_Field(p_tx_data_Field),
+        .sb_repairmb_tx_valid(p_tx_valid),
+        .sb_repairmb_tx_msg_id(p_tx_msg_id),
+        .sb_repairmb_tx_MsgInfo(p_tx_MsgInfo),
+        .sb_repairmb_tx_data_Field(p_tx_data_Field),
 
         // Timer
-        .timeout_repair_expired(p_timeout_repair_expired),
-        .timeout_repair_enable(p_timeout_repair_enable),
+        .global_error(p_timeout_repair_expired),
 
         // FIFO ready
-        .ltsm_rdy(p_ltsm_rdy),
+        .sb_ltsm_rdy(p_ltsm_rdy),
 
         // d2cptest
         .tx_pt_en(p_tx_pt_en),
@@ -666,7 +666,7 @@ module MBINIT_REPAIRMB_tb;
         m_enable = 1'b1;
         p_enable = 1'b1;
 
-        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
         repeat(5) @(posedge clk);
         // S2 Run 1:
         // Master Rx has no errors -> m_d2c_perlane_pass = 16'hFFFF (Master Tx wants x16)
@@ -680,33 +680,32 @@ module MBINIT_REPAIRMB_tb;
         m_test_d2c_done = 1'b0;
         p_test_d2c_done = 1'b0;
 
-        // Wait until Master reaches MB_S5_FINALIZE_REQ_WAIT (since Master Tx didn't change, it doesn't retry)
-        wait (master.current_state == master.MB_S5_FINALIZE_REQ_WAIT);
-        $display("  -> Master reached S5 finalize wait successfully! Master Tx mask = %b, Rx mask = %b", 
-                 master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
+        // Since Master Tx changed to match Partner Rx (from x16 to lower x8), both Master and Partner will retry!
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered on both sides successfully!");
+        $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
+        $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
+
         if (master.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Master Tx mask should be 3'b011!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001!");
-
-        // Wait until Partner starts its retry run in S2
-        wait (partner.current_state == partner.MB_S2_D2C_POINT_TEST);
-        repeat(5) @(posedge clk);
-        $display("  -> Partner retry triggered successfully! Partner Tx mask = %b, Rx mask = %b", 
-                 partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
         if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Tx mask should be 3'b001!");
         if (partner.mbinit_rx_data_lane_mask_r != 3'b011) $error("ERROR: Partner Rx mask should be 3'b011!");
 
-        // Drive S2 Run 2 for Partner:
-        // Partner Rx listens to Master Tx (x16) -> passes -> p_d2c_perlane_pass = 16'hFFFF
+        // Drive S2 Run 2 for both Master and Partner:
+        m_d2c_perlane_pass = 16'hFFFF;
         p_d2c_perlane_pass = 16'hFFFF;
+        m_test_d2c_done = 1'b1;
         p_test_d2c_done = 1'b1;
         @(posedge clk);
+        m_test_d2c_done = 1'b0;
         p_test_d2c_done = 1'b0;
 
         // Both sides finish training successfully
         wait (m_done && p_done);
         $display("  -> Independent pair training completed successfully! Master Tx mask = %b, Partner Tx mask = %b", 
                  master.mbinit_tx_data_lane_mask_r, partner.mbinit_tx_data_lane_mask_r);
-        if (master.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Master final Tx map is not 3'b011!");
+        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master final Tx map is not 3'b001!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner final Tx map is not 3'b001!");
 
         m_enable = 1'b0;
@@ -721,7 +720,7 @@ module MBINIT_REPAIRMB_tb;
         m_enable = 1'b1;
         p_enable = 1'b1;
 
-        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
         repeat(5) @(posedge clk);
         // S2 Run 1:
         // Master Rx has error on Lane 10 -> m_d2c_perlane_pass = 16'h00FF (Master Tx wants lower x8)
@@ -735,34 +734,33 @@ module MBINIT_REPAIRMB_tb;
         m_test_d2c_done = 1'b0;
         p_test_d2c_done = 1'b0;
 
-        // Wait until Partner reaches MB_S5_FINALIZE_REQ_WAIT (since Partner Tx didn't change, it doesn't retry)
-        wait (partner.current_state == partner.MB_S5_FINALIZE_REQ_WAIT);
-        $display("  -> Partner reached S5 finalize wait successfully! Partner Tx mask = %b, Rx mask = %b", 
-                 partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
+        // Since Partner Tx changed to match Master Rx (from x16 to lower x8), both Master and Partner will retry!
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered on both sides successfully!");
+        $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
+        $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
+
+        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001!");
+        if (master.mbinit_rx_data_lane_mask_r != 3'b011) $error("ERROR: Master Rx mask should be 3'b011!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Partner Tx mask should be 3'b011!");
         if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001!");
 
-        // Wait until Master starts its retry run in S2
-        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
-        repeat(5) @(posedge clk);
-        $display("  -> Master retry triggered successfully! Master Tx mask = %b, Rx mask = %b", 
-                 master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
-        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001!");
-        if (master.mbinit_rx_data_lane_mask_r != 3'b011) $error("ERROR: Master Rx mask should be 3'b011!");
-
-        // Drive S2 Run 2 for Master:
-        // Master Rx listens to Partner Tx (x16) -> passes -> m_d2c_perlane_pass = 16'hFFFF
+        // Drive S2 Run 2 for both Master and Partner:
         m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFFF;
         m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
         @(posedge clk);
         m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
 
         // Both sides finish training successfully
         wait (m_done && p_done);
         $display("  -> Independent pair training completed successfully! Master Tx mask = %b, Partner Tx mask = %b", 
                  master.mbinit_tx_data_lane_mask_r, partner.mbinit_tx_data_lane_mask_r);
         if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master final Tx map is not 3'b001!");
-        if (partner.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Partner final Tx map is not 3'b011!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner final Tx map is not 3'b001!");
 
         m_enable = 1'b0;
         p_enable = 1'b0;

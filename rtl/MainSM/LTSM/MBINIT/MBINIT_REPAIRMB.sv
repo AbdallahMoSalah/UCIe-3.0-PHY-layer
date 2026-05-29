@@ -26,22 +26,22 @@ module MBINIT_REPAIRMB
     output logic mb_repairmb_error,
 
     // RX Sideband Interface
-    input  logic            mb_repairmb_rx_valid,
-    input  msg_no_e         mb_repairmb_rx_msg_id,
-    input  logic    [15:0]  mb_repairmb_rx_MsgInfo,
-    input  logic    [63:0]  mb_repairmb_rx_data_Field,
+    input  logic            sb_repairmb_rx_valid,
+    input  msg_no_e         sb_repairmb_rx_msg_id,
+    input  logic    [15:0]  sb_repairmb_rx_MsgInfo,
+    input  logic    [63:0]  sb_repairmb_rx_data_Field,
 
     // TX Sideband Interface
-    output logic            mb_repairmb_tx_valid,
-    output msg_no_e         mb_repairmb_tx_msg_id,
-    output logic    [15:0]  mb_repairmb_tx_MsgInfo,
-    output logic    [63:0]  mb_repairmb_tx_data_Field,
+    output logic            sb_repairmb_tx_valid,
+    output msg_no_e         sb_repairmb_tx_msg_id,
+    output logic    [15:0]  sb_repairmb_tx_MsgInfo,
+    output logic    [63:0]  sb_repairmb_tx_data_Field,
 
     // Timer / Global Error signals
     input  logic            global_error,
 
     // FIFO handshake
-    input  logic            ltsm_rdy,
+    input  logic            sb_ltsm_rdy,
 
 
     // d2cptest interface
@@ -193,9 +193,34 @@ module MBINIT_REPAIRMB
         aligned_rx = degrade_map_to_width(mbinit_rx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
     end
 
-    assign mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
-    assign mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
+    always_comb begin
+        mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
+        mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
+        if (current_state == MB_S0_IDLE) begin
+            mbinit_rx_data_lane_mask = 3'b011;
+            mbinit_tx_data_lane_mask = 3'b011;
+        end
+        else begin
+            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+                mbinit_tx_data_lane_mask = local_lane_map;
+            end
+            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
+                mbinit_rx_data_lane_mask = sb_repairmb_rx_MsgInfo[2:0];
+            end
 
+            if (current_state == MB_S8_ALIGN_CHECK) begin
+                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
+                    mbinit_rx_data_lane_mask = 3'b000;
+                    mbinit_tx_data_lane_mask = 3'b000;
+                end
+                else begin
+                    mbinit_rx_data_lane_mask = aligned_rx;
+                    mbinit_tx_data_lane_mask = aligned_tx;
+                end
+            end
+        end
+    end
+    
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             mbinit_rx_data_lane_mask_r <= 3'b011;
@@ -209,8 +234,8 @@ module MBINIT_REPAIRMB
             if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
                 mbinit_tx_data_lane_mask_r <= local_lane_map;
             end
-            if (mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask_r <= mb_repairmb_rx_MsgInfo[2:0];
+            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
+                mbinit_rx_data_lane_mask_r <= sb_repairmb_rx_MsgInfo[2:0];
             end
 
             if (current_state == MB_S8_ALIGN_CHECK) begin
@@ -377,26 +402,36 @@ module MBINIT_REPAIRMB
             end
 
             // Capture partner sideband messages
-            if (mb_repairmb_rx_valid) begin
-                case (mb_repairmb_rx_msg_id)
-                    MBINIT_REPAIRMB_start_req: begin
+            if (sb_repairmb_rx_valid) begin
+                case (sb_repairmb_rx_msg_id)
+                    MBINIT_REPAIRMB_start_req    : begin
                         s1_req_rcvd <= 1'b1;
                     end
-                    MBINIT_REPAIRMB_start_resp: begin
-                        s1_rsp_rcvd <= 1'b1;
+                    MBINIT_REPAIRMB_start_resp   : begin
+                        if (current_state > MB_S1_READY_REQ_SEND) begin
+                            s1_rsp_rcvd <= 1'b1;
+                        end
                     end
                     MBINIT_REPAIRMB_apply_degrade_req: begin
-                        s3_req_rcvd      <= 1'b1;
-                        partner_lane_map <= mb_repairmb_rx_MsgInfo[2:0];
+                        if (current_state > MB_S1_READY_RSP_SEND && s1_rsp_rcvd) begin
+                            s3_req_rcvd      <= 1'b1;
+                            partner_lane_map <= sb_repairmb_rx_MsgInfo[2:0];
+                        end
                     end
                     MBINIT_REPAIRMB_apply_degrade_resp: begin
-                        s3_rsp_rcvd <= 1'b1;
+                        if (current_state > MB_S3_DEGRADE_REQ_SEND) begin
+                            s3_rsp_rcvd <= 1'b1;
+                        end
                     end
                     MBINIT_REPAIRMB_end_req: begin
-                        s5_req_rcvd <= 1'b1;
+                        if (current_state > MB_S3_DEGRADE_RSP_SEND && s3_rsp_rcvd) begin
+                            s5_req_rcvd <= 1'b1;
+                        end
                     end
                     MBINIT_REPAIRMB_end_resp: begin
-                        s5_rsp_rcvd <= 1'b1;
+                        if (current_state > MB_S5_FINALIZE_REQ_SEND) begin
+                            s5_rsp_rcvd <= 1'b1;
+                        end
                     end
                     default: ;
                 endcase
@@ -416,11 +451,11 @@ module MBINIT_REPAIRMB
             s5_degrade_rsp_pending <= 1'b0;
         end
         else begin
-            if (current_state == MB_S5_FINALIZE_REQ_WAIT && 
-                mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
+            if (current_state == MB_S5_FINALIZE_REQ_WAIT &&
+                sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
                 s5_degrade_rsp_pending <= 1'b1;
             end
-            else if (current_state == MB_S3_DEGRADE_RSP_SEND && ltsm_rdy) begin
+            else if (current_state == MB_S3_DEGRADE_RSP_SEND && sb_ltsm_rdy) begin
                 s5_degrade_rsp_pending <= 1'b0;
             end
         end
@@ -487,7 +522,7 @@ module MBINIT_REPAIRMB
 
                 // ── S1 Readiness REQ ──
                 MB_S1_READY_REQ_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S1_READY_REQ_WAIT;
+                    if (sb_ltsm_rdy)       next_state = MB_S1_READY_REQ_WAIT;
                 end
                 MB_S1_READY_REQ_WAIT: begin
                     if (s1_req_rcvd)    next_state = MB_S1_READY_RSP_SEND;
@@ -495,7 +530,7 @@ module MBINIT_REPAIRMB
 
                 // ── S1 Readiness RSP ──
                 MB_S1_READY_RSP_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S1_READY_RSP_WAIT;
+                    if (sb_ltsm_rdy)       next_state = MB_S1_READY_RSP_WAIT;
                 end
                 MB_S1_READY_RSP_WAIT: begin
                     if (s1_rsp_rcvd)    next_state = MB_S2_D2C_POINT_TEST;
@@ -509,7 +544,7 @@ module MBINIT_REPAIRMB
 
                 // ── S3 Degrade REQ ──
                 MB_S3_DEGRADE_REQ_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S3_DEGRADE_REQ_WAIT;
+                    if (sb_ltsm_rdy)       next_state = MB_S3_DEGRADE_REQ_WAIT;
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
                     if (s3_req_rcvd)
@@ -520,7 +555,7 @@ module MBINIT_REPAIRMB
 
                 // ── S3 Degrade RSP ──
                 MB_S3_DEGRADE_RSP_SEND: begin
-                    if (ltsm_rdy) begin
+                    if (sb_ltsm_rdy) begin
                         if (s5_degrade_rsp_pending)
                             next_state = MB_S5_FINALIZE_REQ_WAIT;
                         else
@@ -549,10 +584,10 @@ module MBINIT_REPAIRMB
 
                 // ── S5 Finalize REQ ──
                 MB_S5_FINALIZE_REQ_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S5_FINALIZE_REQ_WAIT;
+                    if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_REQ_WAIT;
                 end
                 MB_S5_FINALIZE_REQ_WAIT: begin
-                    if (mb_repairmb_rx_valid && (mb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req))
+                    if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req))
                         next_state = MB_S3_DEGRADE_RSP_SEND;
                     else if (s5_req_rcvd)
                         next_state = MB_S5_FINALIZE_RSP_SEND;
@@ -560,7 +595,7 @@ module MBINIT_REPAIRMB
 
                 // ── S5 Finalize RSP ──
                 MB_S5_FINALIZE_RSP_SEND: begin
-                    if (ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
+                    if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
                 end
                 MB_S5_FINALIZE_RSP_WAIT: begin
                     if (s5_rsp_rcvd)    next_state = MB_S8_ALIGN_CHECK;
@@ -592,41 +627,42 @@ module MBINIT_REPAIRMB
     // TX SIDEBAND MESSAGE CONTROLS
     ////////////////////////////////////////////////////////
     always_comb begin
-        mb_repairmb_tx_valid      = 1'b0;
-        mb_repairmb_tx_msg_id     = msg_no_e'(NOTHING);
-        mb_repairmb_tx_MsgInfo    = MB_default_MSG_Info;
-        mb_repairmb_tx_data_Field = MB_default_data_Field;
+        sb_repairmb_tx_valid      = 1'b0;
+        sb_repairmb_tx_msg_id     = msg_no_e'(NOTHING);
+        sb_repairmb_tx_MsgInfo    = MB_default_MSG_Info;
+        sb_repairmb_tx_data_Field = MB_default_data_Field;
 
         case (current_state)
+
             MB_S1_READY_REQ_SEND: begin
-                mb_repairmb_tx_valid  = 1'b1;
-                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_start_req;
+                sb_repairmb_tx_valid  = 1'b1;
+                sb_repairmb_tx_msg_id = MBINIT_REPAIRMB_start_req;
             end
 
             MB_S1_READY_RSP_SEND: begin
-                mb_repairmb_tx_valid  = 1'b1;
-                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_start_resp;
+                sb_repairmb_tx_valid  = 1'b1;
+                sb_repairmb_tx_msg_id = MBINIT_REPAIRMB_start_resp;
             end
 
             MB_S3_DEGRADE_REQ_SEND: begin
-                mb_repairmb_tx_valid   = 1'b1;
-                mb_repairmb_tx_msg_id  = MBINIT_REPAIRMB_apply_degrade_req;
-                mb_repairmb_tx_MsgInfo = {13'b0, local_lane_map};
+                sb_repairmb_tx_valid   = 1'b1;
+                sb_repairmb_tx_msg_id  = MBINIT_REPAIRMB_apply_degrade_req;
+                sb_repairmb_tx_MsgInfo = {13'b0, local_lane_map};
             end
 
             MB_S3_DEGRADE_RSP_SEND: begin
-                mb_repairmb_tx_valid  = 1'b1;
-                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_apply_degrade_resp;
+                sb_repairmb_tx_valid  = 1'b1;
+                sb_repairmb_tx_msg_id = MBINIT_REPAIRMB_apply_degrade_resp;
             end
 
             MB_S5_FINALIZE_REQ_SEND: begin
-                mb_repairmb_tx_valid  = 1'b1;
-                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_end_req;
+                sb_repairmb_tx_valid  = 1'b1;
+                sb_repairmb_tx_msg_id = MBINIT_REPAIRMB_end_req;
             end
 
             MB_S5_FINALIZE_RSP_SEND: begin
-                mb_repairmb_tx_valid  = 1'b1;
-                mb_repairmb_tx_msg_id = MBINIT_REPAIRMB_end_resp;
+                sb_repairmb_tx_valid  = 1'b1;
+                sb_repairmb_tx_msg_id = MBINIT_REPAIRMB_end_resp;
             end
 
             default: ;
@@ -686,21 +722,21 @@ module MBINIT_REPAIRMB
         // 1. Handshake Integrity: No start_resp sent without start_req received first
         property p_tx_start_resp_after_req;
             @(posedge clk) disable iff (!rst_n)
-            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_start_resp) |-> s1_req_rcvd;
+            (sb_repairmb_tx_valid && sb_repairmb_tx_msg_id == MBINIT_REPAIRMB_start_resp) |-> s1_req_rcvd;
         endproperty
         assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
 
         // 2. Handshake Integrity: No apply_degrade_resp sent without apply_degrade_req received first
         property p_tx_degrade_resp_after_req;
             @(posedge clk) disable iff (!rst_n)
-            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_apply_degrade_resp) |-> (s3_req_rcvd || s5_degrade_rsp_pending);
+            (sb_repairmb_tx_valid && sb_repairmb_tx_msg_id == MBINIT_REPAIRMB_apply_degrade_resp) |-> (s3_req_rcvd || s5_degrade_rsp_pending);
         endproperty
         assert_tx_degrade_resp_after_req: assert property(p_tx_degrade_resp_after_req);
 
         // 3. Handshake Integrity: No end_resp sent without end_req received first
         property p_tx_end_resp_after_req;
             @(posedge clk) disable iff (!rst_n)
-            (mb_repairmb_tx_valid && mb_repairmb_tx_msg_id == MBINIT_REPAIRMB_end_resp) |-> s5_req_rcvd;
+            (sb_repairmb_tx_valid && sb_repairmb_tx_msg_id == MBINIT_REPAIRMB_end_resp) |-> s5_req_rcvd;
         endproperty
         assert_tx_end_resp_after_req: assert property(p_tx_end_resp_after_req);
 
@@ -733,14 +769,14 @@ module MBINIT_REPAIRMB
         endproperty
         assert_first_test_uses_x16: assert property(p_first_test_uses_x16);
 
-        // 8. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+        // 8. Protocol Rule: Sideband TX stability until sb_ltsm_rdy asserts
         property p_tx_stability_until_rdy;
             @(posedge clk) disable iff (!rst_n || !mb_repairmb_enable)
-            (mb_repairmb_tx_valid && !ltsm_rdy) |-> 
-            ##1 (mb_repairmb_tx_valid && 
-                 $stable(mb_repairmb_tx_msg_id) && 
-                 $stable(mb_repairmb_tx_MsgInfo) && 
-                 $stable(mb_repairmb_tx_data_Field));
+            (sb_repairmb_tx_valid && !sb_ltsm_rdy) |-> 
+            ##1 (sb_repairmb_tx_valid && 
+                 $stable(sb_repairmb_tx_msg_id) && 
+                 $stable(sb_repairmb_tx_MsgInfo) && 
+                 $stable(sb_repairmb_tx_data_Field));
         endproperty
         assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
 
