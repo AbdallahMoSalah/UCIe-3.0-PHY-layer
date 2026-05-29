@@ -1,2 +1,0 @@
-var g_data = {"data":[{"n":"work.Mapper","id":2,"zf":1,"tc":51.83,"s":86.16,"b":65.95,"fc":0.00,"t":55.20},{"n":"work.Mapper_tb","id":1,"zf":1,"tc":77.50,"s":100.00,"t":55.01}]};
-processDuData(g_data);

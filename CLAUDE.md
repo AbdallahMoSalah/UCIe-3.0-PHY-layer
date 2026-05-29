@@ -18,7 +18,6 @@ Any vendor-defined parts are skipped.
 ## Features Supported
 1. Sideband Feature Extensions
 2. Sideband Performant Mode Operation
-3. x8 Width Mode
 
 ## Source of Truth
 Rely strictly on the user-uploaded UCIe Specification Rev 3.0. Do not assume or extrapolate beyond this document.

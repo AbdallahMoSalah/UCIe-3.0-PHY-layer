@@ -32,3 +32,4 @@ Agent
 vish_stacktrace.vstf
 rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv.bak
 tb/unit/MainSM/RDI_SM/unit_active_pmnak_state/.fuse_hidden0000047e00000003
+docs/MB/.$MainBand.drawio.bkp
