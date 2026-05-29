@@ -13,19 +13,19 @@ module MBINIT_CAL
     output logic mb_cal_error,
 
     // RX from partner
-    input  logic mb_cal_rx_valid,
-    input  msg_no_e mb_cal_rx_msg_id,
-    input  logic [15:0] mb_cal_rx_MsgInfo,
-    input  logic [63:0] mb_cal_rx_data_Field,
+    input  logic sb_cal_rx_valid,
+    input  msg_no_e sb_cal_rx_msg_id,
+    input  logic [15:0] sb_cal_rx_MsgInfo,
+    input  logic [63:0] sb_cal_rx_data_Field,
 
     // TX to partner
-    output logic mb_cal_tx_valid,
-    output msg_no_e mb_cal_tx_msg_id,
-    output logic [15:0] mb_cal_tx_MsgInfo,
-    output logic [63:0] mb_cal_tx_data_Field,
+    output logic sb_cal_tx_valid,
+    output msg_no_e sb_cal_tx_msg_id,
+    output logic [15:0] sb_cal_tx_MsgInfo,
+    output logic [63:0] sb_cal_tx_data_Field,
 
     // FIFO ready
-    input  logic ltsm_rdy,
+    input  logic sb_ltsm_rdy,
 
     // Timer / Global Error signals
     input  logic global_error
@@ -69,7 +69,7 @@ logic cal_rsp_rcvd;
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         cal_req_rcvd <= 0;
-    else if(mb_cal_rx_valid && mb_cal_rx_msg_id == MBINIT_CAL_Done_req)
+    else if(sb_cal_rx_valid && sb_cal_rx_msg_id == MBINIT_CAL_Done_req)
         cal_req_rcvd <= 1;
     else if(current_state != MB_S1_CAL_REQ_WAIT)
         cal_req_rcvd <= 0;
@@ -81,7 +81,7 @@ end
 always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         cal_rsp_rcvd <= 0;
-    else if(mb_cal_rx_valid && mb_cal_rx_msg_id == MBINIT_CAL_Done_resp)
+    else if(sb_cal_rx_valid && sb_cal_rx_msg_id == MBINIT_CAL_Done_resp && current_state > MB_S1_CAL_REQ_SEND)
         cal_rsp_rcvd <= 1;
     else if(current_state != MB_S1_CAL_RSP_WAIT)
         cal_rsp_rcvd <= 0;
@@ -117,7 +117,7 @@ always_comb begin
 
             // -- S1 CAL Request --
             MB_S1_CAL_REQ_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S1_CAL_REQ_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S1_CAL_REQ_WAIT;
             end
 
             MB_S1_CAL_REQ_WAIT: begin
@@ -126,7 +126,7 @@ always_comb begin
 
             // -- S1 CAL Response --
             MB_S1_CAL_RSP_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S1_CAL_RSP_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S1_CAL_RSP_WAIT;
             end
 
             MB_S1_CAL_RSP_WAIT: begin
@@ -151,24 +151,24 @@ end
 ////////////////////////////////////////////////////////
 always_comb begin
     // Default outputs.
-    mb_cal_tx_valid       = 1'b0;
-    mb_cal_tx_msg_id      = msg_no_e'(NOTHING);
-    mb_cal_tx_MsgInfo     = MB_default_MSG_Info;
-    mb_cal_tx_data_Field  = MB_default_data_Field;
+    sb_cal_tx_valid       = 1'b0;
+    sb_cal_tx_msg_id      = msg_no_e'(NOTHING);
+    sb_cal_tx_MsgInfo     = MB_default_MSG_Info;
+    sb_cal_tx_data_Field  = MB_default_data_Field;
 
     case(current_state)
         MB_S1_CAL_REQ_SEND: begin
-            mb_cal_tx_valid       = 1'b1;
-            mb_cal_tx_msg_id      = MBINIT_CAL_Done_req;
-            mb_cal_tx_MsgInfo     = MB_default_MSG_Info;
-            mb_cal_tx_data_Field  = MB_default_data_Field;    
+            sb_cal_tx_valid       = 1'b1;
+            sb_cal_tx_msg_id      = MBINIT_CAL_Done_req;
+            sb_cal_tx_MsgInfo     = MB_default_MSG_Info;
+            sb_cal_tx_data_Field  = MB_default_data_Field;    
         end
 
         MB_S1_CAL_RSP_SEND: begin
-            mb_cal_tx_valid       = 1'b1;
-            mb_cal_tx_msg_id      = MBINIT_CAL_Done_resp;
-            mb_cal_tx_MsgInfo     = MB_default_MSG_Info;
-            mb_cal_tx_data_Field  = MB_default_data_Field;    
+            sb_cal_tx_valid       = 1'b1;
+            sb_cal_tx_msg_id      = MBINIT_CAL_Done_resp;
+            sb_cal_tx_MsgInfo     = MB_default_MSG_Info;
+            sb_cal_tx_data_Field  = MB_default_data_Field;    
         end
 
         default: ; // Use defaults
@@ -196,7 +196,7 @@ end
     // 1. Handshake Integrity: No Done_resp sent without Done_req received first
     property p_tx_start_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_cal_tx_valid && mb_cal_tx_msg_id == MBINIT_CAL_Done_resp) |-> cal_req_rcvd;
+        (sb_cal_tx_valid && sb_cal_tx_msg_id == MBINIT_CAL_Done_resp) |-> cal_req_rcvd;
     endproperty
     assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
 
@@ -207,14 +207,14 @@ end
     endproperty
     assert_start_req_leads_to_resp_or_error: assert property(p_start_req_leads_to_resp_or_error);
 
-    // 3. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    // 3. Protocol Rule: Sideband TX stability until sb_ltsm_rdy asserts
     property p_tx_stability_until_rdy;
         @(posedge clk) disable iff (!rst_n || !mb_cal_enable)
-        (mb_cal_tx_valid && !ltsm_rdy) |-> 
-        ##1 (mb_cal_tx_valid && 
-             $stable(mb_cal_tx_msg_id) && 
-             $stable(mb_cal_tx_MsgInfo) && 
-             $stable(mb_cal_tx_data_Field));
+        (sb_cal_tx_valid && !sb_ltsm_rdy) |-> 
+        ##1 (sb_cal_tx_valid && 
+             $stable(sb_cal_tx_msg_id) && 
+             $stable(sb_cal_tx_MsgInfo) && 
+             $stable(sb_cal_tx_data_Field));
     endproperty
     assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
 

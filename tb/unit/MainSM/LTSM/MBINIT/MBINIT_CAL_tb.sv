@@ -88,19 +88,18 @@ MBINIT_CAL DUT_A (
     .mb_cal_done(A_done),
     .mb_cal_error(A_error),
 
-    .mb_cal_rx_valid(A_rx_valid),
-    .mb_cal_rx_msg_id(A_rx_msg_id),
-    .mb_cal_rx_MsgInfo(A_rx_msginfo),
-    .mb_cal_rx_data_Field(A_rx_data),
+    .sb_cal_rx_valid(A_rx_valid),
+    .sb_cal_rx_msg_id(A_rx_msg_id),
+    .sb_cal_rx_MsgInfo(A_rx_msginfo),
+    .sb_cal_rx_data_Field(A_rx_data),
 
-    .mb_cal_tx_valid(A_tx_valid),
-    .mb_cal_tx_msg_id(A_tx_msg_id),
-    .mb_cal_tx_MsgInfo(A_tx_msginfo),
-    .mb_cal_tx_data_Field(A_tx_data),
+    .sb_cal_tx_valid(A_tx_valid),
+    .sb_cal_tx_msg_id(A_tx_msg_id),
+    .sb_cal_tx_MsgInfo(A_tx_msginfo),
+    .sb_cal_tx_data_Field(A_tx_data),
 
-    .ltsm_rdy(1'b1),
-    .timeout_cal_enable(),
-    .timeout_cal_expired(1'b0)
+    .sb_ltsm_rdy(1'b1),
+    .global_error(1'b0)
 );
 
 ///////////////////////////////////////////////////////
@@ -116,19 +115,18 @@ MBINIT_CAL DUT_B (
     .mb_cal_done(B_done),
     .mb_cal_error(B_error),
 
-    .mb_cal_rx_valid(B_rx_valid),
-    .mb_cal_rx_msg_id(B_rx_msg_id),
-    .mb_cal_rx_MsgInfo(B_rx_msginfo),
-    .mb_cal_rx_data_Field(B_rx_data),
+    .sb_cal_rx_valid(B_rx_valid),
+    .sb_cal_rx_msg_id(B_rx_msg_id),
+    .sb_cal_rx_MsgInfo(B_rx_msginfo),
+    .sb_cal_rx_data_Field(B_rx_data),
 
-    .mb_cal_tx_valid(B_tx_valid),
-    .mb_cal_tx_msg_id(B_tx_msg_id),
-    .mb_cal_tx_MsgInfo(B_tx_msginfo),
-    .mb_cal_tx_data_Field(B_tx_data),
+    .sb_cal_tx_valid(B_tx_valid),
+    .sb_cal_tx_msg_id(B_tx_msg_id),
+    .sb_cal_tx_MsgInfo(B_tx_msginfo),
+    .sb_cal_tx_data_Field(B_tx_data),
 
-    .ltsm_rdy(1'b1),
-    .timeout_cal_enable(),
-    .timeout_cal_expired(1'b0)
+    .sb_ltsm_rdy(1'b1),
+    .global_error(1'b0)
 );
 
 ///////////////////////////////////////////////////////
