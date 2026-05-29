@@ -83,14 +83,8 @@ interface ucie_mb_cap_if;
         output negotiated_mtp
     );
 
-    modport consumer (
-        input use_x8_mode,
-        input negotiated_speed
-        //input negotiated_sbfe,
-        //input negotiated_tarr
-    );
-
     modport regfile (
+        // outputs
         output local_is_x8,
         output local_max_speed,
         output local_sbfe,
@@ -100,7 +94,30 @@ interface ucie_mb_cap_if;
         output local_pspt,
         output local_so,
         output local_pmo,
-        output local_mtp
+        output local_mtp,
+
+        // inputs
+        input  partner_is_x8,
+        input  partner_max_speed,
+        input  partner_sbfe,
+        input  partner_tarr,
+
+        input  partner_l2spd,
+        input  partner_pspt,
+        input  partner_so,
+        input  partner_pmo,
+        input  partner_mtp,
+
+        input  use_x8_mode,
+        input  negotiated_speed,
+        input  negotiated_sbfe,
+        input  negotiated_tarr,
+
+        input  negotiated_l2spd,
+        input  negotiated_pspt,
+        input  negotiated_so,
+        input  negotiated_pmo,
+        input  negotiated_mtp
     );
 
 endinterface
