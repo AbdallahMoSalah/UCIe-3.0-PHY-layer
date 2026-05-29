@@ -11,15 +11,15 @@ module MBINIT_REPAIRCLK
     output logic mb_repairclk_error,
 
     // sb interface for messages
-    input  logic mb_repairclk_rx_valid,
-    input  msg_no_e mb_repairclk_rx_msg_id,
-    input  logic [15:0] mb_repairclk_rx_MsgInfo,
-    input  logic [63:0] mb_repairclk_rx_data_Field,
+    input  logic sb_repairclk_rx_valid,
+    input  msg_no_e sb_repairclk_rx_msg_id,
+    input  logic [15:0] sb_repairclk_rx_MsgInfo,
+    input  logic [63:0] sb_repairclk_rx_data_Field,
 
-    output logic mb_repairclk_tx_valid,
-    output msg_no_e mb_repairclk_tx_msg_id,
-    output logic [15:0] mb_repairclk_tx_MsgInfo,
-    output logic [63:0] mb_repairclk_tx_data_Field,
+    output logic sb_repairclk_tx_valid,
+    output msg_no_e sb_repairclk_tx_msg_id,
+    output logic [15:0] sb_repairclk_tx_MsgInfo,
+    output logic [63:0] sb_repairclk_tx_data_Field,
 
     output logic       mb_tx_pattern_en      , // 1: Send pattern immediately, 0: Don't send pattern.
     output logic [2:0] mb_tx_pattern_setup   , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -34,7 +34,7 @@ module MBINIT_REPAIRCLK
     input logic mb_tx_pattern_count_done,
 
     // FIFO ready
-    input  logic ltsm_rdy,
+    input  logic sb_ltsm_rdy,
 
     // Timer / Global Error signals
     input  logic global_error
@@ -123,20 +123,38 @@ always_ff @(posedge clk or negedge rst_n) begin
         s4_rsp_rcvd            <= 1'b0;
         repairclk_result_local <= 3'b000;
         partner_compare_result <= 3'b111;
-    end else if (mb_repairclk_rx_valid) begin
-        case (mb_repairclk_rx_msg_id)
-            MBINIT_REPAIRCLK_init_req    : s1_req_rcvd <= 1'b1;
-            MBINIT_REPAIRCLK_init_resp   : s1_rsp_rcvd <= 1'b1;
+    end else if (sb_repairclk_rx_valid) begin
+        case (sb_repairclk_rx_msg_id)
+            MBINIT_REPAIRCLK_init_req    : begin
+                s1_req_rcvd <= 1'b1;
+            end
+            MBINIT_REPAIRCLK_init_resp   : begin
+                if (current_state > MB_S1_READY_REQ_SEND) begin
+                    s1_rsp_rcvd <= 1'b1;
+                end
+            end
             MBINIT_REPAIRCLK_result_req  : begin
-                s3_req_rcvd            <= 1'b1;
-                repairclk_result_local <= {rtrk_pass, rckn_pass, rckp_pass};
+                if (current_state > MB_S1_READY_RSP_SEND && s1_rsp_rcvd) begin
+                    s3_req_rcvd            <= 1'b1;
+                    repairclk_result_local <= {rtrk_pass, rckn_pass, rckp_pass};
+                end
             end
             MBINIT_REPAIRCLK_result_resp : begin
-                s3_rsp_rcvd            <= 1'b1;
-                partner_compare_result <= mb_repairclk_rx_MsgInfo[2:0];
+                if (current_state > MB_S3_RESULT_REQ_SEND) begin
+                    s3_rsp_rcvd            <= 1'b1;
+                    partner_compare_result <= sb_repairclk_rx_MsgInfo[2:0];
+                end
             end
-            MBINIT_REPAIRCLK_done_req    : s4_req_rcvd <= 1'b1;
-            MBINIT_REPAIRCLK_done_resp   : s4_rsp_rcvd <= 1'b1;
+            MBINIT_REPAIRCLK_done_req    : begin
+                if (current_state > MB_S3_RESULT_RSP_SEND && s3_rsp_rcvd) begin
+                    s4_req_rcvd <= 1'b1;
+                end
+            end
+            MBINIT_REPAIRCLK_done_resp   : begin
+                if (current_state > MB_S5_FINALIZE_REQ_SEND) begin
+                    s4_rsp_rcvd <= 1'b1;
+                end
+            end
             default                      : ; // ignore unrelated messages
         endcase
     end
@@ -173,14 +191,14 @@ always_comb begin
             end
             // S1 Readiness REQ
             MB_S1_READY_REQ_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S1_READY_REQ_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S1_READY_REQ_WAIT;
             end
             MB_S1_READY_REQ_WAIT: begin
                 if(s1_req_rcvd)        next_state = MB_S1_READY_RSP_SEND;
             end
             // S1 Readiness RSP
             MB_S1_READY_RSP_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S1_READY_RSP_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S1_READY_RSP_WAIT;
             end
             MB_S1_READY_RSP_WAIT: begin
                 if(s1_rsp_rcvd)        next_state = MB_S2_PATTERN_TRANSMISSION;
@@ -191,14 +209,14 @@ always_comb begin
             end
             // S3 Result REQ
             MB_S3_RESULT_REQ_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S3_RESULT_REQ_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S3_RESULT_REQ_WAIT;
             end
             MB_S3_RESULT_REQ_WAIT: begin
                 if(s3_req_rcvd)        next_state = MB_S3_RESULT_RSP_SEND;
             end
             // S3 Result RSP
             MB_S3_RESULT_RSP_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S3_RESULT_RSP_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S3_RESULT_RSP_WAIT;
             end
             MB_S3_RESULT_RSP_WAIT: begin
                 if(s3_rsp_rcvd)        next_state = MB_S4_ERROR_CHECK;
@@ -210,14 +228,14 @@ always_comb begin
             end
             // S5 Finalize REQ
             MB_S5_FINALIZE_REQ_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S5_FINALIZE_REQ_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S5_FINALIZE_REQ_WAIT;
             end
             MB_S5_FINALIZE_REQ_WAIT: begin
                 if(s4_req_rcvd)        next_state = MB_S5_FINALIZE_RSP_SEND;
             end
             // S5 Finalize RSP
             MB_S5_FINALIZE_RSP_SEND: begin
-                if(ltsm_rdy)           next_state = MB_S5_FINALIZE_RSP_WAIT;
+                if(sb_ltsm_rdy)           next_state = MB_S5_FINALIZE_RSP_WAIT;
             end
             MB_S5_FINALIZE_RSP_WAIT: begin
                 if(s4_rsp_rcvd)        next_state = MB_S7_REPAIRCLK_DONE;
@@ -241,39 +259,39 @@ end
 ////////////////////////////////////////////////////////
 always_comb begin
 
-        mb_repairclk_tx_valid = 0;
-        mb_repairclk_tx_msg_id = msg_no_e'(NOTHING);
-        mb_repairclk_tx_MsgInfo = MB_default_MSG_Info;
-        mb_repairclk_tx_data_Field = MB_default_data_Field;
+        sb_repairclk_tx_valid = 0;
+        sb_repairclk_tx_msg_id = msg_no_e'(NOTHING);
+        sb_repairclk_tx_MsgInfo = MB_default_MSG_Info;
+        sb_repairclk_tx_data_Field = MB_default_data_Field;
 
         case(current_state)
             MB_S1_READY_REQ_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_init_req;
-                mb_repairclk_tx_MsgInfo = MB_default_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_init_req;
+                sb_repairclk_tx_MsgInfo = MB_default_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;
             end
             MB_S1_READY_RSP_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_init_resp;
-                mb_repairclk_tx_MsgInfo = MB_default_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_init_resp;
+                sb_repairclk_tx_MsgInfo = MB_default_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;
             end
             MB_S3_RESULT_REQ_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_result_req;
-                mb_repairclk_tx_MsgInfo = MB_default_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;    
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_result_req;
+                sb_repairclk_tx_MsgInfo = MB_default_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;    
             end
             MB_S3_RESULT_RSP_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_result_resp;
-                mb_repairclk_tx_MsgInfo = MB_repairclk_result_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_result_resp;
+                sb_repairclk_tx_MsgInfo = MB_repairclk_result_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;
             end
             MB_S5_FINALIZE_REQ_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_done_req;
-                mb_repairclk_tx_MsgInfo = MB_default_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_done_req;
+                sb_repairclk_tx_MsgInfo = MB_default_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;
             end
             MB_S5_FINALIZE_RSP_SEND: begin
-                mb_repairclk_tx_valid = 1; mb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_done_resp;
-                mb_repairclk_tx_MsgInfo = MB_default_MSG_Info; mb_repairclk_tx_data_Field = MB_default_data_Field;
+                sb_repairclk_tx_valid = 1; sb_repairclk_tx_msg_id = MBINIT_REPAIRCLK_done_resp;
+                sb_repairclk_tx_MsgInfo = MB_default_MSG_Info; sb_repairclk_tx_data_Field = MB_default_data_Field;
             end
             default: begin
-                mb_repairclk_tx_valid = 0; mb_repairclk_tx_msg_id = msg_no_e'(NOTHING);
-                mb_repairclk_tx_MsgInfo = 0; mb_repairclk_tx_data_Field = 0;
+                sb_repairclk_tx_valid = 0; sb_repairclk_tx_msg_id = msg_no_e'(NOTHING);
+                sb_repairclk_tx_MsgInfo = 0; sb_repairclk_tx_data_Field = 0;
             end
         endcase
 end
@@ -338,21 +356,21 @@ end
     // 1. Handshake Integrity: No init_resp sent without init_req received first
     property p_tx_start_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_init_resp) |-> s1_req_rcvd;
+        (sb_repairclk_tx_valid && sb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_init_resp) |-> s1_req_rcvd;
     endproperty
     assert_tx_start_resp_after_req: assert property(p_tx_start_resp_after_req);
 
     // 2. Handshake Integrity: No result_resp sent without result_req received first
     property p_tx_degrade_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_resp) |-> s3_req_rcvd;
+        (sb_repairclk_tx_valid && sb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_result_resp) |-> s3_req_rcvd;
     endproperty
     assert_tx_degrade_resp_after_req: assert property(p_tx_degrade_resp_after_req);
 
     // 3. Handshake Integrity: No done_resp sent without done_req received first
     property p_tx_end_resp_after_req;
         @(posedge clk) disable iff (!rst_n)
-        (mb_repairclk_tx_valid && mb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_done_resp) |-> s4_req_rcvd;
+        (sb_repairclk_tx_valid && sb_repairclk_tx_msg_id == MBINIT_REPAIRCLK_done_resp) |-> s4_req_rcvd;
     endproperty
     assert_tx_end_resp_after_req: assert property(p_tx_end_resp_after_req);
 
@@ -377,14 +395,14 @@ end
     endproperty
     assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
 
-    // 7. Protocol Rule: Sideband TX stability until ltsm_rdy asserts
+    // 7. Protocol Rule: Sideband TX stability until sb_ltsm_rdy asserts
     property p_tx_stability_until_rdy;
         @(posedge clk) disable iff (!rst_n || !mb_repairclk_enable)
-        (mb_repairclk_tx_valid && !ltsm_rdy) |-> 
-        ##1 (mb_repairclk_tx_valid && 
-             $stable(mb_repairclk_tx_msg_id) && 
-             $stable(mb_repairclk_tx_MsgInfo) && 
-             $stable(mb_repairclk_tx_data_Field));
+        (sb_repairclk_tx_valid && !sb_ltsm_rdy) |-> 
+        ##1 (sb_repairclk_tx_valid && 
+             $stable(sb_repairclk_tx_msg_id) && 
+             $stable(sb_repairclk_tx_MsgInfo) && 
+             $stable(sb_repairclk_tx_data_Field));
     endproperty
     assert_tx_stability_until_rdy: assert property(p_tx_stability_until_rdy);
 

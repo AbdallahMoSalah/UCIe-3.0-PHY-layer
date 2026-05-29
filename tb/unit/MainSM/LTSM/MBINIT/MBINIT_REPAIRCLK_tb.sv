@@ -47,6 +47,9 @@ module MBINIT_REPAIRCLK_tb;
     logic        ltsm_rdy;
     logic        timeout_repairclk_expired;
     logic        timeout_repairclk_enable;
+    assign timeout_repairclk_enable = mb_repairclk_enable && !mb_repairclk_done && !mb_repairclk_error;
+    logic        global_error;
+    assign global_error = timeout_repairclk_expired;
 
     int errors;
     int checks;
@@ -62,7 +65,31 @@ module MBINIT_REPAIRCLK_tb;
     end
 
     // Instantiate DUT
-    MBINIT_REPAIRCLK dut (.*);
+    MBINIT_REPAIRCLK dut (
+        .clk,
+        .rst_n,
+        .mb_repairclk_enable,
+        .mb_repairclk_done,
+        .mb_repairclk_error,
+        .sb_repairclk_rx_valid     (mb_repairclk_rx_valid),
+        .sb_repairclk_rx_msg_id    (mb_repairclk_rx_msg_id),
+        .sb_repairclk_rx_MsgInfo   (mb_repairclk_rx_MsgInfo),
+        .sb_repairclk_rx_data_Field(mb_repairclk_rx_data_Field),
+        .sb_repairclk_tx_valid     (mb_repairclk_tx_valid),
+        .sb_repairclk_tx_msg_id    (mb_repairclk_tx_msg_id),
+        .sb_repairclk_tx_MsgInfo   (mb_repairclk_tx_MsgInfo),
+        .sb_repairclk_tx_data_Field(mb_repairclk_tx_data_Field),
+        .mb_tx_pattern_en,
+        .mb_tx_pattern_setup,
+        .mb_rx_compare_en,
+        .mb_rx_compare_setup,
+        .rtrk_pass,
+        .rckn_pass,
+        .rckp_pass,
+        .mb_tx_pattern_count_done,
+        .sb_ltsm_rdy               (ltsm_rdy),
+        .global_error
+    );
 
     // ========================================================================
     // Helper Tasks
