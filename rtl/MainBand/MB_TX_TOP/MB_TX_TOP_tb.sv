@@ -2,31 +2,49 @@
 // Testbench : MB_TX_TOP_tb
 // DUT       : MB_TX_TOP
 //
-//  All DUT sub-modules (Mapper, LFSR_TX, VALID_TX, CLK_PATTERN_GEN_TX,
-//  MB_SERIALIZER) are clocked by o_pll_clk (output of MB_PLL).
-//  Therefore the PLL is enabled BEFORE reset is released, and every
-//  stimulus / sampling task is synchronised to o_pll_clk.
+//  Clock domains
+//  ─────────────
+//  i_mb_clk  (500 MHz, 2 ns period)
+//      → MB_PLL ref, Mapper, LFSR_TX, VALID_TX,
+//        mb_clk port of every MB_SERIALIZER.
 //
-//  i_mb_clk drives only the MB_PLL reference input (500 MHz).
-//  i_pll_speed_sel = 00 → 2 GHz o_pll_clk (500 ps period).
+//  o_pll_clk (2 GHz, 500 ps period, speed_sel=00)
+//      → CLK_PATTERN_GEN_TX (always@(∗) block),
+//        PLL_clk port of every MB_SERIALIZER.
+//
+//  PLL is enabled BEFORE reset so o_pll_clk is running when i_rst_n releases.
+//  Stimulus is driven synchronous to each sub-module's clock domain.
+//
+//  Domain assignments for status outputs
+//  ──────────────────────────────────────
+//  o_mapper_ready  → Mapper    → i_mb_clk  → polled on i_mb_clk edges
+//  o_lfsr_tx_done  → LFSR_TX  → i_mb_clk  → polled on i_mb_clk edges
+//  o_valid_done    → VALID_TX  → i_mb_clk  → polled on i_mb_clk edges
+//  o_clk_done      → CLK_PAT  → o_pll_clk → polled on o_pll_clk edges
+//  o_tx_data/valid → SERIALIZER PLL side   → sampled on o_pll_clk edges
 //
 //  Test Sequence
 //  ─────────────
-//  Phase 1 – CLK Pattern Generation
-//             Assert i_clk_pattern_en → wait for o_clk_done.
-//             CLK_PATTERN_GEN_TX uses always@(*) — fires on BOTH o_pll_clk edges.
-//             6144 total counter steps / 2 edges per cycle = ~3072 posedge cycles.
+//  Phase 1 – CLK Pattern (CLK_PATTERN_GEN_TX, o_pll_clk domain)
+//             always@(*) fires on BOTH o_pll_clk edges:
+//             6144 counter steps / 2 = ~3072 o_pll_clk posedge cycles ≈ 1.54 µs.
+//             o_clk_n is o_clk_p delayed by period/2 (dynamic, from MB_PLL).
+//             At speed_sel=00: period=500 ps → delay=250 ps (true 180° differential).
 //
-//  Phase 2 – VALID Pattern
-//             Assert i_valid_pattern_en for 1 cycle → wait for o_valid_done.
-//             VALID_TX runs for 32 o_pll_clk cycles.
+//  Phase 2 – VALID Pattern (VALID_TX, i_mb_clk domain)
+//             Assert i_valid_pattern_en for 1 i_mb_clk cycle.
+//             Burst = 32 i_mb_clk cycles = 64 ns.
 //
-//  Phase 3 – LFSR Pattern (PATTERN_LFSR – 128-cycle burst)
-//             Drive i_lfsr_state = PATTERN_LFSR → wait for o_lfsr_tx_done.
+//  Phase 3 – LFSR Pattern (LFSR_TX, i_mb_clk domain, 128-cycle burst)
+//             128 i_mb_clk cycles = 256 ns.
 //
-//  Phase 4 – DATA_TRANSFER (end-to-end data path)
-//             Assert i_active_state_entered with mapper_en/lp_irdy/lp_valid
-//             and a known i_raw_data pattern. Verify o_tx_data / o_tx_valid.
+//  Phase 4 – DATA_TRANSFER
+//             Stimulus  : i_mb_clk (Mapper + LFSR_TX → mb_clk side of SER).
+//             Output    : o_pll_clk (PLL side of MB_SERIALIZER).
+//             CDC path  : 2–3 o_pll_clk cycles (toggle-sync, 3 flops).
+//             DDR SER   : DATA_WIDTH/2 = 16 o_pll_clk cycles.
+//             Alignment : up to 4 o_pll_clk cycles (mb:pll = 1:4 ratio).
+//             Total min : ~23 o_pll_clk cycles → wait_clk_pll(50) has margin.
 // =============================================================================
 
 `timescale 1ps/1ps
@@ -47,11 +65,11 @@ module MB_TX_TOP_tb;
     localparam LFSR_PER_LANE_IDE = 3'b011;
     localparam LFSR_DATA         = 3'b100;
 
-    // Width-degradation code: 3'b011 → all 16 lanes active (1 clock cycle)
+    // Width-degradation code: 3'b011 → all 16 lanes active (1 i_mb_clk cycle)
     localparam WIDTH_DEG_ALL = 3'b011;
 
     // i_mb_clk: 500 MHz (2 ns period, 1 ns half-period)
-    // timescale is 1ps/1ps → delay unit is ps, so 1 ns = 1000 ps
+    // timescale 1ps/1ps → delay unit is ps, so 1 ns = 1000 ps
     localparam MB_CLK_HALF = 1000;  // ps
 
     // =========================================================================
@@ -62,24 +80,24 @@ module MB_TX_TOP_tb;
 
     logic                     i_rst_n;
     logic                     o_pll_clk;
-    real                      period_out;          // DUT port is "output real period"
+    real                      period_out;   // matches DUT "output real period"
 
-    // Mapper
+    // Mapper (i_mb_clk domain)
     logic [8*N_BYTES-1:0]     i_raw_data;
     logic                     i_mapper_en;
     logic [2:0]               i_width_deg;
     logic                     i_lp_irdy;
     logic                     i_lp_valid;
 
-    // LFSR_TX
+    // LFSR_TX (i_mb_clk domain)
     logic [2:0]               i_lfsr_state;
     logic                     i_reversal_en;
     logic                     i_active_state_entered;
 
-    // VALID_TX
+    // VALID_TX (i_mb_clk domain)
     logic                     i_valid_pattern_en;
 
-    // Serial outputs
+    // Serial outputs (o_pll_clk domain, from MB_SERIALIZER PLL side)
     logic [NUM_LANES-1:0]     o_tx_data;
     logic                     o_tx_valid;
 
@@ -87,7 +105,7 @@ module MB_TX_TOP_tb;
     logic                     i_pll_en;
     logic [1:0]               i_pll_speed_sel;
 
-    // CLK_PATTERN_GEN_TX
+    // CLK_PATTERN_GEN_TX (o_pll_clk domain)
     logic                     i_clk_pattern_en;
     logic                     i_clk_embedded_en;
     logic                     o_clk_p;
@@ -96,9 +114,9 @@ module MB_TX_TOP_tb;
     logic                     o_clk_done;
 
     // Status
-    logic                     o_mapper_ready;
-    logic                     o_lfsr_tx_done;
-    logic                     o_valid_done;
+    logic                     o_mapper_ready;   // i_mb_clk domain
+    logic                     o_lfsr_tx_done;   // i_mb_clk domain
+    logic                     o_valid_done;     // i_mb_clk domain
 
     // =========================================================================
     // DUT Instantiation
@@ -144,16 +162,21 @@ module MB_TX_TOP_tb;
     );
 
     // =========================================================================
-    // Helpers — all synchronised to o_pll_clk (the DUT's operational clock)
+    // Helpers
     // =========================================================================
 
-    // Wait N rising edges of o_pll_clk
-    task automatic wait_clk(input int n);
+    // Wait N rising edges of o_pll_clk  (CLK_PATTERN_GEN_TX / MB_SERIALIZER PLL side)
+    task automatic wait_clk_pll(input int n);
         repeat (n) @(posedge o_pll_clk);
     endtask
 
-    // Poll a logic signal on o_pll_clk edges, with a cycle timeout
-    task automatic wait_for_signal(
+    // Wait N rising edges of i_mb_clk  (Mapper / LFSR_TX / VALID_TX)
+    task automatic wait_clk_mb(input int n);
+        repeat (n) @(posedge i_mb_clk);
+    endtask
+
+    // Poll a signal on o_pll_clk edges (CLK_PATTERN_GEN_TX / serial outputs)
+    task automatic wait_for_signal_pll(
         input  string sig_name,
         ref    logic  sig,
         input  int    timeout_cycles
@@ -164,10 +187,29 @@ module MB_TX_TOP_tb;
             cyc++;
         end
         if (cyc >= timeout_cycles)
-            $display("  [TIMEOUT] %s did not assert within %0d o_pll_clk cycles!",
+            $display("  [TIMEOUT] %s not asserted within %0d o_pll_clk cycles!",
                      sig_name, timeout_cycles);
         else
             $display("  [OK]      %s asserted after %0d o_pll_clk cycles.",
+                     sig_name, cyc);
+    endtask
+
+    // Poll a signal on i_mb_clk edges  (Mapper / LFSR_TX / VALID_TX outputs)
+    task automatic wait_for_signal_mb(
+        input  string sig_name,
+        ref    logic  sig,
+        input  int    timeout_cycles
+    );
+        int cyc = 0;
+        while (!sig && cyc < timeout_cycles) begin
+            @(posedge i_mb_clk);
+            cyc++;
+        end
+        if (cyc >= timeout_cycles)
+            $display("  [TIMEOUT] %s not asserted within %0d i_mb_clk cycles!",
+                     sig_name, timeout_cycles);
+        else
+            $display("  [OK]      %s asserted after %0d i_mb_clk cycles.",
                      sig_name, cyc);
     endtask
 
@@ -197,33 +239,40 @@ module MB_TX_TOP_tb;
         i_clk_embedded_en      = 1'b0;
 
         // ------------------------------------------------------------------
-        // Step 1: Enable PLL — must come before reset release because every
-        // DUT register is clocked by o_pll_clk. Without o_pll_clk running,
-        // no sequential logic can initialise.
-        // speed_sel = 00 → 2 GHz (500 ps period, 1ps resolution from MB_PLL)
+        // Step 1: Enable PLL.
+        // speed_sel=00 → o_pll_clk at 2 GHz (500 ps period).
+        // Must run before reset so MB_SERIALIZER PLL_clk side is already
+        // clocking when i_rst_n de-asserts.
         // ------------------------------------------------------------------
         @(posedge i_mb_clk);
         i_pll_en        = 1'b1;
         i_pll_speed_sel = 2'b00;
 
-        // Wait for PLL to start driving o_pll_clk and stabilise
+        // Wait 8 o_pll_clk cycles (4 ns) for PLL output to stabilise
         repeat (8) @(posedge o_pll_clk);
 
         $display("\n=== PLL running  (speed_sel=00 → 2 GHz, period=%0.1f ps) ===", period_out);
+        $display("    o_clk_n delay = %0.1f ps  (period/2, dynamic from MB_PLL)", period_out / 2.0);
 
         // ------------------------------------------------------------------
-        // Step 2: Release reset on a o_pll_clk negedge so all registers
-        // see the de-assertion cleanly at the next posedge
+        // Step 2: Release reset synchronous to i_mb_clk.
+        // Mapper, LFSR_TX and VALID_TX are all in the i_mb_clk domain.
+        // MB_SERIALIZER uses async reset so both clock sides clear together.
         // ------------------------------------------------------------------
-        @(negedge o_pll_clk);
+        @(negedge i_mb_clk);
         i_rst_n = 1'b1;
-        $display("=== RESET released ===\n");
-        wait_clk(4);
+        $display("=== RESET released (i_mb_clk negedge) ===\n");
+
+        // 4 i_mb_clk cycles = 8 ns: all registers in both domains settle
+        wait_clk_mb(4);
 
         // ==================================================================
-        // PHASE 1 – Clock Pattern Generation
-        //   CLK_PATTERN_GEN_TX is clocked by o_pll_clk.
-        //   always@(*) fires on both edges → 6144 counter steps / 2 = ~3072 posedge cycles.
+        // PHASE 1 – Clock Pattern Generation  (o_pll_clk domain)
+        //   CLK_PATTERN_GEN_TX.i_clk = o_pll_clk.
+        //   Uses always@(*) → fires on BOTH o_pll_clk edges.
+        //   6144 counter steps / 2 = ~3072 o_pll_clk posedge cycles ≈ 1.54 µs.
+        //   o_clk_n is driven by phase_delay with i_half_period = period/2.
+        //   The delay is set at event time (non-blocking + variable delay).
         // ==================================================================
         test_num = 1;
         $display("=== PHASE %0d: CLK Pattern Generation ===", test_num);
@@ -232,8 +281,8 @@ module MB_TX_TOP_tb;
         i_clk_pattern_en = 1'b1;
         $display("  Asserting i_clk_pattern_en ...");
 
-        // ~3072 actual posedge cycles; 7000 is ~2.3× margin
-        wait_for_signal("o_clk_done", o_clk_done, 7000);
+        // ~3072 actual posedge cycles; 7000 gives ~2.3× margin
+        wait_for_signal_pll("o_clk_done", o_clk_done, 7000);
 
         @(negedge o_pll_clk);
         i_clk_pattern_en = 1'b0;
@@ -243,50 +292,71 @@ module MB_TX_TOP_tb;
         else
             $display("  [OK]      o_clk_p = %b after burst.", o_clk_p);
 
-        wait_clk(4);
+        // o_clk_n is o_clk_p delayed by period/2 (= %0.1f ps).
+        // After burst ends o_clk_p is 0, so o_clk_n should settle to 0 too.
+        #(period_out);   // wait 1 full period for the delayed edge to resolve
+        if ($isunknown(o_clk_n))
+            $display("  [FAIL]    o_clk_n is X/Z (delay=%0.1f ps not resolved).", period_out/2.0);
+        else
+            $display("  [OK]      o_clk_n = %b  (delay = %0.1f ps = period/2).",
+                     o_clk_n, period_out / 2.0);
+
+        wait_clk_pll(4);
 
         // ==================================================================
-        // PHASE 2 – VALID Pattern  (VALID_TX 32-cycle burst)
-        //   VALID_TX is clocked by o_pll_clk.
-        //   Burst runs for MAX_COUNT-1 = 32 o_pll_clk cycles.
+        // PHASE 2 – VALID Pattern  (i_mb_clk domain)
+        //   VALID_TX.i_clk = i_mb_clk (500 MHz).
+        //   Burst = 32 i_mb_clk cycles = 64 ns.
+        //   Assert i_valid_pattern_en for exactly 1 i_mb_clk cycle.
+        //   Poll o_valid_done on i_mb_clk edges.
         // ==================================================================
         test_num = 2;
         $display("\n=== PHASE %0d: VALID Pattern ===", test_num);
 
-        @(negedge o_pll_clk);
+        @(negedge i_mb_clk);
         i_valid_pattern_en = 1'b1;
-        $display("  Asserting i_valid_pattern_en for 1 cycle ...");
-        @(negedge o_pll_clk);
+        $display("  Asserting i_valid_pattern_en for 1 i_mb_clk cycle ...");
+        @(negedge i_mb_clk);
         i_valid_pattern_en = 1'b0;
 
-        // Burst is 32 cycles; 100-cycle timeout is generous
-        wait_for_signal("o_valid_done", o_valid_done, 100);
+        // Burst = 32 i_mb_clk cycles; 100-cycle timeout is generous
+        wait_for_signal_mb("o_valid_done", o_valid_done, 100);
 
-        wait_clk(4);
+        wait_clk_mb(4);
 
         // ==================================================================
-        // PHASE 3 – LFSR Pattern  (PATTERN_LFSR – 128-cycle burst)
-        //   LFSR_TX is clocked by o_pll_clk.
-        //   LFSR_TX uses edge-detection on i_lfsr_state — hold the state
-        //   high until the burst finishes.
+        // PHASE 3 – LFSR Pattern  (i_mb_clk domain, 128-cycle burst)
+        //   LFSR_TX.i_clk = i_mb_clk (500 MHz).
+        //   Hold i_lfsr_state = PATTERN_LFSR until burst finishes.
+        //   Poll o_lfsr_tx_done on i_mb_clk edges.
+        //   128 i_mb_clk cycles = 256 ns; 300-cycle timeout is ~2.3× margin.
         // ==================================================================
         test_num = 3;
-        $display("\n=== PHASE %0d: LFSR Pattern (128-cycle burst) ===", test_num);
+        $display("\n=== PHASE %0d: LFSR Pattern (128 i_mb_clk cycle burst) ===", test_num);
 
-        @(negedge o_pll_clk);
+        @(negedge i_mb_clk);
         i_lfsr_state = LFSR_PATTERN;
         $display("  Driving i_lfsr_state = PATTERN_LFSR ...");
 
-        // 128 burst cycles + ~2 entry latency; 300-cycle timeout
-        wait_for_signal("o_lfsr_tx_done", o_lfsr_tx_done, 300);
+        wait_for_signal_mb("o_lfsr_tx_done", o_lfsr_tx_done, 300);
 
-        @(negedge o_pll_clk);
+        @(negedge i_mb_clk);
         i_lfsr_state = LFSR_IDLE;
 
-        wait_clk(4);
+        wait_clk_mb(4);
 
         // ==================================================================
-        // PHASE 4 – DATA_TRANSFER (Mapper → LFSR_TX → Serializer → output)
+        // PHASE 4 – DATA_TRANSFER (end-to-end data path)
+        //
+        //   Stimulus domain  : i_mb_clk  (Mapper, LFSR_TX → mb_clk side of SER)
+        //   Output domain    : o_pll_clk (PLL side of MB_SERIALIZER → o_tx_data)
+        //
+        //   Timing after lfsr_ser_en goes high in i_mb_clk domain:
+        //     Alignment  : up to 4 o_pll_clk cycles  (mb:pll = 1:4 ratio)
+        //     CDC        : 2–3 o_pll_clk cycles       (toggle-sync, 3 flops)
+        //     DDR SER    : DATA_WIDTH/2 = 16 o_pll_clk cycles
+        //     Total min  : ~23 o_pll_clk cycles
+        //     wait_clk_pll(50) provides ~2× margin.
         // ==================================================================
         test_num = 4;
         $display("\n=== PHASE %0d: DATA_TRANSFER – end-to-end data path ===", test_num);
@@ -303,18 +373,17 @@ module MB_TX_TOP_tb;
         i_lp_irdy   = 1'b1;
         i_lp_valid  = 1'b1;
 
-        // Enter DATA_TRANSFER — LFSR_TX latches this on posedge o_pll_clk
-        @(negedge o_pll_clk);
+        // Assert on i_mb_clk negedge — LFSR_TX latches on next i_mb_clk posedge
+        @(negedge i_mb_clk);
         i_active_state_entered = 1'b1;
-        $display("  Asserting i_active_state_entered ...");
+        $display("  Asserting i_active_state_entered (i_mb_clk domain) ...");
 
-        // Mapper with WIDTH_DEG_ALL completes in 1 cycle → ready fires fast
-        wait_for_signal("o_mapper_ready", o_mapper_ready, 20);
+        // Mapper (i_mb_clk): WIDTH_DEG_ALL completes in 1 i_mb_clk cycle
+        wait_for_signal_mb("o_mapper_ready", o_mapper_ready, 20);
 
-        // Allow the serializer time to shift out one full 32-bit word.
-        // CDC sync: 2 posedge cycles. DDR serialization: DATA_WIDTH/2 = 16 cycles.
-        // Total minimum = 18 posedge cycles; 50 gives ample margin.
-        wait_clk(50);
+        // Switch to o_pll_clk domain to wait for serialized output.
+        // 50 o_pll_clk cycles covers worst-case CDC + DDR path (~23 cycles).
+        wait_clk_pll(50);
 
         if (o_tx_data !== {NUM_LANES{1'b0}})
             $display("  [OK]      o_tx_data is non-zero: 0x%h", o_tx_data);
@@ -326,17 +395,17 @@ module MB_TX_TOP_tb;
         else
             $display("  [WARN]    o_tx_valid is 0.");
 
-        // Run a further 20 cycles then de-assert
-        wait_clk(20);
+        // Run 20 more o_pll_clk cycles then de-assert on i_mb_clk
+        wait_clk_pll(20);
 
-        @(negedge o_pll_clk);
+        @(negedge i_mb_clk);
         i_active_state_entered = 1'b0;
         i_mapper_en            = 1'b0;
         i_lp_irdy              = 1'b0;
         i_lp_valid             = 1'b0;
         $display("  De-asserting i_active_state_entered – returning to IDLE.");
 
-        wait_clk(4);
+        wait_clk_mb(4);
 
         // ==================================================================
         // All phases complete
@@ -350,8 +419,11 @@ module MB_TX_TOP_tb;
     // =========================================================================
     // Timeout watchdog
     // timescale 1ps/1ps → units are ps.
-    // Worst case: Phase 1 CLK burst = 3072 × 500 ps ≈ 1.54 µs (both-edge firing)
-    //             All phases combined ≈ 5 µs
+    // Phase 1: ~3072 × 500 ps  ≈  1.54 µs  (o_pll_clk, both-edge firing)
+    // Phase 2:   ~35 × 2000 ps ≈  70 ns    (i_mb_clk)
+    // Phase 3:  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)
+    // Phase 4:  ~100 × 2000 ps ≈ 200 ns    (i_mb_clk, dominant path)
+    // All phases combined ≈ 3 µs
     // Watchdog set to 500 µs = 500_000_000 ps — well beyond any expected run.
     // =========================================================================
     initial begin
@@ -361,17 +433,23 @@ module MB_TX_TOP_tb;
     end
 
     // =========================================================================
-    // Monitor — sampled on o_pll_clk (the DUT's operational clock domain)
+    // Monitor — split by clock domain
     // =========================================================================
+
+    // i_mb_clk domain: Mapper / LFSR_TX / VALID_TX status outputs
+    always @(posedge i_mb_clk) begin
+        if (o_valid_done)
+            $display("  [MON-MB]  t=%0t  o_valid_done   HIGH", $time);
+        if (o_lfsr_tx_done)
+            $display("  [MON-MB]  t=%0t  o_lfsr_tx_done HIGH", $time);
+        if (o_mapper_ready)
+            $display("  [MON-MB]  t=%0t  o_mapper_ready HIGH", $time);
+    end
+
+    // o_pll_clk domain: CLK_PATTERN_GEN_TX done flag
     always @(posedge o_pll_clk) begin
         if (o_clk_done)
-            $display("  [MON] t=%0t  o_clk_done    HIGH", $time);
-        if (o_valid_done)
-            $display("  [MON] t=%0t  o_valid_done  HIGH", $time);
-        if (o_lfsr_tx_done)
-            $display("  [MON] t=%0t  o_lfsr_tx_done HIGH", $time);
-        if (o_mapper_ready)
-            $display("  [MON] t=%0t  o_mapper_ready HIGH", $time);
+            $display("  [MON-PLL] t=%0t  o_clk_done     HIGH", $time);
     end
 
 endmodule
