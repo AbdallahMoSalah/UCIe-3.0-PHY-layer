@@ -31,78 +31,78 @@ module MB_TX_TOP #(
     // -------------------------------------------------------------------------
     // Global
     // -------------------------------------------------------------------------
-    input  wire                    i_mb_clk,          // Main-band clock
-    input  wire                    i_rst_n,           // Active-low synchronous reset
-    output wire                    o_pll_clk,         // High-speed PLL clock (DDR)
-
+    input  logic                    i_mb_clk,          // Main-band clock
+    input  logic                    i_rst_n,           // Active-low synchronous reset
+    output logic                    o_pll_clk,         // High-speed PLL clock (DDR)
+    output real                      period,
     // -------------------------------------------------------------------------
     // Mapper inputs  (from protocol / adapter layer)
     // -------------------------------------------------------------------------
-    input  wire [8*N_BYTES-1:0]    i_raw_data,        // Raw protocol data bus
-    input  wire                    i_mapper_en,       // Enable the mapper
-    input  wire [2:0]              i_width_deg,       // Lane-width degradation code
-    input  wire                    i_lp_irdy,         // Adapter: data is ready
-    input  wire                    i_lp_valid,        // Adapter: data is valid
+    input  logic [8*N_BYTES-1:0]    i_raw_data,        // Raw protocol data bus
+    input  logic                    i_mapper_en,       // Enable the mapper
+    input  logic [2:0]              i_width_deg,       // Lane-width degradation code
+    input  logic                    i_lp_irdy,         // Adapter: data is ready
+    input  logic                    i_lp_valid,        // Adapter: data is valid
 
     // -------------------------------------------------------------------------
     // LFSR_TX control inputs  (from Main-Band controller / state machine)
     // -------------------------------------------------------------------------
-    input  wire [2:0]              i_lfsr_state,           // Requested LFSR state
-    input  wire                    i_reversal_en,          // Physical lane reversal
-    input  wire                    i_active_state_entered, // Pulse: DATA_TRANSFER entered
+    input  logic [2:0]              i_lfsr_state,           // Requested LFSR state
+    input  logic                    i_reversal_en,          // Physical lane reversal
+    input  logic                    i_active_state_entered, // Pulse: DATA_TRANSFER entered
 
     // -------------------------------------------------------------------------
     // VALID_TX control inputs
     // -------------------------------------------------------------------------
-    input  wire                    i_valid_pattern_en, // Trigger 32-cycle TVLD pattern
+    input  logic                    i_valid_pattern_en, // Trigger 32-cycle TVLD pattern
 
     // -------------------------------------------------------------------------
     // Serialized TX outputs (one bit per lane, DDR)
     // -------------------------------------------------------------------------
-    output wire [NUM_LANES-1:0]    o_tx_data,         // Serialized data lanes 0-15
-    output wire                    o_tx_valid,        // Serialized valid lane
+    output logic [NUM_LANES-1:0]    o_tx_data,         // Serialized data lanes 0-15
+    output logic                    o_tx_valid,        // Serialized valid lane
 
     // -------------------------------------------------------------------------
     // MB_PLL control inputs
     // -------------------------------------------------------------------------
-    input  wire                    i_pll_en,          // Enable the PLL
-    input  wire [1:0]              i_pll_speed_sel,   // PLL speed select (00=2G, 01=4G, 10=8G, 11=16G)
+    input  logic                    i_pll_en,          // Enable the PLL
+    input  logic [1:0]              i_pll_speed_sel,   // PLL speed select (00=2G, 01=4G, 10=8G, 11=16G)
 
     // -------------------------------------------------------------------------
     // CLK_PATTERN_GEN_TX control inputs
     // -------------------------------------------------------------------------
-    input  wire                    i_clk_pattern_en,  // Trigger the 128-UI clock pattern burst
-    input  wire                    i_clk_embedded_en, // Enable continuous embedded-clock mode
+    input  logic                    i_clk_pattern_en,  // Trigger the 128-UI clock pattern burst
+    input  logic                    i_clk_embedded_en, // Enable continuous embedded-clock mode
 
     // -------------------------------------------------------------------------
     // CLK_PATTERN_GEN_TX outputs
     // -------------------------------------------------------------------------
-    output wire                    o_clk_p,           // Differential clock + (also → MB_PLL ref)
-    output wire                    o_clk_n,           // Differential clock −  (phase_delay of o_clk_p)
-    output wire                    o_clk_track,       // Debug / tracking signal
-    output wire                    o_clk_done,        // Pulse: clock-pattern burst complete
+    output logic                    o_clk_p,           // Differential clock + (also → MB_PLL ref)
+    output logic                    o_clk_n,           // Differential clock −  (phase_delay of o_clk_p)
+    output logic                    o_clk_track,       // Debug / tracking signal
+    output logic                    o_clk_done,        // Pulse: clock-pattern burst complete
 
     // -------------------------------------------------------------------------
     // Status / handshake outputs
     // -------------------------------------------------------------------------
-    output wire                    o_mapper_ready,    // Mapper accepted data (pl_trdy)
-    output wire                    o_lfsr_tx_done,    // LFSR / ID phase complete pulse
-    output wire                    o_valid_done       // VALID_TX pattern-done pulse
+    output logic                    o_mapper_ready,    // Mapper accepted data (pl_trdy)
+    output logic                    o_lfsr_tx_done,    // LFSR / ID phase complete pulse
+    output logic                    o_valid_done       // VALID_TX pattern-done pulse
 );
 
     // =========================================================================
-    // Internal wires
+    // Internal logics
     // =========================================================================
 
     // ----------- Mapper → LFSR_TX (16 parallel lane words) ------------------
-    wire [DATA_WIDTH-1:0] mapper_lane [0:15];
+    logic [DATA_WIDTH-1:0] mapper_lane [0:15];
 
     // Flatten the individual Mapper output ports into the array expected by
     // LFSR_TX.  (Mapper uses flat port names; LFSR_TX uses an unpacked array.)
-    wire [DATA_WIDTH-1:0] mapper_lane_0,  mapper_lane_1,  mapper_lane_2,  mapper_lane_3;
-    wire [DATA_WIDTH-1:0] mapper_lane_4,  mapper_lane_5,  mapper_lane_6,  mapper_lane_7;
-    wire [DATA_WIDTH-1:0] mapper_lane_8,  mapper_lane_9,  mapper_lane_10, mapper_lane_11;
-    wire [DATA_WIDTH-1:0] mapper_lane_12, mapper_lane_13, mapper_lane_14, mapper_lane_15;
+    logic [DATA_WIDTH-1:0] mapper_lane_0,  mapper_lane_1,  mapper_lane_2,  mapper_lane_3;
+    logic [DATA_WIDTH-1:0] mapper_lane_4,  mapper_lane_5,  mapper_lane_6,  mapper_lane_7;
+    logic [DATA_WIDTH-1:0] mapper_lane_8,  mapper_lane_9,  mapper_lane_10, mapper_lane_11;
+    logic [DATA_WIDTH-1:0] mapper_lane_12, mapper_lane_13, mapper_lane_14, mapper_lane_15;
 
     assign mapper_lane[0]  = mapper_lane_0;
     assign mapper_lane[1]  = mapper_lane_1;
@@ -122,40 +122,44 @@ module MB_TX_TOP #(
     assign mapper_lane[15] = mapper_lane_15;
 
     // ----------- Mapper control outputs -------------------------------------
-    wire        mapper_scramble_en; // Mapper → LFSR_TX: enable scrambling
+    logic        mapper_scramble_en; // Mapper → LFSR_TX: enable scrambling
 
     // ----------- LFSR_TX → Serializers (scrambled lane words) ---------------
-    wire [DATA_WIDTH-1:0] lfsr_lane [0:15];
+    logic [DATA_WIDTH-1:0] lfsr_lane [0:15];
 
     // valid_frame_en: LFSR_TX → VALID_TX (indicates active frame period)
-    wire        lfsr_valid_frame_en;
+    logic        lfsr_valid_frame_en;
 
     // ----------- VALID_TX → Valid-lane serializer ----------------------------
-    wire [31:0] valid_word;        // 32-bit TVLD pattern word
+    logic [31:0] valid_word;        // 32-bit TVLD pattern word
+
+    // ----------- Serializer enables -----------------------------------------
+    logic        lfsr_ser_en;      // LFSR_TX.o_ser_en_lfsr  → data-lane serializers
+    logic        valid_ser_en;     // VALID_TX.ser_en_o       → valid-lane serializer
 
     // =========================================================================
-    // 0a. CLK_PATTERN_GEN_TX  (must come first – generates the PLL reference clock)
+    // 0a. MB_PLL  (reference = o_clk_p from CLK_PATTERN_GEN_TX)
     // =========================================================================
-    CLK_PATTERN_GEN_TX u_clk_pattern_gen (
-        .i_clk           (i_mb_clk),
-        .i_rst_n         (i_rst_n),
-        .clk_pattern_en  (i_clk_pattern_en),
-        .clk_embedded_en (i_clk_embedded_en),
-        .o_clk_p         (o_clk_p),          // → top-level output AND → MB_PLL ref
-        .o_clk_n         (o_clk_n),
-        .track           (o_clk_track),
-        .o_done          (o_clk_done)
+    MB_PLL u_mb_pll (
+        .i_ref_clk (i_mb_clk),        // differential clock pattern as PLL reference
+        .en        (i_pll_en),
+        .speed_sel (i_pll_speed_sel),
+        .clk       (o_pll_clk),
+        .period    (period)
     );
 
     // =========================================================================
-    // 0b. MB_PLL  (reference = o_clk_p from CLK_PATTERN_GEN_TX)
+    // 0b. CLK_PATTERN_GEN_TX  (clocked by MB_PLL output)
     // =========================================================================
-    MB_PLL u_mb_pll (
-        .i_ref_clk (o_clk_p),        // differential clock pattern as PLL reference
-        .en        (i_pll_en),
-        .speed_sel (i_pll_speed_sel),
-        .clk       (o_pll_clk)
-        // .period is left unconnected (informational output)
+    CLK_PATTERN_GEN_TX u_clk_pattern_gen (
+        .i_clk           (o_pll_clk),    // driven by MB_PLL high-speed output clock
+        .i_rst_n         (i_rst_n),
+        .clk_pattern_en  (i_clk_pattern_en),
+        .clk_embedded_en (i_clk_embedded_en),
+        .o_clk_p         (o_clk_p),      // → top-level output AND → MB_PLL ref
+        .o_clk_n         (o_clk_n),
+        .track           (o_clk_track),
+        .o_done          (o_clk_done)
     );
 
     // =========================================================================
@@ -166,7 +170,7 @@ module MB_TX_TOP #(
         .NUM_LANES (NUM_LANES),
         .N_BYTES   (N_BYTES)
     ) u_mapper (
-        .i_clk           (i_mb_clk),
+        .i_clk           (o_pll_clk), //
         .i_rst_n         (i_rst_n),
         .i_in_data       (i_raw_data),
         .mapper_en       (i_mapper_en),
@@ -201,7 +205,7 @@ module MB_TX_TOP #(
     LFSR_TX #(
         .WIDTH (DATA_WIDTH)
     ) u_lfsr_tx (
-        .i_clk                  (i_mb_clk),
+        .i_clk                  (o_pll_clk), //
         .i_rst_n                (i_rst_n),
         .i_state                (i_lfsr_state),
         .i_scramble_en          (mapper_scramble_en),
@@ -212,6 +216,7 @@ module MB_TX_TOP #(
         .i_lane                 (mapper_lane),
         .o_lane                 (lfsr_lane),
 
+        .o_ser_en_lfsr          (lfsr_ser_en),
         .o_Lfsr_tx_done         (o_lfsr_tx_done),
         .o_valid_frame_en       (lfsr_valid_frame_en)
     );
@@ -220,11 +225,12 @@ module MB_TX_TOP #(
     // 3.  VALID_TX
     // =========================================================================
     VALID_TX u_valid_tx (
-        .i_clk            (i_mb_clk),
+        .i_clk            (o_pll_clk), //
         .i_rst_n          (i_rst_n),
         .valid_pattern_en (i_valid_pattern_en),
         .valid_frame_en   (lfsr_valid_frame_en),
 
+        .ser_en_o         (valid_ser_en),
         .O_done           (o_valid_done),
         .o_TVLD_L         (valid_word)
     );
@@ -238,10 +244,10 @@ module MB_TX_TOP #(
             MB_SERIALIZER #(
                 .DATA_WIDTH (DATA_WIDTH)
             ) u_data_ser (
-                .mb_clk  (i_mb_clk),
+                .mb_clk  (o_pll_clk), //
                 .PLL_clk (o_pll_clk),
                 .i_rst_n (i_rst_n),
-                .Ser_en  (lfsr_valid_frame_en),
+                .Ser_en  (lfsr_ser_en),       // enable from LFSR_TX
                 .in_data (lfsr_lane[lane_idx]),
                 .SER_out (o_tx_data[lane_idx])
             );
@@ -254,10 +260,10 @@ module MB_TX_TOP #(
     MB_SERIALIZER #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_valid_ser (
-        .mb_clk  (i_mb_clk),
+        .mb_clk  (o_pll_clk), //
         .PLL_clk (o_pll_clk),
         .i_rst_n (i_rst_n),
-        .Ser_en  (lfsr_valid_frame_en),  // same enable as data lanes
+        .Ser_en  (valid_ser_en),          // enable from VALID_TX
         .in_data (valid_word),
         .SER_out (o_tx_valid)
     );

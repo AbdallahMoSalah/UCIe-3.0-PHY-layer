@@ -1,4 +1,6 @@
-module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,clk_embedded_en,o_clk_p,o_clk_n,track,o_done); 
+`timescale 1ps/1ps
+
+module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,clk_embedded_en,o_clk_p,o_clk_n,track,o_done);
     parameter MAIN=128;
     parameter TOGGLE=32;
     parameter ZERO=16;
