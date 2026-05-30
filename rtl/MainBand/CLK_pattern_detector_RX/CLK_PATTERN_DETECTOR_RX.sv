@@ -8,7 +8,9 @@ module CLK_PATTERN_DETECTOR_RX( //Abdallah
     input  logic track,
 
     
-    output logic clk_p_pattern_error,clk_n_pattern_error,track_pattern_error
+    output logic clk_p_pattern_pass,
+                 clk_n_pattern_pass,
+                 track_pattern_pass
 );
 
 parameter MAIN   = 128;
@@ -54,9 +56,9 @@ always @(posedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
     end
     else begin
 
@@ -82,9 +84,9 @@ always @(posedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
         end
 
         else begin
@@ -119,9 +121,9 @@ always @(negedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
     end
     else begin
 
@@ -147,9 +149,9 @@ always @(negedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
         end
 
         else begin
@@ -184,9 +186,9 @@ always @(posedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
     end
     else begin
 
@@ -212,9 +214,9 @@ always @(posedge i_clk , negedge i_rst_n ) begin
         flag_n_zero <= 0; 
         flag_track_tog <= 0; 
         flag_track_zero <= 0; 
-        clk_p_pattern_error <= 1;
-        clk_n_pattern_error <= 1;
-        track_pattern_error <= 1;
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
         end
 
         else begin 
@@ -344,13 +346,13 @@ always @(posedge i_clk , negedge i_rst_n ) begin
                 flag_track_zero <= 0;
             end
             if (counter_16_consecetive_p == 16) begin
-                clk_p_pattern_error <= 0;
+                clk_p_pattern_pass <= 1;
             end
             if (counter_16_consecetive_n == 16) begin
-                clk_n_pattern_error <= 0;
+                clk_n_pattern_pass <= 1;
             end
             if (counter_16_consecetive_track == 16) begin
-                track_pattern_error <= 0;
+                track_pattern_pass <= 1;
             end
 
             

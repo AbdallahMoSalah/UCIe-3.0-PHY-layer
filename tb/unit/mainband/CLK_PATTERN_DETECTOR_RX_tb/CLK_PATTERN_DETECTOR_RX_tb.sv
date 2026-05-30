@@ -23,9 +23,9 @@ module CLK_PATTERN_DETECTOR_RX_tb;
   logic clk_n;
   logic track;
 
-  logic clk_p_pattern_error;
-  logic clk_n_pattern_error;
-  logic track_pattern_error;
+  logic clk_p_pattern_pass;
+  logic clk_n_pattern_pass;
+  logic track_pattern_pass;
 
   // -------------------------
   // DUT
@@ -37,9 +37,9 @@ module CLK_PATTERN_DETECTOR_RX_tb;
     .clk_p(clk_p),
     .clk_n(clk_n),
     .track(track),
-    .clk_p_pattern_error(clk_p_pattern_error),
-    .clk_n_pattern_error(clk_n_pattern_error),
-    .track_pattern_error(track_pattern_error)
+    .clk_p_pattern_pass(clk_p_pattern_pass),
+    .clk_n_pattern_pass(clk_n_pattern_pass),
+    .track_pattern_pass(track_pattern_pass)
   );
 
   // -------------------------
@@ -139,20 +139,23 @@ for (rep = 0; rep < 1; rep++) begin
     end
 
     // let DUT settle a bit
-    repeat (5) @(posedge i_clk);
-
+    repeat (10) @(posedge i_clk);
+    
     // simple check / print
-    $display("clk_p_pattern_error   = %0b", clk_p_pattern_error);
-    $display("clk_n_pattern_error   = %0b", clk_n_pattern_error);
-    $display("track_pattern_error   = %0b", track_pattern_error);
+    $display("clk_p_pattern_pass    = %0b", clk_p_pattern_pass);
+    $display("clk_n_pattern_pass    = %0b", clk_n_pattern_pass);
+    $display("track_pattern_pass    = %0b", track_pattern_pass);
 
-    if ((clk_p_pattern_error === 1'b0) &&
-        (clk_n_pattern_error === 1'b0) &&
-        (track_pattern_error === 1'b0)) begin
-      $display("PASS: all pattern_error signals deasserted (0).");
+    if ((clk_p_pattern_pass === 1'b1) &&
+        (clk_n_pattern_pass === 1'b1) &&
+        (track_pattern_pass === 1'b1)) begin
+      $display("PASS: all pattern_pass signals asserted (1).");
     end else begin
-      $display("FAIL: one or more pattern_error signals still asserted (1).");
+      $display("FAIL: one or more pattern_pass signals are not asserted (0).");
     end
+    clk_detector_en <= 1'b0;
+
+    repeat (10) @(posedge i_clk);
 
     $stop;
   end

@@ -1,5 +1,4 @@
 module Demapper_tb;
-
     //============================================================
     // Parameters (same as DUT)
     //============================================================
@@ -11,20 +10,31 @@ module Demapper_tb;
     localparam DEGRADE_LANES_0_TO_15  = 3'b011;
     localparam DEGRADE_LANES_0_TO_3   = 3'b100;
     localparam DEGRADE_LANES_4_TO_7   = 3'b101;
-
+    
     //============================================================
-    // DUT Signals
+    // Signals
     //============================================================
     logic i_clk;
     logic i_rst_n;
-    logic demapper_en;
-    logic rx_data_valid;
-    logic [2:0] i_width_deg_demap;
-
-    logic [WIDTH-1:0] i_lane [0:15];
-
-    wire pl_valid;
+    
+    // Mapper Inputs
+    logic [8*N_BYTES-1:0] i_in_data;
+    logic                 mapper_en;
+    logic [2:0]           i_width_deg;
+    logic                 lp_irdy;
+    logic                 lp_valid;
+    
+    // Mapper Outputs / Demapper Inputs
+    wire [WIDTH-1:0] m_lane [0:15];
+    wire             out_scramble_en;
+    wire             mapper_ready;
+    
+    // Demapper Outputs
+    wire                 pl_valid;
     wire [8*N_BYTES-1:0] o_out_data;
+    
+    integer correct_count = 0;
+    integer error_count   = 0;
 
     //============================================================
     // Clock Generation (100 MHz)
@@ -33,179 +43,173 @@ module Demapper_tb;
     always #5 i_clk = ~i_clk;
 
     //============================================================
-    // DUT Instantiation
+    // Instantiations
     //============================================================
+    Mapper #(
+        .WIDTH(WIDTH),
+        .NUM_LANES(16),
+        .N_BYTES(N_BYTES)
+    ) mapper_inst (
+        .i_clk(i_clk),
+        .i_rst_n(i_rst_n),
+        .i_in_data(i_in_data),
+        .mapper_en(mapper_en),
+        .i_width_deg_map(i_width_deg),
+        .lp_irdy(lp_irdy),
+        .lp_valid(lp_valid),
+        .o_lane_0 (m_lane[0]),
+        .o_lane_1 (m_lane[1]),
+        .o_lane_2 (m_lane[2]),
+        .o_lane_3 (m_lane[3]),
+        .o_lane_4 (m_lane[4]),
+        .o_lane_5 (m_lane[5]),
+        .o_lane_6 (m_lane[6]),
+        .o_lane_7 (m_lane[7]),
+        .o_lane_8 (m_lane[8]),
+        .o_lane_9 (m_lane[9]),
+        .o_lane_10(m_lane[10]),
+        .o_lane_11(m_lane[11]),
+        .o_lane_12(m_lane[12]),
+        .o_lane_13(m_lane[13]),
+        .o_lane_14(m_lane[14]),
+        .o_lane_15(m_lane[15]),
+        .out_scramble_en(out_scramble_en),
+        .mapper_ready(mapper_ready)
+    );
+
     Demapper #(
         .N_BYTES(N_BYTES),
         .WIDTH(WIDTH)
-    ) dut (
-
+    ) demapper_inst (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
-
-        .i_lane_0 (i_lane[0]),
-        .i_lane_1 (i_lane[1]),
-        .i_lane_2 (i_lane[2]),
-        .i_lane_3 (i_lane[3]),
-        .i_lane_4 (i_lane[4]),
-        .i_lane_5 (i_lane[5]),
-        .i_lane_6 (i_lane[6]),
-        .i_lane_7 (i_lane[7]),
-        .i_lane_8 (i_lane[8]),
-        .i_lane_9 (i_lane[9]),
-        .i_lane_10(i_lane[10]),
-        .i_lane_11(i_lane[11]),
-        .i_lane_12(i_lane[12]),
-        .i_lane_13(i_lane[13]),
-        .i_lane_14(i_lane[14]),
-        .i_lane_15(i_lane[15]),
-
-        .demapper_en(demapper_en),
-        .rx_data_valid(rx_data_valid),
-        .i_width_deg_demap(i_width_deg_demap),
-
+        .i_lane_0 (m_lane[0]),
+        .i_lane_1 (m_lane[1]),
+        .i_lane_2 (m_lane[2]),
+        .i_lane_3 (m_lane[3]),
+        .i_lane_4 (m_lane[4]),
+        .i_lane_5 (m_lane[5]),
+        .i_lane_6 (m_lane[6]),
+        .i_lane_7 (m_lane[7]),
+        .i_lane_8 (m_lane[8]),
+        .i_lane_9 (m_lane[9]),
+        .i_lane_10(m_lane[10]),
+        .i_lane_11(m_lane[11]),
+        .i_lane_12(m_lane[12]),
+        .i_lane_13(m_lane[13]),
+        .i_lane_14(m_lane[14]),
+        .i_lane_15(m_lane[15]),
+        .demapper_en(mapper_en),
+        .rx_data_valid(out_scramble_en),
+        .i_width_deg_demap(i_width_deg),
         .pl_valid(pl_valid),
         .o_out_data(o_out_data)
     );
-initial begin
-i_rst_n=0; demapper_en=0; rx_data_valid=0;
-@(negedge i_clk);
-i_rst_n=1;demapper_en=1;rx_data_valid=1;i_width_deg_demap=DEGRADE_LANES_0_TO_15;
-i_lane[0]=32'b11111111111111111111111111111111;
-i_lane[1]=32'b11111111111111111111111111111111;
-i_lane[2]=32'b11111111111111111111111111111111;
-i_lane[3]=32'b11111111111111111111111111111111;
-i_lane[4]=32'b11111111111111111111111111111111;
-i_lane[5]=32'b11111111111111111111111111111111;
-i_lane[6]=32'b11111111111111111111111111111111;
-i_lane[7]=32'b11111111111111111111111111111111;
-i_lane[8]=32'b11111111111111111111111111111111;
-i_lane[9]=32'b11111111111111111111111111111111;
-i_lane[10]=32'b11111111111111111111111111111111;
-i_lane[11]=32'b11111111111111111111111111111111;
-i_lane[12]=32'b11111111111111111111111111111111;
-i_lane[13]=32'b11111111111111111111111111111111;
-i_lane[14]=32'b11111111111111111111111111111111;
-i_lane[15]=32'b11111111111111111111111111111111;
 
-@(negedge i_clk);
-$display("16x out=%0b,valid=%0b",o_out_data,pl_valid);
-@(negedge i_clk);
-i_rst_n=0; demapper_en=0; rx_data_valid=0;
-@(negedge i_clk);
-i_rst_n=1;demapper_en=1;rx_data_valid=1;i_width_deg_demap=DEGRADE_LANES_0_TO_7;
-i_lane[0]=32'd0;
-i_lane[1]=32'd0;
-i_lane[2]=32'd0;
-i_lane[3]=32'd0;
-i_lane[4]=32'd0;
-i_lane[5]=32'd0;
-i_lane[6]=32'd0;
-i_lane[7]=32'd0;
-@(negedge i_clk);
-i_lane[0]=32'd0;
-i_lane[1]=32'd0;
-i_lane[2]=32'd0;
-i_lane[3]=32'd0;
-i_lane[4]=32'd0;
-i_lane[5]=32'd0;
-i_lane[6]=32'd0;
-i_lane[7]=32'd0;
-@(negedge i_clk);
-$display("8x_0->7 out=%0b,valid=%0b",o_out_data,pl_valid);
+    //============================================================
+    // Test Task
+    //============================================================
+    task test_mode;
+        input [2:0] mode;
+        input integer num_cycles;
+        input [8*N_BYTES-1:0] test_data;
+        integer timeout;
+        logic [8*N_BYTES-1:0] expected_data;
+        integer i;
+    begin
+        $display("Testing Mode %b (%0d cycles)", mode, num_cycles);
+        
+        // The Mapper and Demapper effectively reverse the byte order
+        // (i_in_data[7:0] becomes o_out_data[511:504]).
+        // So we compute the expected result by reversing the bytes of test_data.
+        for (i = 0; i < N_BYTES; i = i + 1) begin
+            expected_data[(N_BYTES-1-i)*8 +: 8] = test_data[i*8 +: 8];
+        end
 
-@(negedge i_clk);
-i_rst_n=0; demapper_en=0; rx_data_valid=0;
-@(negedge i_clk);
-i_rst_n=1;demapper_en=1;rx_data_valid=1;i_width_deg_demap=DEGRADE_LANES_8_TO_15;
-i_lane[8]=32'haaaaaaaa;
-i_lane[9]=32'haaaaaaaa;
-i_lane[10]=32'haaaaaaaa;
-i_lane[11]=32'haaaaaaaa;
-i_lane[12]=32'haaaaaaaa;
-i_lane[13]=32'haaaaaaaa;
-i_lane[14]=32'haaaaaaaa;
-i_lane[15]=32'haaaaaaaa;
-@(negedge i_clk);
-i_lane[8]=32'hbbbbbbbb;
-i_lane[9]=32'hbbbbbbbb;
-i_lane[10]=32'hbbbbbbbb;
-i_lane[11]=32'hbbbbbbbb;
-i_lane[12]=32'hbbbbbbbb;
-i_lane[13]=32'hbbbbbbbb;
-i_lane[14]=32'hbbbbbbbb;
-i_lane[15]=32'hbbbbbbbb;
-@(negedge i_clk);
-$display("8x_8->15 out=%0h,valid=%0b",o_out_data,pl_valid);
-i_rst_n=1;demapper_en=1;rx_data_valid=1;i_width_deg_demap=DEGRADE_LANES_8_TO_15;
-i_lane[8]=32'haaaaaaaa;
-i_lane[9]=32'haaaaaaaa;
-i_lane[10]=32'haaaaaaaa;
-i_lane[11]=32'haaaaaaaa;
-i_lane[12]=32'haaaaaaaa;
-i_lane[13]=32'haaaaaaaa;
-i_lane[14]=32'haaaaaaaa;
-i_lane[15]=32'haaaaaaaa;
-@(negedge i_clk);
-i_lane[8]=32'hbbbbbbbb;
-i_lane[9]=32'hbbbbbbbb;
-i_lane[10]=32'hbbbbbbbb;
-i_lane[11]=32'hbbbbbbbb;
-i_lane[12]=32'hbbbbbbbb;
-i_lane[13]=32'hbbbbbbbb;
-i_lane[14]=32'hbbbbbbbb;
-i_lane[15]=32'hbbbbbbbb;
-@(negedge i_clk);
-$display("8x_8->15 out=%0h,valid=%0b",o_out_data,pl_valid);
-@(negedge i_clk);
-i_rst_n=0; demapper_en=0; rx_data_valid=0;
-@(negedge i_clk);
-i_rst_n=1;demapper_en=1;rx_data_valid=1;i_width_deg_demap=DEGRADE_LANES_0_TO_3;
-i_lane[0]=32'h9A9A9A9A;
-i_lane[1]=32'h9A9A9A9A;
-i_lane[2]=32'h9A9A9A9A;
-i_lane[3]=32'h9A9A9A9A;
-@(negedge i_clk);
-i_lane[0]=32'hBCBCBCBC;
-i_lane[1]=32'hBCBCBCBC;
-i_lane[2]=32'hBCBCBCBC;
-i_lane[3]=32'hBCBCBCBC;
-@(negedge i_clk);
-i_lane[0]=32'hDEDEDEDE;
-i_lane[1]=32'hDEDEDEDE;
-i_lane[2]=32'hDEDEDEDE;
-i_lane[3]=32'hDEDEDEDE;
-@(negedge i_clk);
-i_lane[0]=32'hF1F1F1F1;
-i_lane[1]=32'hF1F1F1F1;
-i_lane[2]=32'hF1F1F1F1;
-i_lane[3]=32'hF1F1F1F1;
-@(negedge i_clk);
-$display("4x_0->3 out=%0h,valid=%0b",o_out_data,pl_valid);
-i_lane[0]=32'h98989898;
-i_lane[1]=32'h98989898;
-i_lane[2]=32'h98989898;
-i_lane[3]=32'h98989898;
-@(negedge i_clk);
-i_lane[0]=32'hBABABABA;
-i_lane[1]=32'hBABABABA;
-i_lane[2]=32'hBABABABA;
-i_lane[3]=32'hBABABABA;
-@(negedge i_clk);
-i_lane[0]=32'hDCDCDCDC;
-i_lane[1]=32'hDCDCDCDC;
-i_lane[2]=32'hDCDCDCDC;
-i_lane[3]=32'hDCDCDCDC;
-@(negedge i_clk);
-i_lane[0]=32'hF2F2F2F2;
-i_lane[1]=32'hF2F2F2F2;
-i_lane[2]=32'hF2F2F2F2;
-i_lane[3]=32'hF2F2F2F2;
-@(negedge i_clk);
-$display("4x_0->3 out=%0h,valid=%0b",o_out_data,pl_valid);
-@(negedge i_clk);
-$stop;
+        i_width_deg = mode;
+        i_in_data   = test_data;
+        mapper_en   = 1;
+        lp_irdy     = 1;
+        lp_valid    = 1;
+        
+        timeout = 0;
+        // Wait for pl_valid
+        while (!pl_valid && timeout < 20) begin
+            @(posedge i_clk); #1;
+            timeout = timeout + 1;
+        end
+        
+        if (timeout == 20) begin
+            $display("[ERR] Timeout waiting for pl_valid in mode %b", mode);
+            error_count = error_count + 1;
+        end else begin
+            // Check data
+            if (o_out_data !== expected_data) begin
+                $display("[ERR] Data mismatch in mode %b", mode);
+                $display("Expected: %h", expected_data);
+                $display("Actual:   %h", o_out_data);
+                error_count = error_count + 1;
+            end else begin
+                correct_count = correct_count + 1;
+            end
+            
+            // Allow pl_valid to clear
+            @(posedge i_clk); #1;
+        end
+        
+        mapper_en = 0;
+        lp_irdy   = 0;
+        lp_valid  = 0;
+        repeat(5) @(posedge i_clk);
+    end
+    endtask
 
-end
+    //============================================================
+    // Stimulus
+    //============================================================
+    logic [511:0] rand_data;
+    initial begin
+        // Init
+        i_rst_n     = 1'b1;
+        mapper_en   = 0;
+        lp_irdy     = 0;
+        lp_valid    = 0;
+        i_width_deg = DEGRADE_LANES_0_TO_15;
+        i_in_data   = 0;
+        
+        // Reset
+        #10 i_rst_n = 1'b0;
+        #10 i_rst_n = 1'b1;
+        repeat(5) @(posedge i_clk);
 
+        // Generate a random 512-bit payload for testing
+        rand_data = {
+            32'h11112222, 32'h33334444, 32'h55556666, 32'h77778888,
+            32'h9999AAAA, 32'hBBBBCCCC, 32'hDDDDEEEE, 32'hFFFF0000,
+            32'h12345678, 32'h9ABCDEF0, 32'h0FEDCBA9, 32'h87654321,
+            32'hCAFEF00D, 32'hDEADBEEF, 32'h8BADF00D, 32'hC0DEFACE
+        };
+
+        // Test x16 mode
+        test_mode(DEGRADE_LANES_0_TO_15, 1, rand_data);
+        // Test x8 mode (0 to 7)
+        test_mode(DEGRADE_LANES_0_TO_7, 2, rand_data);
+        // Test x8 mode (8 to 15)
+        test_mode(DEGRADE_LANES_8_TO_15, 2, rand_data);
+        // Test x4 mode (0 to 3)
+        test_mode(DEGRADE_LANES_0_TO_3, 4, rand_data);
+        // Test x4 mode (4 to 7)
+        test_mode(DEGRADE_LANES_4_TO_7, 4, rand_data);
+
+        // Result summary
+        $display("=================================");
+        $display("Correct Count = %0d", correct_count);
+        $display("Error Count   = %0d", error_count);
+        $display("=================================");
+        
+        if (error_count == 0) $display("ALL TESTS PASSED");
+        else $display("TESTS FAILED (%0d errors)", error_count);
+        
+        $stop;
+    end
 endmodule

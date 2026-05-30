@@ -15,7 +15,6 @@ module CLK_PATTERN_GEN_TX(i_clk,i_rst_n,clk_pattern_en,clk_embedded_en,o_clk_p,o
 phase_delay pd (.i_half_period(i_period / 2.0),.in_signal(o_clk_p),.delayed_signal(o_clk_n));
 
     always @(*) begin
-
         if (!i_rst_n) begin
             o_clk_p = 0;
             track = 0;
@@ -23,58 +22,47 @@ phase_delay pd (.i_half_period(i_period / 2.0),.in_signal(o_clk_p),.delayed_sign
             counter_main = 0;
             counter_zero = 0;
             o_done = 0;
-        end
-        else begin
+        end else begin
             if (clk_embedded_en) begin
-                 if (counter_toggle < TOGGLE) begin
+                if (counter_toggle < TOGGLE) begin
                     o_clk_p = i_clk;
                     track = i_clk;
-
-                counter_toggle = counter_toggle +1; 
-                end
-                else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
+                    counter_toggle = counter_toggle + 1; 
+                end else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
                     o_clk_p = 0;
                     track = 0;
-
                     counter_zero = counter_zero + 1;
                     if (counter_zero == ZERO) begin
                         counter_toggle = 0;
                         counter_zero = 0;
-                       
                     end
                 end
-                
             end else begin
-                   if (clk_pattern_en ) begin
+                if (clk_pattern_en) begin
                     if (counter_main < MAIN) begin
-                if (counter_toggle < TOGGLE) begin
-                    o_clk_p = i_clk;
-                    track = i_clk;
-
-                counter_toggle = counter_toggle +1; 
-                end
-                else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
-                    o_clk_p = 0;
-                    track = 0;
-
-                    counter_zero = counter_zero + 1;
-                    if (counter_zero == ZERO && counter_main < MAIN) begin
-                        counter_toggle = 0;
-                        counter_zero = 0;
-                        counter_main = counter_main + 1;
-                    end
-                end
-                end
-                        if (counter_main == MAIN) begin 
-                            o_done = 1;
+                        if (counter_toggle < TOGGLE) begin
+                            o_clk_p = i_clk;
+                            track = i_clk;
+                            counter_toggle = counter_toggle + 1; 
+                        end else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
+                            o_clk_p = 0;
+                            track = 0;
+                            counter_zero = counter_zero + 1;
+                            if (counter_zero == ZERO && counter_main < MAIN) begin
+                                counter_toggle = 0;
+                                counter_zero = 0;
+                                counter_main = counter_main + 1;
+                            end
                         end
-                    
-                end
-            else begin
-                counter_main <= 0;
-                o_done <= 0;
-            end 
-                end
+                    end
+                    if (counter_main == MAIN) begin 
+                        o_done = 1;
+                    end
+                end else begin
+                    counter_main <= 0;
+                    o_done <= 0;
+                end 
+            end
         end
     end
 endmodule

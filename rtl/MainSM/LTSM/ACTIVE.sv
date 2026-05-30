@@ -1,14 +1,14 @@
 import RDI_SM_pkg::*;
 import ltsm_state_n_pkg::*;
 module ACTIVE (
-    //Common signals 
+    //Common signals
     input  logic clk,
     input  logic rst_n,
     //local signals
     input  logic active_enable,
     //triggers signals
-    input  RDI_state rdi_state,//triggers to PHYRETRAIN,L1,L2,TRAINERROR states
-    input  logic Start_UCIe_Link_Training,//triggers to TRAINERROR state
+    input  RDI_state rdi_state, //triggers to PHYRETRAIN,L1,L2,TRAINERROR states
+    input  logic Start_UCIe_Link_Training, //triggers to TRAINERROR state
     //output signals
     output logic active_error,
     output ltsm_ctrl_state_e next_ltsm_state
@@ -56,12 +56,12 @@ module ACTIVE (
                 IDLE       : next_state = ACTIVE_RUN;
                 ACTIVE_RUN : begin
                     if (rdi_state == LinkError || 
-                             rdi_state == LinkReset || 
-                             rdi_state == Disabled  || 
-                             Start_UCIe_Link_Training) next_state = TRAINERROR;
+                        rdi_state == LinkReset || 
+                        rdi_state == Disabled  || 
+                        Start_UCIe_Link_Training) next_state = TRAINERROR;
                     else if (rdi_state == L_1) next_state = L1;
                     else if (rdi_state == L_2) next_state = L2;
-                    else if ((rdi_state == Retrain)) next_state = PHYRETRAIN;
+                    else if (rdi_state == Retrain) next_state = PHYRETRAIN;
                 end
                 TRAINERROR : ;
                 PHYRETRAIN : ;
@@ -72,37 +72,37 @@ module ACTIVE (
         end
     end
 
-always_comb begin 
-    case (current_state)
-        IDLE: begin
-            active_error = 0;
-            next_ltsm_state = CTRL_NOP;
-        end
-        ACTIVE_RUN: begin
-            active_error = 0;
-            next_ltsm_state = CTRL_ACTIVE;
-        end
-        TRAINERROR: begin
-            active_error = is_linkerror_q;
-            next_ltsm_state = CTRL_TRAINERROR;
-        end
-        PHYRETRAIN: begin
-            next_ltsm_state = CTRL_PHYRETRAIN;
-            active_error = 0;
-        end
-        L1: begin
-            next_ltsm_state = CTRL_L1;
-            active_error = 0;
-        end
-        L2: begin
-            next_ltsm_state = CTRL_L2;
-            active_error = 0;
-        end
-        default: begin
-            next_ltsm_state = CTRL_NOP;
-            active_error = 0;
-        end
-    endcase
-end
+    // ---------------- Output logic ----------------
+    always_comb begin 
+        case (current_state)
+            IDLE: begin
+                active_error = 0;
+                next_ltsm_state = CTRL_NOP;
+            end
+            ACTIVE_RUN: begin
+                active_error = 0;
+                next_ltsm_state = CTRL_ACTIVE;
+            end
+            TRAINERROR: begin
+                active_error = is_linkerror_q;
+                next_ltsm_state = CTRL_TRAINERROR;
+            end
+            PHYRETRAIN: begin
+                next_ltsm_state = CTRL_PHYRETRAIN;
+                active_error = 0;
+            end
+            L1: begin
+                next_ltsm_state = CTRL_L1;
+                active_error = 0;
+            end
+            L2: begin
+                next_ltsm_state = CTRL_L2;
+                active_error = 0;
+            end
+            default: begin
+                next_ltsm_state = CTRL_NOP;
+                active_error = 0;
+            end
+        endcase
+    end
 endmodule
-
