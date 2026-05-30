@@ -1,10 +1,6 @@
 module unit_VALVREF #(
         parameter MAX_VAL_VREF_CODE   = 7'D127,
-        parameter MIN_VAL_VREF_CODE   = 7'D10,
-        // D2C pattern test configuration – override for simulation speed.
-        // Spec defaults: 128 iterations × 8-cycle burst.
-        parameter D2C_ITER_COUNT      = 16'D128,
-        parameter D2C_BURST_COUNT     = 16'D8
+        parameter MIN_VAL_VREF_CODE   = 7'D10
     ) (
         // ======================= //
         // General signals.        //
@@ -15,8 +11,12 @@ module unit_VALVREF #(
         // ======================= //
         internal_ltsm_if.mbtrain2d2c_mp d2c_if
     );
+    // D2C pattern test configuration.
+    // Spec defaults: 128 iterations × 8-cycle burst.
+    localparam D2C_ITER_COUNT      = 16'D128;
+    localparam D2C_BURST_COUNT     = 16'D8;
     // For analog Voltage control.
-    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE + 1);
+    localparam VREF_CODE_WIDTH = $clog2(MAX_VAL_VREF_CODE + 1); // kept for documentation; sweep logic lives in unit_val_sweep.
     //reg [1:0] clk_sampling; // To know the Tx Clock sampling values (0h(Eye Center), 1h(Left edge), 2h(Right edge)).
     // To get the used SB messages for: (valvref_if.tx_sb_msg, sb_it.rx_sb_msg)
     import UCIe_pkg::msg_no_e;
@@ -72,9 +72,9 @@ module unit_VALVREF #(
             end_req_sb_msg_rcvd <= 1'b1;
         end
         else if (current_state == VALVREF_END_REQ && (end_req_sb_msg_rcvd || (valvref_if.rx_sb_msg == MBTRAIN_VALVREF_end_req && valvref_if.rx_sb_msg_valid == 1'b1))) begin
-            // Since we can't send 2 consecutive pulses on the signal `is_tx_sb_msg_valid` without a `0` in between for 1 lclk at least; 
+            // Since we can't send 2 consecutive pulses on the signal `is_tx_sb_msg_valid` without a `0` in between for 1 lclk at least;
             // When this scenario happens when the partner Die applies less RX_D2C_PT iterations than our Die.
-            // If we assume we won't use the `end_req_sb_msg_rcvd` signal, the FSM flow (in our Die) will be: 
+            // If we assume we won't use the `end_req_sb_msg_rcvd` signal, the FSM flow (in our Die) will be:
             //      [loop] -> 'VALVREF_RX_D2C_PT' -> 'VALVREF_LOG_RESULT' -> 'VALVREF_CALC_APPLY' -> 'VALVREF_END_REQ' (for 1 lclk duration) -> 'VALVREF_END_RESP'
             // We need this signal `ready_for_end_resp_sb_msg` extend the waiting time to wait 2 lclk cycles at least in the FSM state 'VALVREF_END_REQ' instead 1 lclk duration:
             //      1 lclk cycle for the HIGH period of the pulse.
@@ -321,152 +321,26 @@ module unit_VALVREF #(
         endcase
     end
     // =====================================================================
-    // Vref sweep data-path registers
+    // Vref Sweep Datapath — delegated to unit_val_sweep
     //
-    // Unified signal names (for cross-module readability):
-    //   phy_rx_valvref_ctrl     <-> swept_code_r  -- the Vref code swept (S3-S5 loop)
-    //                                               and applied value after CALC_APPLY.
-    //   is_in_valid_region      <-> zone_valid    -- 1 while inside a contiguous pass zone
-    //   vref_code_filled        <-> found_pass    -- 1 once any passing code seen
-    //   temp_min_vref           <-> zone_min_r    -- start of the current contiguous pass zone
-    //   min_vref_code           <-> best_lo       -- left  edge of widest pass window
-    //   max_vref_code           <-> best_hi       -- right edge of widest pass window
-    //   (no separate best_code_r: result written directly to phy_rx_valvref_ctrl)
-    //
-    // Two-zone algorithm (same as DATAVREF / DTVREF companion modules):
-    //   Zone A (new contiguous pass zone starts):
-    //     is_in_valid_region 0->1; save temp_min_vref = phy_rx_valvref_ctrl.
-    //     First-ever pass (vref_code_filled==0): seed min/max_vref_code.
-    //   Zone B (extending the contiguous pass zone):
-    //     If current zone wider than best window: update min/max_vref_code.
-    //   Fail: is_in_valid_region -> 0 (hole in Valid-lane Vref eye diagram).
+    // unit_val_sweep owns:
+    //   - phy_rx_valvref_ctrl (swept code during S3-S5; best midpoint after S6)
+    //   - valvref_fail_flag   (1 when CALC_APPLY finds no passing Vref code)
+    //   - Two-zone eye-map tracking registers
     // =====================================================================
-    wire [VREF_CODE_WIDTH-1:0] vref_range;      // width of best recorded window
-    wire [VREF_CODE_WIDTH-1:0] temp_vref_range; // width of current contiguous zone
-    reg  [VREF_CODE_WIDTH-1:0] temp_min_vref;   // (zone_min_r) start of current zone
-    reg  [VREF_CODE_WIDTH-1:0] min_vref_code;   // (best_lo) left  edge of widest window
-    reg  [VREF_CODE_WIDTH-1:0] max_vref_code;   // (best_hi) right edge of widest window
-    reg                        vref_code_filled; // (found_pass) at least one pass seen
-    // vref_range: best window width (0 if no passing code seen yet).
-    assign vref_range      = (vref_code_filled == 1'b1) ? (max_vref_code - min_vref_code) : '0;
-    // temp_vref_range: current zone width (distance from zone start to current code).
-    assign temp_vref_range = (valvref_if.phy_rx_valvref_ctrl - temp_min_vref);
-    assign valvref_fail_flag = (current_state == VALVREF_CALC_APPLY) & (~vref_code_filled);
-    // =====================================================================
-    // Sequential: swept_code_r (phy_rx_valvref_ctrl) increment and apply
-    //
-    // In this module phy_rx_valvref_ctrl serves dual purpose:
-    //   During sweep (S3-S5): driven with the current Vref code.
-    //   After CALC_APPLY    : holds the computed midpoint (best Vref center).
-    // The LOG_RESULT block reads phy_rx_valvref_ctrl as swept_code_r.
-    // =====================================================================
-    always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin : VALVREF_CALC_APPLY_PROC
-        if(!valvref_if.rst_n) begin
-            valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE; // Reset to safe Vref.
-        end
-        else if (!valvref_if.is_ltsm_out_of_reset) begin
-            valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
-        end
-        // Reset on re-entry (allows module reuse across multiple MBTRAIN passes).
-        else if(current_state == VALVREF_START_REQ) begin
-            valvref_if.phy_rx_valvref_ctrl <= MIN_VAL_VREF_CODE;
-        end
-        // (S5) Advance swept_code_r: increment phy_rx_valvref_ctrl each LOG step.
-        else if(current_state == VALVREF_LOG_RESULT) begin
-            if(valvref_if.phy_rx_valvref_ctrl != MAX_VAL_VREF_CODE) begin
-                valvref_if.phy_rx_valvref_ctrl <= valvref_if.phy_rx_valvref_ctrl + 1;
-            end
-        end
-        // (S6) Compute and apply the optimal Vref midpoint.
-        //      Spec eq.: vref_code = (min_vref_code + max_vref_code) / 2
-        //      i.e.      best_code_r = (best_lo + best_hi) / 2
-        else if(current_state == VALVREF_CALC_APPLY) begin
-            if(vref_code_filled == 1'b1) begin
-                valvref_if.phy_rx_valvref_ctrl <= ({1'b0, min_vref_code} + {1'b0, max_vref_code}) >> 1;
-            end
-            else begin
-                valvref_if.phy_rx_valvref_ctrl <= '0; // No passing code: safe default
-            end
-        end
-    end
-    reg is_in_valid_region; // (zone_valid) 1 while inside a contiguous pass zone.
-    // =====================================================================
-    // Sequential: two-zone eye-map tracking for Valid-lane Vref sweep
-    //
-    // Signal names (unified with DATAVREF / DTVREF companion modules):
-    //   valvref_if.phy_rx_valvref_ctrl <-> swept_code_r (both sweep and result)
-    //   is_in_valid_region             <-> zone_valid
-    //   vref_code_filled               <-> found_pass
-    //   temp_min_vref                  <-> zone_min_r
-    //   min_vref_code                  <-> best_lo
-    //   max_vref_code                  <-> best_hi
-    //
-    // Zone A (new contiguous pass zone starts):
-    //   is_in_valid_region 0->1; temp_min_vref = current code (= zone_min_r).
-    //   If first-ever pass (vref_code_filled==0): seed min/max_vref_code (best_lo/hi).
-    // Zone B (extending the contiguous pass zone):
-    //   If temp_vref_range (zone_range) > vref_range (best_range):
-    //     update min_vref_code (best_lo) and max_vref_code (best_hi).
-    // Fail: is_in_valid_region -> 0 (hole detected in Valid-lane Vref eye).
-    // =====================================================================
-    always @(posedge valvref_if.lclk or negedge valvref_if.rst_n) begin : VALVREF_LOG_RESULT_PROC
-        if(!valvref_if.rst_n) begin
-            min_vref_code      <=   '0;
-            max_vref_code      <=   '0;
-            vref_code_filled   <= 1'b0;
-            is_in_valid_region <= 1'b0;
-            temp_min_vref      <=   '0;
-        end
-        else if (!valvref_if.is_ltsm_out_of_reset) begin
-            min_vref_code      <=   '0;
-            max_vref_code      <=   '0;
-            vref_code_filled   <= 1'b0;
-            is_in_valid_region <= 1'b0;
-            temp_min_vref      <=   '0;
-        end
-        else if(current_state == VALVREF_START_REQ) begin
-            min_vref_code      <=   '0;
-            max_vref_code      <=   '0;
-            vref_code_filled   <= 1'b0;
-            is_in_valid_region <= 1'd0;
-            temp_min_vref      <=   '0;
-        end
-        else if(current_state == VALVREF_LOG_RESULT) begin
-            // ─── PASS: d2c_val_pass == 1 ──────────────────────────────────────
-            if (d2c_if.d2c_val_pass) begin
-                // Zone A: entering a fresh contiguous pass zone.
-                // Handles two sub-cases:
-                //   a) After a fail (is_in_valid_region was 0).
-                //   b) At the very first code (MIN_VAL_VREF_CODE): always start Zone A
-                //      to reset zone tracking (prevents stale zone_min_r from prior run).
-                if (!is_in_valid_region || valvref_if.phy_rx_valvref_ctrl == MIN_VAL_VREF_CODE) begin
-                    is_in_valid_region <= 1'b1; // mark zone active (zone_valid = 1)
-                    temp_min_vref      <= valvref_if.phy_rx_valvref_ctrl; // save zone start (zone_min_r)
-                    if (!vref_code_filled) begin
-                        // Very first passing code: seed best window (best_lo = best_hi = swept_code_r).
-                        vref_code_filled <= 1'b1; // found_pass = 1
-                        min_vref_code    <= valvref_if.phy_rx_valvref_ctrl; // best_lo
-                        max_vref_code    <= valvref_if.phy_rx_valvref_ctrl; // best_hi
-                    end
-                end
-                // Zone B: still inside the current contiguous pass zone.
-                // Update best window only if current zone is wider than last best.
-                // (temp_vref_range = zone_range, vref_range = best_range)
-                else begin
-                    if ((temp_vref_range) > (vref_range)) begin
-                        min_vref_code <= temp_min_vref                 ; // best_lo = zone_min_r
-                        max_vref_code <= valvref_if.phy_rx_valvref_ctrl; // best_hi = swept_code_r
-                    end
-                end
-            end
-            // ─── FAIL: d2c_val_pass == 0 ──────────────────────────────────────
-            // Hole in the Valid-lane Vref eye: close the current contiguous zone.
-            // Zone A will restart on the next passing code.
-            else begin
-                is_in_valid_region <= 1'b0; // zone_valid = 0
-            end
-        end
-    end
-
+    unit_val_sweep #(
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
+        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+    ) u_val_sweep (
+        .lclk                 (valvref_if.lclk                     ),
+        .rst_n                (valvref_if.rst_n                    ),
+        .is_ltsm_out_of_reset (valvref_if.is_ltsm_out_of_reset     ),
+        .start_req_state      (current_state == VALVREF_START_REQ  ),
+        .log_result_state     (current_state == VALVREF_LOG_RESULT ),
+        .calc_apply_state     (current_state == VALVREF_CALC_APPLY ),
+        .d2c_val_pass         (d2c_if.d2c_val_pass                 ),
+        .phy_rx_valvref_ctrl  (valvref_if.phy_rx_valvref_ctrl      ),
+        .valvref_fail_flag    (valvref_fail_flag                   )
+    );
 
 endmodule

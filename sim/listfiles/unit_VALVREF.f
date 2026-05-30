@@ -16,6 +16,7 @@ rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
 rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
 
 # Design Under Test (DUT)
+rtl/MainSM/LTSM/MBTRAIN/common/unit_val_sweep.sv
 rtl/MainSM/LTSM/MBTRAIN/unit_VALVREF.sv
 
 # Testbench attachments and verification logic

@@ -16,8 +16,8 @@ module unit_RXDESKEW #(
         parameter MAX_ARC_LIMIT           = 3'd4  ,
         parameter MIN_DESIRED_SWEEP_RANGE = (MAX_DESKEW_CODE - MIN_DESKEW_CODE) * 0.50
     ) (
-        internal_ltsm_if.rxdeskew_mp     rxdeskew_if,
-        internal_ltsm_if.substate2d2c_mp d2c_if
+        internal_ltsm_if.rxdeskew_mp    rxdeskew_if,
+        internal_ltsm_if.mbtrain2d2c_mp d2c_if
     );
 
     localparam SPEED_32G = 3'b101;
@@ -48,8 +48,8 @@ module unit_RXDESKEW #(
     TO_DTC2                        = 4'd13, // S13: Terminal — proceed to DataTrainCenter2.
     TO_TRAINERROR                  = 4'd14; // S14: Terminal — TRAINERROR.
 
-    logic [4:0] current_state, next_state;
-    wire      is_high_speed;
+    logic [4:0] current_state, next_state, previous_state;
+    wire        is_high_speed;
     assign is_high_speed      = (rxdeskew_if.phy_negotiated_speed > SPEED_32G);
 
     reg       start_handshake_done;
@@ -117,12 +117,15 @@ module unit_RXDESKEW #(
     always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin
         if(~rxdeskew_if.rst_n) begin
             current_state  <= RXDESKEW_IDLE;
+            previous_state <= RXDESKEW_IDLE;
         end
         else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
             current_state  <= RXDESKEW_IDLE;
+            previous_state <= RXDESKEW_IDLE;
         end
         else begin
             current_state  <= next_state   ;
+            previous_state <= current_state;
         end
     end
 
@@ -284,7 +287,7 @@ module unit_RXDESKEW #(
     always_ff @(posedge rxdeskew_if.lclk or negedge rxdeskew_if.rst_n) begin : OLD_PRESET_PROC
         if (!rxdeskew_if.rst_n) begin
             old_preset_saved <= 3'd0;
-        end 
+        end
         else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
             old_preset_saved <= 3'd0;
         end
@@ -310,11 +313,12 @@ module unit_RXDESKEW #(
         .pi_en                         (pi_en),
         .pi_session_start              (pi_session_start),
         // Abort triggers
-        .valtraincenter_fail_flag      (rxdeskew_if.valtraincenter_fail_flag),
-        .partner_valtraincenter_fail_flag (d2c_if.partner_valtraincenter_fail_flag),
+        .valtraincenter_fail_flag        (0), // TODO: Remove this signal.
+        .partner_valtraincenter_fail_flag(0), // TODO: Remove this signal.
+
         // D2C PT interface
-        .test_d2c_done                 (d2c_if.test_d2c_done),
-        .d2c_perlane_err               (d2c_if.d2c_perlane_err),
+        .test_d2c_done                 (d2c_if.local_test_d2c_done),
+        .d2c_perlane_pass              (d2c_if.d2c_perlane_pass),
         // Lane config
         .mb_rx_data_lane_mask          (rxdeskew_if.mb_rx_data_lane_mask),
         .is_high_speed                 (is_high_speed),
@@ -344,7 +348,7 @@ module unit_RXDESKEW #(
         if (!rxdeskew_if.rst_n) begin
             preset_search_cnt <= 3'd0;
             dtc1_arc_cnt      <= 3'd0;
-        end 
+        end
         else if (!rxdeskew_if.is_ltsm_out_of_reset) begin
             preset_search_cnt <= 3'd0;
             dtc1_arc_cnt      <= 3'd0;
@@ -390,10 +394,9 @@ module unit_RXDESKEW #(
         rxdeskew_if.mb_rx_trk_lane_sel  = 1'b0;
         rxdeskew_if.phy_tx_eq_preset_ctrl = my_preset;
         // SB signals are driven in the dedicated HANDSHAKE comb block
-        d2c_if.rx_pt_en             = 1'b0;
-        d2c_if.tx_pt_en             = 1'b0;
+        d2c_if.local_rx_pt_en        = 1'b0;
+        d2c_if.local_tx_pt_en       = 1'b0;
         d2c_if.d2c_clk_sampling     = 2'b00;
-        d2c_if.d2c_lfsr_en          = 1'b1;
         d2c_if.d2c_pattern_setup    = 3'b011;
         d2c_if.d2c_data_pattern_sel = 2'b00;
         d2c_if.d2c_val_pattern_sel  = 1'b0;
@@ -420,7 +423,7 @@ module unit_RXDESKEW #(
             // Forward them to the interface while in the sweep state.
             RXDESKEW_APPLY_SKEW_SWEEP: begin
                 rxdeskew_if.analog_settle_timer_en = pi_analog_settle_timer_en;
-                d2c_if.rx_pt_en                    = pi_rx_pt_en;
+                d2c_if.local_rx_pt_en              = pi_rx_pt_en;
             end
             RXDESKEW_END_REQ_RESP: begin
             end
@@ -452,6 +455,34 @@ module unit_RXDESKEW #(
     reg  [3:0]         send_sb_msg [1:0] ;
     reg               sb_msg_valid_pulse;
 
+    // =====================================================================
+    // >> =====================  For the RX_D2C_PT local-partner modules seperation  ===================== << //
+    assign d2c_if.partner_tx_pt_en = 1'b0;
+    always @(posedge datavref_if.lclk or negedge datavref_if.rst_n)
+    begin
+        if(!datavref_if.rst_n) begin
+            d2c_if.partner_rx_pt_en <= 1'b0;
+        end
+        else if(current_state == DATAVREF_IDLE || current_state == DATAVREF_END_RESP) begin // To force the synchronization when we send and receive the {... end req} SB message.
+            d2c_if.partner_rx_pt_en <= 1'b0;
+        end
+        else if(current_state == DATAVREF_SET_VREF_CODE ||
+                current_state == DATAVREF_RX_D2C_PT     ||
+                current_state == DATAVREF_LOG_RESULT    ||
+                current_state == DATAVREF_CALC_APPLY    ||
+                current_state == DATAVREF_END_REQ       ) begin
+            if(d2c_if.partner_test_d2c_done) begin
+                d2c_if.partner_rx_pt_en <= 1'b0;
+            end else begin
+                d2c_if.partner_rx_pt_en <= 1'b1;
+            end
+        end
+    end
+    // >> ===================== * ================================================ * ===================== << //
+    // =====================================================================
+
+
+
     localparam [3:0]
     NO_MSG         = 4'H0,
     START_REQ      = 4'H1,
@@ -464,11 +495,11 @@ module unit_RXDESKEW #(
     END_RESP       = 4'H8;
 
     always_comb begin
-        start_handshake_done = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_start_resp && rxdeskew_if.rx_sb_msg_valid);
+        start_handshake_done            = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_start_resp && rxdeskew_if.rx_sb_msg_valid);
         partner_preset_fail_status_comb = (rxdeskew_if.rx_msginfo[0]) & (rxdeskew_if.rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp) & (rxdeskew_if.rx_sb_msg_valid);
         preset_handshake_done           = (~partner_preset_fail_status_comb & ~my_preset_fail_status);
-        exit_to_dtc1_handshake_done = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp && rxdeskew_if.rx_sb_msg_valid);
-        end_handshake_done = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_end_resp && rxdeskew_if.rx_sb_msg_valid);
+        exit_to_dtc1_handshake_done     = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp && rxdeskew_if.rx_sb_msg_valid);
+        end_handshake_done              = (rxdeskew_if.rx_sb_msg == MBTRAIN_RXDESKEW_end_resp && rxdeskew_if.rx_sb_msg_valid);
     end
 
     always_comb begin

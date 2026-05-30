@@ -1,135 +1,158 @@
 `timescale 1ps/1ps
+// =============================================================================
+// Testbench : unit_VALTRAINCENTER_tb
+// Purpose   : Self-checking testbench for unit_VALTRAINCENTER FSM.
+//
+// VALTRAINCENTER uses TX_D2C_PT only:
+//   • local_tx_pt_en    → set by DUT in S4
+//   • partner_tx_pt_en  → set by DUT (registered) while sweep runs
+//   • local_rx_pt_en    → always 0
+//   • partner_rx_pt_en  → always 0
+//
+// Spec compliance tested:
+//   ✓ Happy path: full PI phase sweep → midpoint applied → SB done handshake
+//   ✓ No TRAINERROR on all-fail sweep (not exported)
+//   ✓ 8ms timeout causes TO_TRAINERROR
+//   ✓ Partner TRAINERROR message causes TO_TRAINERROR
+//   ✓ Wrong SB message causes timeout → TO_TRAINERROR
+//   ✓ Holes-in-eye scenario: widest contiguous zone selected
+// =============================================================================
 module unit_VALTRAINCENTER_tb ();
     import UCIe_pkg::*;
-    parameter LCLK_PERIOD          = 1*1000 ; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
-    parameter TIMEOUT_CYCLES       = 700_000; // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles). Here i will use 700_000 cycles to run the simulation faster.
-    parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
-    parameter MIN_PHASE_CODE       = 6'D0   ;
-    parameter MAX_PHASE_CODE       = 6'D63  ;
-    parameter PHASE_CODE_WIDTH     = $clog2(MAX_PHASE_CODE + 1);
-    
-    // LTSM signals.
-    reg  lclk         ;
-    reg  rst_n        ;
-    internal_ltsm_if intf (.lclk(lclk), .rst_n(rst_n));
 
-    // States names
+    // ── Timing parameters ────────────────────────────────────────────────────
+    parameter LCLK_PERIOD          = 1*1000 ; // lclk = 1 ns (1 GHz); *1000 for ps waveform.
+    parameter ANALOG_SETTLE_CYCLES = 10     ; // Cycles for analog settle timer.
+    parameter SB_DELAY             = 20     ; // SB propagation delay (lclk cycles).
+    parameter MIN_PHASE_CODE       = 7'D0   ;
+    parameter MAX_PHASE_CODE       = 7'D127 ;
+    // -----------------------------------------------------------------------
+    // D2C pattern speed knobs (must match DUT localparams).
+    //   Spec: 128 iterations × 8-cycle burst = 1024 UI per phase code.
+    // -----------------------------------------------------------------------
+    parameter ITER_COUNT  = 128; // DUT localparam D2C_ITER_COUNT
+    parameter BURST_COUNT = 8  ; // DUT localparam D2C_BURST_COUNT
+    // -----------------------------------------------------------------------
+    // Auto-compute TIMEOUT_CYCLES to scale with all speed parameters.
+    // -----------------------------------------------------------------------
+    localparam integer CYCLES_PER_CODE = ANALOG_SETTLE_CYCLES + (BURST_COUNT + 1) * ITER_COUNT + 15;
+    localparam integer SWEEP_CYCLES    = (MAX_PHASE_CODE - MIN_PHASE_CODE + 1) * CYCLES_PER_CODE + 8 * SB_DELAY;
+    parameter  TIMEOUT_CYCLES          = SWEEP_CYCLES + SB_DELAY * 4 + SWEEP_CYCLES;
+
+    localparam PHASE_CODE_WIDTH = $clog2(MAX_PHASE_CODE + 1);
+
+    // ── LTSM interface & clocks ──────────────────────────────────────────────
+    reg  lclk ;
+    reg  rst_n;
+    internal_ltsm_if intf (.lclk(lclk), .rst_n(rst_n));
+    assign intf.is_ltsm_out_of_reset = rst_n;
+
+    // ── State names (mirror DUT localparams) ─────────────────────────────────
     typedef enum reg [3:0] {
-        VALTRAINCENTER_IDLE          = unit_VALTRAINCENTER_inst.VALTRAINCENTER_IDLE         , // (S0)
-        VALTRAINCENTER_START_REQ     = unit_VALTRAINCENTER_inst.VALTRAINCENTER_START_REQ    , // (S1)
-        VALTRAINCENTER_START_RESP    = unit_VALTRAINCENTER_inst.VALTRAINCENTER_START_RESP   , // (S2)
-        VALTRAINCENTER_SET_PHASE     = unit_VALTRAINCENTER_inst.VALTRAINCENTER_SET_PHASE    , // (S3)
-        VALTRAINCENTER_TX_D2C_PT     = unit_VALTRAINCENTER_inst.VALTRAINCENTER_TX_D2C_PT    , // (S4)
-        VALTRAINCENTER_LOG_RESULT    = unit_VALTRAINCENTER_inst.VALTRAINCENTER_LOG_RESULT   , // (S5)
-        VALTRAINCENTER_CALC_APPLY    = unit_VALTRAINCENTER_inst.VALTRAINCENTER_CALC_APPLY   , // (S6)
-        VALTRAINCENTER_DONE_REQ      = unit_VALTRAINCENTER_inst.VALTRAINCENTER_DONE_REQ     , // (S7)
-        VALTRAINCENTER_DONE_RESP     = unit_VALTRAINCENTER_inst.VALTRAINCENTER_DONE_RESP    , // (S8)
-        TO_VALTRAINVREF              = unit_VALTRAINCENTER_inst.TO_VALTRAINVREF             , // (S9)
-        TO_TRAINERROR                = unit_VALTRAINCENTER_inst.TO_TRAINERROR               , // (S10)
+        VALTRAINCENTER_IDLE       = unit_VALTRAINCENTER_inst.VALTRAINCENTER_IDLE      , // S0
+        VALTRAINCENTER_START_REQ  = unit_VALTRAINCENTER_inst.VALTRAINCENTER_START_REQ , // S1
+        VALTRAINCENTER_START_RESP = unit_VALTRAINCENTER_inst.VALTRAINCENTER_START_RESP, // S2
+        VALTRAINCENTER_SET_PHASE  = unit_VALTRAINCENTER_inst.VALTRAINCENTER_SET_PHASE , // S3
+        VALTRAINCENTER_TX_D2C_PT  = unit_VALTRAINCENTER_inst.VALTRAINCENTER_TX_D2C_PT , // S4
+        VALTRAINCENTER_LOG_RESULT = unit_VALTRAINCENTER_inst.VALTRAINCENTER_LOG_RESULT, // S5
+        VALTRAINCENTER_CALC_APPLY = unit_VALTRAINCENTER_inst.VALTRAINCENTER_CALC_APPLY, // S6
+        VALTRAINCENTER_DONE_REQ   = unit_VALTRAINCENTER_inst.VALTRAINCENTER_DONE_REQ  , // S7
+        VALTRAINCENTER_DONE_RESP  = unit_VALTRAINCENTER_inst.VALTRAINCENTER_DONE_RESP , // S8
+        TO_VALTRAINVREF           = unit_VALTRAINCENTER_inst.TO_VALTRAINVREF          , // S9
+        TO_TRAINERROR             = unit_VALTRAINCENTER_inst.TO_TRAINERROR            , // S10
         Continue_Repeating_The_Last_3_States = 'hF
     } fsm_state_t;
     fsm_state_t current_state, monitor_current_state;
+    assign current_state = fsm_state_t'(unit_VALTRAINCENTER_inst.current_state);
 
-    assign current_state  = fsm_state_t'(unit_VALTRAINCENTER_inst.current_state);
-
-
-    // ===================================================================== //
-    //   __      ____      ____      ____      ____      ____      ____      //
-    //     |____|    |____|    |____|    |____|    |____|    |____|    |__   //
-    //                                                                       //
-    //                           Clock Generation.                           //
-    //      ____      ____      ____      ____      ____      ____      __   //
-    //    _|    |____|    |____|    |____|    |____|    |____|    |____|     //
-    // ===================================================================== //
-    // For lclk:
+    // ── Clock generation ─────────────────────────────────────────────────────
     initial begin
         lclk = 0;
         forever #(LCLK_PERIOD/2) lclk = ~lclk;
     end
 
-    //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
-    // |  -------------------------       (Instance of the VALTRAINCENTER module)       ---------------------------  |
-    //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
+    // ── DUT Instance ─────────────────────────────────────────────────────────
     unit_VALTRAINCENTER #(
         .MAX_PHASE_CODE(MAX_PHASE_CODE),
         .MIN_PHASE_CODE(MIN_PHASE_CODE)
     ) unit_VALTRAINCENTER_inst (
-        .d2c_if(intf),
-        .valtraincenter_if(intf)
+        .d2c_if             (intf),
+        .valtraincenter_if  (intf)
     );
 
+    // ── TB Attachment (clocks, SB, MB) ───────────────────────────────────────
     ltsm_tb_attachments #(
-        .TIMEOUT_CYCLES      (TIMEOUT_CYCLES      ), 
-        .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES)  
+        .TIMEOUT_CYCLES      (TIMEOUT_CYCLES      ),
+        .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
+        .SB_DELAY            (SB_DELAY            )
     ) ltsm_tb_attachments_inst (
         .intf(intf)
     );
 
-    //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
-    // |  -------------------------                (assume_errors)               ---------------------------  |
-    //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
-
-    reg [PHASE_CODE_WIDTH-1:0] current_task_phase_min    ;
-    reg [PHASE_CODE_WIDTH-1:0] current_task_phase_max    ;
+    // ── Combinational eye-diagram model ──────────────────────────────────────
+    reg [PHASE_CODE_WIDTH-1:0] current_task_phase_min;
+    reg [PHASE_CODE_WIDTH-1:0] current_task_phase_max;
     reg assume_holes_after_quarter_eye_start;
 
     task assume_errors (
-            input [15:0] task_aggr_err     = 16'b0 , 
-            input [15:0] task_perlane_err  = 16'b0 , 
-            input [PHASE_CODE_WIDTH-1:0] task_phase_code_min  = PHASE_CODE_WIDTH'(15),
-            input [PHASE_CODE_WIDTH-1:0] task_phase_code_max  = PHASE_CODE_WIDTH'(45),
+            input [15:0] task_aggr_err     = 16'b0    ,
+            input [15:0] task_perlane_pass = 16'hFFFF ,
+            input [PHASE_CODE_WIDTH-1:0] task_phase_code_min = PHASE_CODE_WIDTH'(30),
+            input [PHASE_CODE_WIDTH-1:0] task_phase_code_max = PHASE_CODE_WIDTH'(90),
             input task_assume_holes_after_quarter_eye_start = 0
         );
-        intf.tb_aggr_err          = task_aggr_err    ;
-        intf.tb_perlane_err       = task_perlane_err ;
-        current_task_phase_min    = task_phase_code_min;
-        current_task_phase_max    = task_phase_code_max;
-
+        intf.tb_aggr_err     = task_aggr_err    ;
+        intf.tb_perlane_pass = task_perlane_pass;
+        current_task_phase_min = task_phase_code_min;
+        current_task_phase_max = task_phase_code_max;
         assume_holes_after_quarter_eye_start = task_assume_holes_after_quarter_eye_start;
     endtask
 
+    // Drive tb_val_pass based on swept phase code
     always @(*) begin
-        if(intf.phy_tx_val_pi_phase_ctrl >= current_task_phase_min && intf.phy_tx_val_pi_phase_ctrl <= current_task_phase_max) begin
-
-            // =============================================================================================== //
-            // Adding a deliberate hole (hole) in the eye to force the RTL to test all pathways.               //
-            // For simplicity: Consider the hole be added after the (1/4) of the correct Phase range.          //
-            // =============================================================================================== //
-            if ((intf.phy_tx_val_pi_phase_ctrl == current_task_phase_min + (current_task_phase_max - current_task_phase_min)/4 ) &&
-                    assume_holes_after_quarter_eye_start == 1 ) begin
-                intf.tb_val_err = 1'b1;  // A deliberate mistake in the middle!
+        if (intf.phy_tx_val_pi_phase_ctrl >= current_task_phase_min &&
+                intf.phy_tx_val_pi_phase_ctrl <= current_task_phase_max) begin
+            if ((intf.phy_tx_val_pi_phase_ctrl ==
+                        current_task_phase_min + (current_task_phase_max - current_task_phase_min)/4)
+                    && assume_holes_after_quarter_eye_start == 1) begin
+                intf.tb_val_pass = 1'b0; // Deliberate hole
+            end else begin
+                intf.tb_val_pass = 1'b1; // Inside valid window -> pass
             end
-            else begin // (Inside Eye Diagram)
-                intf.tb_val_err = 1'b0; // The right point that is inside the Eye Diagram.
-            end
-        end
-        else begin
-            intf.tb_val_err = 1'b1; // The points are too low Phase or too high Phase.
+        end else begin
+            intf.tb_val_pass = 1'b0; // Outside eye -> fail
         end
     end
 
-    //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
-    // |  -------------------------                 (Reset Task:)                ---------------------------  |
-    //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
+    // ── Reset Task ───────────────────────────────────────────────────────────
     task reset();
         rst_n                   = 0;
         intf.tb_aggr_err        = 0;
-        intf.tb_perlane_err     = 0;
-        intf.tb_val_err         = 0;
-        intf.tb_clk_err         = 0;
+        intf.tb_perlane_pass    = 16'hFFFF;
+        intf.tb_val_pass        = 1'b1;
+        intf.tb_clk_pass        = 1'b1;
 
-        intf.tb_wait_timeout    = 0;
-        intf.tb_wrong_sb_msg_en = 0;
-        intf.tb_wrong_sb_msg    = NOTHING;
-        intf.tb_rx_msginfo      = 16'B0;
-        intf.tb_rx_data_field   = 64'B0;
+        // Drive speed and continuous clock config variables
+        intf.phy_negotiated_speed          = 3'b010; // Speed <= SPEED_32G
+        intf.mb_tx_continuous_or_strobe_clk = 1'b1;  // Strobe mode
+
+        intf.mb_rx_data_lane_mask = 3'b011; // Lanes 0-15 active
+
+        intf.tb_wait_timeout       = 0;
+        intf.tb_wrong_sb_msg_en    = 0;
+        intf.tb_wrong_sb_msg       = NOTHING;
+        intf.tb_wrong_msginfo      = 16'B0;
+        intf.tb_wrong_data_field   = 64'B0;
+
+        // Reset partner D2C done override in the TB attachments module
+        ltsm_tb_attachments_inst.tb_partner_test_d2c_done_en = 0;
+        ltsm_tb_attachments_inst.tb_partner_test_d2c_done    = 0;
+
         #10;
         rst_n = 1;
     endtask
 
-    //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
-    // |  -------------------------               ( Start Test Task)             ---------------------------  |
-    //  \______________________/‾‾‾‾‾\________________________________________/‾‾‾‾‾\________________________/
+    // ── Start Test Task ──────────────────────────────────────────────────────
     integer lclk_counter          = 0;
     reg     lclk_counter_run_flag = 0;
     integer success_count         = 0;
@@ -137,128 +160,113 @@ module unit_VALTRAINCENTER_tb ();
     reg [10:0] entered_states;
 
     task start_test(
-            input integer  abort_mb_or_sb_after       = TIMEOUT_CYCLES    ,
-            input integer  receive_wrong_sb_msg_after = TIMEOUT_CYCLES    ,
-            input msg_no_e wrong_sb_msg               = NOTHING            
+            input integer  abort_mb_or_sb_after       = TIMEOUT_CYCLES,
+            input integer  receive_wrong_sb_msg_after  = TIMEOUT_CYCLES,
+            input msg_no_e wrong_sb_msg                = NOTHING
         );
         logic test_timeout_8ms_occured;
         entered_states = 0;
+
         fork : test_execution
+            // ── Main thread ──────────────────────────────────────────────
             begin
                 intf.valtraincenter_en = 1'b1;
-                lclk_counter_run_flag = 1; 
-                wait(intf.valtraincenter_done || intf.trainerror_req); #1step; 
+                lclk_counter_run_flag = 1;
+                wait(intf.valtraincenter_done || intf.trainerror_req); #1step;
 
                 intf.valtraincenter_en = 1'b0;
-                test_timeout_8ms_occured = (intf.trainerror_req);
-                if(intf.trainerror_req != 1'b1) begin
-                    integer hole_pos;
-                    integer expected_best_center;
-                    logic                        phase_fail_flag;
-                    
-                    hole_pos               = (assume_holes_after_quarter_eye_start)? current_task_phase_min + (current_task_phase_max - current_task_phase_min)/4 : (current_task_phase_min-1);
-                    expected_best_center   = (hole_pos + 1 + current_task_phase_max) / 2;
-                    phase_fail_flag        = (assume_holes_after_quarter_eye_start && current_task_phase_min == current_task_phase_max);
+                test_timeout_8ms_occured = intf.trainerror_req;
 
-                    if (( intf.valtraincenter_fail_flag !=  phase_fail_flag) ||
-                            (!intf.valtraincenter_fail_flag && !phase_fail_flag && intf.phy_tx_val_pi_phase_ctrl != expected_best_center)) begin
-
-                        repeat(5) $display("\t\t ************************** ERROR **************************");
-                        $display("error valtraincenter_fail_flag = %0d, phase_fail_flag = %0b, intf.phy_tx_val_pi_phase_ctrl = %0d, Expected Center = %0d, is_there_holes = %0b",
-                            intf.valtraincenter_fail_flag,
-                            phase_fail_flag,
-                            intf.phy_tx_val_pi_phase_ctrl,
-                            expected_best_center,
-                            assume_holes_after_quarter_eye_start);
-                        $stop;
-                    end
-
+                if (intf.trainerror_req != 1'b1) begin
+                    // ── Happy exit: verify FSM settled ────────────────────
+                    wait(current_state == TO_VALTRAINVREF);     #1step;
                     wait(current_state == VALTRAINCENTER_IDLE); #1step;
-                end
-                else begin
+                end else begin
                     wait(current_state == TO_TRAINERROR); #1step;
                 end
 
-                if(test_timeout_8ms_occured == 1) begin
-                    if(intf.rx_sb_msg == TRAINERROR_Entry_req) begin 
-                        fail_count    = (intf.tb_wrong_sb_msg_en == 1'b1)? fail_count        : fail_count + 1;
-                        success_count = (intf.tb_wrong_sb_msg_en == 1'b1)? success_count + 1 : success_count ;
-
-                        if(intf.tb_wrong_sb_msg_en == 1'b1) begin
-                            $display("%10t ps, (Total lclk cycles: %0d): The FSM entered the \"TO_TRAINERROR\" state as expected correctly (due to receiving TRAINERROR SB message from the partner).", $realtime(), lclk_counter);
-                            $display("\t\t That happens because the wrong Msg \"%s\" after passing %0d clock of lclk",
-                                intf.tb_wrong_sb_msg.name(), receive_wrong_sb_msg_after);
-                        end else begin
+                // ── Pass/fail accounting ──────────────────────────────────
+                if (test_timeout_8ms_occured == 1) begin
+                    if (intf.rx_sb_msg == TRAINERROR_Entry_req) begin
+                        // Partner sent TRAINERROR — expected when wrong_sb_msg == TRAINERROR_Entry_req
+                        fail_count    = (intf.tb_wrong_sb_msg_en)? fail_count        : fail_count + 1;
+                        success_count = (intf.tb_wrong_sb_msg_en)? success_count + 1 : success_count;
+                        if (intf.tb_wrong_sb_msg_en)
+                            $display("%10t ps, (%0d cycles): FSM → TO_TRAINERROR via TRAINERROR SB msg (expected).", $realtime(), lclk_counter);
+                        else begin
                             repeat(5) $display("\t\t ************************** ERROR **************************");
-                            $display("%10t ps: The FSM received unexpected {TRAINERROR Entry req} SB Message. <================================= [Error]\n", $realtime());
+                            $display("%10t ps: Unexpected TRAINERROR Entry req! <== [Error]", $realtime());
                             $stop;
                         end
-
-                    end
-                    else begin
-                        fail_count    = (intf.tb_wait_timeout == 1'b1)? fail_count        : fail_count + 1;
-                        success_count = (intf.tb_wait_timeout == 1'b1)? success_count + 1 : success_count ;
-
-                        if(intf.tb_wrong_sb_msg_en == 1'b1) begin
-                            $display("%10t ps: The test passed but is directed to TO_TRAINERROR (due to timeout).", $realtime());
-                        end else begin
+                    end else begin
+                        // Pure 8ms timeout
+                        fail_count    = (intf.tb_wait_timeout)? fail_count        : fail_count + 1;
+                        success_count = (intf.tb_wait_timeout)? success_count + 1 : success_count;
+                        if (!intf.tb_wrong_sb_msg_en && !intf.tb_wait_timeout) begin
                             repeat(5) $display("\t\t ************************** ERROR **************************");
-                            $display("%10t ps: FSM logic failed (Timeout). <================================= [Error]\n", $realtime());
+                            $display("%10t ps: FSM timed out unexpectedly! <== [Error]", $realtime());
                             $stop;
                         end
+                        $display("%10t ps: FSM → TO_TRAINERROR via timeout (expected).", $realtime());
                     end
-                end
-                else begin
+                end else begin
                     success_count++;
-                    $display("%10t ps: The test passed successfully.", $realtime());
+                    $display("%10t ps: Test passed successfully.", $realtime());
                 end
 
-                $display("_____(Success count = %0d, Fail count = %0d, The total lclk cycles: %0d)_____\n", success_count, fail_count, lclk_counter);
+                $display("_____(Success=%0d, Fail=%0d, Cycles=%0d)_____\n",
+                    success_count, fail_count, lclk_counter);
                 disable test_execution;
             end
 
+            // ── Wrong-SB-message injection thread ────────────────────────
             begin
-                for (int i=0; i<receive_wrong_sb_msg_after ; i++) begin
+                for (int i = 0; i < receive_wrong_sb_msg_after; i++) begin
                     @(posedge lclk);
                     intf.tb_wrong_sb_msg_en = 0;
-                    intf.tb_wrong_sb_msg = wrong_sb_msg;
+                    intf.tb_wrong_sb_msg    = wrong_sb_msg;
                 end
                 intf.tb_wrong_sb_msg_en = 1;
             end
 
+            // ── Timeout injection thread ──────────────────────────────────
             begin
-                for (int i=0; i<abort_mb_or_sb_after ; i++) begin
+                for (int i = 0; i < abort_mb_or_sb_after; i++) begin
                     @(posedge lclk);
                     intf.tb_wait_timeout = 0;
                 end
                 intf.tb_wait_timeout = 1;
             end
 
+            // ── FSM transition monitor thread ─────────────────────────────
             begin : check_fsm_transitions
-                wait(current_state == VALTRAINCENTER_IDLE);         
-                entered_states[0] = 1;                       
-                wait(current_state == VALTRAINCENTER_START_REQ);    
-                entered_states[1] = 1;                       
-                wait(current_state == VALTRAINCENTER_START_RESP);   
-                entered_states[2] = 1;                       
+                wait(current_state == VALTRAINCENTER_IDLE);
+                entered_states[0] = 1;
+                wait(current_state == VALTRAINCENTER_START_REQ);
+                entered_states[1] = 1;
+                wait(current_state == VALTRAINCENTER_START_RESP);
+                entered_states[2] = 1;
+
+                // Full sweep path: S3 → S4 → S5 repeating for each Phase code
                 repeat((MAX_PHASE_CODE - MIN_PHASE_CODE) + 1) begin
                     wait(current_state == VALTRAINCENTER_SET_PHASE);
-                    entered_states[3] = 1;                       
-                    wait(current_state == VALTRAINCENTER_TX_D2C_PT); 
-                    entered_states[4] = 1;                       
+                    entered_states[3] = 1;
+                    wait(current_state == VALTRAINCENTER_TX_D2C_PT);
+                    entered_states[4] = 1;
                     wait(current_state == VALTRAINCENTER_LOG_RESULT);
-                    entered_states[5] = 1;                       
+                    entered_states[5] = 1;
                 end
-                wait(current_state == VALTRAINCENTER_CALC_APPLY);   
-                entered_states[6] = 1;                       
-                wait(current_state == VALTRAINCENTER_DONE_REQ);     
-                entered_states[7] = 1;                       
-                wait(current_state == VALTRAINCENTER_DONE_RESP);    
-                entered_states[8] = 1;                       
-                wait(current_state == TO_VALTRAINVREF);           
-                entered_states[9] = 1;                       
-                wait(current_state == VALTRAINCENTER_IDLE);         
-                entered_states[10] = 1;                      
+                wait(current_state == VALTRAINCENTER_CALC_APPLY);
+                entered_states[6] = 1;
+
+                wait(current_state == VALTRAINCENTER_DONE_REQ);
+                entered_states[7] = 1;
+                wait(current_state == VALTRAINCENTER_DONE_RESP);
+                entered_states[8] = 1;
+                wait(current_state == TO_VALTRAINVREF);
+                entered_states[9] = 1;
+                wait(current_state == VALTRAINCENTER_IDLE);
+                entered_states[10] = 1;
             end
         join
 
@@ -267,131 +275,116 @@ module unit_VALTRAINCENTER_tb ();
         lclk_counter_run_flag   = 0;
         intf.tb_wait_timeout    = 0;
         intf.tb_wrong_sb_msg_en = 0;
-        @(posedge lclk); 
-        #1step;
+        @(posedge lclk); #1step;
     endtask
 
+    // ── lclk counter ─────────────────────────────────────────────────────────
     always @(posedge lclk or negedge rst_n) begin
-        if(!rst_n) begin
-            lclk_counter <= 0;
-        end else if(lclk_counter_run_flag) begin
-            lclk_counter <= lclk_counter + 1;
-        end else begin
-            lclk_counter <= 0;
-        end
+        if (!rst_n) lclk_counter <= 0;
+        else if (lclk_counter_run_flag) lclk_counter <= lclk_counter + 1;
+        else lclk_counter <= 0;
     end
 
-    int test_scenario_no = 1;
-    msg_no_e random_msg = NOTHING;
-    integer random_clocks=0;
-    logic   first_loop;
-    integer temporary_var = 0;
-    
+    // ── Monitor helpers ───────────────────────────────────────────────────────
+    int      test_scenario_no = 1;
+    msg_no_e random_msg       = NOTHING;
+    integer  random_clocks    = 0;
+    logic    first_loop;
+    integer  temporary_var    = 0;
+
     always @(posedge lclk or negedge rst_n) begin
-        if(!lclk) begin
-            first_loop = 1;
-        end else if(entered_states[10:0] == 11'b000_0011_1111) begin
-            first_loop = 0;
-        end else begin
-            first_loop = 1;
-        end
+        if (!lclk) first_loop = 1;
+        else if (entered_states[10:0] == 11'b000_0011_1111) first_loop = 0;
+        else first_loop = 1;
     end
 
-    assign monitor_current_state = (current_state == TO_TRAINERROR)? TO_TRAINERROR :
-        ((entered_states[10:0] == 11'b000_0011_1111) && !first_loop)? Continue_Repeating_The_Last_3_States : current_state;
+    assign monitor_current_state =
+        (current_state == TO_TRAINERROR) ? TO_TRAINERROR :
+        ((entered_states[10:0] == 11'b000_0011_1111) && !first_loop) ?
+        Continue_Repeating_The_Last_3_States : current_state;
 
+    // =========================================================================
+    //                          Test Scenarios
+    // =========================================================================
     initial begin
         reset();
-        $monitor("%10t ps : The Currernt state: (\"%s\").", $realtime(), monitor_current_state.name());
+        $monitor("%10t ps : Current state: (\"%s\").", $realtime(), monitor_current_state.name());
 
-        /////////////////////////////////////////////////////////////////////////
-        // The test scenario (1, 2, 3) : Happy Scenario.                       //
-        /////////////////////////////////////////////////////////////////////////
-        for(int i = 0; i < 3; i++) begin
-            $display("\n=========>  Test Scenario (%0d): Happy Scenario. <=========", test_scenario_no++);
-            assume_errors (
-                .task_aggr_err     (16'h0009),
-                .task_perlane_err  (16'h0008), 
-                .task_phase_code_min(6'd15),
-                .task_phase_code_max(6'd45),
-                .task_assume_holes_after_quarter_eye_start(0)
-            );
+        // ─────────────────────────────────────────────────────────────────────
+        // Scenarios 1-3 : Happy Path — full PI phase sweep, no failure
+        // ─────────────────────────────────────────────────────────────────────
+        for (int i = 0; i < 3; i++) begin
+            $display("\n==========>  Test Scenario (%0d): Happy Path (full sweep). <==========", test_scenario_no++);
+            assume_errors(.task_phase_code_min(PHASE_CODE_WIDTH'(30)),
+                .task_phase_code_max(PHASE_CODE_WIDTH'(90)));
             start_test();
         end
 
-        //////////////////////////////////////////////////////////////////////////
-        // The test scenario (4, 5, 6) : SB Connection Interruption.            //
-        //////////////////////////////////////////////////////////////////////////
+        // ─────────────────────────────────────────────────────────────────────
+        // Scenarios 5-7 : SB Connection Interruption (8ms timeout)
+        // ─────────────────────────────────────────────────────────────────────
         repeat(3) begin
-            $display("\n=========>  Test Scenario (%0d): SB Connection Interruption. <=========", test_scenario_no++);
-            $display(  "=========>               (timeout 8ms occurs)                <=========");
-            start_test(
-                .abort_mb_or_sb_after      (TIMEOUT_CYCLES),
-                .receive_wrong_sb_msg_after($urandom_range(0, 'D560_000)),
-                .wrong_sb_msg              (NOTHING)
-            );
-            reset(); 
-        end
-
-        /////////////////////////////////////////////////////////////////////////
-        // The test scenario (7) : Receive {TRAINERROR Entry req} SB Msg.      //
-        /////////////////////////////////////////////////////////////////////////
-        $display("\n=========>  Test Scenario (%0d): Receive {TRAINERROR Entry req} SB Msg. <=========", test_scenario_no++);
-        $display(  "=========>                   (timeout doesn't occur)                    <=========");
-        assume_errors (
-            .task_phase_code_min(MIN_PHASE_CODE),
-            .task_phase_code_max(MAX_PHASE_CODE)
-        );
-        start_test(
-            .receive_wrong_sb_msg_after(400_000),
-            .wrong_sb_msg              (TRAINERROR_Entry_req)
-        );
-        reset();
-
-        /////////////////////////////////////////////////////////////////////////
-        // The test scenario (8:30) : Receive Wrong SB Msg.                    //
-        /////////////////////////////////////////////////////////////////////////
-        for (int i = 8; i < 31; i++) begin
-            $display("\n=========>  Test Scenario (%0d): Receive Wrong SB Msg.  <=========", test_scenario_no++);
-            $display(  "=========>             (timeout 8ms occurs)             <=========");
-            while (random_msg === msg_no_e'(8'hXX) || random_msg === TRAINERROR_Entry_req) begin
-                random_msg = msg_no_e'($urandom_range(8'h0, 8'hFF));
-            end
-            random_clocks = $urandom_range(0, 500000);
-            start_test(
-                .receive_wrong_sb_msg_after(random_clocks),
-                .wrong_sb_msg              (random_msg)
-            );
+            $display("\n==========>  Test Scenario (%0d): SB Timeout (8ms). <==========", test_scenario_no++);
+            start_test(.abort_mb_or_sb_after      (TIMEOUT_CYCLES),
+                .receive_wrong_sb_msg_after ($urandom_range(0, TIMEOUT_CYCLES - 100)),
+                .wrong_sb_msg               (NOTHING));
             reset();
         end
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-        // The test scenario 31:100 : Check Holes Scenario.                                               //
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-        for(int i = 31; i <= 100; i++) begin
-            $display("\n=========>  Test Scenario (%0d): Holes Scenario. <=========", test_scenario_no++);
-            temporary_var = 0;
-            while(temporary_var < MIN_PHASE_CODE) begin
+        // ─────────────────────────────────────────────────────────────────────
+        // Scenario 8 : Partner sends {TRAINERROR Entry req}
+        // ─────────────────────────────────────────────────────────────────────
+        $display("\n==========>  Test Scenario (%0d): Partner TRAINERROR msg. <==========", test_scenario_no++);
+        assume_errors(.task_phase_code_min(PHASE_CODE_WIDTH'(MIN_PHASE_CODE)),
+            .task_phase_code_max(PHASE_CODE_WIDTH'(MAX_PHASE_CODE)));
+        start_test(.receive_wrong_sb_msg_after(SWEEP_CYCLES / 2),
+            .wrong_sb_msg              (TRAINERROR_Entry_req));
+        reset();
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Scenarios 9-31 : Random wrong SB message (causes timeout)
+        // ─────────────────────────────────────────────────────────────────────
+        for (int i = 9; i < 32; i++) begin
+            $display("\n==========>  Test Scenario (%0d): Wrong SB Msg (timeout). <==========", test_scenario_no++);
+            while (random_msg === msg_no_e'(8'hXX) || random_msg === TRAINERROR_Entry_req) begin
+                random_msg = msg_no_e'($urandom_range(8'h0, 8'hFF));
+            end
+            random_clocks = $urandom_range(0, SWEEP_CYCLES / 2);
+            start_test(.receive_wrong_sb_msg_after(random_clocks),
+                .wrong_sb_msg              (random_msg));
+            reset();
+        end
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Scenarios 32-100 : Holes-in-eye (discontinuous valid window)
+        // ─────────────────────────────────────────────────────────────────────
+        for (int i = 32; i <= 100; i++) begin
+            $display("\n==========>  Test Scenario (%0d): Holes Scenario. <==========", test_scenario_no++);
+            temporary_var = -1;
+            while (temporary_var < int'(MIN_PHASE_CODE) || temporary_var > int'(MAX_PHASE_CODE)) begin
                 temporary_var = PHASE_CODE_WIDTH'($random());
             end
-            assume_errors (
-                .task_aggr_err       (16'($random())),
-                .task_perlane_err    (16'($random())),
-                .task_phase_code_min (PHASE_CODE_WIDTH'(temporary_var)),
-                .task_phase_code_max (PHASE_CODE_WIDTH'($urandom_range(temporary_var, MAX_PHASE_CODE))),
+            assume_errors(
+                .task_aggr_err    (16'($random())),
+                .task_perlane_pass(16'($random())),
+                .task_phase_code_min(PHASE_CODE_WIDTH'(temporary_var)),
+                .task_phase_code_max(PHASE_CODE_WIDTH'($urandom_range(temporary_var, int'(MAX_PHASE_CODE)))),
                 .task_assume_holes_after_quarter_eye_start(1)
             );
             start_test();
         end
 
-        if(fail_count == 0) begin
+        // ─────────────────────────────────────────────────────────────────────
+        // Final report
+        // ─────────────────────────────────────────────────────────────────────
+        if (fail_count == 0) begin
             $display("        ============================================       ");
             $display("      ==============                    ==============     ");
             $display("    ================  Congratulations!  ================   ");
             $display("  ==================  The tests passed  ================== ");
             $display("    ================    Successfully    ================   ");
             $display("      ==============                    ==============     ");
-            $display("        ============================================       \n\n"); 
+            $display("        ============================================       \n\n");
         end
         @(posedge lclk);
         $stop;

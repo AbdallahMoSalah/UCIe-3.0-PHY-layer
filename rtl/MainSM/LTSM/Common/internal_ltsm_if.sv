@@ -6,7 +6,7 @@
 interface internal_ltsm_if #(
         parameter MAX_VAL_VREF_CODE  = 'D127, // for Reference Rx Valid Lane Vref control. For the MB Rx Valid Lane.
         parameter MAX_DATA_VREF_CODE = 'D127, // for Reference Rx Data Lanes Vref control. For the MB Rx Data Lanes.
-        parameter MAX_PI_PHASE_CODE  = 'D172, // for Phase Interpolator (PI) control.      For the MB Tx Data Lanes.
+        parameter MAX_PI_PHASE_CODE  = 'D127, // for Phase Interpolator (PI) control.      For the MB Tx Data Lanes.
         parameter MAX_DESKEW_CODE    = 'D127  // for Deskew control.                       For the MB Rx Data Lanes.
     ) (
         input logic lclk,
@@ -444,7 +444,7 @@ interface internal_ltsm_if #(
         output mb_rx_trk_lane_sel , // 0b: Disabled, 1b: Enabled (Rx Logical Track Lane).
 
         // PHY Level Control & Analog Interface
-        output phy_negotiated_speed      , // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 2h: 12 GT/s; ... ; or 7h: 64 GT/s)
+        output phy_negotiated_speed      , // Target Link Speed (0h: 4 GT/s; 1h: 8 GT/s; 2h: 12 GT/s; 3h: 16 GT/s; 4h: 24 GT/s; 5h: 32 GT/s; 6h: 48 GT/s ; 7h: 64 GT/s)
         output phy_rx_clock_lock_en      , // Allow analog Rx circuit to Lock the coming clock.
         output phy_rx_track_lock_en      , // Allow analog Rx circuit to Lock the coming Track.
         output phy_rx_phase_detector_en  , // Activate Phase Detector Circuit for IQ clock phase shift test.
@@ -1505,8 +1505,9 @@ interface internal_ltsm_if #(
         // LTSM general signals.   //
         // ======================= //
         input  valtraincenter_en, output valtraincenter_done,
-        output valtraincenter_fail_flag,
         output trainerror_req,
+        input  phy_negotiated_speed          , // 0h: 4GT/s; 1h: 8GT/s; 2h: 16GT/s; 3h: 24GT/s;
+        input  mb_tx_continuous_or_strobe_clk, // 0h: continuous clock mode; 1h: strobe clock mode.
 
         // ======================= //
         // MB signals.             //

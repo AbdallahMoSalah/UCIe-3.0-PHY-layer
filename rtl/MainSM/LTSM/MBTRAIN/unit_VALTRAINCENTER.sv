@@ -16,12 +16,15 @@ module unit_VALTRAINCENTER #(
         // ======================= //
         // D2C signals.            //
         // ======================= //
-        internal_ltsm_if.substate2d2c_mp d2c_if
+        internal_ltsm_if.mbtrain2d2c_mp d2c_if
     );
     // For Phase control
     localparam PHASE_CODE_WIDTH = $clog2(MAX_PHASE_CODE + 1);
-    // Assumed threshold for finding a successful valid eye region.
-    localparam VAL_SUCCESS_RANGE = 5;
+    localparam SPEED_32G = 3'b101;
+    // D2C pattern test configuration.
+    localparam D2C_ITER_COUNT  = 16'D128;
+    localparam D2C_BURST_COUNT = 16'D8;
+
     // To get the used SB messages
     import UCIe_pkg::msg_no_e;
     import UCIe_pkg::MBTRAIN_VALTRAINCENTER_start_req ; // Msg Number: d53
@@ -42,20 +45,88 @@ module unit_VALTRAINCENTER #(
     VALTRAINCENTER_DONE_RESP     = 4'h8, // (S8)
     TO_VALTRAINVREF              = 4'h9, // (S9)
     TO_TRAINERROR                = 4'hA; // (S10)
-    reg [3:0] current_state, next_state; // The Current, Next states, and Previous state of the FSM.
+    reg [3:0] current_state, next_state, previous_state; // The Current, Next states, and Previous state of the FSM.
     // This signal is used to avoid data incoherence possibility when sending signals to SB.
     // It is set to 1 for 1 lclk cycle whenever the state changes, which is when the outputs are updated with new values.
-    wire is_tx_sb_msg_valid = (current_state == next_state);
+    wire is_tx_sb_msg_valid;
+    assign is_tx_sb_msg_valid =
+        (current_state != previous_state) && (
+            (current_state == VALTRAINCENTER_START_REQ ) ||
+            (current_state == VALTRAINCENTER_START_RESP) ||
+            (current_state == VALTRAINCENTER_DONE_REQ   ) ||
+            (current_state == VALTRAINCENTER_DONE_RESP  ) );
+
+
+    // >> =====================  For the VALTRAINCENTER stuck issue (To fix the issue of waiting for the SB message)  ===================== << //
+    reg end_req_sb_msg_rcvd       ; // To detect the `end_req` SB MSG after the D2C_PT state. this is a flag.
+    reg ready_for_end_resp_sb_msg ; // To detect the `ready_for_end_resp` after the D2C_PT state. this is a flag.
+    always @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : AFTER_D2C_PT_SB_MSGS
+        if(!valtraincenter_if.rst_n) begin
+            end_req_sb_msg_rcvd       <= 1'b0;
+            ready_for_end_resp_sb_msg <= 1'b0;
+        end
+        else if (current_state == VALTRAINCENTER_IDLE) begin // Reset the register once the LTSM gets out of reset.
+            ready_for_end_resp_sb_msg <= 1'b0;
+            end_req_sb_msg_rcvd       <= 1'b0;
+        end
+        else if(   (current_state == VALTRAINCENTER_SET_PHASE  ||
+                    current_state == VALTRAINCENTER_TX_D2C_PT  ||
+                    current_state == VALTRAINCENTER_LOG_RESULT ||
+                    current_state == VALTRAINCENTER_CALC_APPLY ||
+                    current_state == VALTRAINCENTER_DONE_REQ    ) &&
+                valtraincenter_if.rx_sb_msg == MBTRAIN_VALTRAINCENTER_done_req && valtraincenter_if.rx_sb_msg_valid == 1'b1) begin
+            end_req_sb_msg_rcvd <= 1'b1;
+        end
+        else if (current_state == VALTRAINCENTER_DONE_REQ && (end_req_sb_msg_rcvd || (valtraincenter_if.rx_sb_msg == MBTRAIN_VALTRAINCENTER_done_req && valtraincenter_if.rx_sb_msg_valid == 1'b1))) begin
+            // Since we can't send 2 consecutive pulses on the signal `is_tx_sb_msg_valid` without a `0` in between for 1 lclk at least;
+            // When this scenario happens when the partner Die applies less RX_D2C_PT iterations than our Die.
+            // If we assume we won't use the `end_req_sb_msg_rcvd` signal, the FSM flow (in our Die) will be:
+            //      [loop] -> 'VALTRAINCENTER_TX_D2C_PT' -> 'VALTRAINCENTER_LOG_RESULT' -> 'VALTRAINCENTER_CALC_APPLY' -> 'VALTRAINCENTER_DONE_REQ' (for 1 lclk duration) -> 'VALTRAINCENTER_DONE_RESP'
+            // We need this signal `ready_for_end_resp_sb_msg` extend the waiting time to wait 2 lclk cycles at least in the FSM state 'VALTRAINCENTER_DONE_REQ' instead 1 lclk duration:
+            //      1 lclk cycle for the HIGH period of the pulse.
+            //      1 lclk cycle for the LOW  period of the pulse.
+            ready_for_end_resp_sb_msg <= 1'b1;
+        end
+    end
+
+    // >> =====================  For the RX_D2C_PT local-partner modules seperation  ===================== << //
+    assign d2c_if.partner_rx_pt_en = 1'b0;
+    always @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n)
+    begin
+        if(!valtraincenter_if.rst_n) begin
+            d2c_if.partner_tx_pt_en <= 1'b0;
+        end
+        else if(current_state == VALTRAINCENTER_IDLE || current_state == VALTRAINCENTER_DONE_RESP) begin // To force the synchronization after we send and receive the {... end req} SB message.
+            d2c_if.partner_tx_pt_en <= 1'b0;
+        end
+        else if(current_state == VALTRAINCENTER_SET_PHASE ||
+                current_state == VALTRAINCENTER_TX_D2C_PT     ||
+                current_state == VALTRAINCENTER_LOG_RESULT    ||
+                current_state == VALTRAINCENTER_CALC_APPLY    ||
+                current_state == VALTRAINCENTER_DONE_REQ       ) begin
+            if(d2c_if.partner_test_d2c_done) begin
+                d2c_if.partner_tx_pt_en <= 1'b0;
+            end else begin
+                d2c_if.partner_tx_pt_en <= 1'b1;
+            end
+        end
+    end
+    // >> ===================== * ================================================ * ===================== << //
+
+
     // Current State Logic of the FSM:
     always_ff @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin
         if (!valtraincenter_if.rst_n) begin
             current_state  <= VALTRAINCENTER_IDLE;
-        end 
+            previous_state <= VALTRAINCENTER_IDLE;
+        end
         else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
             current_state  <= VALTRAINCENTER_IDLE;
+            previous_state <= VALTRAINCENTER_IDLE;
         end
         else begin
-            current_state  <= next_state;
+            current_state  <= next_state   ;
+            previous_state <= current_state;
         end
     end
     // Next State Logic of the FSM:
@@ -87,7 +158,7 @@ module unit_VALTRAINCENTER #(
                 end
                 // (S4) Implement the test (Tx Init Data to Clock Point Test).
                 VALTRAINCENTER_TX_D2C_PT: begin
-                    if (d2c_if.test_d2c_done) next_state = VALTRAINCENTER_LOG_RESULT;
+                    if (d2c_if.local_test_d2c_done) next_state = VALTRAINCENTER_LOG_RESULT;
                     else next_state = VALTRAINCENTER_TX_D2C_PT;
                 end
                 // (S5) Log the current phase_code value if the received pattern on MB Receiver is valid.
@@ -102,7 +173,7 @@ module unit_VALTRAINCENTER #(
                 end
                 // (S7) Send & Receive SB Message: {MBTRAIN.VALTRAINCENTER done req}.
                 VALTRAINCENTER_DONE_REQ: begin
-                    if (valtraincenter_if.rx_sb_msg == MBTRAIN_VALTRAINCENTER_done_req && valtraincenter_if.rx_sb_msg_valid == 1'b1) next_state = VALTRAINCENTER_DONE_RESP;
+                    if (end_req_sb_msg_rcvd & ready_for_end_resp_sb_msg) next_state = VALTRAINCENTER_DONE_RESP;
                     else next_state = VALTRAINCENTER_DONE_REQ;
                 end
                 // (S8) Send & Receive SB Message: {MBTRAIN.VALTRAINCENTER done resp}.
@@ -139,35 +210,37 @@ module unit_VALTRAINCENTER #(
         //=================================================
         // Control Signals For D2C point test
         //=================================================
-        d2c_if.rx_pt_en = 1'b0;
-        d2c_if.tx_pt_en = 1'b0;
+        d2c_if.local_rx_pt_en = 1'b0;
+        d2c_if.local_tx_pt_en = 1'b0;
         // Clock sampling.
         d2c_if.d2c_clk_sampling = 2'b00;  // Clock Phase control: 0h(Eye Center)
         //-------------------- MB Rx/Tx Lane Pattern Configuration --------------------//
         // Received Tx Pattern Generator Setup Group:
-        d2c_if.d2c_lfsr_en          = 1'b0  ; // Disable LFSR.
         d2c_if.d2c_pattern_setup    = 3'b010; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         d2c_if.d2c_data_pattern_sel = 2'b11 ; // Data pattern used during training: 2'b11 is "0" (all zeros)
         d2c_if.d2c_val_pattern_sel  = 1'b0  ; // 0: VALTRAIN pattern
         // Received Tx Pattern Mode Setup Group:
-        d2c_if.d2c_pattern_mode =  1'D0   ; // 0: Continuous Pattern Mode
-        d2c_if.d2c_burst_count  = 16'D8   ; // Burst Count: 8 UI (11110000)
-        d2c_if.d2c_idle_count   = 16'D0   ; // IDLE Count: 0
-        d2c_if.d2c_iter_count   = 16'D128 ; // Iteration Count: 1
+        d2c_if.d2c_pattern_mode =  1'b0   ; // 0: Continuous Pattern Mode
+        d2c_if.d2c_burst_count  = D2C_BURST_COUNT;
+        d2c_if.d2c_idle_count   = 16'D0   ;
+        d2c_if.d2c_iter_count   = D2C_ITER_COUNT;
         // Received Receiver Comparison Setup & Errors
         d2c_if.d2c_compare_setup = 2'D2; // 2: Valid Lane Comparison.
         // //=========================
         // // MB signals:
         // //=========================
         // Lane Behavior Control
-        valtraincenter_if.mb_tx_clk_lane_sel  = 2'b01; // Active Clock Lane
-        valtraincenter_if.mb_tx_data_lane_sel = 2'b00; // Low (Force Tx Data Lanes to Logic 0)
-        valtraincenter_if.mb_tx_val_lane_sel  = 2'b01; // Active Valid Lane
+
         valtraincenter_if.mb_tx_trk_lane_sel  = 2'b00; // Low (Logic 0)
-        valtraincenter_if.mb_rx_clk_lane_sel  = 1'b1 ; // Enabled Clock Rx
-        valtraincenter_if.mb_rx_data_lane_sel = 1'b0 ; // Disabled
-        valtraincenter_if.mb_rx_val_lane_sel  = 1'b1 ; // Enabled Valid Lane Rx
+        valtraincenter_if.mb_tx_clk_lane_sel  = (valtraincenter_if.mb_tx_continuous_or_strobe_clk && valtraincenter_if.phy_negotiated_speed <= SPEED_32G)?
+            2'b00 : //  if the operating speed is <= 32 GT/s AND Strobe mode was advertised by the UCIe Module Partner, then the Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking).
+            2'b01 ; //  if the operating speed is >  32 GT/s OR continuous clock mode was advertised by the UCIe Module Partner, then the Clock Transmitters are providing the free-running forwarded clock.
+        valtraincenter_if.mb_tx_val_lane_sel  = 2'b01; // Active Valid Lane
+        valtraincenter_if.mb_tx_data_lane_sel = 2'b00; // Low (Force Tx Data Lanes to Logic 0)
         valtraincenter_if.mb_rx_trk_lane_sel  = 1'b0 ; // Disabled
+        valtraincenter_if.mb_rx_clk_lane_sel  = 1'b1 ; // Enabled Clock Rx
+        valtraincenter_if.mb_rx_val_lane_sel  = 1'b1 ; // Enabled Valid Lane Rx
+        valtraincenter_if.mb_rx_data_lane_sel = 1'b0 ; // Disabled
         //============================
         // SB signals:
         //============================
@@ -196,7 +269,7 @@ module unit_VALTRAINCENTER #(
             end
             // (S4) Implement the test (Tx Init Data to Clock Point Test).
             VALTRAINCENTER_TX_D2C_PT: begin
-                d2c_if.tx_pt_en = 1'b1; // Trigger "Tx Initiated Data to Clock Point Test"
+                d2c_if.local_tx_pt_en = 1'b1; // Trigger "Tx Initiated Data to Clock Point Test"
             end
             // (S5) Log the current phase_code
             VALTRAINCENTER_LOG_RESULT: begin
@@ -232,140 +305,24 @@ module unit_VALTRAINCENTER #(
         endcase
     end
     // =====================================================================
-    // Phase sweep data-path registers
-    //
-    // Unified signal names (for cross-module readability):
-    //   phy_tx_val_pi_phase_ctrl <-> swept_code_r  -- PI phase code swept (S3-S5 loop)
-    //                                                 and applied value after CALC_APPLY.
-    //   is_in_valid_region       <-> zone_valid    -- 1 while inside a contiguous pass zone
-    //   phase_code_filled        <-> found_pass    -- 1 once any passing code seen
-    //   temp_min_phase           <-> zone_min_r    -- start of the current contiguous pass zone
-    //   min_phase_code           <-> best_lo       -- left  edge of widest pass window
-    //   max_phase_code           <-> best_hi       -- right edge of widest pass window
-    //   (result written directly to phy_tx_val_pi_phase_ctrl in CALC_APPLY)
-    //
-    // Two-zone algorithm (same as VALVREF / DATAVREF / DTVREF companion modules):
-    //   Zone A (new contiguous pass zone starts):
-    //     is_in_valid_region 0->1; temp_min_phase = phy_tx_val_pi_phase_ctrl (zone_min_r).
-    //     First-ever pass (phase_code_filled==0): seed min/max_phase_code (best_lo/hi).
-    //   Zone B (extending the contiguous pass zone):
-    //     If temp_phase_range (zone_range) > phase_range (best_range):
-    //       update min_phase_code (best_lo) and max_phase_code (best_hi).
-    //   Fail: is_in_valid_region -> 0 (hole detected in Valid-lane phase eye).
+    // Phase sweep datapath (instantiates unit_val_sweep)
     // =====================================================================
-    wire [PHASE_CODE_WIDTH-1:0] phase_range;
-    wire [PHASE_CODE_WIDTH-1:0] temp_phase_range;
-    reg  [PHASE_CODE_WIDTH-1:0] temp_min_phase;      // To store the start of the current valid Phase range.
-    reg  [PHASE_CODE_WIDTH-1:0] min_phase_code;
-    reg  [PHASE_CODE_WIDTH-1:0] max_phase_code;
-    reg                         phase_code_filled;   // To represent each "phase_code" register to know if it filled with correct data or not.
-    assign phase_range        = (phase_code_filled == 1'b1) ? (max_phase_code - min_phase_code) : '0;
-    assign temp_phase_range   = (valtraincenter_if.phy_tx_val_pi_phase_ctrl - temp_min_phase);
-    // valtraincenter_fail_flag: asserted in CALC_APPLY if sweep found no passing
-    // phase or the best window is too narrow (< VAL_SUCCESS_RANGE codes wide).
-    assign valtraincenter_if.valtraincenter_fail_flag = (current_state == VALTRAINCENTER_CALC_APPLY) & (~phase_code_filled | (phase_range < VAL_SUCCESS_RANGE));
-    // =====================================================================
-    // Sequential: swept_code_r (phy_tx_val_pi_phase_ctrl) increment and apply
-    //
-    // In this module phy_tx_val_pi_phase_ctrl serves dual purpose:
-    //   During sweep (S3-S5): driven with the current phase code.
-    //   After CALC_APPLY    : holds the computed midpoint (best phase center).
-    // The LOG_RESULT block reads phy_tx_val_pi_phase_ctrl as swept_code_r.
-    // =====================================================================
-    always_ff @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : VALTRAINCENTER_CALC_APPLY_PROC
-        if(!valtraincenter_if.rst_n) begin
-            valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
-        end
-        else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
-            valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
-        end
-        else if(current_state == VALTRAINCENTER_START_REQ) begin
-            valtraincenter_if.phy_tx_val_pi_phase_ctrl <= MIN_PHASE_CODE;
-        end
-        // change the Phase value:
-        else if(current_state == VALTRAINCENTER_LOG_RESULT) begin
-            if(valtraincenter_if.phy_tx_val_pi_phase_ctrl != MAX_PHASE_CODE) begin
-                valtraincenter_if.phy_tx_val_pi_phase_ctrl <= valtraincenter_if.phy_tx_val_pi_phase_ctrl + 1;
-            end
-        end
-        // (S6) Compute and apply the optimal phase midpoint.
-        //      Spec eq.: phase_code = (min_phase_code + max_phase_code) / 2
-        //                i.e. best_code = (best_lo + best_hi) / 2
-        else if(current_state == VALTRAINCENTER_CALC_APPLY) begin
-            if(phase_code_filled == 1'b1) begin
-                valtraincenter_if.phy_tx_val_pi_phase_ctrl <= ({1'b0, min_phase_code} + {1'b0, max_phase_code})>>1;
-            end
-            else begin
-                valtraincenter_if.phy_tx_val_pi_phase_ctrl <= '0;
-            end
-        end
-    end
-    reg is_in_valid_region; // (zone_valid) 1 while inside a contiguous pass zone.
-    // =====================================================================
-    // Sequential: two-zone eye-map tracking for Valid-lane phase sweep
-    //
-    // Signal names (unified with VALVREF / DATAVREF / DTVREF companion modules):
-    //   valtraincenter_if.phy_tx_val_pi_phase_ctrl <-> swept_code_r (both sweep and result)
-    //   is_in_valid_region                         <-> zone_valid
-    //   phase_code_filled                          <-> found_pass
-    //   temp_min_phase                             <-> zone_min_r
-    //   min_phase_code                             <-> best_lo
-    //   max_phase_code                             <-> best_hi
-    //
-    // Zone A (new contiguous pass zone starts):
-    //   is_in_valid_region 0->1; temp_min_phase = current code (= zone_min_r).
-    //   Also restarts at MIN_PHASE_CODE to handle the first code correctly.
-    //   If first-ever pass (phase_code_filled==0): seed min/max_phase_code.
-    // Zone B (extending the contiguous pass zone):
-    //   If temp_phase_range (zone_range) > phase_range (best_range):
-    //     update min_phase_code (best_lo) and max_phase_code (best_hi).
-    // Fail: is_in_valid_region -> 0 (hole detected in the Valid-lane phase eye).
-    // =====================================================================
-    always_ff @(posedge valtraincenter_if.lclk or negedge valtraincenter_if.rst_n) begin : VALTRAINCENTER_LOG_RESULT_PROC
-        if(!valtraincenter_if.rst_n) begin
-            min_phase_code     <=   '0;
-            max_phase_code     <=   '0;
-            phase_code_filled  <= 1'b0;
-            is_in_valid_region <= 1'b0;
-            temp_min_phase     <=   '0;
-        end
-        else if (!valtraincenter_if.is_ltsm_out_of_reset) begin
-            min_phase_code     <=   '0;
-            max_phase_code     <=   '0;
-            phase_code_filled  <= 1'b0;
-            is_in_valid_region <= 1'b0;
-            temp_min_phase     <=   '0;
-        end
-        else if(current_state == VALTRAINCENTER_START_REQ) begin
-            min_phase_code     <=   '0;
-            max_phase_code     <=   '0;
-            phase_code_filled  <= 1'b0;
-            is_in_valid_region <= 1'b0;
-            temp_min_phase     <=   '0;
-        end
-        else if(current_state == VALTRAINCENTER_LOG_RESULT) begin
-            // If the result was success (No error)
-            if (!d2c_if.d2c_val_err) begin
-                if (!is_in_valid_region || valtraincenter_if.phy_tx_val_pi_phase_ctrl == MIN_PHASE_CODE) begin
-                    is_in_valid_region <= 1'b1;
-                    temp_min_phase     <= valtraincenter_if.phy_tx_val_pi_phase_ctrl;
-                    if (!phase_code_filled) begin
-                        phase_code_filled <= 1'b1;
-                        min_phase_code    <= valtraincenter_if.phy_tx_val_pi_phase_ctrl;
-                        max_phase_code    <= valtraincenter_if.phy_tx_val_pi_phase_ctrl;
-                    end
-                end
-                else begin
-                    if ((temp_phase_range) > (phase_range)) begin
-                        min_phase_code <= temp_min_phase;
-                        max_phase_code <= valtraincenter_if.phy_tx_val_pi_phase_ctrl;
-                    end
-                end
-            end
-            // The result was "Fail"
-            else begin
-                is_in_valid_region <= 1'b0;
-            end
-        end
-    end
+    wire valtraincenter_fail_flag_unused;
+    wire [PHASE_CODE_WIDTH-1:0] temp_val_pi_phase_ctrl;
+    assign valtraincenter_if.phy_tx_val_pi_phase_ctrl = temp_val_pi_phase_ctrl;
+
+    unit_val_sweep #(
+        .MAX_VAL_VREF_CODE(MAX_PHASE_CODE),
+        .MIN_VAL_VREF_CODE(MIN_PHASE_CODE)
+    ) u_val_sweep (
+        .lclk                 (valtraincenter_if.lclk),
+        .rst_n                (valtraincenter_if.rst_n),
+        .is_ltsm_out_of_reset (valtraincenter_if.is_ltsm_out_of_reset),
+        .start_req_state      (current_state == VALTRAINCENTER_START_REQ),
+        .log_result_state     (current_state == VALTRAINCENTER_LOG_RESULT),
+        .calc_apply_state     (current_state == VALTRAINCENTER_CALC_APPLY),
+        .d2c_val_pass         (d2c_if.d2c_val_pass),
+        .phy_rx_valvref_ctrl  (temp_val_pi_phase_ctrl),
+        .valvref_fail_flag    (valtraincenter_fail_flag_unused)
+    );
 endmodule

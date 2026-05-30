@@ -2,11 +2,18 @@
 module unit_DATAVREF_tb ();
     import UCIe_pkg::*;
     parameter LCLK_PERIOD          = 1*1000 ; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
-    parameter TIMEOUT_CYCLES       = 700_000; // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles). Here i will use 700_000 cycles to run the simulation faster.
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
     parameter MIN_DATA_VREF_CODE    = 7'D10 ;
     parameter MAX_DATA_VREF_CODE    = 7'D127;
-    parameter VREF_CODE_WIDTH = $clog2(MAX_DATA_VREF_CODE);
+    parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
+    parameter VREF_CODE_WIDTH      = $clog2(MAX_DATA_VREF_CODE + 1);
+
+    localparam integer ITER_COUNT  = 128; // Standard specification value (used inside unit_DATAVREF)
+    localparam integer BURST_COUNT = 1;   // Standard specification value (used inside unit_DATAVREF)
+
+    localparam integer CYCLES_PER_CODE = ANALOG_SETTLE_CYCLES + (BURST_COUNT + 1) * ITER_COUNT + 15;
+    localparam integer SWEEP_CYCLES    = (MAX_DATA_VREF_CODE - MIN_DATA_VREF_CODE + 1) * CYCLES_PER_CODE + 8 * SB_DELAY;
+    parameter TIMEOUT_CYCLES       = SWEEP_CYCLES + SB_DELAY * 4 + SWEEP_CYCLES;
     // LTSM signals.
     reg  lclk         ;
     reg  rst_n        ;
@@ -63,7 +70,8 @@ module unit_DATAVREF_tb ();
 
     ltsm_tb_attachments #(
         .TIMEOUT_CYCLES      (TIMEOUT_CYCLES      ), // Number of lclk cycles to wait before declaring a timeout (e.g., for 8ms timeout at 1GHz, it would be 8 million cycles).
-        .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES)  // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
+        .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES), // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
+        .SB_DELAY            (SB_DELAY            )
     ) ltsm_tb_attachments_inst (
         .intf(intf)
     );
@@ -81,7 +89,7 @@ module unit_DATAVREF_tb ();
 
     task assume_errors (
             input [15:0] task_aggr_err     = 16'b0 , // The aggregate error to be assumed for the test scenario.
-            input [15:0] task_perlane_err  = 16'b0 , // Dummy argument to align with VALVREF_tb interface.
+            input [15:0] task_perlane_pass = 16'hFFFF , // Default pass mapping for data lanes.
             input [VREF_CODE_WIDTH-1:0] task_vref_code_min [15:0] = '{default: VREF_CODE_WIDTH'(50)},
             input [VREF_CODE_WIDTH-1:0] task_vref_code_max [15:0] = '{default: VREF_CODE_WIDTH'(100)},
             input [15:0] task_assume_holes_after_quarter_eye_start = 16'b0,
@@ -89,9 +97,7 @@ module unit_DATAVREF_tb ();
         );
         intf.mb_rx_data_lane_mask = task_mb_rx_data_lane_mask;
         intf.tb_aggr_err     = task_aggr_err    ;
-        // intf.tb_perlane_err is driven dynamically in the combinatorial always block, unlike VALVREF.
-        // intf.tb_val_err      = task_val_err     ;
-        // intf.tb_clk_err      = task_clk_err     ;
+        intf.tb_perlane_pass = task_perlane_pass;
         for(int i=0; i<16; i++) begin
             current_task_vref_min[i] = task_vref_code_min[i];
             current_task_vref_max[i] = task_vref_code_max[i];
@@ -109,19 +115,20 @@ module unit_DATAVREF_tb ();
                 // =============================================================================================== //
                 if ((intf.phy_rx_datavref_ctrl[j] == current_task_vref_min[j] + (current_task_vref_max[j] - current_task_vref_min[j])/4 ) &&
                         assume_holes_after_quarter_eye_start[j] == 1)begin
-                    intf.tb_perlane_err[j] = 1'b1;  // A deliberate mistake in the middle!
+                    intf.tb_perlane_pass[j] = 1'b0;  // Deliberate fail (hole)
                 end
                 // =============================================================================================== //
 
                 else begin
-                    intf.tb_perlane_err[j] = 1'b0; // The right point that is inside the Eye Diagram.
+                    intf.tb_perlane_pass[j] = 1'b1; // Pass
                 end
             end
             else begin
-                intf.tb_perlane_err[j] = 1'b1; // Vref value is outside the right bound
+                intf.tb_perlane_pass[j] = 1'b0; // Fail (outside range)
             end
         end
-        intf.tb_val_err = 0; // Not used primarily in DATAVREF
+        intf.tb_val_pass = 1'b1; // Default pass for valid lane
+        intf.tb_clk_pass = 1'b1; // Default pass for clock lane
     end
 
     //  /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\_____/‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
@@ -130,16 +137,21 @@ module unit_DATAVREF_tb ();
     task reset();
         rst_n                   = 0;
         intf.tb_aggr_err        = 0;
-        intf.tb_perlane_err       = 0;
-        intf.tb_val_err           = 0;
-        intf.tb_clk_err           = 0;
+        intf.tb_perlane_pass    = 16'hFFFF;
+        intf.tb_val_pass        = 1'b1;
+        intf.tb_clk_pass        = 1'b1;
         intf.mb_rx_data_lane_mask = 3'b011;
 
         intf.tb_wait_timeout    = 0; // Set wait_timeout to 0 to indicate that we are not testing the timeout condition at the beginning.
         intf.tb_wrong_sb_msg_en = 0;
         intf.tb_wrong_sb_msg    = NOTHING;
-        intf.tb_rx_msginfo      = 16'B0;
-        intf.tb_rx_data_field   = 64'B0;
+        intf.tb_wrong_msginfo   = 16'B0;
+        intf.tb_wrong_data_field = 64'B0;
+
+        // Reset partner control overrides
+        ltsm_tb_attachments_inst.tb_partner_test_d2c_done_en = 0;
+        ltsm_tb_attachments_inst.tb_partner_test_d2c_done    = 0;
+
         #10;
         rst_n = 1;
     endtask
@@ -394,8 +406,8 @@ module unit_DATAVREF_tb ();
         // Reset the system.
         reset();
 
-        // Monitor the current state of the RX_D2C_PT instance for debugging purposes.
-        $monitor("%10t ps : The Currernt state: (\"%s\").", $realtime(), monitor_current_state.name());
+        // Monitor the current state of the RX_D2C_PT instance for debugging purposes (commented out for clean console output).
+        // $monitor("%10t ps : The Currernt state: (\"%s\").", $realtime(), monitor_current_state.name());
 
 
         /////////////////////////////////////////////////////////////////////////
@@ -410,7 +422,7 @@ module unit_DATAVREF_tb ();
             $display("\n=========>  Test Scenario (%0d): Happy Scenario. <=========", test_scenario_no++);
             assume_errors (
                 .task_aggr_err     (16'h0009),
-                .task_perlane_err  (16'h0008), // Aligning with VALVREF
+                .task_perlane_pass (16'hFFFF), // Aligning with VALVREF
                 .task_vref_code_min(vref_min_arr),
                 .task_vref_code_max(vref_max_arr),
                 .task_assume_holes_after_quarter_eye_start(holes_arr)
@@ -451,7 +463,7 @@ module unit_DATAVREF_tb ();
         holes_arr = 16'h0000;
         assume_errors (
             .task_aggr_err     (16'h0009),
-            .task_perlane_err  (16'h0008), // Aligning with VALVREF
+            .task_perlane_pass (16'hFFFF), // Aligning with VALVREF
             .task_vref_code_min(vref_min_arr),
             .task_vref_code_max(vref_max_arr),
             .task_assume_holes_after_quarter_eye_start(holes_arr)
@@ -519,7 +531,7 @@ module unit_DATAVREF_tb ();
 
             assume_errors (
                 .task_aggr_err     (16'($random())),
-                .task_perlane_err  (16'($random())),
+                .task_perlane_pass (16'($random())),
                 .task_vref_code_min(vref_min_arr),
                 .task_vref_code_max(vref_max_arr),
                 .task_assume_holes_after_quarter_eye_start(holes_arr),

@@ -74,7 +74,7 @@ module unit_phase_interpolator_for_deskew #(
         // D2C Point-Test Interface  (from d2c_if, forwarded by unit_RXDESKEW)
         // =========================================================================
         input  logic        test_d2c_done,    // asserted when RX D2C PT finishes
-        input  logic [15:0] d2c_perlane_err,  // per-lane error result
+        input  logic [15:0] d2c_perlane_pass, // per-lane pass/fail result
 
         // =========================================================================
         // Lane Configuration  (from unit_RXDESKEW)
@@ -446,7 +446,7 @@ module unit_phase_interpolator_for_deskew #(
             // -----------------------------------------------------------------
             else if (pi_state == PI_LOG_RESULT) begin
                 for (i = 0; i < 16; i = i + 1) begin
-                    if (!d2c_perlane_err[i] && negotiated_data_lanes[i]) begin
+                    if (d2c_perlane_pass[i] && negotiated_data_lanes[i]) begin
                         if (!found_pass[i]) begin
                             found_pass[i] <= 1'b1;
                             best_lo[i]    <= swept_code_r; // min edge (first pass)
