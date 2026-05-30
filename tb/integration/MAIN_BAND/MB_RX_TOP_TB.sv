@@ -469,7 +469,7 @@ module MB_RX_TOP_TB;
         repeat (20) begin
             // Align to beginning of a pll_clk cycle
             @(posedge pll_clk);
-            // Send 32-bit valid pattern (11110000 × 4 times = 0xF0F0F0F0) serially
+            // Send 32-bit valid pattern (11110000 × 4 times = 32'hF0F0F0F0) serially
             send_valid_frame(32'hF0F0F0F0);
             // Wait for CDC to MB_clk domain (3 MB_clk cycles for sync chain)
             wait_for_valid_done(8);

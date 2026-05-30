@@ -14,15 +14,15 @@ module VALID_TX (
 // Local Parameters
 // ============================================================
 
-localparam VALID_8B = 8'b11110000;
+localparam VALID_8B = 8'b11110000; // Base 8-bit pattern: 4 ones, 4 zeros
 localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
-localparam MAX_COUNT = 33;
+localparam MAX_COUNT = 31; // 0 to 31 count gives exactly 32 cycles of VALID_PATTERN
 
 localparam [1:0]
     IDLE          = 2'b00,
-    VALID_PATTERN = 2'b01,
-    VALID_FRAME   = 2'b10;
+    VALID_FRAME   = 2'b01,
+    VALID_PATTERN = 2'b11;
 
 // ============================================================
 // Internal Registers
@@ -51,7 +51,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
             end
 
             VALID_PATTERN: begin
-                if (COUNTER == MAX_COUNT-1)
+                if (O_done)
                     current_state <= IDLE;
                 else
                     current_state <= VALID_PATTERN;
@@ -80,7 +80,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
         o_TVLD_L <= 32'b0;
         O_done   <= 1'b0;
         COUNTER  <= 8'd0;
-        ser_en_o   <= 1'b0;
+        ser_en_o <= 1'b0;
     end
     else begin
         case (current_state)
@@ -92,26 +92,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o   <= 1'b0;
-            end
-
-            // -------------------------
-            // VALID_PATTERN (exactly 32 cycles)
-            // -------------------------
-            VALID_PATTERN: begin
-                o_TVLD_L <= VALID_PATTERN_CODE;
-                O_done   <= 1'b0;
-                ser_en_o   <= 1'b1 ;
-
-                if (COUNTER == MAX_COUNT-1) begin
-                    COUNTER  <= 8'd0;
-                    O_done   <= 1'b1;   // One-cycle pulse
-                    o_TVLD_L <= 32'b0;  // Clean end
-                    ser_en_o   <= 1'b0 ;                                                    
-                end
-                else begin
-                    COUNTER <= COUNTER + 1;
-                end
+                ser_en_o <= 1'b0;
             end
 
             // -------------------------
@@ -121,14 +102,32 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 o_TVLD_L <= VALID_PATTERN_CODE;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o   <= 1'b1; 
+                ser_en_o <= 1'b1; 
+            end
+
+            // -------------------------
+            // VALID_PATTERN
+            // -------------------------
+            VALID_PATTERN: begin
+                COUNTER <= COUNTER + 1'b1;  
+                
+                if (COUNTER < MAX_COUNT) begin
+                    o_TVLD_L <= VALID_PATTERN_CODE;
+                    O_done   <= 1'b0;
+                    ser_en_o <= 1'b1;                                                    
+                end
+                else begin // COUNTER == MAX_COUNT
+                    o_TVLD_L <= VALID_PATTERN_CODE;
+                    O_done   <= 1'b1;
+                    ser_en_o <= 1'b0;
+                end
             end
 
             default: begin
                 o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o   <= 1'b0; 
+                ser_en_o <= 1'b0; 
             end
 
         endcase
