@@ -23,7 +23,7 @@
     </mxGraphModel>
   </diagram>
   <diagram name="RDI SM" id="0zx_4OyKMFc60EdN4bbP">
-    <mxGraphModel dx="7598" dy="2913" grid="1" gridSize="10" guides="1" tooltips="1" connect="0" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
+    <mxGraphModel dx="3534" dy="398" grid="1" gridSize="10" guides="1" tooltips="1" connect="0" arrows="1" fold="1" page="1" pageScale="1" pageWidth="413" pageHeight="583" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -578,7 +578,7 @@
         </mxCell>
         <mxCell id="XJSP3yd383L1JSZ86TTz-3" connectable="0" parent="uJEeKDuGrS4aUjZhJcKb-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="stall_done" vertex="1">
           <mxGeometry relative="1" x="0.9058" y="-1" as="geometry">
-            <mxPoint as="offset" />
+            <mxPoint x="17" as="offset" />
           </mxGeometry>
         </mxCell>
         <mxCell id="uJEeKDuGrS4aUjZhJcKb-11" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;" target="uJEeKDuGrS4aUjZhJcKb-7" value="">
