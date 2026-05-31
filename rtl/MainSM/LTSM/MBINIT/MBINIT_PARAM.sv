@@ -147,7 +147,6 @@ assign PMO_sel   = PMO_support_local_ctrl   && PMO_support_local_cap;
 logic SFES_sel;
 assign SFES_sel = L2SPD_sel || PSPT_sel || PMO_sel;
 
-// عايزين نشوف حوار ال SPMW
 logic UCIE_x8;
 always_comb begin
     if(phy_x8_mode_ctrl || Target_Link_Width_ctrl == 4'h1 || SPMW) begin

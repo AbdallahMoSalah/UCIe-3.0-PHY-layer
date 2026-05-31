@@ -125,7 +125,10 @@ module MBINIT_CONTROLLER
     input  logic [63:0] repairmb_tx_data_Field,
     input  logic       repairmb_clear_error_req,
     input  logic [2:0] repairmb_rx_data_lane_mask,
-    input  logic [2:0] repairmb_tx_data_lane_mask
+    input  logic [2:0] repairmb_tx_data_lane_mask,
+
+    input  logic [3:0] param_Link_Width_enable_status,
+    output logic [3:0] reg_Link_Width_enable_status
 );
 
 // =============================================================================
@@ -401,6 +404,47 @@ always_comb begin
     end else if (current_state == CTRL_REVERSALMB) begin
         mb_lane_reversal_req = reversalmb_lane_reversal_req;
     end
+end
+
+// =============================================================================
+// SEQUENTIAL LATCHING FOR LINK WIDTH STATUS
+// =============================================================================
+function automatic logic [3:0] get_width_code(logic [2:0] map);
+    case (map)
+        3'b011:  return 4'h2; // x16
+        3'b001:  return 4'h1; // x8 lower
+        3'b010:  return 4'h1; // x8 upper
+        3'b100:  return 4'h0; // x4 lower
+        3'b101:  return 4'h0; // x4 upper
+        default: return 4'h0;
+    endcase
+endfunction
+
+logic [3:0] reg_Link_Width_enable_status_reg;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
+    end 
+    else if(current_state == CTRL_PARAM)begin
+        reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
+    end
+    else if (current_state == CTRL_REPAIRMB && repairmb_done) begin
+        reg_Link_Width_enable_status_reg <= get_width_code(mbinit_tx_data_lane_mask);
+    end 
+
+end
+
+always_comb begin
+    reg_Link_Width_enable_status = reg_Link_Width_enable_status_reg;
+
+    if(current_state == CTRL_PARAM)begin
+        reg_Link_Width_enable_status = param_Link_Width_enable_status;
+    end
+    else if (current_state == CTRL_REPAIRMB && repairmb_done) begin
+        reg_Link_Width_enable_status = get_width_code(mbinit_tx_data_lane_mask);
+    end 
+
 end
 
 // =============================================================================

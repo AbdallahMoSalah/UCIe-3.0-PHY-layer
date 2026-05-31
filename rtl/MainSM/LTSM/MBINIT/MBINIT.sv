@@ -71,7 +71,8 @@ module MBINIT
     // D2C point-test interface (for MBINIT_REPAIRMB)
     // =========================================================================
         // d2cptest interface
-    output logic            tx_pt_en,
+    output logic            local_tx_pt_en,
+    output logic            partner_tx_pt_en,
     output logic [2:0]      d2c_pattern_setup,// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
     output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
     output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
@@ -79,7 +80,8 @@ module MBINIT
 
     input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
 
-    input logic test_d2c_done,
+    input logic local_test_d2c_done,
+    input logic partner_test_d2c_done,
 
 
     // =========================================================================
@@ -201,7 +203,8 @@ module MBINIT
         // D2C point-test interface (for MBINIT_REPAIRMB)
         // =========================================================================
             // d2cptest interface
-        .tx_pt_en(tx_pt_en),
+        .local_tx_pt_en(local_tx_pt_en),
+        .partner_tx_pt_en(partner_tx_pt_en),
         .d2c_pattern_setup(d2c_pattern_setup),
         .d2c_data_pattern_sel(d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_pattern_mode),
@@ -209,7 +212,8 @@ module MBINIT
     
         .d2c_perlane_pass(d2c_perlane_pass), // The Per-Lane Errors (Each bit represents one pass Data Lane).
     
-        .test_d2c_done(test_d2c_done),
+        .local_test_d2c_done(local_test_d2c_done),
+        .partner_test_d2c_done(partner_test_d2c_done),
     
     
         // =========================================================================
