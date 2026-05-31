@@ -176,13 +176,15 @@ module MBINIT_WRAPPER_tb;
         .reg_PSPT_enable_status(m_pspt_status),
 
         // D2C Point Test
-        .tx_pt_en(d2c_if_module.tx_pt_en),
+        .local_tx_pt_en(d2c_if_module.local_tx_pt_en),
+        .partner_tx_pt_en(d2c_if_module.partner_tx_pt_en),
         .d2c_pattern_setup(d2c_if_module.d2c_pattern_setup),
         .d2c_data_pattern_sel(d2c_if_module.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_module.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_module.d2c_compare_setup),
         .d2c_perlane_pass(d2c_if_module.mb_rx_perlane_pass),
-        .test_d2c_done(d2c_if_module.test_d2c_done),
+        .local_test_d2c_done(d2c_if_module.local_test_d2c_done),
+        .partner_test_d2c_done(d2c_if_module.partner_test_d2c_done),
 
         // Mainband
         .sb_rx_valid(p_tx_valid),
@@ -277,13 +279,15 @@ module MBINIT_WRAPPER_tb;
         .reg_PSPT_enable_status(p_pspt_status),
 
         // D2C Point Test
-        .tx_pt_en(d2c_if_partner.tx_pt_en),
+        .local_tx_pt_en(d2c_if_partner.local_tx_pt_en),
+        .partner_tx_pt_en(d2c_if_partner.partner_tx_pt_en),
         .d2c_pattern_setup(d2c_if_partner.d2c_pattern_setup),
         .d2c_data_pattern_sel(d2c_if_partner.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_partner.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_partner.d2c_compare_setup),
         .d2c_perlane_pass(d2c_if_partner.mb_rx_perlane_pass),
-        .test_d2c_done(d2c_if_partner.test_d2c_done),
+        .local_test_d2c_done(d2c_if_partner.local_test_d2c_done),
+        .partner_test_d2c_done(d2c_if_partner.partner_test_d2c_done),
 
         // Mainband
         .sb_rx_valid(m_tx_valid),
@@ -341,23 +345,43 @@ module MBINIT_WRAPPER_tb;
     //////////////////////////////////////////////////
     always @(posedge clk) begin
         if (!rst_n) begin
-            d2c_if_module.test_d2c_done <= 1'b0;
-        end else if (d2c_if_module.tx_pt_en) begin
-            #50; // Simulate delay
-            d2c_if_module.test_d2c_done <= 1'b1;
+            d2c_if_module.local_test_d2c_done   <= 1'b0;
+            d2c_if_module.partner_test_d2c_done <= 1'b0;
         end else begin
-            d2c_if_module.test_d2c_done <= 1'b0;
+            if (d2c_if_module.local_tx_pt_en) begin
+                #50;
+                d2c_if_module.local_test_d2c_done <= 1'b1;
+            end else begin
+                d2c_if_module.local_test_d2c_done <= 1'b0;
+            end
+
+            if (d2c_if_module.partner_tx_pt_en) begin
+                #50;
+                d2c_if_module.partner_test_d2c_done <= 1'b1;
+            end else begin
+                d2c_if_module.partner_test_d2c_done <= 1'b0;
+            end
         end
     end
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            d2c_if_partner.test_d2c_done <= 1'b0;
-        end else if (d2c_if_partner.tx_pt_en) begin
-            #50; // Simulate delay
-            d2c_if_partner.test_d2c_done <= 1'b1;
+            d2c_if_partner.local_test_d2c_done   <= 1'b0;
+            d2c_if_partner.partner_test_d2c_done <= 1'b0;
         end else begin
-            d2c_if_partner.test_d2c_done <= 1'b0;
+            if (d2c_if_partner.local_tx_pt_en) begin
+                #50;
+                d2c_if_partner.local_test_d2c_done <= 1'b1;
+            end else begin
+                d2c_if_partner.local_test_d2c_done <= 1'b0;
+            end
+
+            if (d2c_if_partner.partner_tx_pt_en) begin
+                #50;
+                d2c_if_partner.partner_test_d2c_done <= 1'b1;
+            end else begin
+                d2c_if_partner.partner_test_d2c_done <= 1'b0;
+            end
         end
     end
 

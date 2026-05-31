@@ -37,6 +37,12 @@ module MBINIT_SideBand_tb;
     logic [3:0]  m_reg_Target_Link_Width_ctrl;
     logic [3:0]  p_reg_Target_Link_Width_ctrl;
 
+    logic [3:0]  m_reg_Target_Link_Speed_ctrl;
+    logic [3:0]  p_reg_Target_Link_Speed_ctrl;
+
+    logic        m_reg_phy_x8_mode_ctrl;
+    logic        p_reg_phy_x8_mode_ctrl;
+
     // External Watchdog Timer Wires
     logic        m_timer_enable;
     logic        m_timer_rst_n;
@@ -57,13 +63,15 @@ module MBINIT_SideBand_tb;
     logic        m_reg_PSPT_enable_status,        p_reg_PSPT_enable_status;
 
     // D2C Point Test interface
-    logic        m_tx_pt_en, p_tx_pt_en;
+    logic        m_local_tx_pt_en, m_partner_tx_pt_en;
+    logic        p_local_tx_pt_en, p_partner_tx_pt_en;
     logic [2:0]  m_d2c_pattern_setup, p_d2c_pattern_setup;
     logic [1:0]  m_d2c_data_pattern_sel, p_d2c_data_pattern_sel;
     logic        m_d2c_pattern_mode, p_d2c_pattern_mode;
     logic [1:0]  m_d2c_compare_setup, p_d2c_compare_setup;
     logic [15:0] m_d2c_perlane_pass, p_d2c_perlane_pass;
-    logic        m_test_d2c_done, p_test_d2c_done;
+    logic        m_local_test_d2c_done, m_partner_test_d2c_done;
+    logic        p_local_test_d2c_done, p_partner_test_d2c_done;
 
     // Sideband Serial interface
     logic        TXCKSB [2];
@@ -285,16 +293,16 @@ module MBINIT_SideBand_tb;
         .mbinit_error                 (m_error),
         .SPMW                         (1'b0),
 
-        .reg_phy_x8_mode_ctrl         (1'b0),
-        .local_max_speed              (4'b0011), // 16GT/s
+        .reg_phy_x8_mode_ctrl         (m_reg_phy_x8_mode_ctrl),
+        .local_max_speed              (4'b0101), // 32GT/s
         .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
         .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b011),
-        .reg_Max_Link_Speed_cap       (4'b0011),
+        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
+        .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
         .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
@@ -311,7 +319,7 @@ module MBINIT_SideBand_tb;
         .reg_L2SPD_support_local_ctrl (1'b1),
         .reg_PSPT_support_local_ctrl  (1'b1),
         .reg_Target_Link_Width_ctrl   (m_reg_Target_Link_Width_ctrl),
-        .reg_Target_Link_Speed_ctrl   (4'b0011),
+        .reg_Target_Link_Speed_ctrl   (m_reg_Target_Link_Speed_ctrl),
 
         .reg_Clock_Phase_enable_status(m_reg_Clock_Phase_enable_status),
         .reg_Clock_mode_enable_status (m_reg_Clock_mode_enable_status),
@@ -322,13 +330,15 @@ module MBINIT_SideBand_tb;
         .reg_L2SPD_enable_status      (m_reg_L2SPD_enable_status),
         .reg_PSPT_enable_status       (m_reg_PSPT_enable_status),
 
-        .tx_pt_en                     (m_tx_pt_en),
+        .local_tx_pt_en               (m_local_tx_pt_en),
+        .partner_tx_pt_en             (m_partner_tx_pt_en),
         .d2c_pattern_setup            (m_d2c_pattern_setup),
         .d2c_data_pattern_sel         (m_d2c_data_pattern_sel),
         .d2c_pattern_mode             (m_d2c_pattern_mode),
         .d2c_compare_setup            (m_d2c_compare_setup),
         .d2c_perlane_pass             (m_d2c_perlane_pass),
-        .test_d2c_done                (m_test_d2c_done),
+        .local_test_d2c_done          (m_local_test_d2c_done),
+        .partner_test_d2c_done        (m_partner_test_d2c_done),
 
         // Connect Sideband Msg Bus (TX & RX)
         .sb_rx_valid                  (mb_rx_valid[0]),
@@ -383,16 +393,16 @@ module MBINIT_SideBand_tb;
         .mbinit_error                 (p_error),
         .SPMW                         (1'b0),
 
-        .reg_phy_x8_mode_ctrl         (1'b0),
-        .local_max_speed              (4'b0011), // 16GT/s
+        .reg_phy_x8_mode_ctrl         (p_reg_phy_x8_mode_ctrl),
+        .local_max_speed              (4'b0101), // 32GT/s
         .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
         .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b011),
-        .reg_Max_Link_Speed_cap       (4'b0011),
+        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
+        .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
         .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
@@ -409,7 +419,7 @@ module MBINIT_SideBand_tb;
         .reg_L2SPD_support_local_ctrl (1'b1),
         .reg_PSPT_support_local_ctrl  (1'b1),
         .reg_Target_Link_Width_ctrl   (p_reg_Target_Link_Width_ctrl),
-        .reg_Target_Link_Speed_ctrl   (4'b0011),
+        .reg_Target_Link_Speed_ctrl   (p_reg_Target_Link_Speed_ctrl),
 
         .reg_Clock_Phase_enable_status(p_reg_Clock_Phase_enable_status),
         .reg_Clock_mode_enable_status (p_reg_Clock_mode_enable_status),
@@ -420,13 +430,15 @@ module MBINIT_SideBand_tb;
         .reg_L2SPD_enable_status      (p_reg_L2SPD_enable_status),
         .reg_PSPT_enable_status       (p_reg_PSPT_enable_status),
 
-        .tx_pt_en                     (p_tx_pt_en),
+        .local_tx_pt_en               (p_local_tx_pt_en),
+        .partner_tx_pt_en             (p_partner_tx_pt_en),
         .d2c_pattern_setup            (p_d2c_pattern_setup),
         .d2c_data_pattern_sel         (p_d2c_data_pattern_sel),
         .d2c_pattern_mode             (p_d2c_pattern_mode),
         .d2c_compare_setup            (p_d2c_compare_setup),
         .d2c_perlane_pass             (p_d2c_perlane_pass),
-        .test_d2c_done                (p_test_d2c_done),
+        .local_test_d2c_done          (p_local_test_d2c_done),
+        .partner_test_d2c_done        (p_partner_test_d2c_done),
 
         // Connect Sideband Msg Bus (TX & RX)
         .sb_rx_valid                  (mb_rx_valid[1]),
@@ -493,28 +505,43 @@ module MBINIT_SideBand_tb;
         .timeout_expired (p_timer_timeout_expired)
     );
 
-    // =========================================================================
-    // AUTOMATIC MAINBAND D2C POINT-TEST SIMULATOR
-    // =========================================================================
     always @(posedge clk_100) begin
         if (!rst_n) begin
-            m_test_d2c_done <= 1'b0;
-        end else if (m_tx_pt_en) begin
-            #50; // Simulate hardware D2C point test delay
-            m_test_d2c_done <= 1'b1;
+            m_local_test_d2c_done   <= 1'b0;
+            m_partner_test_d2c_done <= 1'b0;
         end else begin
-            m_test_d2c_done <= 1'b0;
+            if (m_local_tx_pt_en) begin
+                #50;
+                m_local_test_d2c_done   <= 1'b1;
+            end else begin
+                m_local_test_d2c_done   <= 1'b0;
+            end
+            if (m_partner_tx_pt_en) begin
+                #50;
+                m_partner_test_d2c_done <= 1'b1;
+            end else begin
+                m_partner_test_d2c_done <= 1'b0;
+            end
         end
     end
 
     always @(posedge clk_100) begin
         if (!rst_n) begin
-            p_test_d2c_done <= 1'b0;
-        end else if (p_tx_pt_en) begin
-            #50; // Simulate hardware D2C point test delay
-            p_test_d2c_done <= 1'b1;
+            p_local_test_d2c_done   <= 1'b0;
+            p_partner_test_d2c_done <= 1'b0;
         end else begin
-            p_test_d2c_done <= 1'b0;
+            if (p_local_tx_pt_en) begin
+                #50;
+                p_local_test_d2c_done   <= 1'b1;
+            end else begin
+                p_local_test_d2c_done   <= 1'b0;
+            end
+            if (p_partner_tx_pt_en) begin
+                #50;
+                p_partner_test_d2c_done <= 1'b1;
+            end else begin
+                p_partner_test_d2c_done <= 1'b0;
+            end
         end
     end
 
@@ -591,6 +618,12 @@ module MBINIT_SideBand_tb;
         m_reg_Target_Link_Width_ctrl = 4'h2; // Default: x16
         p_reg_Target_Link_Width_ctrl = 4'h2;
 
+        m_reg_Target_Link_Speed_ctrl = 4'h5; // Default: 32 GT/s (5h)
+        p_reg_Target_Link_Speed_ctrl = 4'h5;
+
+        m_reg_phy_x8_mode_ctrl = 1'b0;
+        p_reg_phy_x8_mode_ctrl = 1'b0;
+
         repeat(20) @(posedge clk_100);
         rst_n    = 1'b1;
         repeat(5) @(posedge clk_100);
@@ -620,11 +653,21 @@ module MBINIT_SideBand_tb;
         fork
             begin
                 wait (m_done && p_done);
-                $display("\n==================================================================");
-                $display("T=%0t | [SUCCESS - SCENARIO 1] Real-time loopback training completed successfully!", $time);
-                $display("            Module final Tx mask = %b, Rx mask = %b", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
-                $display("            Partner final Tx mask = %b, Rx mask = %b", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
-                $display("==================================================================\n");
+                 $display("\n==================================================================");
+                 $display("T=%0t | [SUCCESS - SCENARIO 1] Real-time loopback training completed successfully!", $time);
+                 $display("            Module final Tx mask = %b, Rx mask = %b", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
+                 $display("            Partner final Tx mask = %b, Rx mask = %b", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
+                 $display("            Module negotiated Link Width = 4'h%h, Speed = 4'h%h", m_reg_Link_Width_enable_status, m_reg_Link_Speed_enable_status);
+                 $display("            Partner negotiated Link Width = 4'h%h, Speed = 4'h%h", p_reg_Link_Width_enable_status, p_reg_Link_Speed_enable_status);
+                 if (m_reg_Link_Width_enable_status !== 4'h2 || p_reg_Link_Width_enable_status !== 4'h2) begin
+                     $error("T=%0t | [ERROR] Negotiated Link Width mismatch (Expected x16 = 4'h2)!", $time);
+                     $finish;
+                 end
+                 if (m_reg_Link_Speed_enable_status !== 4'h5 || p_reg_Link_Speed_enable_status !== 4'h5) begin
+                     $error("T=%0t | [ERROR] Negotiated Link Speed mismatch (Expected 32 GT/s = 4'h5)!", $time);
+                     $finish;
+                 end
+                 $display("==================================================================\n");
             end
             begin
                 wait (m_error || p_error);
@@ -703,6 +746,12 @@ module MBINIT_SideBand_tb;
                 $display("T=%0t | [SUCCESS - SCENARIO 3] Successfully negotiated and completed at x8 width!", $time);
                 $display("            Module final Tx mask = %b, Rx mask = %b", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
                 $display("            Partner final Tx mask = %b, Rx mask = %b", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
+                $display("            Module negotiated Link Width = 4'h%h, Speed = 4'h%h", m_reg_Link_Width_enable_status, m_reg_Link_Speed_enable_status);
+                $display("            Partner negotiated Link Width = 4'h%h, Speed = 4'h%h", p_reg_Link_Width_enable_status, p_reg_Link_Speed_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h1 || p_reg_Link_Width_enable_status !== 4'h1) begin
+                    $error("T=%0t | [ERROR] Negotiated Link Width mismatch (Expected x8 = 4'h1)!", $time);
+                    $finish;
+                end
                 $display("==================================================================\n");
             end
             begin
@@ -968,6 +1017,12 @@ module MBINIT_SideBand_tb;
                 $display("T=%0t | [SUCCESS - SCENARIO 8] Successfully completed training with asymmetric maps aligned to x4!", $time);
                 $display("            Module final Tx mask = %b, Rx mask = %b (Expected: Tx = 100, Rx = 101)", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
                 $display("            Partner final Tx mask = %b, Rx mask = %b (Expected: Tx = 101, Rx = 100)", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
+                $display("            Module negotiated Link Width = 4'h%h, Speed = 4'h%h", m_reg_Link_Width_enable_status, m_reg_Link_Speed_enable_status);
+                $display("            Partner negotiated Link Width = 4'h%h, Speed = 4'h%h", p_reg_Link_Width_enable_status, p_reg_Link_Speed_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h0 || p_reg_Link_Width_enable_status !== 4'h0) begin
+                    $error("T=%0t | [ERROR] Negotiated Link Width mismatch (Expected x4 = 4'h0)!", $time);
+                    $finish;
+                end
                 $display("==================================================================\n");
             end
             begin
@@ -983,7 +1038,410 @@ module MBINIT_SideBand_tb;
         join_any
         disable fork;
 
-        $display("T=%0t | [TEST] Finished all integration checks successfully.", $time);
+        // ---------------------------------------------------------------------
+        // SCENARIO 9: DYNAMIC CAPABILITY & FORCE X8 CONTROL NEGOTIATION TESTS
+        // ---------------------------------------------------------------------
+        $display("\n==================================================================");
+        $display("T=%0t | [TEST - SCENARIO 9] Starting Dynamic Capability Sweep & Force x8 overrides...", $time);
+        $display("==================================================================\n");
+
+        // ---------------------------------------------------------------------
+        // SCN 9A: Forced x8 on Die 0 only
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9A] Force x8 on Die 0 only...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_phy_x8_mode_ctrl = 1'b1; // Force x8 on Die 0
+        p_reg_phy_x8_mode_ctrl = 1'b0; // Default on Die 1
+
+        m_reg_Target_Link_Width_ctrl = 4'h2; // Wants x16
+        p_reg_Target_Link_Width_ctrl = 4'h2; // Wants x16
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9A] Completed. Negotiated Width: m=%0h, p=%0h (Expected: 1)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h1 || p_reg_Link_Width_enable_status !== 4'h1) begin
+                    $error("T=%0t | [FAILURE - SCN 9A] Expected width 4'h1 (x8)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9A] Training failed!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9A] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9B: Forced x8 on Die 1 only
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9B] Force x8 on Die 1 only...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_phy_x8_mode_ctrl = 1'b0; // Default on Die 0
+        p_reg_phy_x8_mode_ctrl = 1'b1; // Force x8 on Die 1
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9B] Completed. Negotiated Width: m=%0h, p=%0h (Expected: 1)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h1 || p_reg_Link_Width_enable_status !== 4'h1) begin
+                    $error("T=%0t | [FAILURE - SCN 9B] Expected width 4'h1 (x8)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9B] Training failed!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9B] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9C: Forced x8 on Both dies
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9C] Force x8 on both dies...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_phy_x8_mode_ctrl = 1'b1; // Force x8 on Die 0
+        p_reg_phy_x8_mode_ctrl = 1'b1; // Force x8 on Die 1
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9C] Completed. Negotiated Width: m=%0h, p=%0h (Expected: 1)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h1 || p_reg_Link_Width_enable_status !== 4'h1) begin
+                    $error("T=%0t | [FAILURE - SCN 9C] Expected width 4'h1 (x8)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9C] Training failed!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9C] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9D: Target Link Width Mismatch (Die 0 target = x16, Die 1 target = x8)
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9D] Target Link Width Mismatch (x16 vs x8)...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_Target_Link_Width_ctrl = 4'h2; // Wants x16
+        p_reg_Target_Link_Width_ctrl = 4'h1; // Wants x8
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9D] Completed. Negotiated Width: m=%0h, p=%0h (Expected: 1)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+                if (m_reg_Link_Width_enable_status !== 4'h1 || p_reg_Link_Width_enable_status !== 4'h1) begin
+                    $error("T=%0t | [FAILURE - SCN 9D] Expected width 4'h1 (x8)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9D] Training failed!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9D] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9E: Target Link Speed Mismatch (Die 0 target = 32 GT/s, Die 1 target = 16 GT/s)
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9E] Target Link Speed Mismatch (32 GT/s vs 16 GT/s)...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_Target_Link_Speed_ctrl = 4'h5; // Wants 32 GT/s (5h)
+        p_reg_Target_Link_Speed_ctrl = 4'h3; // Wants 16 GT/s (3h)
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9E] Completed. Negotiated Speed: m=%0h, p=%0h (Expected: 3)", $time, m_reg_Link_Speed_enable_status, p_reg_Link_Speed_enable_status);
+                if (m_reg_Link_Speed_enable_status !== 4'h3 || p_reg_Link_Speed_enable_status !== 4'h3) begin
+                    $error("T=%0t | [FAILURE - SCN 9E] Expected speed 4'h3 (16 GT/s)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9E] Training failed!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9E] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9F-1: x16 with 1-Lane Failure (Degrade to upper x8)
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9F-1] x16 capability with forced 1-lane failure on lane 7 (lower x8 fail -> degrade to upper x8)...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        // Point Test inputs for Run 1:
+        // Local has lane 7 failed (16'hFF7F)
+        // Partner has all passing
+        m_d2c_perlane_pass = 16'hFF7F;
+        p_d2c_perlane_pass = 16'hFFFF;
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        // Wait until they enter point test S2 of REPAIRMB for the first time
+        wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+        
+        fork
+            begin
+                // Wait for retry point test S2
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state != u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                $display("T=%0t | [TEST - SCN 9F-1] Retry detected! Setting passing lanes for retry point test...", $time);
+                // Make retry pass for upper x8 operational width
+                m_d2c_perlane_pass = 16'hFFFF;
+                p_d2c_perlane_pass = 16'hFFFF;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-1] Training errored out before retry!", $time);
+                $finish;
+            end
+            begin
+                #5_000_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-1] Retry not detected in time!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wait for successful completion
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9F-1] Completed successfully!", $time);
+                $display("            Module final Tx mask = %b, Rx mask = %b (Expected: 010 - upper x8)", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
+                if (u_mbinit_0.mbinit_tx_data_lane_mask !== 3'b010) begin
+                    $error("T=%0t | [FAILURE - SCN 9F-1] Expected upper x8 mask (3'b010)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-1] Training errored out after retry!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-1] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9F-2: Forced x8 with 1-Lane Failure (Degrade to lower x4)
+        // ---------------------------------------------------------------------
+        $display("T=%0t | [TEST - SCN 9F-2] Forced x8 with 1-lane failure on lane 5 (lower x8 fail -> degrade to lower x4)...", $time);
+        reset_system();
+        block_sideband = 1'b0;
+
+        m_reg_phy_x8_mode_ctrl = 1'b1; // Force x8
+
+        // Point Test inputs for Run 1:
+        // Local has lane 5 and lane 12 failed (16'hEFDF)
+        // Partner has all passing
+        m_d2c_perlane_pass = 16'hEFDF;
+        p_d2c_perlane_pass = 16'hFFFF;
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        // Wait until they enter point test S2 of REPAIRMB for the first time
+        wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+        
+        fork
+            begin
+                // Wait for retry point test S2
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state != u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                $display("T=%0t | [TEST - SCN 9F-2] Retry detected! Setting passing lanes for retry point test...", $time);
+                // Make retry pass for lower x4 operational width
+                m_d2c_perlane_pass = 16'hFFFF;
+                p_d2c_perlane_pass = 16'hFFFF;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-2] Training errored out before retry!", $time);
+                $finish;
+            end
+            begin
+                #5_000_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-2] Retry not detected in time!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wait for successful completion
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SUCCESS - SCN 9F-2] Completed successfully!", $time);
+                $display("            Module final Tx mask = %b, Rx mask = %b (Expected: 100 - lower x4)", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
+                if (u_mbinit_0.mbinit_tx_data_lane_mask !== 3'b100) begin
+                    $error("T=%0t | [FAILURE - SCN 9F-2] Expected lower x4 mask (3'b100)!", $time);
+                    $finish;
+                end
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-2] Training errored out after retry!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-2] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ---------------------------------------------------------------------
+        // SCN 9F-3: Asymmetric Lane Degradation (Master lower x8 fail -> upper x8; Partner x16 -> lower x8)
+        // ---------------------------------------------------------------------
+        $display("\n==================================================================");
+        $display("T=%0t | [TEST - SCN 9F-3] Starting Asymmetric Lane Degradation (Master lower x8 fail -> upper x8; Partner x16 -> lower x8)...", $time);
+        $display("==================================================================\n");
+        reset_system();
+        block_sideband = 1'b0;
+
+        // Negotiate x16 in PARAM (default)
+        m_reg_Target_Link_Width_ctrl = 4'h2;
+        p_reg_Target_Link_Width_ctrl = 4'h2;
+
+        // Point Test inputs for Run 1:
+        // Master (local) has lane 5 failed in lower 8 lanes (16'hFFDF)
+        // Partner (remote) has all passing (16'hFFFF)
+        m_d2c_perlane_pass = 16'hFFDF;
+        p_d2c_perlane_pass = 16'hFFFF;
+
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        // Wait until they enter point test S2 of REPAIRMB for the first time
+        wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+        
+        fork
+            begin
+                // Wait for retry point test S2
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state != u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                $display("T=%0t | [TEST - SCN 9F-3] Retry detected! Setting passing lanes for retry point test (Master=16'hFFFF, Partner=16'hFFFF)...", $time);
+                m_d2c_perlane_pass = 16'hFFFF;
+                p_d2c_perlane_pass = 16'hFFFF;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-3] Training errored out before retry!", $time);
+                $finish;
+            end
+            begin
+                #5_000_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-3] Retry not detected in time!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wait for successful completion
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("\n==================================================================");
+                $display("T=%0t | [SUCCESS - SCN 9F-3] Asymmetric Lane Degradation completed successfully!", $time);
+                $display("            Module final Tx mask = %b, Rx mask = %b (Expected: Tx = 010 - upper x8, Rx = 001 - lower x8)", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
+                $display("            Partner final Tx mask = %b, Rx mask = %b (Expected: Tx = 001 - lower x8, Rx = 010 - upper x8)", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
+                $display("T=%0t | [SUCCESS - SCN 9F-3] Completed. Negotiated Width: m=%0h, p=%0h (Expected: 1)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+                
+                // Assertions to verify correct asymmetric x8 mask
+                if (u_mbinit_0.mbinit_tx_data_lane_mask !== 3'b010 || u_mbinit_0.mbinit_rx_data_lane_mask !== 3'b001) begin
+                    $error("T=%0t | [FAILURE - SCN 9F-3] Expected Master Tx mask 3'b010 and Rx mask 3'b001!", $time);
+                    $finish;
+                end
+                if (u_mbinit_1.mbinit_tx_data_lane_mask !== 3'b001 || u_mbinit_1.mbinit_rx_data_lane_mask !== 3'b010) begin
+                    $error("T=%0t | [FAILURE - SCN 9F-3] Expected Partner Tx mask 3'b001 and Rx mask 3'b010!", $time);
+                    $finish;
+                end
+                $display("==================================================================\n");
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCN 9F-3] Training errored out after retry!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCN 9F-3] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+
+        $display("\n==================================================================");
+        $display("T=%0t | [ALL INTEGRATION SCENARIOS PASSED SUCCESSFULLY]", $time);
+        $display("==================================================================\n");
         $finish;
     end
 
