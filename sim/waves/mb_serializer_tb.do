@@ -6,11 +6,11 @@ add wave -noupdate /MB_SERIALIZER_TB/DUT/i_rst_n
 add wave -noupdate /MB_SERIALIZER_TB/DUT/Ser_en
 add wave -noupdate /MB_SERIALIZER_TB/DUT/in_data
 add wave -noupdate /MB_SERIALIZER_TB/DUT/SER_out
-add wave -noupdate /MB_SERIALIZER_TB/DUT/ser_counter
 add wave -noupdate /MB_SERIALIZER_TB/DUT/data_reg
 add wave -noupdate /MB_SERIALIZER_TB/DUT/load_reg
+add wave -noupdate /MB_SERIALIZER_TB/DUT/ser_counter
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {19892 ps} 0}
+WaveRestoreCursors {{Cursor 1} {22250 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
