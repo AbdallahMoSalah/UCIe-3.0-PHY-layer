@@ -57,7 +57,8 @@ module MBINIT_REPAIRMB_tb;
     logic         p_ltsm_rdy;
 
     // d2cptest interface
-    logic         m_tx_pt_en, p_tx_pt_en;
+    logic         m_local_tx_pt_en, m_partner_tx_pt_en;
+    logic         p_local_tx_pt_en, p_partner_tx_pt_en;
     logic [2:0]   m_d2c_pattern_setup, p_d2c_pattern_setup;
     logic [1:0]   m_d2c_data_pattern_sel, p_d2c_data_pattern_sel;
     logic         m_d2c_pattern_mode, p_d2c_pattern_mode;
@@ -65,6 +66,14 @@ module MBINIT_REPAIRMB_tb;
     logic [15:0]  m_d2c_perlane_pass, p_d2c_perlane_pass;
     logic         m_test_d2c_done, p_test_d2c_done;
     logic         m_clear_error_req, p_clear_error_req;
+
+    logic         m_local_test_d2c_done, m_partner_test_d2c_done;
+    logic         p_local_test_d2c_done, p_partner_test_d2c_done;
+
+    assign m_local_test_d2c_done   = m_test_d2c_done;
+    assign m_partner_test_d2c_done = m_test_d2c_done;
+    assign p_local_test_d2c_done   = p_test_d2c_done;
+    assign p_partner_test_d2c_done = p_test_d2c_done;
 
     // Timer interface
     logic         m_timeout_repair_expired;
@@ -83,6 +92,11 @@ module MBINIT_REPAIRMB_tb;
     // Output lane masks
     logic [2:0]   m_mbinit_rx_data_lane_mask, m_mbinit_tx_data_lane_mask;
     logic [2:0]   p_mbinit_rx_data_lane_mask, p_mbinit_tx_data_lane_mask;
+
+    logic         m_tx_valid_gated;
+    logic         p_tx_valid_gated;
+    assign m_tx_valid_gated = m_tx_valid && m_ltsm_rdy;
+    assign p_tx_valid_gated = p_tx_valid && p_ltsm_rdy;
 
     ////////////////////////////////////////////////
     // TIMERS INSTANTIATION (EXTERNAL)
@@ -122,7 +136,7 @@ module MBINIT_REPAIRMB_tb;
         .mb_repairmb_error(m_error),
 
         // RX
-        .sb_repairmb_rx_valid(p_tx_valid),
+        .sb_repairmb_rx_valid(p_tx_valid_gated),
         .sb_repairmb_rx_msg_id(p_tx_msg_id),
         .sb_repairmb_rx_MsgInfo(p_tx_MsgInfo),
         .sb_repairmb_rx_data_Field(p_tx_data_Field),
@@ -140,13 +154,15 @@ module MBINIT_REPAIRMB_tb;
         .sb_ltsm_rdy(m_ltsm_rdy),
 
         // d2cptest
-        .tx_pt_en(m_tx_pt_en),
+        .local_tx_pt_en(m_local_tx_pt_en),
+        .partner_tx_pt_en(m_partner_tx_pt_en),
         .d2c_pattern_setup(m_d2c_pattern_setup),
         .d2c_data_pattern_sel(m_d2c_data_pattern_sel),
         .d2c_pattern_mode(m_d2c_pattern_mode),
         .d2c_compare_setup(m_d2c_compare_setup),
         .d2c_perlane_pass(m_d2c_perlane_pass),
-        .test_d2c_done(m_test_d2c_done),
+        .local_test_d2c_done(m_local_test_d2c_done),
+        .partner_test_d2c_done(m_partner_test_d2c_done),
         .clear_error_req(m_clear_error_req),
         .mbinit_rx_data_lane_mask(m_mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask(m_mbinit_tx_data_lane_mask)
@@ -164,7 +180,7 @@ module MBINIT_REPAIRMB_tb;
         .mb_repairmb_error(p_error),
 
         // RX
-        .sb_repairmb_rx_valid(m_tx_valid),
+        .sb_repairmb_rx_valid(m_tx_valid_gated),
         .sb_repairmb_rx_msg_id(m_tx_msg_id),
         .sb_repairmb_rx_MsgInfo(m_tx_MsgInfo),
         .sb_repairmb_rx_data_Field(m_tx_data_Field),
@@ -182,13 +198,15 @@ module MBINIT_REPAIRMB_tb;
         .sb_ltsm_rdy(p_ltsm_rdy),
 
         // d2cptest
-        .tx_pt_en(p_tx_pt_en),
+        .local_tx_pt_en(p_local_tx_pt_en),
+        .partner_tx_pt_en(p_partner_tx_pt_en),
         .d2c_pattern_setup(p_d2c_pattern_setup),
         .d2c_data_pattern_sel(p_d2c_data_pattern_sel),
         .d2c_pattern_mode(p_d2c_pattern_mode),
         .d2c_compare_setup(p_d2c_compare_setup),
         .d2c_perlane_pass(p_d2c_perlane_pass),
-        .test_d2c_done(p_test_d2c_done),
+        .local_test_d2c_done(p_local_test_d2c_done),
+        .partner_test_d2c_done(p_partner_test_d2c_done),
         .clear_error_req(p_clear_error_req),
         .mbinit_rx_data_lane_mask(p_mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask(p_mbinit_tx_data_lane_mask)
@@ -200,8 +218,20 @@ module MBINIT_REPAIRMB_tb;
     logic expect_error;
     always @(posedge clk) begin
         if (rst_n && (m_error || p_error) && !expect_error) begin
+            $display("TB ERROR DETECTED: master_state=%s, partner_state=%s, master_degrade_not_possible_r=%b, partner_degrade_not_possible_r=%b, master_retry_done=%b, partner_retry_done=%b",
+                master.current_state.name(), partner.current_state.name(), master.degrade_not_possible_r, partner.degrade_not_possible_r, master.retry_done, partner.retry_done);
             $error("ERROR: Unexpected error flag assertion! expect_error=%b", expect_error);
             $finish;
+        end
+    end
+
+    logic [4:0] prev_m_state, prev_p_state;
+    always @(posedge clk) begin
+        if (master.current_state != prev_m_state || partner.current_state != prev_p_state) begin
+            $display("TRANSITION DEBUG: time=%0d, master_state=%s, partner_state=%s, m_local_en=%b, m_partner_en=%b, m_local_done=%b, m_partner_done=%b, m_pt_complete=%b, m_s3_req=%b, m_s3_rsp=%b, p_s3_req=%b, p_s3_rsp=%b",
+                $time, master.current_state.name(), partner.current_state.name(), m_local_tx_pt_en, m_partner_tx_pt_en, m_local_test_d2c_done, m_partner_test_d2c_done, master.d2c_pt_complete, master.s3_req_rcvd, master.s3_rsp_rcvd, partner.s3_req_rcvd, partner.s3_rsp_rcvd);
+            prev_m_state <= master.current_state;
+            prev_p_state <= partner.current_state;
         end
     end
 
@@ -859,8 +889,87 @@ module MBINIT_REPAIRMB_tb;
         expect_error = 1'b0;
         repeat(5) @(posedge clk);
 
+        // --------------------------------------------------------
+        // SCN 17: Agreed on x8 Parameter, both sides pass full x8
+        // --------------------------------------------------------
+        $display("\n[SCN 17] Agreed on x8 Parameter, both sides pass full x8");
+        reset_system();
+        m_use_x8_mode = 1'b1; // Negotiate x8 mode
+        p_use_x8_mode = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1: all lanes pass, but we degrade voluntarily to lower x8 based on parameter
+        m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFFF;
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Since map changed from 3'b011 to 3'b001, retry must trigger!
+        wait (master.current_state != master.MB_S2_D2C_POINT_TEST);
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! S2 Run 2 for x8 parameter agreement.");
+
+        // S2 Run 2: all pass
+        m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFFF;
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        wait (m_done && p_done);
+        $display("  -> Agreed x8 parameter training completed successfully! done=%b, error=%b", m_done, m_error);
+        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: final Tx map is not lower x8!");
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        repeat(5) @(posedge clk);
+
+        // --------------------------------------------------------
+        // SCN 18: Agreed on x8 Parameter, non-overlapping lane errors (Must fail)
+        // --------------------------------------------------------
+        $display("\n[SCN 18] Agreed on x8 Parameter, non-overlapping lane errors (Must fail)");
+        reset_system();
+        expect_error = 1'b1;
+        m_use_x8_mode = 1'b1; // Negotiate x8 mode
+        p_use_x8_mode = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // Master Rx fails lower x8 (only upper passes -> 16'hFF00)
+        m_d2c_perlane_pass = 16'hFF00;
+        // Partner Rx fails upper x8 (only lower passes -> 16'h00FF)
+        p_d2c_perlane_pass = 16'h00FF;
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Since they cannot align to any common x8 or x4 width (no overlapping lanes operational), it must go to error!
+        wait (m_error && p_error);
+        $display("  -> Non-overlapping lane failure detected and errored out correctly! done=%b, error=%b", m_done, m_error);
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        repeat(5) @(posedge clk);
+        expect_error = 1'b0;
+        repeat(5) @(posedge clk);
+
         $display("\n==========================================================");
-        $display("   ALL 16 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
+        $display("   ALL 18 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
         $display("==========================================================");
         $finish;
     end

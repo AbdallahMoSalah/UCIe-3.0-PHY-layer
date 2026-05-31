@@ -45,15 +45,22 @@ module MBINIT_REPAIRMB
 
 
     // d2cptest interface
-    output logic            tx_pt_en,
+    output logic            local_tx_pt_en       , // (for TX_D2C_PT) Enable local   TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+    output logic            partner_tx_pt_en     , // (for TX_D2C_PT) Enable partner TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+
+    output logic [1:0]      d2c_clk_sampling    ,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
     output logic [2:0]      d2c_pattern_setup,// 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
     output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
     output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
     output logic [1:0]      d2c_compare_setup, // 0: Per-Lane, 1: Aggregate,  2: Valid Lane, 3: Clock Lane Comparison.
+    output logic [15:0]     d2c_burst_count, // Burst Count: Indicates the duration of selected pattern (UI count).
+    output logic [15:0]     d2c_idle_count , // IDLE Count: Indicates the duration of low following the burst (UI count).
+    output logic [15:0]     d2c_iter_count , // Iteration Count: Indicates the iteration count of bursts followed by idle.
 
-    input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
+    input  logic [15:0]     d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
 
-    input logic test_d2c_done,
+    input  logic            local_test_d2c_done  , // (for TX/RX_D2C_PT) D2C point training completed (1: sequence complete, 0: in progress or inactive).
+    input  logic            partner_test_d2c_done,
 
     // Clear Error request to comparator
     output logic            clear_error_req,
@@ -93,9 +100,9 @@ module MBINIT_REPAIRMB
         MB_S5_FINALIZE_RSP_SEND,
         MB_S5_FINALIZE_RSP_WAIT,
 
-        MB_S6_REPAIR_ERROR,
-        MB_S7_REPAIR_DONE,
-        MB_S8_ALIGN_CHECK
+        MB_S6_ALIGN_CHECK,
+        MB_S7_REPAIR_ERROR,
+        MB_S8_REPAIR_DONE
     } state_e;
 
     state_e current_state, next_state;
@@ -118,6 +125,8 @@ module MBINIT_REPAIRMB
     logic        width_changed_r;
     logic        retry_done;
     logic        retry_start;
+    logic        local_needs_retry_r;
+    logic        partner_needs_retry_r;
 
     logic        s1_req_rcvd;
     logic        s1_rsp_rcvd;
@@ -125,7 +134,6 @@ module MBINIT_REPAIRMB
     logic        s3_rsp_rcvd;
     logic        s5_req_rcvd;
     logic        s5_rsp_rcvd;
-    logic        s5_degrade_rsp_pending;
 
     logic [15:0] mb_rx_perlane_result;
     logic        allow_x4_mode;
@@ -208,7 +216,7 @@ module MBINIT_REPAIRMB
                 mbinit_rx_data_lane_mask = sb_repairmb_rx_MsgInfo[2:0];
             end
 
-            if (current_state == MB_S8_ALIGN_CHECK) begin
+            if (current_state == MB_S6_ALIGN_CHECK) begin
                 if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
                     mbinit_rx_data_lane_mask = 3'b000;
                     mbinit_tx_data_lane_mask = 3'b000;
@@ -238,7 +246,7 @@ module MBINIT_REPAIRMB
                 mbinit_rx_data_lane_mask_r <= sb_repairmb_rx_MsgInfo[2:0];
             end
 
-            if (current_state == MB_S8_ALIGN_CHECK) begin
+            if (current_state == MB_S6_ALIGN_CHECK) begin
                 if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
                     mbinit_rx_data_lane_mask_r <= 3'b000;
                     mbinit_tx_data_lane_mask_r <= 3'b000;
@@ -338,7 +346,9 @@ module MBINIT_REPAIRMB
     // RETRY & TIMER CONTROLS
     ////////////////////////////////////////////////////////
 
-    assign retry_start = (current_state == MB_S4_DEGRADE_VERIFICATION) && width_changed_r && !degrade_not_possible_r;
+    assign retry_start = (current_state == MB_S4_DEGRADE_VERIFICATION) && 
+                         (width_changed_r || (partner_lane_map != 3'b011)) && 
+                         !degrade_not_possible_r && !retry_done;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -379,7 +389,7 @@ module MBINIT_REPAIRMB
             s3_rsp_rcvd           <= 1'b0;
             s5_req_rcvd           <= 1'b0;
             s5_rsp_rcvd           <= 1'b0;
-            partner_lane_map      <= allow_x4_mode ? 3'b001 : 3'b011;
+            partner_lane_map      <= 3'b011;
             prev_partner_lane_map <= 3'b000;
             mb_rx_perlane_result  <= 16'h0;
             local_lower_x4_pass   <= 1'b0;
@@ -394,8 +404,8 @@ module MBINIT_REPAIRMB
             mb_rx_perlane_result <= 16'h0;
         end
         else begin
-            // Latch per-lane status when the point test completes
-            if (current_state == MB_S2_D2C_POINT_TEST && test_d2c_done) begin
+            // Latch per-lane status when the local point test completes
+            if (current_state == MB_S2_D2C_POINT_TEST && local_test_d2c_done) begin
                 mb_rx_perlane_result <= d2c_perlane_pass;
                 local_lower_x4_pass   <= (d2c_perlane_pass[3:0] == 4'hF);
                 local_upper_x4_pass   <= (d2c_perlane_pass[7:4] == 4'hF);
@@ -424,7 +434,7 @@ module MBINIT_REPAIRMB
                         end
                     end
                     MBINIT_REPAIRMB_end_req: begin
-                        if (current_state > MB_S3_DEGRADE_RSP_SEND && s3_rsp_rcvd) begin
+                        if (current_state > MB_S3_DEGRADE_RSP_SEND && (s3_rsp_rcvd || (retry_done && !local_needs_retry_r))) begin
                             s5_req_rcvd <= 1'b1;
                         end
                     end
@@ -443,37 +453,28 @@ module MBINIT_REPAIRMB
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            s5_degrade_rsp_pending <= 1'b0;
-        end
-        else if (current_state == MB_S0_IDLE) begin
-            s5_degrade_rsp_pending <= 1'b0;
-        end
-        else begin
-            if (current_state == MB_S5_FINALIZE_REQ_WAIT &&
-                sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                s5_degrade_rsp_pending <= 1'b1;
-            end
-            else if (current_state == MB_S3_DEGRADE_RSP_SEND && sb_ltsm_rdy) begin
-                s5_degrade_rsp_pending <= 1'b0;
-            end
-        end
-    end
 
     // Track width changes & decision registrations
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
+            local_needs_retry_r    <= 1'b0;
+            partner_needs_retry_r  <= 1'b0;
         end
         else if (current_state == MB_S0_IDLE) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
+            local_needs_retry_r    <= 1'b0;
+            partner_needs_retry_r  <= 1'b0;
         end
         else if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd) begin
             degrade_not_possible_r <= degrade_not_possible;
             width_changed_r        <= (local_lane_map != prev_lane_map);
+            if (!retry_done) begin
+                local_needs_retry_r    <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
+                partner_needs_retry_r  <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
+            end
         end
     end
 
@@ -486,6 +487,21 @@ module MBINIT_REPAIRMB
         end
         else if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
             prev_lane_map <= local_lane_map;
+        end
+    end
+
+    logic d2c_pt_complete;
+    always_comb begin
+        if (!retry_done) begin
+            d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
+        end
+        else begin
+            case ({local_needs_retry_r, partner_needs_retry_r})
+                2'b11:   d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
+                2'b10:   d2c_pt_complete = local_test_d2c_done;
+                2'b01:   d2c_pt_complete = partner_test_d2c_done;
+                default: d2c_pt_complete = 1'b1;
+            endcase
         end
     end
 
@@ -511,7 +527,7 @@ module MBINIT_REPAIRMB
             next_state = MB_S0_IDLE;
         end
         else if (global_error && !mb_repairmb_done) begin
-            next_state = MB_S6_REPAIR_ERROR;
+            next_state = MB_S7_REPAIR_ERROR;
         end
         else begin
             case (current_state)
@@ -538,26 +554,33 @@ module MBINIT_REPAIRMB
 
                 // ── S2 Point Test ──
                 MB_S2_D2C_POINT_TEST: begin
-                    if (test_d2c_done)
-                        next_state = MB_S3_DEGRADE_REQ_SEND;
+                    if (d2c_pt_complete) begin
+                        if (retry_done && !local_needs_retry_r && partner_needs_retry_r)
+                            next_state = MB_S3_DEGRADE_REQ_WAIT;
+                        else
+                            next_state = MB_S3_DEGRADE_REQ_SEND;
+                    end
                 end
 
                 // ── S3 Degrade REQ ──
                 MB_S3_DEGRADE_REQ_SEND: begin
-                    if (sb_ltsm_rdy)       next_state = MB_S3_DEGRADE_REQ_WAIT;
+                    if (sb_ltsm_rdy) begin
+                        if (retry_done && !partner_needs_retry_r)
+                            next_state = MB_S3_DEGRADE_RSP_WAIT;
+                        else
+                            next_state = MB_S3_DEGRADE_REQ_WAIT;
+                    end
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
                     if (s3_req_rcvd)
                         next_state = MB_S3_DEGRADE_RSP_SEND;
-                    else if (s3_rsp_rcvd)
-                        next_state = MB_S3_DEGRADE_RSP_WAIT;
                 end
 
                 // ── S3 Degrade RSP ──
                 MB_S3_DEGRADE_RSP_SEND: begin
                     if (sb_ltsm_rdy) begin
-                        if (s5_degrade_rsp_pending)
-                            next_state = MB_S5_FINALIZE_REQ_WAIT;
+                        if (retry_done && !local_needs_retry_r)
+                            next_state = MB_S5_FINALIZE_REQ_SEND;
                         else
                             next_state = MB_S3_DEGRADE_RSP_WAIT;
                     end
@@ -569,16 +592,19 @@ module MBINIT_REPAIRMB
                 // ── S4 Verification ──
                 MB_S4_DEGRADE_VERIFICATION: begin
                     if (degrade_not_possible_r) begin
-                        next_state = MB_S6_REPAIR_ERROR;
+                        next_state = MB_S7_REPAIR_ERROR;
                     end
-                    else if (width_changed_r) begin
-                        if (!retry_done)
+                    else if (!retry_done) begin
+                        if (width_changed_r || (partner_lane_map != 3'b011))
                             next_state = MB_S2_D2C_POINT_TEST; // Retry
                         else
-                            next_state = MB_S6_REPAIR_ERROR; // Double fail
+                            next_state = MB_S5_FINALIZE_REQ_SEND;
                     end
-                    else begin
-                        next_state = MB_S5_FINALIZE_REQ_SEND;
+                    else begin // retry_done == 1
+                        if (width_changed_r)
+                            next_state = MB_S7_REPAIR_ERROR; // Double fail
+                        else
+                            next_state = MB_S5_FINALIZE_REQ_SEND;
                     end
                 end
 
@@ -587,9 +613,7 @@ module MBINIT_REPAIRMB
                     if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_REQ_WAIT;
                 end
                 MB_S5_FINALIZE_REQ_WAIT: begin
-                    if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req))
-                        next_state = MB_S3_DEGRADE_RSP_SEND;
-                    else if (s5_req_rcvd)
+                    if (s5_req_rcvd)
                         next_state = MB_S5_FINALIZE_RSP_SEND;
                 end
 
@@ -598,23 +622,27 @@ module MBINIT_REPAIRMB
                     if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
                 end
                 MB_S5_FINALIZE_RSP_WAIT: begin
-                    if (s5_rsp_rcvd)    next_state = MB_S8_ALIGN_CHECK;
+                    if (s5_rsp_rcvd)    next_state = MB_S6_ALIGN_CHECK;
                 end
 
-                MB_S8_ALIGN_CHECK: begin
+                MB_S6_ALIGN_CHECK: begin
+                    `ifdef SIMULATION
+                        $display("DUT DEBUG: MB_S6_ALIGN_CHECK: aligned_tx=%b, aligned_rx=%b, mbinit_tx_data_lane_mask_r=%b, mbinit_rx_data_lane_mask_r=%b, local_lower_x4_pass=%b, local_upper_x4_pass=%b",
+                            aligned_tx, aligned_rx, mbinit_tx_data_lane_mask_r, mbinit_rx_data_lane_mask_r, local_lower_x4_pass, local_upper_x4_pass);
+                    `endif
                     if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                        next_state = MB_S6_REPAIR_ERROR;
+                        next_state = MB_S7_REPAIR_ERROR;
                     end
                     else begin
-                        next_state = MB_S7_REPAIR_DONE;
+                        next_state = MB_S8_REPAIR_DONE;
                     end
                 end
 
-                MB_S6_REPAIR_ERROR: begin
+                MB_S7_REPAIR_ERROR: begin
                     // Stays here until mb_repairmb_enable deasserts
                 end
 
-                MB_S7_REPAIR_DONE: begin
+                MB_S8_REPAIR_DONE: begin
                     // Stays here until mb_repairmb_enable deasserts
                 end
 
@@ -678,10 +706,26 @@ module MBINIT_REPAIRMB
     assign d2c_pattern_setup = 3'b001; // Data pattern
     assign d2c_pattern_mode = 1'b0; // Continuous Pattern Mode
     assign d2c_data_pattern_sel = 2'b01; // per-lane ID pattern
+    assign d2c_burst_count = 16'd2048; // Burst Count: Indicates the duration of selected pattern (UI count).
+    assign d2c_idle_count  = 16'd0; // IDLE Count: Indicates the duration of low following the burst (UI count).
+    assign d2c_iter_count  = 16'd1; // Iteration Count: Indicates the iteration count of bursts followed by idle.
 
-
+    assign d2c_clk_sampling    = 2'b00;  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
     assign d2c_compare_setup    = 2'b00; // per-lane comparison
-    assign tx_pt_en  = (current_state == MB_S2_D2C_POINT_TEST);
+    always_comb begin
+        local_tx_pt_en   = 1'b0;
+        partner_tx_pt_en = 1'b0;
+        if (current_state == MB_S2_D2C_POINT_TEST) begin
+            if (!retry_done) begin
+                local_tx_pt_en   = 1'b1;
+                partner_tx_pt_en = 1'b1;
+            end
+            else begin
+                local_tx_pt_en   = local_needs_retry_r;
+                partner_tx_pt_en = partner_needs_retry_r;
+            end
+        end
+    end
 
     // RX compare enable timing logic (No longer needed since mb_rx_data_compare_en port is removed)
 
@@ -700,8 +744,8 @@ module MBINIT_REPAIRMB
     // OUTPUT SUCCESS/DONE/ERROR ASSIGNMENTS
     ////////////////////////////////////////////////////////
     always_comb begin
-        mb_repairmb_done  = (current_state == MB_S7_REPAIR_DONE);
-        mb_repairmb_error = (current_state == MB_S6_REPAIR_ERROR);
+        mb_repairmb_done  = (current_state == MB_S8_REPAIR_DONE);
+        mb_repairmb_error = (current_state == MB_S7_REPAIR_ERROR);
     end
 
     ////////////////////////////////////////////////////////
@@ -729,7 +773,7 @@ module MBINIT_REPAIRMB
         // 2. Handshake Integrity: No apply_degrade_resp sent without apply_degrade_req received first
         property p_tx_degrade_resp_after_req;
             @(posedge clk) disable iff (!rst_n)
-            (sb_repairmb_tx_valid && sb_repairmb_tx_msg_id == MBINIT_REPAIRMB_apply_degrade_resp) |-> (s3_req_rcvd || s5_degrade_rsp_pending);
+            (sb_repairmb_tx_valid && sb_repairmb_tx_msg_id == MBINIT_REPAIRMB_apply_degrade_resp) |-> s3_req_rcvd;
         endproperty
         assert_tx_degrade_resp_after_req: assert property(p_tx_degrade_resp_after_req);
 
@@ -743,21 +787,21 @@ module MBINIT_REPAIRMB
         // 4. Bounded Liveness: start_req must eventually be answered or enter S6 error
         property p_start_req_leads_to_resp_or_error;
             @(posedge clk) disable iff (!rst_n)
-            (current_state == MB_S1_READY_REQ_WAIT) |-> (##[1:2000] (s1_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+            (current_state == MB_S1_READY_REQ_WAIT) |-> (##[1:2000] (s1_rsp_rcvd || current_state == MB_S7_REPAIR_ERROR));
         endproperty
         assert_start_req_leads_to_resp_or_error: assert property(p_start_req_leads_to_resp_or_error);
 
         // 5. Bounded Liveness: apply_degrade_req must eventually be answered or enter S6 error
         property p_degrade_req_leads_to_resp_or_error;
             @(posedge clk) disable iff (!rst_n)
-            (current_state == MB_S3_DEGRADE_RSP_WAIT) |-> (##[1:2000] (s3_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+            (current_state == MB_S3_DEGRADE_RSP_WAIT) |-> (##[1:2000] (s3_rsp_rcvd || current_state == MB_S7_REPAIR_ERROR));
         endproperty
         assert_degrade_req_leads_to_resp_or_error: assert property(p_degrade_req_leads_to_resp_or_error);
 
         // 6. Bounded Liveness: end_req must eventually be answered or enter S6 error
         property p_end_req_leads_to_resp_or_error;
             @(posedge clk) disable iff (!rst_n)
-            (current_state == MB_S5_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s5_rsp_rcvd || current_state == MB_S6_REPAIR_ERROR));
+            (current_state == MB_S5_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s5_rsp_rcvd || current_state == MB_S7_REPAIR_ERROR));
         endproperty
         assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
 
@@ -786,7 +830,7 @@ module MBINIT_REPAIRMB
             (global_error && mb_repairmb_enable) ||
             (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible_r) ||
             (current_state == MB_S4_DEGRADE_VERIFICATION && width_changed_r && retry_done)
-            |-> ##[1:5] (current_state == MB_S6_REPAIR_ERROR && mb_repairmb_error == 1'b1);
+            |-> ##[1:5] (current_state == MB_S7_REPAIR_ERROR && mb_repairmb_error == 1'b1);
         endproperty
         assert_error_condition_raises_error: assert property(p_error_condition_raises_error);
 
@@ -794,7 +838,7 @@ module MBINIT_REPAIRMB
         property p_success_path_leads_to_done;
             @(posedge clk) disable iff (!rst_n)
             (current_state == MB_S5_FINALIZE_RSP_WAIT && s5_rsp_rcvd && !global_error)
-            |-> ##[1:5] (current_state == MB_S7_REPAIR_DONE && mb_repairmb_done == 1'b1);
+            |-> ##[1:5] (current_state == MB_S8_REPAIR_DONE && mb_repairmb_done == 1'b1);
         endproperty
         assert_success_path_leads_to_done: assert property(p_success_path_leads_to_done);
 
@@ -827,8 +871,8 @@ module MBINIT_REPAIRMB
         cover_state_s5_req_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_REQ_WAIT);
         cover_state_s5_rsp_send:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_RSP_SEND);
         cover_state_s5_rsp_wait:  cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S5_FINALIZE_RSP_WAIT);
-        cover_state_s6_error:     cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S6_REPAIR_ERROR);
-        cover_state_s7_done:      cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S7_REPAIR_DONE);
+        cover_state_s6_error:     cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S7_REPAIR_ERROR);
+        cover_state_s7_done:      cover property (@(posedge clk) disable iff (!rst_n) current_state == MB_S8_REPAIR_DONE);
     `endif
 
 endmodule
