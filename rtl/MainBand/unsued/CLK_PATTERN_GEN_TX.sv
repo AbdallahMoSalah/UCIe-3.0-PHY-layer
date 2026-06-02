@@ -1,3 +1,5 @@
+`timescale 1ps/1ps
+
 module CLK_PATTERN_GEN_TX (
     input  logic i_clk,
     input  logic i_rst_n,
