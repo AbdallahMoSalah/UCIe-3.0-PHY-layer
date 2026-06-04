@@ -96,7 +96,7 @@ module lfsr_serial (
     // feedback_bit is also the raw PRBS output (= data_out when mode=1).
     // =========================================================================
     wire feedback_bit = lfsr_state[22] ^ lfsr_state[20] ^ lfsr_state[15]
-                      ^ lfsr_state[7]  ^ lfsr_state[4]  ^ lfsr_state[1];
+                      ^ lfsr_state[7]  ^ lfsr_state[4]  ^ l fsr_state[1];
 
     // =========================================================================
     // Effective data_in: force to 0 in pattern-gen mode
