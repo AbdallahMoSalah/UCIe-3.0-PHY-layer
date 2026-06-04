@@ -150,18 +150,17 @@ module TX_TOP #(
     // 0a. MB_PLL  (active RTL – generates the high-speed serialization clock)
     // =========================================================================
     MB_PLL u_mb_pll (
-        .i_ref_clk (lclk),
-        .en        (i_pll_en),
-        .speed_sel (i_pll_speed_sel),
-        .clk       (pll_clk),
-        .period    (pll_period)
+        .en            (i_pll_en),
+        .speed_sel     (i_pll_speed_sel),
+        .clk           (lclk),
+        .local_period  (pll_period)
     );
 
     // =========================================================================
     // 0b. CLK_PATTERN_GEN_TX  (unsued – clocked by the PLL output)
     // =========================================================================
     CLK_PATTERN_GEN_TX u_clk_pattern_gen (
-        .i_clk           (pll_clk),
+        .i_clk           (lclk),
         .i_rst_n         (i_rst_n),
         .clk_pattern_en  (i_clk_pattern_en),
         .clk_embedded_en (i_clk_embedded_en),
