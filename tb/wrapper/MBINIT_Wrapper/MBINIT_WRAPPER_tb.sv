@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 
 module MBINIT_WRAPPER_tb;
 
@@ -23,6 +24,8 @@ module MBINIT_WRAPPER_tb;
 
     logic        m_enable, m_done, m_error;
     logic        p_enable, p_done, p_error;
+    state_n_e    m_mbinit_state_n;
+    state_n_e    p_mbinit_state_n;
 
     logic        m_timer_enable;
     logic        m_timer_rst_n;
@@ -127,6 +130,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_enable(m_enable),
         .mbinit_done(m_done),
         .mbinit_error(m_error),
+        .mbinit_state_n(m_mbinit_state_n),
         .timer_enable(m_timer_enable),
         .timer_rst_n(m_timer_rst_n),
         .timer_timeout_expired(m_timer_timeout_expired),
@@ -230,6 +234,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_enable(p_enable),
         .mbinit_done(p_done),
         .mbinit_error(p_error),
+        .mbinit_state_n(p_mbinit_state_n),
         .timer_enable(p_timer_enable),
         .timer_rst_n(p_timer_rst_n),
         .timer_timeout_expired(p_timer_timeout_expired),
@@ -393,6 +398,12 @@ module MBINIT_WRAPPER_tb;
     end
     always @(partner.u_mbinit_wrapper.u_controller.current_state) begin
         $display("T=%0t | [PARTNER FSM] State: %s", $time, partner.u_mbinit_wrapper.u_controller.current_state.name());
+    end
+    always @(m_mbinit_state_n) begin
+        $display("T=%0t | [MODULE mbinit_state_n] %s", $time, m_mbinit_state_n.name());
+    end
+    always @(p_mbinit_state_n) begin
+        $display("T=%0t | [PARTNER mbinit_state_n] %s", $time, p_mbinit_state_n.name());
     end
 
     //////////////////////////////////////////////////
