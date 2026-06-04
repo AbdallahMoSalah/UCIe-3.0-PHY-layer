@@ -1,4 +1,5 @@
 import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 
 // =============================================================================
 // MBINIT_CONTROLLER
@@ -23,6 +24,7 @@ module MBINIT_CONTROLLER
     input  logic mbinit_enable,
     output logic mbinit_done,
     output logic mbinit_error,
+    output state_n_e mbinit_state_n,
 
     output logic timer_enable,
     output logic timer_rst_n,
@@ -468,6 +470,22 @@ assign timer_rst_n = timer_rst_n_reg;
 // =============================================================================
 assign mbinit_done   = (current_state == CTRL_DONE);
 assign mbinit_error  = (current_state == CTRL_ERROR);
+
+// =============================================================================
+// STATE MAPPING FOR state_n ERROR LOG
+// =============================================================================
+always_comb begin
+    mbinit_state_n = LOG_RESET;
+    case (current_state)
+        CTRL_PARAM:      mbinit_state_n = LOG_MBINIT_PARAM;
+        CTRL_CAL:        mbinit_state_n = LOG_MBINIT_CAL;
+        CTRL_REPAIRCLK:  mbinit_state_n = LOG_MBINIT_REPAIRCLK;
+        CTRL_REPAIRVAL:  mbinit_state_n = LOG_MBINIT_REPAIRVAL;
+        CTRL_REVERSALMB: mbinit_state_n = LOG_MBINIT_REVERSALMB;
+        CTRL_REPAIRMB:   mbinit_state_n = LOG_MBINIT_REPAIRMB;
+        default:         mbinit_state_n = LOG_RESET;
+    endcase
+end
 
 // =============================================================================
 // SYSTEMVERILOG ASSERTIONS & STATE COVERAGE

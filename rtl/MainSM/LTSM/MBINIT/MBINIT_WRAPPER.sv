@@ -1,4 +1,5 @@
 import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 
 module MBINIT_WRAPPER
 #(parameter int CLK_FRQ_HZ = 800000000)
@@ -12,6 +13,7 @@ module MBINIT_WRAPPER
     input  logic mbinit_enable,
     output logic mbinit_done,
     output logic mbinit_error,
+    output state_n_e mbinit_state_n,
     
     // FIFO handshake & SPMW Strap
     input  logic sb_ltsm_rdy,
@@ -191,6 +193,7 @@ module MBINIT_WRAPPER
         .mbinit_enable(mbinit_enable),
         .mbinit_done(mbinit_done),
         .mbinit_error(mbinit_error),
+        .mbinit_state_n(mbinit_state_n),
         .timer_enable(timer_enable),
         .timer_rst_n(timer_rst_n),
         .timer_timeout_expired(timer_timeout_expired),

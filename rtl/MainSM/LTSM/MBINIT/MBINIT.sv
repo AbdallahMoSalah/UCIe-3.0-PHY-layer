@@ -1,4 +1,5 @@
 import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 
 module MBINIT
 #(
@@ -14,6 +15,7 @@ module MBINIT
     input  logic mbinit_enable,
     output logic mbinit_done,
     output logic mbinit_error,
+    output state_n_e mbinit_state_n,
     
     // SPMW Strap
  
@@ -146,6 +148,7 @@ module MBINIT
         .mbinit_enable(mbinit_enable),
         .mbinit_done(mbinit_done),
         .mbinit_error(mbinit_error),
+        .mbinit_state_n(mbinit_state_n),
 
         // SPMW Strap
         
