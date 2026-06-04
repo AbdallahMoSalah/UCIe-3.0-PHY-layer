@@ -4,7 +4,7 @@ import sb_pkg::*;
 import UCIe_pkg::*;
 import ltsm_state_n_pkg::*;
 
-module MBINIT_SideBand_tb;
+module MBINIT_D2C_SideBand_tb;
 
     // =========================================================================
     // PARAMETERS
@@ -93,6 +93,38 @@ module MBINIT_SideBand_tb;
     logic [15:0] mb_rx_MsgInfo [2];
     logic [63:0] mb_rx_data_Field [2];
 
+    // MBINIT outputs before MUXing
+    logic        mbinit_tx_valid [2];
+    msg_no_e     mbinit_tx_msg_id [2];
+    logic [15:0] mbinit_tx_MsgInfo [2];
+    logic [63:0] mbinit_tx_data_Field [2];
+    logic        mbinit_mb_tx_pattern_en [2];
+
+    // D2C Point Test top wrapper instances & control signals
+    logic [15:0] m_d2c_perlane_pass_from_pt;
+    logic [15:0] p_d2c_perlane_pass_from_pt;
+    logic        m_d2c_active;
+    logic        p_d2c_active;
+    logic        mb_rx_compare_done [2];
+    logic        mbinit_mb_rx_compare_en [2];
+
+    wire        u_d2c_top_0_mb_tx_pattern_en;
+    wire        u_d2c_top_0_mb_rx_compare_en;
+    wire        u_d2c_top_0_tx_sb_msg_valid;
+    wire [7:0]  u_d2c_top_0_tx_sb_msg;
+    wire [15:0] u_d2c_top_0_tx_msginfo;
+    wire [63:0] u_d2c_top_0_tx_data_field;
+
+    wire        u_d2c_top_1_mb_tx_pattern_en;
+    wire        u_d2c_top_1_mb_rx_compare_en;
+    wire        u_d2c_top_1_tx_sb_msg_valid;
+    wire [7:0]  u_d2c_top_1_tx_sb_msg;
+    wire [15:0] u_d2c_top_1_tx_msginfo;
+    wire [63:0] u_d2c_top_1_tx_data_field;
+
+    assign m_d2c_active = m_local_tx_pt_en | m_partner_tx_pt_en;
+    assign p_d2c_active = p_local_tx_pt_en | p_partner_tx_pt_en;
+
     // Sideband control signals
     logic        ltsm_rdy [2];
 
@@ -127,10 +159,27 @@ module MBINIT_SideBand_tb;
     logic [7:0] m_rx_msg_id_casted;
     logic [7:0] p_rx_msg_id_casted;
 
-    assign m_tx_msg_id_casted = mb_tx_msg_id[0];
-    assign p_tx_msg_id_casted = mb_tx_msg_id[1];
-    assign mb_rx_msg_id[0]    = msg_no_e'(m_rx_msg_id_casted);
-    assign mb_rx_msg_id[1]    = msg_no_e'(p_rx_msg_id_casted);
+    assign m_tx_msg_id_casted  = m_d2c_active ? u_d2c_top_0_tx_sb_msg : mbinit_tx_msg_id[0];
+    assign mb_tx_data_Field[0] = m_d2c_active ? u_d2c_top_0_tx_data_field : mbinit_tx_data_Field[0];
+    assign mb_tx_MsgInfo[0]    = m_d2c_active ? u_d2c_top_0_tx_msginfo : mbinit_tx_MsgInfo[0];
+    assign mb_tx_valid[0]      = m_d2c_active ? u_d2c_top_0_tx_sb_msg_valid : mbinit_tx_valid[0];
+
+    assign p_tx_msg_id_casted  = p_d2c_active ? u_d2c_top_1_tx_sb_msg : mbinit_tx_msg_id[1];
+    assign mb_tx_data_Field[1] = p_d2c_active ? u_d2c_top_1_tx_data_field : mbinit_tx_data_Field[1];
+    assign mb_tx_MsgInfo[1]    = p_d2c_active ? u_d2c_top_1_tx_msginfo : mbinit_tx_MsgInfo[1];
+    assign mb_tx_valid[1]      = p_d2c_active ? u_d2c_top_1_tx_sb_msg_valid : mbinit_tx_valid[1];
+
+    assign mb_rx_msg_id[0]     = msg_no_e'(m_rx_msg_id_casted);
+    assign mb_rx_msg_id[1]     = msg_no_e'(p_rx_msg_id_casted);
+
+    assign mb_tx_pattern_en[0] = m_d2c_active ? u_d2c_top_0_mb_tx_pattern_en : mbinit_mb_tx_pattern_en[0];
+    assign mb_tx_pattern_en[1] = p_d2c_active ? u_d2c_top_1_mb_tx_pattern_en : mbinit_mb_tx_pattern_en[1];
+
+    assign mb_rx_compare_en[0] = m_d2c_active ? u_d2c_top_0_mb_rx_compare_en : mbinit_mb_rx_compare_en[0];
+    assign mb_rx_compare_en[1] = p_d2c_active ? u_d2c_top_1_mb_rx_compare_en : mbinit_mb_rx_compare_en[1];
+
+    assign mb_rx_compare_done[0] = mb_tx_pattern_count_done[1];
+    assign mb_rx_compare_done[1] = mb_tx_pattern_count_done[0];
 
     // =========================================================================
     // LOOPBACK SERIAL CONNECTION (WITH DYNAMIC BLOCKING FOR WATCHDOG TESTING)
@@ -340,7 +389,7 @@ module MBINIT_SideBand_tb;
         .d2c_data_pattern_sel         (m_d2c_data_pattern_sel),
         .d2c_pattern_mode             (m_d2c_pattern_mode),
         .d2c_compare_setup            (m_d2c_compare_setup),
-        .d2c_perlane_pass             (m_d2c_perlane_pass),
+        .d2c_perlane_pass             (m_d2c_perlane_pass_from_pt),
         .local_test_d2c_done          (m_local_test_d2c_done),
         .partner_test_d2c_done        (m_partner_test_d2c_done),
 
@@ -350,18 +399,18 @@ module MBINIT_SideBand_tb;
         .sb_rx_MsgInfo                (mb_rx_MsgInfo[0]),
         .sb_rx_data_Field             (mb_rx_data_Field[0]),
 
-        .sb_tx_valid                  (mb_tx_valid[0]),
+        .sb_tx_valid                  (mbinit_tx_valid[0]),
         .sb_ltsm_rdy                  (ltsm_rdy[0]),
-        .sb_tx_msg_id                 (mb_tx_msg_id[0]),
-        .sb_tx_MsgInfo                (mb_tx_MsgInfo[0]),
-        .sb_tx_data_Field             (mb_tx_data_Field[0]),
+        .sb_tx_msg_id                 (mbinit_tx_msg_id[0]),
+        .sb_tx_MsgInfo                (mbinit_tx_MsgInfo[0]),
+        .sb_tx_data_Field             (mbinit_tx_data_Field[0]),
 
         // Training Control Signals
-        .mb_tx_pattern_en             (mb_tx_pattern_en[0]),
+        .mb_tx_pattern_en             (mbinit_mb_tx_pattern_en[0]),
         .mb_tx_pattern_setup          (mb_tx_pattern_setup[0]),
         .mb_tx_data_pattern_sel       (mb_tx_data_pattern_sel[0]),
         .mb_tx_val_pattern_sel        (mb_tx_val_pattern_sel[0]),
-        .mb_rx_compare_en             (mb_rx_compare_en[0]),
+        .mb_rx_compare_en             (mbinit_mb_rx_compare_en[0]),
         .mb_rx_compare_setup          (mb_rx_compare_setup[0]),
         .clear_error_req              (clear_error_req[0]),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask[0]),
@@ -441,7 +490,7 @@ module MBINIT_SideBand_tb;
         .d2c_data_pattern_sel         (p_d2c_data_pattern_sel),
         .d2c_pattern_mode             (p_d2c_pattern_mode),
         .d2c_compare_setup            (p_d2c_compare_setup),
-        .d2c_perlane_pass             (p_d2c_perlane_pass),
+        .d2c_perlane_pass             (p_d2c_perlane_pass_from_pt),
         .local_test_d2c_done          (p_local_test_d2c_done),
         .partner_test_d2c_done        (p_partner_test_d2c_done),
 
@@ -451,18 +500,18 @@ module MBINIT_SideBand_tb;
         .sb_rx_MsgInfo                (mb_rx_MsgInfo[1]),
         .sb_rx_data_Field             (mb_rx_data_Field[1]),
 
-        .sb_tx_valid                  (mb_tx_valid[1]),
+        .sb_tx_valid                  (mbinit_tx_valid[1]),
         .sb_ltsm_rdy                  (ltsm_rdy[1]),
-        .sb_tx_msg_id                 (mb_tx_msg_id[1]),
-        .sb_tx_MsgInfo                (mb_tx_MsgInfo[1]),
-        .sb_tx_data_Field             (mb_tx_data_Field[1]),
+        .sb_tx_msg_id                 (mbinit_tx_msg_id[1]),
+        .sb_tx_MsgInfo                (mbinit_tx_MsgInfo[1]),
+        .sb_tx_data_Field             (mbinit_tx_data_Field[1]),
 
         // Training Control Signals
-        .mb_tx_pattern_en             (mb_tx_pattern_en[1]),
+        .mb_tx_pattern_en             (mbinit_mb_tx_pattern_en[1]),
         .mb_tx_pattern_setup          (mb_tx_pattern_setup[1]),
         .mb_tx_data_pattern_sel       (mb_tx_data_pattern_sel[1]),
         .mb_tx_val_pattern_sel        (mb_tx_val_pattern_sel[1]),
-        .mb_rx_compare_en             (mb_rx_compare_en[1]),
+        .mb_rx_compare_en             (mbinit_mb_rx_compare_en[1]),
         .mb_rx_compare_setup          (mb_rx_compare_setup[1]),
         .clear_error_req              (clear_error_req[1]),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask[1]),
@@ -510,45 +559,177 @@ module MBINIT_SideBand_tb;
         .timeout_expired (p_timer_timeout_expired)
     );
 
-    always @(posedge clk_100) begin
-        if (!rst_n) begin
-            m_local_test_d2c_done   <= 1'b0;
-            m_partner_test_d2c_done <= 1'b0;
-        end else begin
-            if (m_local_tx_pt_en) begin
-                #50;
-                m_local_test_d2c_done   <= 1'b1;
-            end else begin
-                m_local_test_d2c_done   <= 1'b0;
-            end
-            if (m_partner_tx_pt_en) begin
-                #50;
-                m_partner_test_d2c_done <= 1'b1;
-            end else begin
-                m_partner_test_d2c_done <= 1'b0;
-            end
-        end
-    end
+    // =========================================================================
+    // INSTANTIATION: D2C POINT TEST TOP WRAPPER (DIE 0)
+    // =========================================================================
+    wrapper_D2C_PT_top u_d2c_top_0 (
+        .lclk                           (clk_100),
+        .rst_n                          (rst_n),
+        .mb_rx_data_lane_mask           (mbinit_rx_data_lane_mask[0]),
+        .local_test_d2c_done            (m_local_test_d2c_done),
+        .partner_test_d2c_done          (m_partner_test_d2c_done),
+        .d2c_perlane_pass               (m_d2c_perlane_pass_from_pt),
+        .d2c_aggr_pass                  (),
+        .d2c_val_pass                   (),
+        .mbinit_local_tx_pt_en          (m_local_tx_pt_en),
+        .mbinit_partner_tx_pt_en        (m_partner_tx_pt_en),
+        .mbinit_d2c_clk_sampling        (2'b00),
+        .mbinit_d2c_pattern_setup       (m_d2c_pattern_setup),
+        .mbinit_d2c_data_pattern_sel    (m_d2c_data_pattern_sel),
+        .mbinit_d2c_val_pattern_sel     (1'b0),
+        .mbinit_d2c_pattern_mode        (m_d2c_pattern_mode),
+        .mbinit_d2c_burst_count         (16'd2048),
+        .mbinit_d2c_idle_count          (16'd0),
+        .mbinit_d2c_iter_count          (16'd1),
+        .mbinit_d2c_compare_setup       (m_d2c_compare_setup),
+        .mbtrain_local_tx_pt_en         (1'b0),
+        .mbtrain_partner_tx_pt_en       (1'b0),
+        .mbtrain_local_rx_pt_en         (1'b0),
+        .mbtrain_partner_rx_pt_en       (1'b0),
+        .mbtrain_d2c_clk_sampling       (2'b00),
+        .mbtrain_d2c_pattern_setup      (3'b000),
+        .mbtrain_d2c_data_pattern_sel   (2'b00),
+        .mbtrain_d2c_val_pattern_sel    (1'b0),
+        .mbtrain_d2c_pattern_mode       (1'b0),
+        .mbtrain_d2c_burst_count        (16'd0),
+        .mbtrain_d2c_idle_count         (16'd0),
+        .mbtrain_d2c_iter_count         (16'd0),
+        .mbtrain_d2c_compare_setup      (2'b00),
+        .cfg_max_err_thresh_perlane     (12'd0),
+        .cfg_max_err_thresh_aggr        (16'd0),
+        .mb_tx_trk_lane_sel             (),
+        .mb_tx_clk_lane_sel             (),
+        .mb_tx_val_lane_sel             (),
+        .mb_tx_data_lane_sel            (),
+        .mb_rx_trk_lane_sel             (),
+        .mb_rx_clk_lane_sel             (),
+        .mb_rx_val_lane_sel             (),
+        .mb_rx_data_lane_sel            (),
+        .mb_tx_pattern_en               (u_d2c_top_0_mb_tx_pattern_en),
+        .mb_tx_pattern_setup            (),
+        .mb_rx_pattern_setup            (),
+        .mb_tx_lfsr_en                  (),
+        .mb_tx_lfsr_rst                 (),
+        .mb_rx_lfsr_en                  (),
+        .mb_rx_lfsr_rst                 (),
+        .mb_rx_iter_count               (),
+        .mb_rx_idle_count               (),
+        .mb_rx_burst_count              (),
+        .mb_rx_pattern_mode             (),
+        .mb_rx_val_pattern_sel          (),
+        .mb_rx_data_pattern_sel         (),
+        .mb_rx_compare_en               (u_d2c_top_0_mb_rx_compare_en),
+        .mb_rx_compare_setup            (),
+        .mb_rx_max_err_thresh_perlane   (),
+        .mb_rx_max_err_thresh_aggr      (),
+        .mb_tx_clk_sampling_en          (),
+        .mb_tx_clk_sampling             (),
+        .mb_tx_pattern_mode             (),
+        .mb_tx_burst_count              (),
+        .mb_tx_idle_count               (),
+        .mb_tx_iter_count               (),
+        .mb_tx_data_pattern_sel         (),
+        .mb_tx_val_pattern_sel          (),
+        .mb_tx_pattern_count_done       (mb_tx_pattern_count_done[0]),
+        .mb_rx_compare_done             (mb_rx_compare_done[0]),
+        .mb_rx_aggr_pass                (1'b1),
+        .mb_rx_perlane_pass             (m_d2c_perlane_pass),
+        .mb_rx_val_pass                 (1'b1),
+        .tx_sb_msg_valid                (u_d2c_top_0_tx_sb_msg_valid),
+        .tx_sb_msg                      (u_d2c_top_0_tx_sb_msg),
+        .tx_msginfo                     (u_d2c_top_0_tx_msginfo),
+        .tx_data_field                  (u_d2c_top_0_tx_data_field),
+        .rx_sb_msg_valid                (mb_rx_valid[0]),
+        .rx_sb_msg                      (m_rx_msg_id_casted),
+        .rx_msginfo                     (mb_rx_MsgInfo[0]),
+        .rx_data_field                  (mb_rx_data_Field[0])
+    );
 
-    always @(posedge clk_100) begin
-        if (!rst_n) begin
-            p_local_test_d2c_done   <= 1'b0;
-            p_partner_test_d2c_done <= 1'b0;
-        end else begin
-            if (p_local_tx_pt_en) begin
-                #50;
-                p_local_test_d2c_done   <= 1'b1;
-            end else begin
-                p_local_test_d2c_done   <= 1'b0;
-            end
-            if (p_partner_tx_pt_en) begin
-                #50;
-                p_partner_test_d2c_done <= 1'b1;
-            end else begin
-                p_partner_test_d2c_done <= 1'b0;
-            end
-        end
-    end
+    // =========================================================================
+    // INSTANTIATION: D2C POINT TEST TOP WRAPPER (DIE 1)
+    // =========================================================================
+    wrapper_D2C_PT_top u_d2c_top_1 (
+        .lclk                           (clk_100),
+        .rst_n                          (rst_n),
+        .mb_rx_data_lane_mask           (mbinit_rx_data_lane_mask[1]),
+        .local_test_d2c_done            (p_local_test_d2c_done),
+        .partner_test_d2c_done          (p_partner_test_d2c_done),
+        .d2c_perlane_pass               (p_d2c_perlane_pass_from_pt),
+        .d2c_aggr_pass                  (),
+        .d2c_val_pass                   (),
+        .mbinit_local_tx_pt_en          (p_local_tx_pt_en),
+        .mbinit_partner_tx_pt_en        (p_partner_tx_pt_en),
+        .mbinit_d2c_clk_sampling        (2'b00),
+        .mbinit_d2c_pattern_setup       (p_d2c_pattern_setup),
+        .mbinit_d2c_data_pattern_sel    (p_d2c_data_pattern_sel),
+        .mbinit_d2c_val_pattern_sel     (1'b0),
+        .mbinit_d2c_pattern_mode        (p_d2c_pattern_mode),
+        .mbinit_d2c_burst_count         (16'd2048),
+        .mbinit_d2c_idle_count          (16'd0),
+        .mbinit_d2c_iter_count          (16'd1),
+        .mbinit_d2c_compare_setup       (p_d2c_compare_setup),
+        .mbtrain_local_tx_pt_en         (1'b0),
+        .mbtrain_partner_tx_pt_en       (1'b0),
+        .mbtrain_local_rx_pt_en         (1'b0),
+        .mbtrain_partner_rx_pt_en       (1'b0),
+        .mbtrain_d2c_clk_sampling       (2'b00),
+        .mbtrain_d2c_pattern_setup      (3'b000),
+        .mbtrain_d2c_data_pattern_sel   (2'b00),
+        .mbtrain_d2c_val_pattern_sel    (1'b0),
+        .mbtrain_d2c_pattern_mode       (1'b0),
+        .mbtrain_d2c_burst_count        (16'd0),
+        .mbtrain_d2c_idle_count         (16'd0),
+        .mbtrain_d2c_iter_count         (16'd0),
+        .mbtrain_d2c_compare_setup      (2'b00),
+        .cfg_max_err_thresh_perlane     (12'd0),
+        .cfg_max_err_thresh_aggr        (16'd0),
+        .mb_tx_trk_lane_sel             (),
+        .mb_tx_clk_lane_sel             (),
+        .mb_tx_val_lane_sel             (),
+        .mb_tx_data_lane_sel            (),
+        .mb_rx_trk_lane_sel             (),
+        .mb_rx_clk_lane_sel             (),
+        .mb_rx_val_lane_sel             (),
+        .mb_rx_data_lane_sel            (),
+        .mb_tx_pattern_en               (u_d2c_top_1_mb_tx_pattern_en),
+        .mb_tx_pattern_setup            (),
+        .mb_rx_pattern_setup            (),
+        .mb_tx_lfsr_en                  (),
+        .mb_tx_lfsr_rst                 (),
+        .mb_rx_lfsr_en                  (),
+        .mb_rx_lfsr_rst                 (),
+        .mb_rx_iter_count               (),
+        .mb_rx_idle_count               (),
+        .mb_rx_burst_count              (),
+        .mb_rx_pattern_mode             (),
+        .mb_rx_val_pattern_sel          (),
+        .mb_rx_data_pattern_sel         (),
+        .mb_rx_compare_en               (u_d2c_top_1_mb_rx_compare_en),
+        .mb_rx_compare_setup            (),
+        .mb_rx_max_err_thresh_perlane   (),
+        .mb_rx_max_err_thresh_aggr      (),
+        .mb_tx_clk_sampling_en          (),
+        .mb_tx_clk_sampling             (),
+        .mb_tx_pattern_mode             (),
+        .mb_tx_burst_count              (),
+        .mb_tx_idle_count               (),
+        .mb_tx_iter_count               (),
+        .mb_tx_data_pattern_sel         (),
+        .mb_tx_val_pattern_sel          (),
+        .mb_tx_pattern_count_done       (mb_tx_pattern_count_done[1]),
+        .mb_rx_compare_done             (mb_rx_compare_done[1]),
+        .mb_rx_aggr_pass                (1'b1),
+        .mb_rx_perlane_pass             (p_d2c_perlane_pass),
+        .mb_rx_val_pass                 (1'b1),
+        .tx_sb_msg_valid                (u_d2c_top_1_tx_sb_msg_valid),
+        .tx_sb_msg                      (u_d2c_top_1_tx_sb_msg),
+        .tx_msginfo                     (u_d2c_top_1_tx_msginfo),
+        .tx_data_field                  (u_d2c_top_1_tx_data_field),
+        .rx_sb_msg_valid                (mb_rx_valid[1]),
+        .rx_sb_msg                      (p_rx_msg_id_casted),
+        .rx_msginfo                     (mb_rx_MsgInfo[1]),
+        .rx_data_field                  (mb_rx_data_Field[1])
+    );
 
     // =========================================================================
     // PATTERN DONE AUTOMATION (REPAIRCLK, REPAIRVAL, REVERSALMB)
@@ -1237,9 +1418,9 @@ module MBINIT_SideBand_tb;
 
         // Point Test inputs for Run 1:
         // Local has lane 7 failed (16'hFF7F)
-        // Partner has all passing
+        // Partner has lane 7 failed (16'hFF7F)
         m_d2c_perlane_pass = 16'hFF7F;
-        p_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFF7F;
 
         m_enable = 1'b1;
         p_enable = 1'b1;
@@ -1305,9 +1486,9 @@ module MBINIT_SideBand_tb;
 
         // Point Test inputs for Run 1:
         // Local has lane 5 and lane 12 failed (16'hEFDF)
-        // Partner has all passing
+        // Partner has lane 5 and lane 12 failed (16'hEFDF)
         m_d2c_perlane_pass = 16'hEFDF;
-        p_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hEFDF;
 
         m_enable = 1'b1;
         p_enable = 1'b1;
@@ -1376,10 +1557,10 @@ module MBINIT_SideBand_tb;
         p_reg_Target_Link_Width_ctrl = 4'h2;
 
         // Point Test inputs for Run 1:
-        // Master (local) has lane 5 failed in lower 8 lanes (16'hFFDF)
-        // Partner (remote) has all passing (16'hFFFF)
-        m_d2c_perlane_pass = 16'hFFDF;
-        p_d2c_perlane_pass = 16'hFFFF;
+        // Master (local) has all passing (16'hFFFF)
+        // Partner (remote) has lane 5 failed in lower 8 lanes (16'hFFDF)
+        m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFDF;
 
         m_enable = 1'b1;
         p_enable = 1'b1;
@@ -1454,8 +1635,8 @@ module MBINIT_SideBand_tb;
     // WAVEFORM DUMPING
     // =========================================================================
     initial begin
-        $dumpfile("MBINIT_SideBand_Integration_tb.vcd");
-        $dumpvars(0, MBINIT_SideBand_tb);
+        $dumpfile("MBINIT_D2C_SideBand_Integration_tb.vcd");
+        $dumpvars(0, MBINIT_D2C_SideBand_tb);
     end
 
 endmodule
