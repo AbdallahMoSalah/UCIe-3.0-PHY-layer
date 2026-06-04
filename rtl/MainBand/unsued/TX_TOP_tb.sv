@@ -2,15 +2,24 @@
 // Testbench : TX_TOP_tb
 // DUT       : TX_TOP   (rtl/MainBand/unsued/TX_TOP.sv)
 //
-//  Clock domains
+//  Clock domains  (NOTE: hierarchy is inverted vs the older revision)
 //  -------------
-//  lclk        (500 MHz, 2 ns period)
-//      -> MB_PLL ref, Mapper, LFSR_TX, VALID_TX, mb_clk port of every serializer.
-//
-//  dut.pll_clk (2 GHz, 500 ps period at speed_sel=00)
+//  dut.pll_clk : ROOT clock, generated INSIDE the DUT by MB_PLL whose .en is
+//                hardwired to 1'b1 (always on). 2 GHz / 500 ps at speed_sel=00.
 //      -> CLK_PATTERN_GEN_TX, PLL_clk port of every serializer.
 //
-//  NOTE: unlike MB_TX_TOP, TX_TOP does NOT bring the PLL clock / period out to
+//  lclk        : DUT *output*, produced internally as pll_clk / 16 by ClkDiv
+//                (= 125 MHz / 8 ns), then gated by CLK_GATE (enabled by lclk_g)
+//                into gated_lclk, the functional clock for Mapper / LFSR_TX /
+//                VALID_TX and the mb_clk (slow) side of every serializer.
+//      The TB does NOT drive lclk; it observes it as a DUT output.
+//
+//  NOTE: i_pll_en is now a NO-OP (PLL .en is tied to 1'b1) - pll_clk runs from
+//        t=0 regardless. lclk_g MUST be held high or gated_lclk stays X.
+//        ClkDiv holds lclk static while i_rst_n=0, so reset is sequenced off
+//        dut.pll_clk, not lclk.
+//
+//        Unlike MB_TX_TOP, TX_TOP does NOT bring the PLL clock / period out to
 //        its port list (pll_clk and pll_period are internal). The TB therefore
 //        taps them hierarchically (dut.pll_clk, dut.pll_period) so it can sample
 //        the serial outputs in the correct domain.
@@ -57,16 +66,15 @@ module TX_TOP_tb;
     // Number of data-transfer cycles to self-check
     localparam CHECK_CYCLES = 16;
 
-    // lclk: 500 MHz (2 ns period, 1 ns half-period). timescale 1ps -> 1 ns = 1000 ps
-    localparam LCLK_HALF = 1000;  // ps
-
     // =========================================================================
     // Clock & DUT signals
     // =========================================================================
-    logic lclk = 1'b0;
-    always #(LCLK_HALF) lclk = ~lclk;
+    // lclk is a DUT *output* (pll_clk / 16 via ClkDiv ~ 125 MHz). The TB only
+    // observes it; the sole free-running clock is dut.pll_clk (MB_PLL, .en=1).
+    logic lclk;
 
     logic                     i_rst_n;
+    logic                     lclk_g;   // CLK_GATE enable - MUST be high to ungate
 
     // Mapper / adapter interface (lclk domain)
     logic [8*N_BYTES-1:0]     lp_data;
@@ -131,6 +139,7 @@ module TX_TOP_tb;
 
         .i_pll_en               (i_pll_en),
         .i_pll_speed_sel        (i_pll_speed_sel),
+        .lclk_g                 (lclk_g),
 
         .i_clk_pattern_en       (i_clk_pattern_en),
         .i_clk_embedded_en      (i_clk_embedded_en),
@@ -254,27 +263,30 @@ module TX_TOP_tb;
         i_reversal_en          = 1'b0;
         i_active_state_entered = 1'b0;
         i_valid_pattern_en     = 1'b0;
-        i_pll_en               = 1'b0;
+        i_pll_en               = 1'b1;    // no-op (PLL .en tied to 1'b1) - kept for port compat
         i_pll_speed_sel        = 2'b00;   // 2 GHz
         i_clk_pattern_en       = 1'b0;
         i_clk_embedded_en      = 1'b0;
+        lclk_g                 = 1'b1;    // ungate gated_lclk (else it stays X)
 
         // ------------------------------------------------------------------
-        // Step 1: enable PLL before reset so pll_clk is running on release.
+        // Step 1: pll_clk is already free-running (MB_PLL .en=1'b1). Just let
+        //         it settle - reset must be sequenced off pll_clk because
+        //         ClkDiv holds lclk static while i_rst_n=0.
         // ------------------------------------------------------------------
-        @(posedge lclk);
-        i_pll_en        = 1'b1;
-        i_pll_speed_sel = 2'b00;
         repeat (8) @(posedge dut.pll_clk);   // let PLL output stabilise
         $display("\n=== PLL running (speed_sel=00 -> 2 GHz, period=%0.1f ps) ===",
                  dut.pll_period);
 
         // ------------------------------------------------------------------
-        // Step 2: release reset synchronous to lclk.
+        // Step 2: release reset on a pll_clk edge, then wait for ClkDiv to
+        //         start toggling lclk (>= one lclk period = 16 pll cycles)
+        //         before any mb-domain wait.
         // ------------------------------------------------------------------
-        @(negedge lclk);
+        @(negedge dut.pll_clk);
         i_rst_n = 1'b1;
-        $display("=== RESET released (lclk negedge) ===\n");
+        $display("=== RESET released (pll_clk negedge) ===\n");
+        repeat (20) @(posedge dut.pll_clk);  // let lclk come alive
         wait_clk_mb(4);
 
         // ==================================================================

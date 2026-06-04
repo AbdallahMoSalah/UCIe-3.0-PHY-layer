@@ -44,7 +44,6 @@ module TX_TOP #(
     // -------------------------------------------------------------------------
     // Clocks / reset
     // -------------------------------------------------------------------------
-    input  logic                    lclk,                   // main-band local clock
     input  logic                    i_rst_n,                // active-low reset
 
     // -------------------------------------------------------------------------
@@ -77,8 +76,8 @@ module TX_TOP #(
     // MB_PLL control
     // -------------------------------------------------------------------------
     input  logic                    i_pll_en,               // enable the PLL
-    input  logic [1:0]              i_pll_speed_sel,         // 00=2G 01=4G 10=8G 11=16G
-
+    input  logic [1:0]              i_pll_speed_sel,        // 00=2G 01=4G 10=8G 11=16G
+    input  logic                    lclk_g,                 // debug clock gate enable
     // -------------------------------------------------------------------------
     // CLK_PATTERN_GEN_TX control
     // -------------------------------------------------------------------------
@@ -88,6 +87,7 @@ module TX_TOP #(
     // -------------------------------------------------------------------------
     // Serialized physical outputs (DDR)  (diagram names)
     // -------------------------------------------------------------------------
+    output logic                    lclk,                   //  RDI LCLK
     output logic [NUM_LANES-1:0]    TD_P,                   // serialized data lanes 0-15
     output logic                    TVLD_P,                 // serialized valid lane
     output logic                    TCKP_P,                 // differential clock +
@@ -107,8 +107,9 @@ module TX_TOP #(
     // =========================================================================
 
     // ----- MB_PLL high-speed clock -------------------------------------------
-    logic        pll_clk;        // high-speed serialization clock
-    real         pll_period;     // PLL period (ps) – debug only, unused downstream
+    logic       gated_lclk;         // gated lclk for MB TX
+    logic       pll_clk;            // high-speed serialization clock
+    real        pll_period;         // PLL period (ps) – debug only, unused downstream
 
     // ----- Mapper → LFSR_TX (16 parallel lane words) -------------------------
     // Mapper has flat per-lane ports; LFSR_TX takes an unpacked array.
@@ -116,7 +117,7 @@ module TX_TOP #(
     logic [DATA_WIDTH-1:0] mapper_lane_4,  mapper_lane_5,  mapper_lane_6,  mapper_lane_7;
     logic [DATA_WIDTH-1:0] mapper_lane_8,  mapper_lane_9,  mapper_lane_10, mapper_lane_11;
     logic [DATA_WIDTH-1:0] mapper_lane_12, mapper_lane_13, mapper_lane_14, mapper_lane_15;
-
+    
     logic [DATA_WIDTH-1:0] mapper_lane [0:15];
     assign mapper_lane[0]  = mapper_lane_0;
     assign mapper_lane[1]  = mapper_lane_1;
@@ -150,17 +151,31 @@ module TX_TOP #(
     // 0a. MB_PLL  (active RTL – generates the high-speed serialization clock)
     // =========================================================================
     MB_PLL u_mb_pll (
-        .en            (i_pll_en),
+        .en            (1'b1),
         .speed_sel     (i_pll_speed_sel),
-        .clk           (lclk),
+        .clk           (pll_clk),
         .local_period  (pll_period)
+    );
+
+    ClkDiv  u_clk_div (
+        .i_ref_clk     (pll_clk),
+        .i_rst_n       (i_rst_n),
+        .i_clk_en      (1'b1),
+        .i_div_ratio   (8'd16),
+        .o_div_clk     (lclk)
+    );
+
+    CLK_GATE u_clk_gate (
+        .CLK_EN   (lclk_g),
+        .CLK      (lclk),
+        .GATED_CLK(gated_lclk)
     );
 
     // =========================================================================
     // 0b. CLK_PATTERN_GEN_TX  (unsued – clocked by the PLL output)
     // =========================================================================
     CLK_PATTERN_GEN_TX u_clk_pattern_gen (
-        .i_clk           (lclk),
+        .i_clk           (pll_clk),
         .i_rst_n         (i_rst_n),
         .clk_pattern_en  (i_clk_pattern_en),
         .clk_embedded_en (i_clk_embedded_en),
@@ -178,7 +193,7 @@ module TX_TOP #(
         .NUM_LANES (NUM_LANES),
         .N_BYTES   (N_BYTES)
     ) u_mapper (
-        .i_clk           (lclk),
+        .i_clk           (gated_lclk),
         .i_rst_n         (i_rst_n),
         .i_in_data       (lp_data),
         .mapper_en       (i_mapper_en),
@@ -213,7 +228,7 @@ module TX_TOP #(
     LFSR_TX #(
         .WIDTH (DATA_WIDTH)
     ) u_lfsr_tx (
-        .i_clk                  (lclk),
+        .i_clk                  (gated_lclk),
         .i_rst_n                (i_rst_n),
         .i_state                (i_lfsr_state),
         .i_scramble_en          (mapper_scramble_en),
@@ -233,7 +248,7 @@ module TX_TOP #(
     // 3.  VALID_TX  (unsued – frame gating driven by the LFSR serializer-enable)
     // =========================================================================
     VALID_TX u_valid_tx (
-        .i_clk            (lclk),
+        .i_clk            (gated_lclk),
         .i_rst_n          (i_rst_n),
         .valid_pattern_en (i_valid_pattern_en),
         .ser_en_lfsr_i    (lfsr_ser_en),
@@ -252,7 +267,7 @@ module TX_TOP #(
             MB_SERIALIZER #(
                 .DATA_WIDTH (DATA_WIDTH)
             ) u_data_ser (
-                .mb_clk  (lclk),
+                .mb_clk  (gated_lclk),
                 .PLL_clk (pll_clk),
                 .i_rst_n (i_rst_n),
                 .Ser_en  (lfsr_ser_en),
@@ -268,7 +283,7 @@ module TX_TOP #(
     MB_SERIALIZER #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_valid_ser (
-        .mb_clk  (lclk),
+        .mb_clk  (gated_lclk),
         .PLL_clk (pll_clk),
         .i_rst_n (i_rst_n),
         .Ser_en  (valid_ser_en),

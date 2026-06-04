@@ -29,16 +29,7 @@ parameter RangeWidth = 8
             div_clk <= 1'b1;
             cur_ratio <= 8'd0;
         end else if (Clk_Div_EN) begin
-            /*if (i_div_ratio != cur_ratio) begin // reset on ratio change
-                cur_ratio <= i_div_ratio;    
-                tog_flag <= 1'b0;
-                 
-                if (!(cnt<half_tog)) begin
-                    cnt <= 4'd0;
-                    div_clk <= 1'b1;
-                end
-            end else begin
-            */if (!odd && (cnt == half_tog)) begin
+            if (!odd && (cnt == half_tog)) begin
                 div_clk <= ~o_div_clk;
                 cnt <= 4'd0;
             end else if ( odd && ( ((cnt == half_tog) && tog_flag)|| ((cnt ==half_tog_p1) && !tog_flag) ) ) begin
@@ -49,7 +40,5 @@ parameter RangeWidth = 8
                 cnt <= cnt + 4'd1;
             end
             end
-       // end
-        
     end
 endmodule
