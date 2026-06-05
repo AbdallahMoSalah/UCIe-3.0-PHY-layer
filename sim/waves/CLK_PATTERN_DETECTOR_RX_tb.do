@@ -4,7 +4,7 @@ add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/i_clk
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/i_rst_n
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/clk_detector_en
 add wave -noupdate -expand -group P /CLK_PATTERN_DETECTOR_RX_tb/clk_p
-add wave -noupdate -expand -group P /CLK_PATTERN_DETECTOR_RX_tb/clk_p_pattern_error
+add wave -noupdate -expand -group P /CLK_PATTERN_DETECTOR_RX_tb/clk_p_pattern_pass
 add wave -noupdate -expand -group P -color {Dark Orchid} -radix unsigned /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_toggle_p
 add wave -noupdate -expand -group P -color {Dark Orchid} -radix unsigned /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_zero_p
 add wave -noupdate -expand -group P -color {Dark Orchid} -radix unsigned /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_16_consecetive_p
@@ -14,8 +14,8 @@ add wave -noupdate -expand -group P /CLK_PATTERN_DETECTOR_RX_tb/dut/flag_p_tog
 add wave -noupdate -expand -group P /CLK_PATTERN_DETECTOR_RX_tb/dut/flag_p_zero
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/clk_n
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/track
-add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/clk_n_pattern_error
-add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/track_pattern_error
+add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/clk_n_pattern_pass
+add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/track_pattern_pass
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_toggle_n
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_toggle_track
 add wave -noupdate /CLK_PATTERN_DETECTOR_RX_tb/dut/counter_zero_n

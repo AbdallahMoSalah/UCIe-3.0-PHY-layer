@@ -1,10 +1,10 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/track_pattern_error
+add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/track_pattern_pass
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/track
-add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_p_pattern_error
+add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_p_pattern_pass
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_p
-add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_n_pattern_error
+add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_n_pattern_pass
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_n
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_detector_en
 add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/ser_valid_en

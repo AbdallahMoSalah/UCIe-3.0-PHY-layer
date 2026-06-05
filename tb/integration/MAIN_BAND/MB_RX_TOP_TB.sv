@@ -91,9 +91,9 @@ module MB_RX_TOP_TB;
     logic [15:0]           o_per_lane_error;
     logic [31:0]           o_error_counter;
     logic                  o_error_done;
-    logic                  clk_p_pattern_error;
-    logic                  clk_n_pattern_error;
-    logic                  track_pattern_error;
+    logic                  clk_p_pattern_pass;
+    logic                  clk_n_pattern_pass;
+    logic                  track_pattern_pass;
     logic                  pl_valid;
     logic [8*N_BYTES-1:0]  o_out_data;
 
@@ -152,9 +152,9 @@ module MB_RX_TOP_TB;
         .o_per_lane_error            (o_per_lane_error),
         .o_error_counter             (o_error_counter),
         .o_error_done                (o_error_done),
-        .clk_p_pattern_error         (clk_p_pattern_error),
-        .clk_n_pattern_error         (clk_n_pattern_error),
-        .track_pattern_error         (track_pattern_error),
+        .clk_p_pattern_pass          (clk_p_pattern_pass),
+        .clk_n_pattern_pass          (clk_n_pattern_pass),
+        .track_pattern_pass          (track_pattern_pass),
         .pl_valid                    (pl_valid),
         .o_out_data                  (o_out_data)
     );
@@ -445,12 +445,12 @@ module MB_RX_TOP_TB;
 
         // Give a few MB_clk cycles for detector to latch result
         repeat (5) @(posedge MB_clk);
-        $display("[%0t] CLK Results → clk_p_err=%b  clk_n_err=%b  track_err=%b",
-                  $time, clk_p_pattern_error, clk_n_pattern_error, track_pattern_error);
-        if (!clk_p_pattern_error && !clk_n_pattern_error && !track_pattern_error) begin
+        $display("[%0t] CLK Results → clk_p_pass=%b  clk_n_pass=%b  track_pass=%b",
+                  $time, clk_p_pattern_pass, clk_n_pattern_pass, track_pattern_pass);
+        if (clk_p_pattern_pass && clk_n_pattern_pass && track_pattern_pass) begin
             $display("[%0t] TEST 1 PASSED: All clock patterns detected successfully.", $time);
         end else begin
-            $display("[%0t] TEST 1 FAILED: Clock pattern error detected.", $time);
+            $display("[%0t] TEST 1 FAILED: Clock pattern detection failed.", $time);
             $fatal("Test 1 Failed");
         end
         clk_detector_en = 1'b0;

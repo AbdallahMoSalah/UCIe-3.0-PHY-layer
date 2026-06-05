@@ -96,9 +96,9 @@ module MB_RX_TOP #(
     output logic                   o_error_done,
 
     // Clock Pattern Detector Status
-    output logic                   clk_p_pattern_error,
-    output logic                   clk_n_pattern_error,
-    output logic                   track_pattern_error,
+    output logic                   clk_p_pattern_pass,
+    output logic                   clk_n_pattern_pass,
+    output logic                   track_pattern_pass,
 
     // Demapped Parallel Data Out
     output logic                   pl_valid,
@@ -432,9 +432,9 @@ module MB_RX_TOP #(
         .clk_p(clk_p),
         .clk_n(clk_n),
         .track(track),
-        .clk_p_pattern_error(clk_p_pattern_error),
-        .clk_n_pattern_error(clk_n_pattern_error),
-        .track_pattern_error(track_pattern_error)
+        .clk_p_pattern_pass(clk_p_pattern_pass),
+        .clk_n_pattern_pass(clk_n_pattern_pass),
+        .track_pattern_pass(track_pattern_pass)
     );
 
 endmodule
