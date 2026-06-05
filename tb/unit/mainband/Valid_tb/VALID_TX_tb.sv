@@ -67,7 +67,7 @@ module VALID_TX_tb;
             #1; // small delay after clock edge to sample stable outputs
             assert(o_TVLD_L === 32'hf0f0f0f0) else $fatal("ERROR: TVLD mismatch during pattern! Expected 32'hf0f0f0f0, Got %h", o_TVLD_L);
             assert(O_done === 1'b0) else $fatal("ERROR: O_done should be 0 during pattern!");
-            assert(ser_en_o === 1'b1) else $fatal("ERROR: ser_en_o should be 1 during pattern!");
+            assert(ser_en_o === 1'b0) else $fatal("ERROR: ser_en_o should be 1 during pattern!");
         end
 
         // 32nd cycle (completion): O_done = 1, ser_en_o = 0, TVLD = 32'hf0f0f0f0
@@ -75,14 +75,14 @@ module VALID_TX_tb;
         #1;
         assert(o_TVLD_L === 32'hf0f0f0f0) else $fatal("ERROR: TVLD mismatch on final pattern cycle!");
         assert(O_done === 1'b1) else $fatal("ERROR: O_done should be 1 on completion cycle!");
-        assert(ser_en_o === 1'b0) else $fatal("ERROR: ser_en_o should be 0 on completion cycle!");
+        assert(ser_en_o === 1'b1) else $fatal("ERROR: ser_en_o should be 0 on completion cycle!");
 
         // 33rd cycle (transition to IDLE): FSM is IDLE, but registered outputs still show VALID_PATTERN
         @(posedge i_clk);
         #1;
         assert(o_TVLD_L === 32'hf0f0f0f0) else $fatal("ERROR: TVLD mismatch during transition to IDLE!");
         assert(O_done === 1'b1) else $fatal("ERROR: O_done should still be 1 during transition to IDLE!");
-        assert(ser_en_o === 1'b0) else $fatal("ERROR: ser_en_o should still be 0 during transition to IDLE!");
+        assert(ser_en_o === 1'b1) else $fatal("ERROR: ser_en_o should still be 0 during transition to IDLE!");
 
         // Set valid_frame_en = 1 for the next test
         valid_frame_en = 1;

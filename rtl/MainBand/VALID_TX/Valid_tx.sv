@@ -114,12 +114,12 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 if (COUNTER < MAX_COUNT) begin
                     o_TVLD_L <= VALID_PATTERN_CODE;
                     O_done   <= 1'b0;
-                    ser_en_o <= 1'b1;                                                    
+                    ser_en_o <= 1'b0;                                                    
                 end
                 else begin // COUNTER == MAX_COUNT
                     o_TVLD_L <= VALID_PATTERN_CODE;
                     O_done   <= 1'b1;
-                    ser_en_o <= 1'b0;
+                    ser_en_o <= 1'b1;
                 end
             end
 
