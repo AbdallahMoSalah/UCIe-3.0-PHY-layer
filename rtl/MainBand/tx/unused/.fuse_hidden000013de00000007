@@ -93,10 +93,12 @@ module unit_lfsr_cmp_tb;
     logic        p_scramble_en;
     logic [2:0]  p_width_deg;
     logic        p_reversal_en;
+    logic        p_active_entered;
     logic [31:0] p_lane_in  [0:15];
     logic [31:0] p_lane_out [0:15];
     logic        p_ser_en;
     logic        p_tx_done;
+    logic        p_valid_frame;
 
     unit_lfsr_tx DUT_P (
         .i_clk                  (clk),
@@ -105,10 +107,12 @@ module unit_lfsr_cmp_tb;
         .i_scramble_en          (p_scramble_en),
         .i_width_deg_lfsr       (p_width_deg),
         .i_reversal_en          (p_reversal_en),
+        .i_active_state_entered (p_active_entered),
         .i_lane                 (p_lane_in),
         .o_lane                 (p_lane_out),
         .o_ser_en_lfsr          (p_ser_en),
-        .o_Lfsr_tx_done         (p_tx_done)
+        .o_Lfsr_tx_done         (p_tx_done),
+        .o_valid_frame_en       (p_valid_frame)
     );
 
     // =========================================================================
@@ -236,6 +240,7 @@ module unit_lfsr_cmp_tb;
         p_scramble_en    = 1'b0;
         p_width_deg      = NONE_DEGRADE;
         p_reversal_en    = 1'b0;
+        p_active_entered = 1'b0;
         for (int k = 0; k < 16; k = k + 1) p_lane_in[k] = 32'b0;
         
         for (int li = 0; li < 8; li = li + 1) begin
@@ -287,9 +292,9 @@ module unit_lfsr_cmp_tb;
         reset_duts();
         
         // Check outputs are 0 immediately after reset/idle
-        if (p_ser_en !== 1'b0 || p_tx_done !== 1'b0) begin
-            $display("[ERROR] Post-reset status outputs are not zero: ser_en=%b, tx_done=%b",
-                     p_ser_en, p_tx_done);
+        if (p_ser_en !== 1'b0 || p_tx_done !== 1'b0 || p_valid_frame !== 1'b0) begin
+            $display("[ERROR] Post-reset status outputs are not zero: ser_en=%b, tx_done=%b, valid_frame=%b",
+                     p_ser_en, p_tx_done, p_valid_frame);
             test_errors++;
         end
         for (int k = 0; k < 16; k = k + 1) begin
@@ -326,9 +331,9 @@ module unit_lfsr_cmp_tb;
                     @(negedge clk);
                     
                     // Verify output validation signals
-                    if (p_ser_en !== 1'b1) begin
-                        $display("[ERROR] Outputs not valid during PATTERN_LFSR at cycle %0d: ser_en=%b",
-                                 cycle, p_ser_en);
+                    if (p_ser_en !== 1'b1 || p_valid_frame !== 1'b1) begin
+                        $display("[ERROR] Outputs not valid during PATTERN_LFSR at cycle %0d: ser_en=%b, valid_frame=%b",
+                                 cycle, p_ser_en, p_valid_frame);
                         test_errors++;
                     end
                     
@@ -378,20 +383,19 @@ module unit_lfsr_cmp_tb;
                 $display("  Testing reversal for width mode: 3'b%03b...", w_deg);
                 
                 reset_duts();
-
+                
                 // Set lane reversal in IDLE state first so it gets latched
                 @(negedge clk);
                 p_reversal_en = 1'b1;
                 p_width_deg   = w_deg;
-
-                // In IDLE the reversal flag is latched internally only; tx_done
-                // must stay low (it pulses solely at end of an LFSR/IDE phase).
+                
+                // Verify that lane_reversal_enabled latch works and tx_done assertion
                 @(negedge clk);
-                if (p_tx_done !== 1'b0) begin
-                    $display("[ERROR] o_Lfsr_tx_done must stay low in IDLE when i_reversal_en is set");
+                if (p_tx_done !== 1'b1) begin
+                    $display("[ERROR] o_Lfsr_tx_done was not asserted in IDLE when i_reversal_en is set");
                     test_errors++;
                 end
-
+                
                 p_state       = PATTERN_LFSR;
                 
                 // Wait 1 cycle for FSM transition
@@ -451,7 +455,7 @@ module unit_lfsr_cmp_tb;
                     for (int cycle = 0; cycle < 64; cycle = cycle + 1) begin
                         @(negedge clk);
                         
-                        if (p_ser_en !== 1'b1) begin
+                        if (p_ser_en !== 1'b1 || p_valid_frame !== 1'b1) begin
                             $display("[ERROR] Outputs not valid during PER_LANE_IDE at cycle %0d", cycle);
                             test_errors++;
                         end
@@ -599,24 +603,24 @@ module unit_lfsr_cmp_tb;
                     p_width_deg      = w_deg;
                     @(negedge clk);
                     
-                    // Enter DATA_TRANSFER (state-driven: i_state edge into DATA_TRANSFER)
-                    p_state          = DATA_TRANSFER;
+                    // Enter DATA_TRANSFER
+                    p_active_entered = 1'b1;
                     p_scramble_en    = 1'b1;
-
+                    
                     // Wait 1 cycle for FSM transition
                     @(negedge clk);
-
+                    
                     // Check scrambling output for 32 consecutive windows
                     for (int cycle = 0; cycle < 32; cycle = cycle + 1) begin
                         // Apply input data at negedge to be sampled on posedge
                         for (int l = 0; l < 16; l = l + 1) begin
                             p_lane_in[l] = test_input_data[l][cycle];
                         end
-
+                        
                         @(negedge clk);
-
+                        
                         // Verify signals
-                        if (p_ser_en !== 1'b1) begin
+                        if (p_ser_en !== 1'b1 || p_valid_frame !== 1'b1) begin
                             $display("[ERROR] Outputs not valid during DATA_TRANSFER scrambling at cycle %0d", cycle);
                             test_errors++;
                         end
@@ -646,7 +650,7 @@ module unit_lfsr_cmp_tb;
                     p_scramble_en = 1'b0;
                     @(negedge clk);
                     
-                    if (p_ser_en !== 1'b0) begin
+                    if (p_ser_en !== 1'b0 || p_valid_frame !== 1'b0) begin
                         $display("[ERROR] Outputs remained active when p_scramble_en=0 in DATA_TRANSFER");
                         test_errors++;
                     end
@@ -656,12 +660,12 @@ module unit_lfsr_cmp_tb;
                             test_errors++;
                         end
                     end
-
-                    // Exit DATA_TRANSFER (state-driven: i_state edge away from DATA_TRANSFER)
-                    p_state = IDLE;
+                    
+                    // Exit DATA_TRANSFER
+                    p_active_entered = 1'b0;
                     @(negedge clk);
-                    if (p_tx_done !== 1'b0) begin
-                        $display("[ERROR] tx_done must be low after returning to IDLE: Got %b", p_tx_done);
+                    if (p_tx_done !== rev) begin
+                        $display("[ERROR] tx_done mismatch when exiting active state: Expected %b, Got %b", rev, p_tx_done);
                         test_errors++;
                     end
                 end
