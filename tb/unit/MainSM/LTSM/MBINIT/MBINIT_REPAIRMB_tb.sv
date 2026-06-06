@@ -12,28 +12,17 @@ module MBINIT_REPAIRMB_tb;
     initial clk = 0;
     always #5 clk = ~clk; // 100 MHz clock in simulation
 
-    ////////////////////////////////////////////////
-    // CAPABILITY INTERFACES
-    ////////////////////////////////////////////////
-    ucie_mb_cap_if cap_if_master();
-    ucie_mb_cap_if cap_if_partner();
-
-    // Default setup
-    assign cap_if_master.negotiated_speed  = 4'h1;
-    assign cap_if_partner.negotiated_speed = 4'h1;
 
     // Registers to control use_x8_mode dynamically
     logic m_use_x8_mode;
     logic p_use_x8_mode;
     logic m_spmw;
     logic p_spmw;
-    assign cap_if_master.use_x8_mode  = m_use_x8_mode;
-    assign cap_if_partner.use_x8_mode = p_use_x8_mode;
 
     logic [3:0] m_width_status;
     logic [3:0] p_width_status;
-    assign m_width_status = m_use_x8_mode ? 4'h1 : 4'h0;
-    assign p_width_status = p_use_x8_mode ? 4'h1 : 4'h0;
+    assign m_width_status = m_use_x8_mode ? 4'h1 : 4'h2;
+    assign p_width_status = p_use_x8_mode ? 4'h1 : 4'h2;
 
     ////////////////////////////////////////////////
     // SIGNAL DEFINITIONS

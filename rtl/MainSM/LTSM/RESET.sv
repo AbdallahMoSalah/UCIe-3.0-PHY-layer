@@ -52,30 +52,19 @@ module RESET #(
     // Triggers can be single-cycle pulses (notably sb_det_pattern_rcvd).
     // Latch each one as a sticky while RESET_enable is high so a pulse arriving
     // during the 4 ms dwell is not lost; cleared whenever the FSM is in IDLE.
-    logic phy_start_sticky;
-    logic adapter_req_sticky;
-    logic sb_det_pattern_sticky;
+    logic trigger_seen;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            phy_start_sticky      <= 1'b0;
-            adapter_req_sticky    <= 1'b0;
-            sb_det_pattern_sticky <= 1'b0;
+            trigger_seen <= 1'b0;
         end else if (current_state == IDLE) begin
-            phy_start_sticky      <= 1'b0;
-            adapter_req_sticky    <= 1'b0;
-            sb_det_pattern_sticky <= 1'b0;
+            trigger_seen <= 1'b0;
         end else begin
-            if (phy_start_ucie_link_training_ctrl_out) phy_start_sticky      <= 1'b1;
-            if (Adapter_training_req)                  adapter_req_sticky    <= 1'b1;
-            if (sb_det_pattern_rcvd)                   sb_det_pattern_sticky <= 1'b1;
+            if(phy_start_ucie_link_training_ctrl_out || Adapter_training_req || sb_det_pattern_rcvd) begin 
+                trigger_seen <= 1'b1;
+            end
         end
     end
-
-    logic trigger_seen;
-    assign trigger_seen = phy_start_sticky
-                       || adapter_req_sticky
-                       || sb_det_pattern_sticky;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -91,7 +80,16 @@ module RESET #(
         end else begin
             case (current_state)
                 IDLE         : next_state = DWELL_4MS;
-                DWELL_4MS    : if (RESET_4ms_done) next_state = WAIT_TRIGGER;
+                DWELL_4MS    : begin 
+                    if (RESET_4ms_done)begin
+                        if(trigger_seen)begin
+                            next_state = DONE_HOLD;
+                        end
+                        else begin
+                            next_state = WAIT_TRIGGER;
+                        end
+                    end
+                end
                 WAIT_TRIGGER : if (trigger_seen)   next_state = DONE_HOLD;
                 DONE_HOLD    : ; // hold until RESET_enable drops
                 default      : next_state = IDLE;

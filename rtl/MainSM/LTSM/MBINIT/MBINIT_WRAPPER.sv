@@ -181,6 +181,13 @@ module MBINIT_WRAPPER
     logic [2:0] repairmb_tx_data_lane_mask;
 
     logic [3:0] param_Link_Width_enable_status;
+    logic       param_Clock_Phase_enable_status;
+    logic       param_Clock_mode_enable_status;
+    logic       param_TARR_enable_status;
+    logic [3:0] param_Link_Speed_enable_status;
+    logic       param_PMO_enable_status;
+    logic       param_L2SPD_enable_status;
+    logic       param_PSPT_enable_status;
 
     // =========================================================================
     // CONTROLLER INSTANTIATION
@@ -290,7 +297,28 @@ module MBINIT_WRAPPER
         .repairmb_tx_data_lane_mask(repairmb_tx_data_lane_mask),
 
         .param_Link_Width_enable_status(param_Link_Width_enable_status),
-        .reg_Link_Width_enable_status(reg_Link_Width_enable_status)
+        .reg_Link_Width_enable_status(reg_Link_Width_enable_status),
+
+        .param_Clock_Phase_enable_status(param_Clock_Phase_enable_status),
+        .reg_Clock_Phase_enable_status(reg_Clock_Phase_enable_status),
+
+        .param_Clock_mode_enable_status(param_Clock_mode_enable_status),
+        .reg_Clock_mode_enable_status(reg_Clock_mode_enable_status),
+
+        .param_TARR_enable_status(param_TARR_enable_status),
+        .reg_TARR_enable_status(reg_TARR_enable_status),
+
+        .param_Link_Speed_enable_status(param_Link_Speed_enable_status),
+        .reg_Link_Speed_enable_status(reg_Link_Speed_enable_status),
+
+        .param_PMO_enable_status(param_PMO_enable_status),
+        .reg_PMO_enable_status(reg_PMO_enable_status),
+
+        .param_L2SPD_enable_status(param_L2SPD_enable_status),
+        .reg_L2SPD_enable_status(reg_L2SPD_enable_status),
+
+        .param_PSPT_enable_status(param_PSPT_enable_status),
+        .reg_PSPT_enable_status(reg_PSPT_enable_status)
     );
 
     // =========================================================================
@@ -341,14 +369,14 @@ module MBINIT_WRAPPER
         .Target_Link_Width_ctrl(reg_Target_Link_Width_ctrl),
         .Target_Link_Speed_ctrl(reg_Target_Link_Speed_ctrl),
         
-        .Clock_Phase_enable_status(reg_Clock_Phase_enable_status),
-        .Clock_mode_enable_status(reg_Clock_mode_enable_status),
-        .TARR_enable_status(reg_TARR_enable_status),
+        .Clock_Phase_enable_status(param_Clock_Phase_enable_status),
+        .Clock_mode_enable_status(param_Clock_mode_enable_status),
+        .TARR_enable_status(param_TARR_enable_status),
         .Link_Width_enable_status(param_Link_Width_enable_status),
-        .Link_Speed_enable_status(reg_Link_Speed_enable_status),
-        .PMO_enable_status(reg_PMO_enable_status),
-        .L2SPD_enable_status(reg_L2SPD_enable_status),
-        .PSPT_enable_status(reg_PSPT_enable_status),
+        .Link_Speed_enable_status(param_Link_Speed_enable_status),
+        .PMO_enable_status(param_PMO_enable_status),
+        .L2SPD_enable_status(param_L2SPD_enable_status),
+        .PSPT_enable_status(param_PSPT_enable_status),
         
         .sb_ltsm_rdy(sb_ltsm_rdy),
         .global_error(mbinit_error)

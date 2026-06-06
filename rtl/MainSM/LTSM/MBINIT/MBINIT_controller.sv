@@ -130,7 +130,28 @@ module MBINIT_CONTROLLER
     input  logic [2:0] repairmb_tx_data_lane_mask,
 
     input  logic [3:0] param_Link_Width_enable_status,
-    output logic [3:0] reg_Link_Width_enable_status
+    output logic [3:0] reg_Link_Width_enable_status,
+
+    input  logic       param_Clock_Phase_enable_status,
+    output logic       reg_Clock_Phase_enable_status,
+
+    input  logic       param_Clock_mode_enable_status,
+    output logic       reg_Clock_mode_enable_status,
+
+    input  logic       param_TARR_enable_status,
+    output logic       reg_TARR_enable_status,
+
+    input  logic [3:0] param_Link_Speed_enable_status,
+    output logic [3:0] reg_Link_Speed_enable_status,
+
+    input  logic       param_PMO_enable_status,
+    output logic       reg_PMO_enable_status,
+
+    input  logic       param_L2SPD_enable_status,
+    output logic       reg_L2SPD_enable_status,
+
+    input  logic       param_PSPT_enable_status,
+    output logic       reg_PSPT_enable_status
 );
 
 // =============================================================================
@@ -257,7 +278,7 @@ always_comb begin
 end
 
 // =============================================================================
-// TX MUX  (only the active submodule drives the bus)
+// TX MUX  (timer_rst_n_reg <= 1'b0;only the active submodule drives the bus)
 // =============================================================================
 always_comb begin
     sb_tx_valid      = 0;
@@ -428,6 +449,9 @@ always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
     end 
+    else if(current_state == CTRL_IDLE) begin
+        reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
+    end
     else if(current_state == CTRL_PARAM)begin
         reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
     end
@@ -440,13 +464,83 @@ end
 always_comb begin
     reg_Link_Width_enable_status = reg_Link_Width_enable_status_reg;
 
-    if(current_state == CTRL_PARAM)begin
+    if(current_state == CTRL_IDLE) begin
+        reg_Link_Width_enable_status = param_Link_Width_enable_status;
+    end
+    else if(current_state == CTRL_PARAM)begin
         reg_Link_Width_enable_status = param_Link_Width_enable_status;
     end
     else if (current_state == CTRL_REPAIRMB && repairmb_done) begin
         reg_Link_Width_enable_status = get_width_code(mbinit_tx_data_lane_mask);
     end 
 
+end
+
+// =============================================================================
+// SEQUENTIAL LATCHING FOR OTHER PARAMETER STATUS REGISTERS
+// =============================================================================
+logic       reg_Clock_Phase_enable_status_reg;
+logic       reg_Clock_mode_enable_status_reg;
+logic       reg_TARR_enable_status_reg;
+logic [3:0] reg_Link_Speed_enable_status_reg;
+logic       reg_PMO_enable_status_reg;
+logic       reg_L2SPD_enable_status_reg;
+logic       reg_PSPT_enable_status_reg;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        reg_Clock_Phase_enable_status_reg <= param_Clock_Phase_enable_status;
+        reg_Clock_mode_enable_status_reg  <= param_Clock_mode_enable_status;
+        reg_TARR_enable_status_reg        <= param_TARR_enable_status;
+        reg_Link_Speed_enable_status_reg  <= param_Link_Speed_enable_status;
+        reg_PMO_enable_status_reg         <= param_PMO_enable_status;
+        reg_L2SPD_enable_status_reg        <= param_L2SPD_enable_status;
+        reg_PSPT_enable_status_reg        <= param_PSPT_enable_status;
+    end else if (current_state == CTRL_IDLE) begin
+        reg_Clock_Phase_enable_status_reg <= param_Clock_Phase_enable_status;
+        reg_Clock_mode_enable_status_reg  <= param_Clock_mode_enable_status;
+        reg_TARR_enable_status_reg        <= param_TARR_enable_status;
+        reg_Link_Speed_enable_status_reg  <= param_Link_Speed_enable_status;
+        reg_PMO_enable_status_reg         <= param_PMO_enable_status;
+        reg_L2SPD_enable_status_reg        <= param_L2SPD_enable_status;
+        reg_PSPT_enable_status_reg        <= param_PSPT_enable_status;
+    end else if (current_state == CTRL_PARAM && param_done) begin
+        reg_Clock_Phase_enable_status_reg <= param_Clock_Phase_enable_status;
+        reg_Clock_mode_enable_status_reg  <= param_Clock_mode_enable_status;
+        reg_TARR_enable_status_reg        <= param_TARR_enable_status;
+        reg_Link_Speed_enable_status_reg  <= param_Link_Speed_enable_status;
+        reg_PMO_enable_status_reg         <= param_PMO_enable_status;
+        reg_L2SPD_enable_status_reg        <= param_L2SPD_enable_status;
+        reg_PSPT_enable_status_reg        <= param_PSPT_enable_status;
+    end
+end
+
+always_comb begin
+    reg_Clock_Phase_enable_status = reg_Clock_Phase_enable_status_reg;
+    reg_Clock_mode_enable_status  = reg_Clock_mode_enable_status_reg;
+    reg_TARR_enable_status        = reg_TARR_enable_status_reg;
+    reg_Link_Speed_enable_status  = reg_Link_Speed_enable_status_reg;
+    reg_PMO_enable_status         = reg_PMO_enable_status_reg;
+    reg_L2SPD_enable_status        = reg_L2SPD_enable_status_reg;
+    reg_PSPT_enable_status        = reg_PSPT_enable_status_reg;
+
+    if (current_state == CTRL_IDLE) begin
+        reg_Clock_Phase_enable_status = param_Clock_Phase_enable_status;
+        reg_Clock_mode_enable_status  = param_Clock_mode_enable_status;
+        reg_TARR_enable_status        = param_TARR_enable_status;
+        reg_Link_Speed_enable_status  = param_Link_Speed_enable_status;
+        reg_PMO_enable_status         = param_PMO_enable_status;
+        reg_L2SPD_enable_status        = param_L2SPD_enable_status;
+        reg_PSPT_enable_status        = param_PSPT_enable_status;
+    end else if (current_state == CTRL_PARAM && param_done) begin
+        reg_Clock_Phase_enable_status = param_Clock_Phase_enable_status;
+        reg_Clock_mode_enable_status  = param_Clock_mode_enable_status;
+        reg_TARR_enable_status        = param_TARR_enable_status;
+        reg_Link_Speed_enable_status  = param_Link_Speed_enable_status;
+        reg_PMO_enable_status         = param_PMO_enable_status;
+        reg_L2SPD_enable_status        = param_L2SPD_enable_status;
+        reg_PSPT_enable_status        = param_PSPT_enable_status;
+    end
 end
 
 // =============================================================================
