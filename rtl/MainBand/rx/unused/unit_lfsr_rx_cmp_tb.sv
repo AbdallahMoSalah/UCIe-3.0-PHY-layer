@@ -91,7 +91,6 @@ module unit_lfsr_rx_cmp_tb;
     // -------------------------------------------------------------------------
     logic [2:0]       r_state;
     logic [2:0]       r_width_deg;
-    logic             r_active_entered;
     logic             r_descramble_en;
     logic             r_enable_buffer;
     logic [WIDTH-1:0] r_data_in  [0:15];
@@ -104,7 +103,6 @@ module unit_lfsr_rx_cmp_tb;
         .i_rst_n                (rst_n),
         .i_state                (r_state),
         .i_width_deg_lfsr       (r_width_deg),
-        .i_active_state_entered (r_active_entered),
         .i_descramble_en        (r_descramble_en),
         .i_enable_buffer        (r_enable_buffer),
         .i_data_in              (r_data_in),
@@ -136,7 +134,6 @@ module unit_lfsr_rx_cmp_tb;
         s_data_in        = 1'b0;
         r_state          = IDLE;
         r_width_deg      = DEGRADE_LANES_0_TO_15;
-        r_active_entered = 1'b0;
         r_descramble_en  = 1'b0;
         r_enable_buffer  = 1'b1;
         for (k = 0; k < 16; k = k + 1) r_data_in[k] = 32'b0;
@@ -243,8 +240,8 @@ module unit_lfsr_rx_cmp_tb;
         // choose recognizable plaintext, build scrambled input = P[w] ^ ORIG[w]
         for (k = 0; k < NCAP; k = k + 1) ORIG[k] = 32'hCAFE_0000 + k;
 
-        // enter DATA_TRANSFER via active-state pulse
-        r_active_entered = 1'b1;
+        // enter DATA_TRANSFER via i_state edge (mirrors LFSR_TX control)
+        r_state          = DATA_TRANSFER;
         r_descramble_en  = 1'b1;
         r_enable_buffer  = 1'b1;
         @(posedge clk);                 // IDLE -> DATA_TRANSFER (state still SEED)
@@ -255,7 +252,6 @@ module unit_lfsr_rx_cmp_tb;
             @(posedge clk);
             OUT[k] = r_data_by[0];           // o_Data_by lags temp by 1 cycle
         end
-        r_active_entered = 1'b0;
         r_descramble_en  = 1'b0;
         r_state          = IDLE;
 

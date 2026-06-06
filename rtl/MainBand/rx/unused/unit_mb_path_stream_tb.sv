@@ -32,6 +32,10 @@ module unit_mb_path_stream_tb;
     localparam [2:0] D0_3  = 3'b100;
     localparam [2:0] D4_7  = 3'b101;
 
+    // LFSR_TX/RX i_state codes (control mirrors the updated LFSR_TX)
+    localparam [2:0] LFSR_IDLE = 3'b000;
+    localparam [2:0] LFSR_DATA = 3'b100;   // DATA_TRANSFER
+
     // -------------------------------------------------------------------------
     // Clocks / reset
     // -------------------------------------------------------------------------
@@ -55,10 +59,12 @@ module unit_mb_path_stream_tb;
     logic [8*N_BYTES-1:0] out_data;
 
     logic mapper_en, lp_irdy, lp_valid, out_scramble_en, mapper_ready;
-    logic tx_active, tx_scramble_en;
-    wire  ser_en_w, tx_done_w, tx_vf_w;
+    logic [2:0] tx_state;
+    logic tx_scramble_en;
+    wire  ser_en_w, tx_done_w;
     logic des_en;
-    logic rx_active, rx_descr, rx_buf;
+    logic [2:0] rx_state;
+    logic rx_descr, rx_buf;
     wire  rx_comp_en;
     logic demapper_en, rx_data_valid, pl_valid;
 
@@ -78,10 +84,10 @@ module unit_mb_path_stream_tb;
 
     unit_lfsr_tx #(.WIDTH(W)) u_lfsr_tx (
         .i_clk(MB_clk), .i_rst_n(i_rst_n),
-        .i_state(3'b000), .i_scramble_en(tx_scramble_en), .i_width_deg_lfsr(wdeg),
-        .i_reversal_en(1'b0), .i_active_state_entered(tx_active),
+        .i_state(tx_state), .i_scramble_en(tx_scramble_en), .i_width_deg_lfsr(wdeg),
+        .i_reversal_en(1'b0),
         .i_lane(map_lane), .o_lane(tx_scr),
-        .o_ser_en_lfsr(ser_en_w), .o_Lfsr_tx_done(tx_done_w), .o_valid_frame_en(tx_vf_w)
+        .o_ser_en_lfsr(ser_en_w), .o_Lfsr_tx_done(tx_done_w)
     );
 
     genvar g;
@@ -100,8 +106,8 @@ module unit_mb_path_stream_tb;
 
     unit_lfsr_rx #(.WIDTH(W)) u_lfsr_rx (
         .i_clk(MB_clk), .i_rst_n(i_rst_n),
-        .i_state(3'b000), .i_width_deg_lfsr(wdeg),
-        .i_active_state_entered(rx_active), .i_descramble_en(rx_descr),
+        .i_state(rx_state), .i_width_deg_lfsr(wdeg),
+        .i_descramble_en(rx_descr),
         .i_enable_buffer(rx_buf), .i_data_in(des_word),
         .o_Data_by(rx_lane), .o_final_gene(rx_gen), .pattern_comp_en(rx_comp_en)
     );
@@ -127,8 +133,8 @@ module unit_mb_path_stream_tb;
     logic         dbg_trace;
 
     always @(posedge MB_clk) if (dbg_trace)
-        $display("    TRACE tx_scr0=%08h ser_en=%b | des0=%08h de=%b | rxact=%b rxdsc=%b rx0=%08h",
-                 tx_scr[0], ser_en_w, des_word[0], de_done[0], rx_active, rx_descr, rx_lane[0]);
+        $display("    TRACE tx_scr0=%08h ser_en=%b | des0=%08h de=%b | rxstate=%03b rxdsc=%b rx0=%08h",
+                 tx_scr[0], ser_en_w, des_word[0], de_done[0], rx_state, rx_descr, rx_lane[0]);
 
     // capture unit_mapper output words while scrambling is active
     always @(posedge MB_clk) begin
@@ -214,8 +220,8 @@ module unit_mb_path_stream_tb;
         begin
             // reset the whole DUT so both LFSRs start from seed
             i_rst_n=0; mapper_en=0; lp_valid=0; lp_irdy=1;
-            tx_active=0; tx_scramble_en=1; des_en=0;
-            rx_active=0; rx_descr=0; rx_buf=0;
+            tx_state=LFSR_IDLE; tx_scramble_en=1; des_en=0;
+            rx_state=LFSR_IDLE; rx_descr=0; rx_buf=0;
             demapper_en=1; rx_data_valid=0;
             tx_cap_en=0; rx_cap_en=0; map_n=0; rx_n=0; flit=0;
             wdeg=m;
@@ -226,7 +232,7 @@ module unit_mb_path_stream_tb;
 
             // ---- start TX scrambling + unit_mapper streaming ----
             @(negedge MB_clk);
-            mapper_en=1; lp_valid=1; tx_active=1; tx_cap_en=1;
+            mapper_en=1; lp_valid=1; tx_state=LFSR_DATA; tx_cap_en=1;
             fidx=0;
 
             // serdes enable alignment (first serializer load), then stream
@@ -245,15 +251,15 @@ module unit_mb_path_stream_tb;
                     des_en=1;             // hold continuously for the whole stream
                 end
                 begin : rx_start
-                    // assert RX descramble rx_lead cycles after tx_active
+                    // assert RX descramble rx_lead cycles after tx enters DATA_TRANSFER
                     repeat(rx_lead) @(posedge MB_clk);
-                    @(negedge MB_clk); rx_active=1; rx_descr=1; rx_cap_en=1;
+                    @(negedge MB_clk); rx_state=LFSR_DATA; rx_descr=1; rx_cap_en=1;
                 end
             join
 
             // let the tail drain
             repeat(total_words + 12) @(posedge MB_clk);
-            tx_active=0; rx_active=0; rx_descr=0; des_en=0;
+            tx_state=LFSR_IDLE; rx_state=LFSR_IDLE; rx_descr=0; des_en=0;
             tx_cap_en=0; rx_cap_en=0;
             @(posedge MB_clk);
 
