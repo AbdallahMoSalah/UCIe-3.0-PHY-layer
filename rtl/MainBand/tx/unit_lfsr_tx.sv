@@ -6,10 +6,9 @@ module unit_lfsr_tx #(
     input  logic        i_clk,                        // Clock signal
     input  logic        i_rst_n,                      // Active-low synchronous reset
     input  logic [2:0]  i_state,                      // Requested state from controller
-    input  logic        i_scramble_en, // 1: scramble data, 0: pass pattern only
+    input  logic        i_scramble_en,              // 1: scramble data 0: disable serializer // from mapper
     input  logic [2:0]  i_width_deg_lfsr,        // Lane group selection
     input  logic        i_reversal_en,            // Enable physical lane reversal
-    input  logic        i_active_state_entered,       // Pulse: active (DATA_TRANSFER) state entered
 
     // -------------------------------------------------------------------------
     // 16 input data lanes (indexed 0-15)
@@ -21,8 +20,7 @@ module unit_lfsr_tx #(
     // -------------------------------------------------------------------------
     output logic  [WIDTH-1:0] o_lane [0:15],
     output logic  o_ser_en_lfsr,
-    output logic  o_Lfsr_tx_done,   // Pulses high when current LFSR/ID phase completes
-    output logic  o_valid_frame_en    // High while frames are actively being transmitted
+    output logic  o_Lfsr_tx_done    // Pulses high when current LFSR/ID phase completes
 );
 
     // =========================================================================
@@ -179,10 +177,9 @@ module unit_lfsr_tx #(
     integer i;
 
     // =========================================================================
-    // FSM — State logicister update
-    // Transitions are driven by i_state changes (edge detection) or by internal
-    // counter completion. The DATA_TRANSFER state is entered/exited via the
-    // i_active_state_entered flag.
+    // FSM — State register update
+    // All transitions are driven by i_state edge detection or internal counter
+    // completion. i_state is the sole external control signal.
     // =========================================================================
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
@@ -194,10 +191,10 @@ module unit_lfsr_tx #(
             case (current_state)
 
                 // ------------------------------------------------------------------
-                // IDLE: wait for external state change or active-state entry
+                // IDLE: wait for i_state change
                 // ------------------------------------------------------------------
                 IDLE: begin
-                    if (i_active_state_entered)
+                    if (i_state_changed && i_state == DATA_TRANSFER)
                         current_state <= DATA_TRANSFER;
                     else if (i_state_changed && i_state == CLEAR_LFSR)
                         current_state <= CLEAR_LFSR;
@@ -236,12 +233,11 @@ module unit_lfsr_tx #(
                 end
 
                 // ------------------------------------------------------------------
-                // DATA_TRANSFER: stay while i_active_state_entered is asserted
+                // DATA_TRANSFER: stay until i_state changes away
                 // ------------------------------------------------------------------
                 DATA_TRANSFER: begin
-                    if (!i_active_state_entered) begin
+                    if (i_state_changed)
                         current_state <= IDLE;
-                    end
                     // else stay in DATA_TRANSFER
                 end
 
@@ -265,8 +261,7 @@ module unit_lfsr_tx #(
             counter_lfsr         <= 0;
             counter_per_lane     <= 0;
             o_Lfsr_tx_done       <= 0;
-            o_ser_en_lfsr       <= 0;
-            o_valid_frame_en       <= 0;
+            o_ser_en_lfsr        <= 0;
             lane_reversal_enabled <= 0;
 
             // Zero all output lanes
@@ -290,16 +285,10 @@ module unit_lfsr_tx #(
                 // ==============================================================
                 IDLE: begin
                     counter_lfsr     <= 0;
-                    o_ser_en_lfsr       <= 0;
+                    o_ser_en_lfsr    <= 0;
                     counter_per_lane <= 0;
-                    o_valid_frame_en   <= 0;
-
-                    if (i_reversal_en) begin
-                        lane_reversal_enabled <= 1;
-                        o_Lfsr_tx_done        <= 1;
-                    end else begin
-                        o_Lfsr_tx_done <= 0;
-                    end
+                    o_Lfsr_tx_done   <= 0;
+                    lane_reversal_enabled <= i_reversal_en;
                 end
 
                 // ==============================================================
@@ -321,13 +310,11 @@ module unit_lfsr_tx #(
                     if (counter_lfsr == COUNT_LFSR) begin
                         // Phase complete
                         counter_lfsr   <= 0;
-                        o_ser_en_lfsr <= 0;
+                        o_ser_en_lfsr  <= 0;
                         o_Lfsr_tx_done <= 1;
-                        o_valid_frame_en <= 0;
                     end else begin
                         // Drive the appropriate lane group with LFSR data
-                        o_ser_en_lfsr <= 1;
-                        o_valid_frame_en <= 1;
+                        o_ser_en_lfsr  <= 1;
                         o_Lfsr_tx_done <= 0;
                         counter_lfsr   <= counter_lfsr + 1;
 
@@ -394,12 +381,10 @@ module unit_lfsr_tx #(
                 PER_LANE_IDE: begin
                     if (counter_per_lane == COUNT_PER_LANE) begin
                         counter_per_lane <= 0;
-                        o_ser_en_lfsr <= 0;
+                        o_ser_en_lfsr    <= 0;
                         o_Lfsr_tx_done   <= 1;
-                        o_valid_frame_en   <= 0;
                     end else begin
-                        o_ser_en_lfsr <= 1;
-                        o_valid_frame_en   <= 1;
+                        o_ser_en_lfsr    <= 1;
                         o_Lfsr_tx_done   <= 0;
                         counter_per_lane <= counter_per_lane + 1;
 
@@ -469,7 +454,6 @@ module unit_lfsr_tx #(
 
                     if (i_scramble_en) begin
                         // Scrambling enabled: XOR input data with LFSR stream
-                        o_valid_frame_en <= 1;
                         o_ser_en_lfsr <= 1;
 
                         case (i_width_deg_lfsr)
@@ -529,7 +513,6 @@ module unit_lfsr_tx #(
 
                     end else begin
                         // Scrambling disabled — no frame output
-                        o_valid_frame_en <= 0;
                         o_ser_en_lfsr <= 0;
                     end
                 end
