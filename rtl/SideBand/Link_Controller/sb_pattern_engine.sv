@@ -10,7 +10,7 @@ module sb_pattern_engine (
 
     output logic        iter_done,
 
-    // mapper
+    // unit_mapper
     input  logic [63:0] mapper_data,
     input  logic        mapper_valid,
     output logic        mapper_rdy,
@@ -254,7 +254,7 @@ endmodule
 
     output logic        four_iter_done,
 
-    // mapper interface
+    // unit_mapper interface
     input  logic [63:0] mapper_data,
     input  logic        mapper_valid,
     output logic        mapper_rdy,
@@ -337,7 +337,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 ////////////////////////////////////////////////////////////
-// Mapper rdy
+// unit_mapper rdy
 ////////////////////////////////////////////////////////////
 
 assign mapper_rdy = (!pattern_mode) && (!start_pat_req) && ser_rdy;

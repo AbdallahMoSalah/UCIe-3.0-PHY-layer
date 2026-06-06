@@ -1,5 +1,5 @@
 # Serializer
-rtl/MainBand/tx/mb_serializer.sv
+rtl/MainBand/tx/unit_mb_serializer.sv
 
 # Common FIFO
 rtl/common/FIFO/fifo_mem.sv
@@ -9,10 +9,10 @@ rtl/common/FIFO/fifo_wptr_full.sv
 rtl/common/FIFO/fifo.sv
 
 # Deserializers & Detector (Solution 2)
-rtl/MainBand/rx/unused/Valid_Deserializer_s2.sv
-rtl/MainBand/rx/unused/Valid_Frame_Detector_s2.sv
-rtl/MainBand/rx/unused/Data_Deserializer_s2.sv
+rtl/MainBand/rx/unused/unit_valid_deserializer_s2.sv
+rtl/MainBand/rx/unused/unit_valid_frame_detector_s2.sv
+rtl/MainBand/rx/unused/unit_data_deserializer_s2.sv
 
 # Testbench
-rtl/MainBand/rx/unused/RX_Deser_TB_s2.sv
+rtl/MainBand/rx/unused/unit_rx_deser_tb_s2.sv
 

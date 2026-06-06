@@ -71,7 +71,7 @@ module MB_RX_TOP_TB;
     logic [15:0]           i_max_error_threshold_per_lane_ID;
     logic [15:0]           i_max_error_threshold_aggergate;
 
-    // Demapper controls
+    // unit_demapper controls
     logic                  demapper_en;
     logic                  rx_data_valid;
     logic [2:0]            i_width_deg_demap;
@@ -490,7 +490,7 @@ module MB_RX_TOP_TB;
         // ==================================================================
         // TEST 3: Training Mode — PATTERN_LFSR
         // ------------------------------------------------------------------
-        // i_state = 3'b010 → LFSR_RX enters PATTERN_LFSR
+        // i_state = 3'b010 → unit_lfsr_rx enters PATTERN_LFSR
         // LFSR generates reference words → Pattern Comparator compares
         // Data in: send known data frames, comparator checks vs LFSR output
         // We send 135 frames to allow the comparator to complete its 128 cycles.
@@ -566,7 +566,7 @@ module MB_RX_TOP_TB;
         // ==================================================================
         // TEST 4: Training Mode — PER_LANE_IDE
         // ------------------------------------------------------------------
-        // i_state = 3'b011 → LFSR_RX drives Lane-ID tokens as reference
+        // i_state = 3'b011 → unit_lfsr_rx drives Lane-ID tokens as reference
         // Pattern: 1010_<lane_index_8bit>_1010 for each lane (repeated twice to fill 32 bits)
         // ==================================================================
         $display("\n--- TEST 4: LFSR Training Mode - PER_LANE_IDE ---");
@@ -631,7 +631,7 @@ module MB_RX_TOP_TB;
         // ==================================================================
         // TEST 5: Active (Data Transfer) Mode
         // ------------------------------------------------------------------
-        // i_active_state_entered = 1 → LFSR_RX enters DATA_TRANSFER
+        // i_active_state_entered = 1 → unit_lfsr_rx enters DATA_TRANSFER
         // Pattern Comparator BYPASSES all 16 lanes → data goes to Demapper
         // Demapper (x16 mode) assembles one 512-bit flit in 1 MB_clk cycle
         // ==================================================================
@@ -664,7 +664,7 @@ module MB_RX_TOP_TB;
             i_enable_buffer        = 1'b1;
             i_descramble_en        = 1'b0;
 
-            // Enable demapper BEFORE sending (it samples when rx_data_valid)
+            // Enable unit_demapper BEFORE sending (it samples when rx_data_valid)
             demapper_en       = 1'b1;
             i_width_deg_demap = 3'b011; // x16 → 1 cycle to fill 512 bits
 
@@ -678,7 +678,7 @@ module MB_RX_TOP_TB;
                 // Thread 2: assert rx_data_valid when data lanes are ready
                 begin
                     wait_for_data_done(20);
-                    // data is now in MB_clk domain, tell Demapper it's valid
+                    // data is now in MB_clk domain, tell unit_demapper it's valid
                     @(posedge MB_clk);
                     rx_data_valid = 1'b1;
                     @(posedge MB_clk);
@@ -686,11 +686,11 @@ module MB_RX_TOP_TB;
                 end
             join
 
-            // Wait for Demapper output
+            // Wait for unit_demapper output
             fork
                 begin
                     wait(pl_valid == 1'b1);
-                    $display("[%0t] pl_valid asserted! Demapper output ready.", $time);
+                    $display("[%0t] pl_valid asserted! unit_demapper output ready.", $time);
                     
                     // Verify all lanes
                     begin
@@ -710,9 +710,9 @@ module MB_RX_TOP_TB;
                             end
                         end
                         if (!failed) begin
-                            $display("[%0t] TEST 5 PASSED: Demapper output verified successfully.", $time);
+                            $display("[%0t] TEST 5 PASSED: unit_demapper output verified successfully.", $time);
                         end else begin
-                            $display("[%0t] TEST 5 FAILED: Demapper mismatch.", $time);
+                            $display("[%0t] TEST 5 FAILED: unit_demapper mismatch.", $time);
                             $fatal("Test 5 Failed");
                         end
                     end
@@ -729,7 +729,7 @@ module MB_RX_TOP_TB;
         // ==================================================================
         // TEST 6: PATTERN_LFSR with MATCHING TX data → Comparator = 0 errors
         // ------------------------------------------------------------------
-        // We compute the EXACT pattern the LFSR_RX generates locally using
+        // We compute the EXACT pattern the unit_lfsr_rx generates locally using
         // tb_next_lfsr_state() (same polynomial as RTL) and send it as TX.
         // o_Data_by == o_final_gene → Pattern Comparator must report 0 errors.
         //

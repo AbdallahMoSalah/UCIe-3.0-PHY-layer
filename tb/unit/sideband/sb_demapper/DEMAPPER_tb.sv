@@ -66,7 +66,7 @@ module DEMAPPER_tb;
     logic [127:0] msg_word_rcvd;
     logic         word_vld_rcvd;
 
-    DEMAPPER dut (
+    unit_demapper dut (
     .clk(clk),
     .rst_n(rst_n),
     .msg_rcvd(msg_rcvd),      

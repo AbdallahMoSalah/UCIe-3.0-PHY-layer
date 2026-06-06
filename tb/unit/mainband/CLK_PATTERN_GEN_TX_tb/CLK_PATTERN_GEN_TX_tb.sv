@@ -16,7 +16,7 @@ module CLK_PATTERN_GEN_TX_tb;
     // -----------------------------
     // Instantiate DUT
     // -----------------------------
-    CLK_PATTERN_GEN_TX dut (
+    unit_clk_pattern_gen_tx dut (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
         .clk_pattern_en(clk_pattern_en),

@@ -30,7 +30,7 @@ module CLK_PATTERN_DETECTOR_RX_tb;
   // -------------------------
   // DUT
   // -------------------------
-  CLK_PATTERN_DETECTOR_RX dut (
+  unit_clk_pattern_detector_rx dut (
     .i_clk(i_clk),
     .i_rst_n(i_rst_n),
     .clk_detector_en(clk_detector_en),

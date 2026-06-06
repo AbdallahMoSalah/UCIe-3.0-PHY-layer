@@ -1,2 +1,2 @@
-rtl/MainBand/tx/CLK_PATTERN_GEN_TX.sv
+rtl/MainBand/tx/unit_clk_pattern_gen_tx.sv
 tb/unit/mainband/CLK_PATTERN_GEN_TX_tb/CLK_PATTERN_GEN_TX_tb.sv

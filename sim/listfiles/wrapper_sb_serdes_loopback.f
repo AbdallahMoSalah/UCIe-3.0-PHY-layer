@@ -2,7 +2,7 @@
 tb/unit/sideband/sb_serializer/sb_serializer_tb_pkg.sv
 
 # DUT
-rtl/common/CLK_GATE.sv
+rtl/common/unit_clk_gate.sv
 rtl/SideBand/unused/sb_serializer.sv
 rtl/SideBand/unused/sb_deserializer.sv
 

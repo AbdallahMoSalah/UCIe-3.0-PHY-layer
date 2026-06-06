@@ -2,7 +2,7 @@
 rtl/SideBand/common/sb_pkg.sv
 
 # DUT 
-rtl/common/CLK_GATE.sv
+rtl/common/unit_clk_gate.sv
 rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv
 rtl/SideBand/Link_Controller/sb_pattern_engine.sv
 

@@ -38,7 +38,7 @@ module LFSR_RX_tb;
     always #(CLK_PERIOD/2) i_clk = ~i_clk;
 
     // ---------- DUT instantiation ----------
-    LFSR_RX #(.WIDTH(WIDTH)) dut (
+    unit_lfsr_rx #(.WIDTH(WIDTH)) dut (
         .i_clk                  (i_clk),
         .i_rst_n                (i_rst_n),
         .i_state                (i_state),

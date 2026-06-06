@@ -240,7 +240,7 @@ logic shift_active;
 // This perfectly aligns the 64 clock pulses with the valid data on TXDATASB.
 assign shift_active = (next_state == S_SHIFT);
 
-CLK_GATE forward_clock(
+unit_clk_gate forward_clock(
     .CLK(clk_serial),
     .CLK_EN(shift_active),
     .GATED_CLK(TXCKSB)
@@ -497,7 +497,7 @@ logic shift_active;
 
 assign shift_active = (next_state == S_SHIFT);
 
-CLK_GATE forward_clock(
+unit_clk_gate forward_clock(
     .CLK(clk_serial),
     .CLK_EN(shift_active),
     .GATED_CLK(TXCKSB)
