@@ -1,5 +1,5 @@
 # DUT
-rtl/MainBand/unsued/Valid_tx.sv
+rtl/MainBand/tx/Valid_tx.sv
 
 # Testbench
-rtl/MainBand/unsued/Valid_tx_tb.sv
+rtl/MainBand/tx/unused/Valid_tx_tb.sv

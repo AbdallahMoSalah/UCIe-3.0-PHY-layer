@@ -1,5 +1,5 @@
 # DUT
-rtl/MainBand/MAPPER/Mapper.sv
+rtl/MainBand/tx/Mapper.sv
 
 # Testbench
 tb/unit/mainband/mapper_tb/Mapper_tb_pkg.sv

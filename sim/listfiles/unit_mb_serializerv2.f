@@ -1,5 +1,5 @@
 # DUT
-rtl/MainBand/unsued/mb_serializer.sv
+rtl/MainBand/tx/mb_serializer.sv
 
 # Testbench
-rtl/MainBand/unsued/MB_SERIALIZER_TB.sv
+rtl/MainBand/tx/unused/MB_SERIALIZER_TB.sv

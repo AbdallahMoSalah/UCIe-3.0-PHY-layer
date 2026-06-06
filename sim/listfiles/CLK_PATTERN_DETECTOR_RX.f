@@ -1,2 +1,2 @@
-rtl/MainBand/CLK_pattern_detector_RX/CLK_PATTERN_DETECTOR_RX.sv
+rtl/MainBand/rx/CLK_PATTERN_DETECTOR_RX.sv
 tb/unit/mainband/CLK_PATTERN_DETECTOR_RX_tb/CLK_PATTERN_DETECTOR_RX_tb.sv
