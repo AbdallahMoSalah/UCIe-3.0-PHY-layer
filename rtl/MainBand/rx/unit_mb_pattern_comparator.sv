@@ -43,19 +43,18 @@ module unit_mb_pattern_comparator #(
     input  wire [15:0]           i_max_error_threshold_per_lane,    // per-Lane threshold  (9.5.3.29)
     input  wire [15:0]           i_max_error_threshold_aggregate,   // aggregate threshold (9.5.3.29)
     input  wire [15:0]           i_iteration_count,                 // # compare cycles per test (e.g. 128); hold stable during a test
-
+    input  wire                  i_pattern_mode,                    // 1 = perlane id pattern, 0 = LFSR pattern
+    input  wire                  i_clear_error,
     // ---------------- Patterns (the two inputs) ----------------
     input  wire [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
     input  wire [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
 
     // ---------------- Results ----------------
     output reg                   o_done,                      // test complete, results valid
-    output reg  [NUM_LANES-1:0]  o_per_lane_error,            // 1 = Lane FAIL (errors > thr), sticky (Fig 4-28)
-    output reg                   o_all_lane_pass,             // 1 = Pass: no unmasked Lane failed (Table 7-11 [4])
+    output reg  [NUM_LANES-1:0]  o_per_lane_pass,             // 1 = Lane PASS, sticky (Fig 4-28 / per-lane ID)
     output reg  [15:0]           o_aggregate_error_counter,   // 16-bit module error counter (Fig 4-29)
-    output reg                   o_aggregate_pass             // 1 = Pass: aggregate count <= threshold
+    output reg                   o_aggregate_error             // 1 = Fail: aggregate count > threshold
 );
-
     // =========================================================================
     // Popcount helper (number of set bits in a WIDTH-bit vector)
     // =========================================================================
@@ -114,19 +113,38 @@ module unit_mb_pattern_comparator #(
     reg [1:0]  state;
     reg [15:0] iter_ctr;
     reg [15:0] lane_err_accum [0:NUM_LANES-1];   // accumulated bit errors per Lane
+    reg [4:0]  consecutive_ctr [0:NUM_LANES-1];  // 16 consecutive successful iterations counter
 
     integer k;
     always @(posedge i_clk or negedge i_rst_n) begin
+        reg [4:0] temp_ctr;
         if (!i_rst_n) begin
             state                     <= S_IDLE;
             iter_ctr                  <= 16'd0;
             o_done                    <= 1'b0;
-            o_per_lane_error          <= '0;
-            o_all_lane_pass           <= 1'b0;
+            o_per_lane_pass           <= '0;
             o_aggregate_error_counter <= 16'd0;
-            o_aggregate_pass          <= 1'b0;
-            for (k = 0; k < NUM_LANES; k = k + 1)
-                lane_err_accum[k] <= 16'd0;
+            o_aggregate_error          <= 1'b0;
+            for (k = 0; k < NUM_LANES; k = k + 1) begin
+                lane_err_accum[k]  <= 16'd0;
+                consecutive_ctr[k] <= 5'd0;
+            end
+        end else if (i_clear_error) begin
+            state                     <= S_IDLE;
+            iter_ctr                  <= 16'd0;
+            o_done                    <= 1'b0;
+            o_aggregate_error_counter <= 16'd0;
+            o_aggregate_error          <= 1'b0;
+            for (k = 0; k < NUM_LANES; k = k + 1) begin
+                lane_err_accum[k]  <= 16'd0;
+                consecutive_ctr[k] <= 5'd0;
+                if (i_lane_mask[k])
+                    o_per_lane_pass[k] <= 1'b1;
+                else if (i_pattern_mode)
+                    o_per_lane_pass[k] <= 1'b0;
+                else
+                    o_per_lane_pass[k] <= 1'b1;
+            end
         end else begin
             case (state)
                 // ---------------------------------------------------------
@@ -135,12 +153,18 @@ module unit_mb_pattern_comparator #(
                     if (i_enable) begin
                         // Start a fresh test: clear all accumulators / results.
                         iter_ctr                  <= 16'd0;
-                        o_per_lane_error          <= '0;
-                        o_all_lane_pass           <= 1'b0;
                         o_aggregate_error_counter <= 16'd0;
-                        o_aggregate_pass          <= 1'b0;
-                        for (k = 0; k < NUM_LANES; k = k + 1)
-                            lane_err_accum[k] <= 16'd0;
+                        o_aggregate_error          <= 1'b0;
+                        for (k = 0; k < NUM_LANES; k = k + 1) begin
+                            lane_err_accum[k]  <= 16'd0;
+                            consecutive_ctr[k] <= 5'd0;
+                            if (i_lane_mask[k])
+                                o_per_lane_pass[k] <= 1'b1;
+                            else if (i_pattern_mode)
+                                o_per_lane_pass[k] <= 1'b0;
+                            else
+                                o_per_lane_pass[k] <= 1'b1;
+                        end
                         state <= S_COMPARE;
                     end
                 end
@@ -150,16 +174,57 @@ module unit_mb_pattern_comparator #(
                     if (!i_enable) begin
                         state <= S_IDLE;            // aborted before completion
                     end else begin
-                        if (i_comparison_mode == 1'b0) begin
-                            // ---- Per-Lane comparison (Fig 4-28) ----
+                        // 1. Lane Pass / Mismatch calculation
+                        if (i_pattern_mode == 1'b1) begin
+                            // ---- Per-lane ID pattern mode (16 consecutive successful iterations) ----
                             for (k = 0; k < NUM_LANES; k = k + 1) begin
-                                lane_err_accum[k] <= lane_err_accum[k] + lane_inc[k];
-                                // Sticky FAIL once accumulated errors exceed the threshold.
-                                if ((lane_err_accum[k] + lane_inc[k]) > i_max_error_threshold_per_lane)
-                                    o_per_lane_error[k] <= 1'b1;
+                                if (i_lane_mask[k]) begin
+                                    consecutive_ctr[k] <= 5'd0;
+                                    o_per_lane_pass[k] <= 1'b1;
+                                end else if (o_per_lane_pass[k]) begin
+                                    consecutive_ctr[k] <= consecutive_ctr[k];
+                                    o_per_lane_pass[k] <= 1'b1;
+                                end else begin
+                                    temp_ctr = consecutive_ctr[k];
+                                    
+                                    // Check iteration 1 (bits 15:0)
+                                    if (mismatch_masked[k][15:0] == 16'd0) begin
+                                        if (temp_ctr < 5'd16) temp_ctr = temp_ctr + 5'd1;
+                                    end else begin
+                                        temp_ctr = 5'd0;
+                                    end
+                                    
+                                    // Check iteration 2 (bits 31:16)
+                                    if (mismatch_masked[k][31:16] == 16'd0) begin
+                                        if (temp_ctr < 5'd16) temp_ctr = temp_ctr + 5'd1;
+                                    end else begin
+                                        temp_ctr = 5'd0;
+                                    end
+                                    
+                                    consecutive_ctr[k] <= temp_ctr;
+                                    if (temp_ctr >= 5'd16) begin
+                                        o_per_lane_pass[k] <= 1'b1;
+                                    end
+                                end
                             end
                         end else begin
-                            // ---- Aggregate comparison (Fig 4-29) ----
+                            // ---- LFSR mode ----
+                            for (k = 0; k < NUM_LANES; k = k + 1) begin
+                                if (i_lane_mask[k]) begin
+                                    lane_err_accum[k]  <= 16'd0;
+                                    o_per_lane_pass[k] <= 1'b1;
+                                end else begin
+                                    lane_err_accum[k] <= lane_err_accum[k] + lane_inc[k];
+                                    // Sticky FAIL once accumulated errors exceed the threshold.
+                                    if ((lane_err_accum[k] + lane_inc[k]) > i_max_error_threshold_per_lane)
+                                        o_per_lane_pass[k] <= 1'b0;
+                                end
+                            end
+                        end
+
+                        // 2. Aggregate comparison
+                        if (i_comparison_mode == 1'b1) begin
+                            // ---- Aggregate comparison ----
                             // OR Lanes per UI, count error UIs, saturate at 16'hFFFF.
                             if (o_aggregate_error_counter > (16'hFFFF - agg_inc))
                                 o_aggregate_error_counter <= 16'hFFFF;
@@ -167,6 +232,7 @@ module unit_mb_pattern_comparator #(
                                 o_aggregate_error_counter <= o_aggregate_error_counter + agg_inc;
                         end
 
+                        // 3. Counter and state transitions
                         if (iter_ctr == i_iteration_count - 1)
                             state <= S_DONE;
                         else
@@ -177,10 +243,8 @@ module unit_mb_pattern_comparator #(
                 // ---------------------------------------------------------
                 S_DONE: begin
                     o_done <= 1'b1;
-                    // Cumulative all-Lane result: Pass only if no unmasked Lane failed.
-                    o_all_lane_pass <= ~( | (o_per_lane_error & ~i_lane_mask) );
                     // Aggregate result: Pass if error count is within threshold.
-                    o_aggregate_pass <= (o_aggregate_error_counter <= i_max_error_threshold_aggregate);
+                    o_aggregate_error <= (o_aggregate_error_counter > i_max_error_threshold_aggregate);
                     if (!i_enable)
                         state <= S_IDLE;
                 end
