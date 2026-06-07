@@ -41,9 +41,13 @@ module Mapper #(
     localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;   // 4
 
     //============================================================
-    // Internal Registers
+    // Internal Registers and Handshake Logic
     //============================================================
     reg [1:0] cycle_count;
+
+    // Latched registers for stabilizing mapping data mid-transfer
+    reg [8*N_BYTES-1:0] reg_in_data;
+    reg [2:0]           reg_width_deg_map;
 
     // Active (lp_irdy && lp_valid): adapter has valid data and wants PL to sample
     wire data_active = lp_irdy && lp_valid;
@@ -55,10 +59,34 @@ module Mapper #(
                        (i_width_deg_map == DEGRADE_LANES_0_TO_3)  ||
                        (i_width_deg_map == DEGRADE_LANES_4_TO_7);
 
+    // Handshake and active signals
+    wire handshake = lp_valid && lp_irdy && mapper_ready && mapper_en && mode_active;
+    wire is_active = handshake || (cycle_count != 2'd0);
+
+    // Multiplex between live input on handshake cycle and latched input on subsequent cycles
+    wire [8*N_BYTES-1:0] active_data          = (cycle_count == 2'd0) ? i_in_data       : reg_in_data;
+    wire [2:0]           active_width_deg_map = (cycle_count == 2'd0) ? i_width_deg_map : reg_width_deg_map;
+
+    // Latch inputs on handshake
+    always @(posedge i_clk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            reg_in_data       <= {8*N_BYTES{1'b0}};
+            reg_width_deg_map <= 3'b0;
+        end else begin
+            if (!mapper_en || !mode_active) begin
+                reg_in_data       <= {8*N_BYTES{1'b0}};
+                reg_width_deg_map <= 3'b0;
+            end else if (handshake) begin
+                reg_in_data       <= i_in_data;
+                reg_width_deg_map <= i_width_deg_map;
+            end
+        end
+    end
+
     // Helper for cycles needed per flit
     reg [2:0] cycles_needed;
     always_comb begin
-        case (i_width_deg_map)
+        case (active_width_deg_map)
             DEGRADE_LANES_0_TO_15: cycles_needed = 3'd1;
             DEGRADE_LANES_0_TO_7,
             DEGRADE_LANES_8_TO_15: cycles_needed = 3'd2;
@@ -118,7 +146,7 @@ module Mapper #(
             end
             else begin
                 // Active mode & enabled
-                if (!data_active) begin
+                if (!is_active) begin
                     // Stall mid-transaction or waiting for first transaction
                     out_scramble_en <= 1'b0;
                     o_lane_0         <= {WIDTH{1'b0}};
@@ -146,7 +174,7 @@ module Mapper #(
                     end
                 end
                 else begin
-                    // Real data active (data_active = 1)
+                    // Real data active (is_active = 1)
                     out_scramble_en <= 1'b1;
 
                     // Clear all lanes as default, active ones will be overwritten in case statement
@@ -167,47 +195,47 @@ module Mapper #(
                     o_lane_14 <= {WIDTH{1'b0}};
                     o_lane_15 <= {WIDTH{1'b0}};
 
-                    case (i_width_deg_map)
+                    case (active_width_deg_map)
                         DEGRADE_LANES_0_TO_15: begin
-                            o_lane_0  <= {i_in_data[391:384], i_in_data[263:256], i_in_data[135:128], i_in_data[  7:  0]};
-                            o_lane_1  <= {i_in_data[399:392], i_in_data[271:264], i_in_data[143:136], i_in_data[ 15:  8]};
-                            o_lane_2  <= {i_in_data[407:400], i_in_data[279:272], i_in_data[151:144], i_in_data[ 23: 16]};
-                            o_lane_3  <= {i_in_data[415:408], i_in_data[287:280], i_in_data[159:152], i_in_data[ 31: 24]};
-                            o_lane_4  <= {i_in_data[423:416], i_in_data[295:288], i_in_data[167:160], i_in_data[ 39: 32]};
-                            o_lane_5  <= {i_in_data[431:424], i_in_data[303:296], i_in_data[175:168], i_in_data[ 47: 40]};
-                            o_lane_6  <= {i_in_data[439:432], i_in_data[311:304], i_in_data[183:176], i_in_data[ 55: 48]};
-                            o_lane_7  <= {i_in_data[447:440], i_in_data[319:312], i_in_data[191:184], i_in_data[ 63: 56]};
-                            o_lane_8  <= {i_in_data[455:448], i_in_data[327:320], i_in_data[199:192], i_in_data[ 71: 64]};
-                            o_lane_9  <= {i_in_data[463:456], i_in_data[335:328], i_in_data[207:200], i_in_data[ 79: 72]};
-                            o_lane_10 <= {i_in_data[471:464], i_in_data[343:336], i_in_data[215:208], i_in_data[ 87: 80]};
-                            o_lane_11 <= {i_in_data[479:472], i_in_data[351:344], i_in_data[223:216], i_in_data[ 95: 88]};
-                            o_lane_12 <= {i_in_data[487:480], i_in_data[359:352], i_in_data[231:224], i_in_data[103: 96]};
-                            o_lane_13 <= {i_in_data[495:488], i_in_data[367:360], i_in_data[239:232], i_in_data[111:104]};
-                            o_lane_14 <= {i_in_data[503:496], i_in_data[375:368], i_in_data[247:240], i_in_data[119:112]};
-                            o_lane_15 <= {i_in_data[511:504], i_in_data[383:376], i_in_data[255:248], i_in_data[127:120]};
+                            o_lane_0  <= {active_data[391:384], active_data[263:256], active_data[135:128], active_data[  7:  0]};
+                            o_lane_1  <= {active_data[399:392], active_data[271:264], active_data[143:136], active_data[ 15:  8]};
+                            o_lane_2  <= {active_data[407:400], active_data[279:272], active_data[151:144], active_data[ 23: 16]};
+                            o_lane_3  <= {active_data[415:408], active_data[287:280], active_data[159:152], active_data[ 31: 24]};
+                            o_lane_4  <= {active_data[423:416], active_data[295:288], active_data[167:160], active_data[ 39: 32]};
+                            o_lane_5  <= {active_data[431:424], active_data[303:296], active_data[175:168], active_data[ 47: 40]};
+                            o_lane_6  <= {active_data[439:432], active_data[311:304], active_data[183:176], active_data[ 55: 48]};
+                            o_lane_7  <= {active_data[447:440], active_data[319:312], active_data[191:184], active_data[ 63: 56]};
+                            o_lane_8  <= {active_data[455:448], active_data[327:320], active_data[199:192], active_data[ 71: 64]};
+                            o_lane_9  <= {active_data[463:456], active_data[335:328], active_data[207:200], active_data[ 79: 72]};
+                            o_lane_10 <= {active_data[471:464], active_data[343:336], active_data[215:208], active_data[ 87: 80]};
+                            o_lane_11 <= {active_data[479:472], active_data[351:344], active_data[223:216], active_data[ 95: 88]};
+                            o_lane_12 <= {active_data[487:480], active_data[359:352], active_data[231:224], active_data[103: 96]};
+                            o_lane_13 <= {active_data[495:488], active_data[367:360], active_data[239:232], active_data[111:104]};
+                            o_lane_14 <= {active_data[503:496], active_data[375:368], active_data[247:240], active_data[119:112]};
+                            o_lane_15 <= {active_data[511:504], active_data[383:376], active_data[255:248], active_data[127:120]};
                         end
 
                         DEGRADE_LANES_0_TO_7: begin
                             case (cycle_count)
                                 2'd0: begin
-                                    o_lane_0 <= {i_in_data[199:192], i_in_data[135:128], i_in_data[ 71: 64], i_in_data[  7:  0]};
-                                    o_lane_1 <= {i_in_data[207:200], i_in_data[143:136], i_in_data[ 79: 72], i_in_data[ 15:  8]};
-                                    o_lane_2 <= {i_in_data[215:208], i_in_data[151:144], i_in_data[ 87: 80], i_in_data[ 23: 16]};
-                                    o_lane_3 <= {i_in_data[223:216], i_in_data[159:152], i_in_data[ 95: 88], i_in_data[ 31: 24]};
-                                    o_lane_4 <= {i_in_data[231:224], i_in_data[167:160], i_in_data[103: 96], i_in_data[ 39: 32]};
-                                    o_lane_5 <= {i_in_data[239:232], i_in_data[175:168], i_in_data[111:104], i_in_data[ 47: 40]};
-                                    o_lane_6 <= {i_in_data[247:240], i_in_data[183:176], i_in_data[119:112], i_in_data[ 55: 48]};
-                                    o_lane_7 <= {i_in_data[255:248], i_in_data[191:184], i_in_data[127:120], i_in_data[ 63: 56]};
+                                    o_lane_0 <= {active_data[199:192], active_data[135:128], active_data[ 71: 64], active_data[  7:  0]};
+                                    o_lane_1 <= {active_data[207:200], active_data[143:136], active_data[ 79: 72], active_data[ 15:  8]};
+                                    o_lane_2 <= {active_data[215:208], active_data[151:144], active_data[ 87: 80], active_data[ 23: 16]};
+                                    o_lane_3 <= {active_data[223:216], active_data[159:152], active_data[ 95: 88], active_data[ 31: 24]};
+                                    o_lane_4 <= {active_data[231:224], active_data[167:160], active_data[103: 96], active_data[ 39: 32]};
+                                    o_lane_5 <= {active_data[239:232], active_data[175:168], active_data[111:104], active_data[ 47: 40]};
+                                    o_lane_6 <= {active_data[247:240], active_data[183:176], active_data[119:112], active_data[ 55: 48]};
+                                    o_lane_7 <= {active_data[255:248], active_data[191:184], active_data[127:120], active_data[ 63: 56]};
                                 end
                                 2'd1: begin
-                                    o_lane_0 <= {i_in_data[455:448], i_in_data[391:384], i_in_data[327:320], i_in_data[263:256]};
-                                    o_lane_1 <= {i_in_data[463:456], i_in_data[399:392], i_in_data[335:328], i_in_data[271:264]};
-                                    o_lane_2 <= {i_in_data[471:464], i_in_data[407:400], i_in_data[343:336], i_in_data[279:272]};
-                                    o_lane_3 <= {i_in_data[479:472], i_in_data[415:408], i_in_data[351:344], i_in_data[287:280]};
-                                    o_lane_4 <= {i_in_data[487:480], i_in_data[423:416], i_in_data[359:352], i_in_data[295:288]};
-                                    o_lane_5 <= {i_in_data[495:488], i_in_data[431:424], i_in_data[367:360], i_in_data[303:296]};
-                                    o_lane_6 <= {i_in_data[503:496], i_in_data[439:432], i_in_data[375:368], i_in_data[311:304]};
-                                    o_lane_7 <= {i_in_data[511:504], i_in_data[447:440], i_in_data[383:376], i_in_data[319:312]};
+                                    o_lane_0 <= {active_data[455:448], active_data[391:384], active_data[327:320], active_data[263:256]};
+                                    o_lane_1 <= {active_data[463:456], active_data[399:392], active_data[335:328], active_data[271:264]};
+                                    o_lane_2 <= {active_data[471:464], active_data[407:400], active_data[343:336], active_data[279:272]};
+                                    o_lane_3 <= {active_data[479:472], active_data[415:408], active_data[351:344], active_data[287:280]};
+                                    o_lane_4 <= {active_data[487:480], active_data[423:416], active_data[359:352], active_data[295:288]};
+                                    o_lane_5 <= {active_data[495:488], active_data[431:424], active_data[367:360], active_data[303:296]};
+                                    o_lane_6 <= {active_data[503:496], active_data[439:432], active_data[375:368], active_data[311:304]};
+                                    o_lane_7 <= {active_data[511:504], active_data[447:440], active_data[383:376], active_data[319:312]};
                                 end
                                 default: begin end
                             endcase
@@ -216,24 +244,24 @@ module Mapper #(
                         DEGRADE_LANES_8_TO_15: begin
                             case (cycle_count)
                                 2'd0: begin
-                                    o_lane_8  <= {i_in_data[199:192], i_in_data[135:128], i_in_data[ 71: 64], i_in_data[  7:  0]};
-                                    o_lane_9  <= {i_in_data[207:200], i_in_data[143:136], i_in_data[ 79: 72], i_in_data[ 15:  8]};
-                                    o_lane_10 <= {i_in_data[215:208], i_in_data[151:144], i_in_data[ 87: 80], i_in_data[ 23: 16]};
-                                    o_lane_11 <= {i_in_data[223:216], i_in_data[159:152], i_in_data[ 95: 88], i_in_data[ 31: 24]};
-                                    o_lane_12 <= {i_in_data[231:224], i_in_data[167:160], i_in_data[103: 96], i_in_data[ 39: 32]};
-                                    o_lane_13 <= {i_in_data[239:232], i_in_data[175:168], i_in_data[111:104], i_in_data[ 47: 40]};
-                                    o_lane_14 <= {i_in_data[247:240], i_in_data[183:176], i_in_data[119:112], i_in_data[ 55: 48]};
-                                    o_lane_15 <= {i_in_data[255:248], i_in_data[191:184], i_in_data[127:120], i_in_data[ 63: 56]};
+                                    o_lane_8  <= {active_data[199:192], active_data[135:128], active_data[ 71: 64], active_data[  7:  0]};
+                                    o_lane_9  <= {active_data[207:200], active_data[143:136], active_data[ 79: 72], active_data[ 15:  8]};
+                                    o_lane_10 <= {active_data[215:208], active_data[151:144], active_data[ 87: 80], active_data[ 23: 16]};
+                                    o_lane_11 <= {active_data[223:216], active_data[159:152], active_data[ 95: 88], active_data[ 31: 24]};
+                                    o_lane_12 <= {active_data[231:224], active_data[167:160], active_data[103: 96], active_data[ 39: 32]};
+                                    o_lane_13 <= {active_data[239:232], active_data[175:168], active_data[111:104], active_data[ 47: 40]};
+                                    o_lane_14 <= {active_data[247:240], active_data[183:176], active_data[119:112], active_data[ 55: 48]};
+                                    o_lane_15 <= {active_data[255:248], active_data[191:184], active_data[127:120], active_data[ 63: 56]};
                                 end
                                 2'd1: begin
-                                    o_lane_8  <= {i_in_data[455:448], i_in_data[391:384], i_in_data[327:320], i_in_data[263:256]};
-                                    o_lane_9  <= {i_in_data[463:456], i_in_data[399:392], i_in_data[335:328], i_in_data[271:264]};
-                                    o_lane_10 <= {i_in_data[471:464], i_in_data[407:400], i_in_data[343:336], i_in_data[279:272]};
-                                    o_lane_11 <= {i_in_data[479:472], i_in_data[415:408], i_in_data[351:344], i_in_data[287:280]};
-                                    o_lane_12 <= {i_in_data[487:480], i_in_data[423:416], i_in_data[359:352], i_in_data[295:288]};
-                                    o_lane_13 <= {i_in_data[495:488], i_in_data[431:424], i_in_data[367:360], i_in_data[303:296]};
-                                    o_lane_14 <= {i_in_data[503:496], i_in_data[439:432], i_in_data[375:368], i_in_data[311:304]};
-                                    o_lane_15 <= {i_in_data[511:504], i_in_data[447:440], i_in_data[383:376], i_in_data[319:312]};
+                                    o_lane_8  <= {active_data[455:448], active_data[391:384], active_data[327:320], active_data[263:256]};
+                                    o_lane_9  <= {active_data[463:456], active_data[399:392], active_data[335:328], active_data[271:264]};
+                                    o_lane_10 <= {active_data[471:464], active_data[407:400], active_data[343:336], active_data[279:272]};
+                                    o_lane_11 <= {active_data[479:472], active_data[415:408], active_data[351:344], active_data[287:280]};
+                                    o_lane_12 <= {active_data[487:480], active_data[423:416], active_data[359:352], active_data[295:288]};
+                                    o_lane_13 <= {active_data[495:488], active_data[431:424], active_data[367:360], active_data[303:296]};
+                                    o_lane_14 <= {active_data[503:496], active_data[439:432], active_data[375:368], active_data[311:304]};
+                                    o_lane_15 <= {active_data[511:504], active_data[447:440], active_data[383:376], active_data[319:312]};
                                 end
                                 default: begin end
                             endcase
@@ -242,28 +270,28 @@ module Mapper #(
                         DEGRADE_LANES_0_TO_3: begin
                             case (cycle_count)
                                 2'd0: begin
-                                    o_lane_0 <= {i_in_data[103: 96], i_in_data[ 71: 64], i_in_data[ 39: 32], i_in_data[  7:  0]};
-                                    o_lane_1 <= {i_in_data[111:104], i_in_data[ 79: 72], i_in_data[ 47: 40], i_in_data[ 15:  8]};
-                                    o_lane_2 <= {i_in_data[119:112], i_in_data[ 87: 80], i_in_data[ 55: 48], i_in_data[ 23: 16]};
-                                    o_lane_3 <= {i_in_data[127:120], i_in_data[ 95: 88], i_in_data[ 63: 56], i_in_data[ 31: 24]};
+                                    o_lane_0 <= {active_data[103: 96], active_data[ 71: 64], active_data[ 39: 32], active_data[  7:  0]};
+                                    o_lane_1 <= {active_data[111:104], active_data[ 79: 72], active_data[ 47: 40], active_data[ 15:  8]};
+                                    o_lane_2 <= {active_data[119:112], active_data[ 87: 80], active_data[ 55: 48], active_data[ 23: 16]};
+                                    o_lane_3 <= {active_data[127:120], active_data[ 95: 88], active_data[ 63: 56], active_data[ 31: 24]};
                                 end
                                 2'd1: begin
-                                    o_lane_0 <= {i_in_data[231:224], i_in_data[199:192], i_in_data[167:160], i_in_data[135:128]};
-                                    o_lane_1 <= {i_in_data[239:232], i_in_data[207:200], i_in_data[175:168], i_in_data[143:136]};
-                                    o_lane_2 <= {i_in_data[247:240], i_in_data[215:208], i_in_data[183:176], i_in_data[151:144]};
-                                    o_lane_3 <= {i_in_data[255:248], i_in_data[223:216], i_in_data[191:184], i_in_data[159:152]};
+                                    o_lane_0 <= {active_data[231:224], active_data[199:192], active_data[167:160], active_data[135:128]};
+                                    o_lane_1 <= {active_data[239:232], active_data[207:200], active_data[175:168], active_data[143:136]};
+                                    o_lane_2 <= {active_data[247:240], active_data[215:208], active_data[183:176], active_data[151:144]};
+                                    o_lane_3 <= {active_data[255:248], active_data[223:216], active_data[191:184], active_data[159:152]};
                                 end
                                 2'd2: begin
-                                    o_lane_0 <= {i_in_data[359:352], i_in_data[327:320], i_in_data[295:288], i_in_data[263:256]};
-                                    o_lane_1 <= {i_in_data[367:360], i_in_data[335:328], i_in_data[303:296], i_in_data[271:264]};
-                                    o_lane_2 <= {i_in_data[375:368], i_in_data[343:336], i_in_data[311:304], i_in_data[279:272]};
-                                    o_lane_3 <= {i_in_data[383:376], i_in_data[351:344], i_in_data[319:312], i_in_data[287:280]};
+                                    o_lane_0 <= {active_data[359:352], active_data[327:320], active_data[295:288], active_data[263:256]};
+                                    o_lane_1 <= {active_data[367:360], active_data[335:328], active_data[303:296], active_data[271:264]};
+                                    o_lane_2 <= {active_data[375:368], active_data[343:336], active_data[311:304], active_data[279:272]};
+                                    o_lane_3 <= {active_data[383:376], active_data[351:344], active_data[319:312], active_data[287:280]};
                                 end
                                 2'd3: begin
-                                    o_lane_0 <= {i_in_data[487:480], i_in_data[455:448], i_in_data[423:416], i_in_data[391:384]};
-                                    o_lane_1 <= {i_in_data[495:488], i_in_data[463:456], i_in_data[431:424], i_in_data[399:392]};
-                                    o_lane_2 <= {i_in_data[503:496], i_in_data[471:464], i_in_data[439:432], i_in_data[407:400]};
-                                    o_lane_3 <= {i_in_data[511:504], i_in_data[479:472], i_in_data[447:440], i_in_data[415:408]};
+                                    o_lane_0 <= {active_data[487:480], active_data[455:448], active_data[423:416], active_data[391:384]};
+                                    o_lane_1 <= {active_data[495:488], active_data[463:456], active_data[431:424], active_data[399:392]};
+                                    o_lane_2 <= {active_data[503:496], active_data[471:464], active_data[439:432], active_data[407:400]};
+                                    o_lane_3 <= {active_data[511:504], active_data[479:472], active_data[447:440], active_data[415:408]};
                                 end
                                 default: begin end
                             endcase
@@ -272,28 +300,28 @@ module Mapper #(
                         DEGRADE_LANES_4_TO_7: begin
                             case (cycle_count)
                                 2'd0: begin
-                                    o_lane_4 <= {i_in_data[103: 96], i_in_data[ 71: 64], i_in_data[ 39: 32], i_in_data[  7:  0]};
-                                    o_lane_5 <= {i_in_data[111:104], i_in_data[ 79: 72], i_in_data[ 47: 40], i_in_data[ 15:  8]};
-                                    o_lane_6 <= {i_in_data[119:112], i_in_data[ 87: 80], i_in_data[ 55: 48], i_in_data[ 23: 16]};
-                                    o_lane_7 <= {i_in_data[127:120], i_in_data[ 95: 88], i_in_data[ 63: 56], i_in_data[ 31: 24]};
+                                    o_lane_4 <= {active_data[103: 96], active_data[ 71: 64], active_data[ 39: 32], active_data[  7:  0]};
+                                    o_lane_5 <= {active_data[111:104], active_data[ 79: 72], active_data[ 47: 40], active_data[ 15:  8]};
+                                    o_lane_6 <= {active_data[119:112], active_data[ 87: 80], active_data[ 55: 48], active_data[ 23: 16]};
+                                    o_lane_7 <= {active_data[127:120], active_data[ 95: 88], active_data[ 63: 56], active_data[ 31: 24]};
                                 end
                                 2'd1: begin
-                                    o_lane_4 <= {i_in_data[231:224], i_in_data[199:192], i_in_data[167:160], i_in_data[135:128]};
-                                    o_lane_5 <= {i_in_data[239:232], i_in_data[207:200], i_in_data[175:168], i_in_data[143:136]};
-                                    o_lane_6 <= {i_in_data[247:240], i_in_data[215:208], i_in_data[183:176], i_in_data[151:144]};
-                                    o_lane_7 <= {i_in_data[255:248], i_in_data[223:216], i_in_data[191:184], i_in_data[159:152]};
+                                    o_lane_4 <= {active_data[231:224], active_data[199:192], active_data[167:160], active_data[135:128]};
+                                    o_lane_5 <= {active_data[239:232], active_data[207:200], active_data[175:168], active_data[143:136]};
+                                    o_lane_6 <= {active_data[247:240], active_data[215:208], active_data[183:176], active_data[151:144]};
+                                    o_lane_7 <= {active_data[255:248], active_data[223:216], active_data[191:184], active_data[159:152]};
                                 end
                                 2'd2: begin
-                                    o_lane_4 <= {i_in_data[359:352], i_in_data[327:320], i_in_data[295:288], i_in_data[263:256]};
-                                    o_lane_5 <= {i_in_data[367:360], i_in_data[335:328], i_in_data[303:296], i_in_data[271:264]};
-                                    o_lane_6 <= {i_in_data[375:368], i_in_data[343:336], i_in_data[311:304], i_in_data[279:272]};
-                                    o_lane_7 <= {i_in_data[383:376], i_in_data[351:344], i_in_data[319:312], i_in_data[287:280]};
+                                    o_lane_4 <= {active_data[359:352], active_data[327:320], active_data[295:288], active_data[263:256]};
+                                    o_lane_5 <= {active_data[367:360], active_data[335:328], active_data[303:296], active_data[271:264]};
+                                    o_lane_6 <= {active_data[375:368], active_data[343:336], active_data[311:304], active_data[279:272]};
+                                    o_lane_7 <= {active_data[383:376], active_data[351:344], active_data[319:312], active_data[287:280]};
                                 end
                                 2'd3: begin
-                                    o_lane_4 <= {i_in_data[487:480], i_in_data[455:448], i_in_data[423:416], i_in_data[391:384]};
-                                    o_lane_5 <= {i_in_data[495:488], i_in_data[463:456], i_in_data[431:424], i_in_data[399:392]};
-                                    o_lane_6 <= {i_in_data[503:496], i_in_data[471:464], i_in_data[439:432], i_in_data[407:400]};
-                                    o_lane_7 <= {i_in_data[511:504], i_in_data[479:472], i_in_data[447:440], i_in_data[415:408]};
+                                    o_lane_4 <= {active_data[487:480], active_data[455:448], active_data[423:416], active_data[391:384]};
+                                    o_lane_5 <= {active_data[495:488], active_data[463:456], active_data[431:424], active_data[399:392]};
+                                    o_lane_6 <= {active_data[503:496], active_data[471:464], active_data[439:432], active_data[407:400]};
+                                    o_lane_7 <= {active_data[511:504], active_data[479:472], active_data[447:440], active_data[415:408]};
                                 end
                                 default: begin end
                             endcase
