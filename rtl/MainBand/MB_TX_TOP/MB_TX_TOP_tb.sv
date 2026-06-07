@@ -38,13 +38,22 @@
 //  Phase 3 – LFSR Pattern (LFSR_TX, i_mb_clk domain, 128-cycle burst)
 //             128 i_mb_clk cycles = 256 ns.
 //
-//  Phase 4 – DATA_TRANSFER
+//  Phase 3b– PER_LANE_IDE check (i_reversal_en=0)
+//             Drive i_lfsr_state = LFSR_PER_LANE_IDE.
+//             Poll o_lfsr_tx_done on i_mb_clk edges.
+//
+//  Phase 4 – DATA_TRANSFER (i_reversal_en=0)
 //             Stimulus  : i_mb_clk (Mapper + LFSR_TX → mb_clk side of SER).
 //             Output    : o_pll_clk (PLL side of MB_SERIALIZER).
 //             CDC path  : 2–3 o_pll_clk cycles (toggle-sync, 3 flops).
 //             DDR SER   : DATA_WIDTH/2 = 16 o_pll_clk cycles.
 //             Alignment : up to 4 o_pll_clk cycles (mb:pll = 1:4 ratio).
 //             Total min : ~23 o_pll_clk cycles → wait_clk_pll(50) has margin.
+//
+//  ── Lane-Reversal Group (i_reversal_en = 1) ──────────────────────────────
+//  Phase 5 – LFSR Pattern  (same as Phase 3  but with i_reversal_en=1)
+//  Phase 6 – PER_LANE_IDE  (same as Phase 3b but with i_reversal_en=1)
+//  Phase 7 – DATA_TRANSFER (same as Phase 4  but with i_reversal_en=1)
 // =============================================================================
 
 `timescale 1ps/1ps
@@ -317,11 +326,9 @@ module MB_TX_TOP_tb;
         i_valid_pattern_en = 1'b1;
         $display("  Asserting i_valid_pattern_en for 1 i_mb_clk cycle ...");
         @(negedge i_mb_clk);
-        i_valid_pattern_en = 1'b0;
-
         // Burst = 32 i_mb_clk cycles; 100-cycle timeout is generous
         wait_for_signal_mb("o_valid_done", o_valid_done, 100);
-
+        i_valid_pattern_en = 1'b0;
         wait_clk_mb(4);
 
         // ==================================================================
@@ -346,7 +353,26 @@ module MB_TX_TOP_tb;
         wait_clk_mb(4);
 
         // ==================================================================
-        // PHASE 4 – DATA_TRANSFER (end-to-end data path)
+        // PHASE 3b – PER_LANE_IDE check  (i_reversal_en = 0)
+        //   Drive i_lfsr_state = LFSR_PER_LANE_IDE and wait for done flag.
+        //   Uses same i_mb_clk domain as LFSR Pattern.
+        // ==================================================================
+        test_num = 4;
+        $display("\n=== PHASE 3b: PER_LANE_IDE mode (i_reversal_en=0) ===");
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_PER_LANE_IDE;
+        $display("  Driving i_lfsr_state = LFSR_PER_LANE_IDE ...");
+
+        wait_for_signal_mb("o_lfsr_tx_done", o_lfsr_tx_done, 300);
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_IDLE;
+
+        wait_clk_mb(4);
+
+        // ==================================================================
+        // PHASE 4 – DATA_TRANSFER (i_reversal_en = 0, end-to-end data path)
         //
         //   Stimulus domain  : i_mb_clk  (Mapper, LFSR_TX → mb_clk side of SER)
         //   Output domain    : o_pll_clk (PLL side of MB_SERIALIZER → o_tx_data)
@@ -358,8 +384,8 @@ module MB_TX_TOP_tb;
         //     Total min  : ~23 o_pll_clk cycles
         //     wait_clk_pll(50) provides ~2× margin.
         // ==================================================================
-        test_num = 4;
-        $display("\n=== PHASE %0d: DATA_TRANSFER – end-to-end data path ===", test_num);
+        test_num = 5;
+        $display("\n=== PHASE %0d: DATA_TRANSFER – end-to-end data path (i_reversal_en=0) ===", test_num);
 
         // 512-bit alternating pattern: even bytes = 0xA5, odd bytes = 0x5A
         begin
@@ -408,6 +434,104 @@ module MB_TX_TOP_tb;
         wait_clk_mb(4);
 
         // ==================================================================
+        // Enable Lane Reversal
+        // ==================================================================
+        @(negedge i_mb_clk);
+        i_reversal_en = 1'b1;
+        $display("\n==================================================");
+        $display("  Asserting i_reversal_en = 1 (Lane Reversal ON)");
+        $display("==================================================");
+        wait_clk_mb(4);
+
+        // ==================================================================
+        // PHASE 5 – LFSR Pattern  (i_reversal_en = 1, 128-cycle burst)
+        //   Same stimulus as Phase 3; verifies LFSR output through
+        //   reversed lane mapping.
+        // ==================================================================
+        test_num = 6;
+        $display("\n=== PHASE %0d: LFSR Pattern (128 i_mb_clk cycle burst, i_reversal_en=1) ===", test_num);
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_PATTERN;
+        $display("  Driving i_lfsr_state = LFSR_PATTERN (reversal enabled) ...");
+
+        wait_for_signal_mb("o_lfsr_tx_done", o_lfsr_tx_done, 300);
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_IDLE;
+
+        wait_clk_mb(4);
+
+        // ==================================================================
+        // PHASE 6 – PER_LANE_IDE check  (i_reversal_en = 1)
+        //   Same as Phase 3b; verifies per-lane IDE through reversed
+        //   lane mapping.
+        // ==================================================================
+        test_num = 7;
+        $display("\n=== PHASE %0d: PER_LANE_IDE mode (i_reversal_en=1) ===", test_num);
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_PER_LANE_IDE;
+        $display("  Driving i_lfsr_state = LFSR_PER_LANE_IDE (reversal enabled) ...");
+
+        wait_for_signal_mb("o_lfsr_tx_done", o_lfsr_tx_done, 300);
+
+        @(negedge i_mb_clk);
+        i_lfsr_state = LFSR_IDLE;
+
+        wait_clk_mb(4);
+
+        // ==================================================================
+        // PHASE 7 – DATA_TRANSFER (i_reversal_en = 1)
+        //   Same stimulus as Phase 4; verifies end-to-end serialization
+        //   through reversed lane mapping.
+        // ==================================================================
+        test_num = 8;
+        $display("\n=== PHASE %0d: DATA_TRANSFER – end-to-end data path (i_reversal_en=1) ===", test_num);
+
+        // Same 512-bit alternating pattern: even bytes = 0xA5, odd bytes = 0x5A
+        begin
+            integer b;
+            for (b = 0; b < N_BYTES; b = b + 1)
+                i_raw_data[b*8 +: 8] = (b % 2 == 0) ? 8'hA5 : 8'h5A;
+        end
+
+        i_width_deg = WIDTH_DEG_ALL;
+        i_mapper_en = 1'b1;
+        i_lp_irdy   = 1'b1;
+        i_lp_valid  = 1'b1;
+
+        @(negedge i_mb_clk);
+        i_active_state_entered = 1'b1;
+        $display("  Asserting i_active_state_entered (i_mb_clk domain, reversal enabled) ...");
+
+        wait_for_signal_mb("o_mapper_ready", o_mapper_ready, 20);
+
+        wait_clk_pll(50);
+
+        if (o_tx_data !== {NUM_LANES{1'b0}})
+            $display("  [OK]      o_tx_data is non-zero: 0x%h  (reversed lanes)", o_tx_data);
+        else
+            $display("  [WARN]    o_tx_data is all zeros – serializer may still loading.");
+
+        if (o_tx_valid !== 1'b0)
+            $display("  [OK]      o_tx_valid is active.");
+        else
+            $display("  [WARN]    o_tx_valid is 0.");
+
+        wait_clk_pll(20);
+
+        @(negedge i_mb_clk);
+        i_active_state_entered = 1'b0;
+        i_mapper_en            = 1'b0;
+        i_lp_irdy              = 1'b0;
+        i_lp_valid             = 1'b0;
+        i_reversal_en          = 1'b0;
+        $display("  De-asserting i_active_state_entered & i_reversal_en – returning to IDLE.");
+
+        wait_clk_mb(4);
+
+        // ==================================================================
         // All phases complete
         // ==================================================================
         $display("\n=================================================");
@@ -419,11 +543,15 @@ module MB_TX_TOP_tb;
     // =========================================================================
     // Timeout watchdog
     // timescale 1ps/1ps → units are ps.
-    // Phase 1: ~3072 × 500 ps  ≈  1.54 µs  (o_pll_clk, both-edge firing)
-    // Phase 2:   ~35 × 2000 ps ≈  70 ns    (i_mb_clk)
-    // Phase 3:  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)
-    // Phase 4:  ~100 × 2000 ps ≈ 200 ns    (i_mb_clk, dominant path)
-    // All phases combined ≈ 3 µs
+    // Phase 1 : ~3072 × 500 ps  ≈  1.54 µs  (o_pll_clk, both-edge firing)
+    // Phase 2 :   ~35 × 2000 ps ≈  70 ns    (i_mb_clk)
+    // Phase 3 :  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)  LFSR Pattern
+    // Phase 3b:  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)  PER_LANE_IDE
+    // Phase 4 :  ~100 × 2000 ps ≈ 200 ns    (i_mb_clk)  DATA_TRANSFER
+    // Phase 5 :  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)  LFSR Pattern  (reversal)
+    // Phase 6 :  ~135 × 2000 ps ≈ 270 ns    (i_mb_clk)  PER_LANE_IDE  (reversal)
+    // Phase 7 :  ~100 × 2000 ps ≈ 200 ns    (i_mb_clk)  DATA_TRANSFER (reversal)
+    // All phases combined ≈ 4 µs
     // Watchdog set to 500 µs = 500_000_000 ps — well beyond any expected run.
     // =========================================================================
     initial begin
