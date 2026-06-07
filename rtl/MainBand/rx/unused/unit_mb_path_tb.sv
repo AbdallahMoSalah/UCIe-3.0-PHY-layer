@@ -31,6 +31,8 @@ module unit_mb_path_tb;
     localparam int W       = 32;
     localparam int N_BYTES = 64;
     localparam [2:0] X16   = 3'b011;   // DEGRADE_LANES_0_TO_15
+    localparam [2:0] IDLE          = 3'b000;
+    localparam [2:0] DATA_TRANSFER = 3'b100;
 
     // -------------------------------------------------------------------------
     // Clocks / reset
@@ -56,13 +58,15 @@ module unit_mb_path_tb;
     // unit_mapper controls
     logic mapper_en, lp_irdy, lp_valid, out_scramble_en, mapper_ready;
     // unit_lfsr_tx controls
-    logic tx_active, tx_scramble_en;
+    logic [2:0] tx_state;
+    logic tx_scramble_en;
     wire  ser_en_w;                    // = LFSR_TX.o_ser_en_lfsr (self-aligned load)
-    wire  tx_done_w, tx_vf_w;
+    wire  tx_done_w;
     // serdes controls
     logic des_en;
     // unit_lfsr_rx controls
-    logic rx_active, rx_descr, rx_buf;
+    logic [2:0] rx_state;
+    logic rx_descr, rx_buf;
     wire  rx_comp_en;
     // unit_demapper controls
     logic demapper_en, rx_data_valid, pl_valid;
@@ -86,10 +90,10 @@ module unit_mb_path_tb;
     // =========================================================================
     unit_lfsr_tx #(.WIDTH(W)) u_lfsr_tx (
         .i_clk(MB_clk), .i_rst_n(i_rst_n),
-        .i_state(3'b000), .i_scramble_en(tx_scramble_en), .i_width_deg_lfsr(X16),
-        .i_reversal_en(1'b0), .i_active_state_entered(tx_active),
+        .i_state(tx_state), .i_scramble_en(tx_scramble_en), .i_width_deg_lfsr(X16),
+        .i_reversal_en(1'b0),
         .i_lane(map_lane), .o_lane(tx_scr),
-        .o_ser_en_lfsr(ser_en_w), .o_Lfsr_tx_done(tx_done_w), .o_valid_frame_en(tx_vf_w)
+        .o_ser_en_lfsr(ser_en_w), .o_Lfsr_tx_done(tx_done_w)
     );
 
     // =========================================================================
@@ -116,8 +120,8 @@ module unit_mb_path_tb;
     // =========================================================================
     unit_lfsr_rx #(.WIDTH(W)) u_lfsr_rx (
         .i_clk(MB_clk), .i_rst_n(i_rst_n),
-        .i_state(3'b000), .i_width_deg_lfsr(X16),
-        .i_active_state_entered(rx_active), .i_descramble_en(rx_descr),
+        .i_state(rx_state), .i_width_deg_lfsr(X16),
+        .i_descramble_en(rx_descr),
         .i_enable_buffer(rx_buf), .i_data_in(des_word),
         .o_Data_by(rx_lane), .o_final_gene(rx_gen), .pattern_comp_en(rx_comp_en)
     );
@@ -168,8 +172,8 @@ module unit_mb_path_tb;
     initial begin
         // defaults
         i_rst_n=0; flit=0; mapper_en=0; lp_irdy=1; lp_valid=0;
-        tx_active=0; tx_scramble_en=1; des_en=0;
-        rx_active=0; rx_descr=0; rx_buf=0;
+        tx_state=IDLE; tx_scramble_en=1; des_en=0;
+        rx_state=IDLE; rx_descr=0; rx_buf=0;
         demapper_en=1; rx_data_valid=0; fails=0;
 
         repeat (4) @(posedge MB_clk); i_rst_n=1; @(posedge MB_clk);
@@ -185,8 +189,8 @@ module unit_mb_path_tb;
                  cap_map[0], cap_map[1], cap_map[15]);
 
         // ---- LFSR_TX: scramble ONE word (seed state) -> drives ser_en_w ----
-        @(negedge MB_clk); tx_active=1;
-        @(negedge MB_clk); tx_active=0;
+        @(negedge MB_clk); tx_state=DATA_TRANSFER;
+        @(negedge MB_clk); tx_state=IDLE;
 
         // ---- serdes: align des_en to serializer load, hold 16 pll cycles ----
         @(posedge pll_tx);
@@ -203,9 +207,9 @@ module unit_mb_path_tb;
                  des_word[0], de_done[0]);
 
         // ---- LFSR_RX: descramble ONE word (seed state), hold 3 cycles ----
-        @(negedge MB_clk); rx_active=1; rx_descr=1;
+        @(negedge MB_clk); rx_state=DATA_TRANSFER; rx_descr=1;
         repeat (3) @(posedge MB_clk);
-        @(negedge MB_clk); rx_active=0; rx_descr=0;
+        @(negedge MB_clk); rx_state=IDLE; rx_descr=0;
         @(posedge MB_clk); #0.1;
         for (i=0;i<16;i=i+1) cap_rx[i]=rx_lane[i];
         $display("RX   lane0=0x%08h lane1=0x%08h lane15=0x%08h",

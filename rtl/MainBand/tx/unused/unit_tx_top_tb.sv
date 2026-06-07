@@ -40,6 +40,11 @@
 //  Phase 2 - VALID pattern (o_valid_done, lclk domain, valid_pattern_en HELD)
 //  Phase 3 - LFSR pattern  (o_lfsr_tx_done, lclk domain, 128-cycle burst)
 //  Phase 4 - DATA_TRANSFER (end-to-end: lp_data -> TD_P / TVLD_P)
+//
+//  Clock lane: i_clk_embedded_en is held high for the whole run so the clock
+//  lane carries the continuous embedded clock; it is dropped only during Phase 1
+//  (embedded mode has priority in clk_pattern_gen) so the clock-pattern burst can
+//  drive TCKP_P/TCKN_P instead.
 // =============================================================================
 
 `timescale 1ps/1ps
@@ -87,7 +92,6 @@ module unit_tx_top_tb;
     // LFSR_TX (lclk domain)
     logic [2:0]               i_lfsr_state;
     logic                     i_reversal_en;
-    logic                     i_active_state_entered;
 
     // VALID_TX (lclk domain)
     logic                     i_valid_pattern_en;
@@ -133,7 +137,6 @@ module unit_tx_top_tb;
 
         .i_lfsr_state           (i_lfsr_state),
         .i_reversal_en          (i_reversal_en),
-        .i_active_state_entered (i_active_state_entered),
 
         .i_valid_pattern_en     (i_valid_pattern_en),
 
@@ -261,12 +264,11 @@ module unit_tx_top_tb;
         i_width_deg            = WIDTH_DEG_ALL;
         i_lfsr_state           = LFSR_IDLE;
         i_reversal_en          = 1'b0;
-        i_active_state_entered = 1'b0;
         i_valid_pattern_en     = 1'b0;
         i_pll_en               = 1'b1;    // no-op (PLL .en tied to 1'b1) - kept for port compat
         i_pll_speed_sel        = 2'b00;   // 2 GHz
         i_clk_pattern_en       = 1'b0;
-        i_clk_embedded_en      = 1'b0;
+        i_clk_embedded_en      = 1'b1;    // embedded clock is the steady state; dropped only for the Phase-1 burst
         lclk_g                 = 1'b1;    // ungate gated_lclk (else it stays X)
 
         // ------------------------------------------------------------------
@@ -296,13 +298,15 @@ module unit_tx_top_tb;
         $display("=== PHASE %0d: CLK pattern generation ===", test_num);
 
         @(negedge dut.pll_clk);
-        i_clk_pattern_en = 1'b1;
-        $display("  Asserting i_clk_pattern_en ...");
+        i_clk_embedded_en = 1'b0;   // clk_pattern_gen gives embedded mode priority; drop it so the burst can drive the clock lane
+        i_clk_pattern_en  = 1'b1;
+        $display("  Asserting i_clk_pattern_en (embedded clock off for the burst) ...");
 
         wait_for_signal_pll("o_clk_done", o_clk_done, 7000);
 
         @(negedge dut.pll_clk);
-        i_clk_pattern_en = 1'b0;
+        i_clk_pattern_en  = 1'b0;
+        i_clk_embedded_en = 1'b1;   // restore continuous embedded clock for every subsequent (data) phase
 
         if ($isunknown(TCKP_P))
             $display("  [FAIL]    TCKP_P is X/Z after clock burst.");
@@ -375,13 +379,17 @@ module unit_tx_top_tb;
         end
         i_width_deg = WIDTH_DEG_ALL;
 
-        // Stream data and enter DATA_TRANSFER
+        // Stream data and enter DATA_TRANSFER.
+        // unit_lfsr_tx is i_state-driven now: setting i_lfsr_state = LFSR_DATA
+        // (was LFSR_IDLE after Phase 3) is the edge that moves its FSM from IDLE
+        // into DATA_TRANSFER. Scrambling there is gated by the mapper's
+        // out_scramble_en (i_scramble_en), so the data stream must be live first.
         i_mapper_en = 1'b1;
         lp_irdy     = 1'b1;
         lp_valid    = 1'b1;
         @(negedge lclk);
-        i_active_state_entered = 1'b1;
-        $display("  Streaming lp_data, asserting i_active_state_entered ...");
+        i_lfsr_state = LFSR_DATA;
+        $display("  Streaming lp_data, driving i_lfsr_state = DATA_TRANSFER ...");
 
         // Wait until the LFSR is actively scrambling (o_ser_en_lfsr high)
         begin
@@ -464,11 +472,11 @@ module unit_tx_top_tb;
         end
 
         @(negedge lclk);
-        i_active_state_entered = 1'b0;
+        i_lfsr_state           = LFSR_IDLE;
         i_mapper_en            = 1'b0;
         lp_irdy                = 1'b0;
         lp_valid               = 1'b0;
-        $display("  De-asserting i_active_state_entered - returning to IDLE.");
+        $display("  Driving i_lfsr_state = IDLE - returning to IDLE.");
         wait_clk_mb(4);
 
         // ==================================================================

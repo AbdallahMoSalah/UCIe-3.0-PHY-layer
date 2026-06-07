@@ -2,138 +2,262 @@
 
 module unit_mb_serializer_tb;
 
-parameter DATA_WIDTH = 32;
+    parameter DATA_WIDTH = 32;
 
-reg i_clk;
-reg PLL_clk;
-reg i_rst_n;
-reg Ser_en;
-reg [DATA_WIDTH-1:0] in_data;
+    // Control signals
+    reg         rst_n;
+    reg         ser_en;
+    reg  [DATA_WIDTH-1:0] in_data;
+    wire        ser_out;
 
-wire SER_out;
+    // PLL signals
+    reg         pll_en;
+    reg  [1:0]  speed_sel;
+    wire        pll_clk;
+    real        pll_period_val; // in ps
 
-integer i;
-reg [DATA_WIDTH-1:0] expected_data;
+    // Clock Divider signals
+    wire        mb_clk;
 
-// DUT
-unit_mb_serializer #(
-    .DATA_WIDTH(DATA_WIDTH)
-) DUT (
-    .mb_clk(i_clk),
-    .PLL_clk(PLL_clk),
-    .i_rst_n(i_rst_n),
-    .Ser_en(Ser_en),
-    .in_data(in_data),
-    .SER_out(SER_out)
-);
+    // Stats
+    integer     pass_count = 0;
+    integer     fail_count = 0;
 
-// ============================================================
-// CLOCKS
-// mb_clk  : period = 16ns  (half = 8ns)
-// PLL_clk : period = 0.5ns (half = 0.25ns)
-// ============================================================
-initial begin
-    i_clk = 0;
-    forever #4 i_clk = ~i_clk;
-end
+    // Queue for expected data verification
+    reg [DATA_WIDTH-1:0] expected_words[$];
 
-initial begin
-    PLL_clk = 0;
-    forever #0.25 PLL_clk = ~PLL_clk;  // 2 GHz
-end
+    // Instantiate PLL
+    unit_mb_pll u_pll (
+        .en(pll_en),
+        .speed_sel(speed_sel),
+        .clk(pll_clk),
+        .local_period(pll_period_val)
+    );
 
-// ============================================================
-// TASK: sample SER_out in the middle of current half-cycle
-// half_period = 0.25ns  →  mid = 0.125ns after edge
-// ============================================================
-task sample_bit;
-    input integer bit_idx;
-    begin
-        #0.125;   // wait to middle of this half-cycle
-        if (SER_out !== expected_data[0]) begin
-            $display("[%0t] Bit %0d ERROR : expected=%b got=%b",
-                     $time, bit_idx, expected_data[0], SER_out);
-        end else begin
-            $display("[%0t] Bit %0d OK    : %b", $time, bit_idx, SER_out);
-        end
-        expected_data = expected_data >> 1;
-    end
-endtask
+    // Instantiate Clock Divider (Ratio = 16)
+    ClkDiv #(.RangeWidth(8)) u_clk_div (
+        .i_ref_clk(pll_clk),
+        .i_rst_n(rst_n),
+        .i_clk_en(1'b1),
+        .i_div_ratio(8'd16),
+        .o_div_clk(mb_clk)
+    );
 
-// ============================================================
-// TEST
-// ============================================================
-initial begin
-    $display("===== SERIALIZER TEST START =====");
+    // Instantiate DUT (unit_mb_serializer)
+    unit_mb_serializer #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) DUT (
+        .mb_clk(mb_clk),
+        .PLL_clk(pll_clk),
+        .i_rst_n(rst_n),
+        .Ser_en(ser_en),
+        .in_data(in_data),
+        .SER_out(ser_out)
+    );
 
-    i_rst_n = 0;
-    Ser_en  = 0;
-    in_data = 0;
-    #20;
-    i_rst_n = 1;
+    // ============================================================
+    // Monitor & Verification Thread
+    // Spawns a verification thread for every serialization start
+    // ============================================================
+    always @(posedge pll_clk) begin
+        if (rst_n && DUT.rising_ser_en_pll === 1'b1) begin
+            fork
+                automatic reg [DATA_WIDTH-1:0] exp_val = expected_words.pop_front();
+                begin
+                    real half_period_ns;
+                    real mid_ns;
+                    
+                    // Wait for 1 PLL cycle startup latency of the retimed DDR mux
+                    @(posedge pll_clk);
 
-    // Wait for a clean mb_clk edge before driving stimulus
-    @(posedge i_clk);
+                    for (int j = 0; j < DATA_WIDTH; j = j + 1) begin
+                        half_period_ns = pll_period_val / 2000.0;
+                        mid_ns = half_period_ns / 2.0;
 
-    // --------------- Drive input ---------------
-    in_data       = 32'hA5A5F0F0;
-    expected_data = in_data;
-    Ser_en        = 1;
-
-    fork
-        begin
-            // Deassert Ser_en on the next posedge of i_clk so it is synchronous to i_clk
-            @(posedge i_clk);
-            #1;
-            Ser_en        = 0;
-        end
-        begin
-            // --------------- Wait for serialization start ---------------
-            // rising_ser_en_pll is a COMBINATIONAL pulse:
-            //   (sync2_toggle != sync3_toggle)
-            // It goes high for exactly 1 PLL cycle coinciding with a posedge.
-            // We wait for that posedge so we are at the clock edge where
-            // load_condition is true and the registers are about to be loaded.
-            @(posedge PLL_clk iff (DUT.rising_ser_en_pll === 1'b1));
-
-            $display("[%0t] load_condition detected — serialization starts", $time);
-
-            // Glitch-free DDR output adds one PLL cycle of startup latency:
-            // the load cycle drives the (stale) reset value, the first real
-            // even bit appears on the NEXT posedge. Skip that startup cycle.
-            @(posedge PLL_clk);
-
-            // The registers (SER_pos_reg, SER_neg_prep) are loaded on THIS posedge.
-            // SER_out is a combinational mux:
-            //   PLL_clk=1  → SER_pos_reg  (bit 0)
-            //   PLL_clk=0  → SER_neg_reg  (bit 1, registered on negedge)
-            //
-            // We are currently AT the posedge (PLL_clk=1).
-            // Bit 0 is valid after the FF propagation delta.
-            // Sample each bit in the middle of its half-cycle.
-
-            for (i = 0; i < DATA_WIDTH; i = i + 1) begin
-                if (i % 2 == 0) begin
-                    // ---- Even bit: positive half-cycle (PLL_clk = 1) ----
-                    // We arrive here at the START of the positive half.
-                    sample_bit(i);
-                    // Wait for the negedge to enter the negative half-cycle.
-                    @(negedge PLL_clk);
-                end else begin
-                    // ---- Odd bit: negative half-cycle (PLL_clk = 0) ----
-                    // SER_neg_reg was just loaded from SER_neg_prep on this negedge.
-                    // SER_out is now SER_neg_reg.
-                    sample_bit(i);
-                    // Wait for the next posedge to start the next even bit.
-                    @(posedge PLL_clk);
+                        if (j % 2 == 0) begin
+                            // ---- Even bit (High phase) ----
+                            #(mid_ns);
+                            if (ser_out !== exp_val[j]) begin
+                                $display("[ERROR] T=%0t ns | Word mismatch at even bit %0d: expected=%b, got=%b (ExpWord: 0x%08h)", 
+                                         $time, j, exp_val[j], ser_out, exp_val);
+                                fail_count = fail_count + 1;
+                            end else begin
+                                pass_count = pass_count + 1;
+                            end
+                            @(negedge pll_clk);
+                        end else begin
+                            // ---- Odd bit (Low phase) ----
+                            #(mid_ns);
+                            if (ser_out !== exp_val[j]) begin
+                                $display("[ERROR] T=%0t ns | Word mismatch at odd bit %0d: expected=%b, got=%b (ExpWord: 0x%08h)", 
+                                         $time, j, exp_val[j], ser_out, exp_val);
+                                fail_count = fail_count + 1;
+                            end else begin
+                                pass_count = pass_count + 1;
+                            end
+                            @(posedge pll_clk);
+                        end
+                    end
                 end
-            end
+            join_none
         end
-    join
+    end
 
-    // --------------- End of test ---------------
-    #10;
-    $display("===== TEST FINISHED =====");
-    $stop;
-end
+    // ============================================================
+    // Test Stimulus
+    // ============================================================
+    initial begin
+        $display("======================================================");
+        $display("       UCIe Main-Band Serializer Unit Testbench       ");
+        $display("======================================================");
+
+        // Initialize
+        rst_n      = 0;
+        ser_en     = 0;
+        in_data    = 0;
+        pll_en     = 1;
+        speed_sel  = 2'b00; // 2 GHz default (500 ps period)
+
+        #50;
+        rst_n = 1;
+        #50;
+
+        // ============================================================
+        // TEST CASE 1: Single Word Serialization (Standard Speed 2 GHz)
+        // ============================================================
+        $display("\n--- TEST 1: Single Word (2 GHz) ---");
+        @(posedge mb_clk);
+        in_data = 32'hA5A5F0F0;
+        ser_en  = 1;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0;
+        in_data = 0;
+        
+        // Wait for serialization to finish (32 bits DDR at 2 GHz takes 16 cycles = 8ns)
+        #50;
+
+        // ============================================================
+        // TEST CASE 2: Heavy Load - Back-to-Back Words (No Gap)
+        // ============================================================
+        $display("\n--- TEST 2: Heavy Load - Back-to-Back (2 GHz) ---");
+        @(posedge mb_clk);
+        ser_en  = 1;
+        
+        in_data = 32'hDEADBEEF;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        in_data = 32'hCAFEBABE;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        in_data = 32'h12345678;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        in_data = 32'h87654321;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0;
+        in_data = 0;
+
+        #100;
+
+        // ============================================================
+        // TEST CASE 3: Gapped Packets (1 and 2 cycle gaps)
+        // ============================================================
+        $display("\n--- TEST 3: Gapped Packets (2 GHz) ---");
+        @(posedge mb_clk);
+        ser_en  = 1;
+        in_data = 32'h55555555;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0; // 1 cycle gap
+        
+        @(posedge mb_clk);
+        ser_en  = 1;
+        in_data = 32'hAAAAAAAA;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0; // 2 cycle gap
+        @(posedge mb_clk);
+        
+        @(posedge mb_clk);
+        ser_en  = 1;
+        in_data = 32'hF0F0F0F0;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0;
+        in_data = 0;
+
+        #100;
+
+        // ============================================================
+        // TEST CASE 4: Different PLL Frequencies
+        // ============================================================
+        // 4 GHz Mode (speed_sel = 2'b01)
+        $display("\n--- TEST 4: Heavy Load at 4 GHz (speed_sel = 2'b01) ---");
+        @(posedge mb_clk);
+        speed_sel = 2'b01;
+        #50; // Wait for PLL to stabilize
+        
+        @(posedge mb_clk);
+        ser_en  = 1;
+        in_data = 32'h11111111;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        in_data = 32'h22222222;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0;
+        in_data = 0;
+        #50;
+
+        // 8 GHz Mode (speed_sel = 2'b10)
+        $display("\n--- TEST 5: Heavy Load at 8 GHz (speed_sel = 2'b10) ---");
+        @(posedge mb_clk);
+        speed_sel = 2'b10;
+        #50;
+        
+        @(posedge mb_clk);
+        ser_en  = 1;
+        in_data = 32'h33333333;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        in_data = 32'h44444444;
+        expected_words.push_back(in_data);
+        
+        @(posedge mb_clk);
+        ser_en  = 0;
+        in_data = 0;
+        #50;
+
+        // ============================================================
+        // End of Simulation Summary
+        // ============================================================
+        #200;
+        $display("\n======================================================");
+        $display("                SIMULATION RESULTS                    ");
+        $display("======================================================");
+        $display("  Pass Bits: %0d", pass_count);
+        $display("  Fail Bits: %0d", fail_count);
+        $display("======================================================");
+        if (fail_count == 0 && pass_count > 0) begin
+            $display("  >>> ALL TESTS PASSED SUCCESSFULLY (NO FIFO NEEDED) <<<");
+        end else begin
+            $display("  >>> SOME TESTS FAILED <<<");
+        end
+        $display("======================================================");
+        $finish;
+    end
+
 endmodule

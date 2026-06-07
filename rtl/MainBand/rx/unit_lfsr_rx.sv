@@ -22,8 +22,10 @@
 // Every cycle the lane state advances via nextstate32(); the reference /
 // descramble word is prbs32(state) of the *current* (pre-advance) state, so it
 // aligns cycle-for-cycle with the fixed TX (which does exactly the same).
-// FSM, ports, seeds, lane-ID tokens and the degrade/lane-reversal handling are
-// unchanged from the production RX.
+// Seeds, lane-ID tokens and the degrade/lane-reversal handling are unchanged
+// from the production RX. Control mirrors the updated LFSR_TX: DATA_TRANSFER is
+// entered/exited purely via i_state edges (the i_active_state_entered port was
+// removed); the descrambled output path is gated on current_state==DATA_TRANSFER.
 // =============================================================================
 
 module unit_lfsr_rx #(
@@ -40,7 +42,6 @@ module unit_lfsr_rx #(
      *--------------------------------------------------------------------*/
     input  logic [2:0]        i_state,                   // Current LTSM state code
     input  logic [2:0]        i_width_deg_lfsr,     // Active-lane mapping code
-    input  logic              i_active_state_entered,     // Pulse when LTSM enters Active
 
     /*---------------------------------------------------------------------
      * HM Interface
@@ -231,14 +232,14 @@ module unit_lfsr_rx #(
 
             case (current_state)
                 /*----------------------------------------------------------
-                 * IDLE: wait for a valid LTSM transition or active-state flag
+                 * IDLE: wait for a valid LTSM transition on i_state
                  *---------------------------------------------------------*/
                 IDLE: begin
-                    if      (i_active_state_entered)                       current_state <= DATA_TRANSFER;
-                    else if (i_state_changed && (i_state == CLEAR_LFSR))   current_state <= CLEAR_LFSR;
-                    else if (i_state_changed && (i_state == PATTERN_LFSR)) current_state <= PATTERN_LFSR;
-                    else if (i_state_changed && (i_state == PER_LANE_IDE)) current_state <= PER_LANE_IDE;
-                    else                                                   current_state <= IDLE;
+                    if      (i_state_changed && (i_state == DATA_TRANSFER)) current_state <= DATA_TRANSFER;
+                    else if (i_state_changed && (i_state == CLEAR_LFSR))    current_state <= CLEAR_LFSR;
+                    else if (i_state_changed && (i_state == PATTERN_LFSR))  current_state <= PATTERN_LFSR;
+                    else if (i_state_changed && (i_state == PER_LANE_IDE))  current_state <= PER_LANE_IDE;
+                    else                                                    current_state <= IDLE;
                 end
 
                 /*----------------------------------------------------------
@@ -263,10 +264,10 @@ module unit_lfsr_rx #(
                 end
 
                 /*----------------------------------------------------------
-                 * DATA_TRANSFER: stay while active-state flag is asserted
+                 * DATA_TRANSFER: stay until i_state changes away
                  *---------------------------------------------------------*/
                 DATA_TRANSFER: begin
-                    current_state <= (i_active_state_entered) ? DATA_TRANSFER : IDLE;
+                    current_state <= (i_state_changed) ? IDLE : DATA_TRANSFER;
                 end
 
                 default: current_state <= IDLE;
@@ -452,7 +453,7 @@ module unit_lfsr_rx #(
      *
      * Two output paths:
      *   1. Descrambled path : valid when descrambling is active AND the
-     *                         link has entered the Active state.
+     *                         FSM is in the DATA_TRANSFER (Active) state.
      *   2. Raw bypass path  : valid when the buffer is enabled (training
      *                         phases that need to observe raw lane data).
      *====================================================================*/
@@ -461,7 +462,7 @@ module unit_lfsr_rx #(
             for (i = 0; i < 16; i = i + 1)
                 o_Data_by[i] <= {WIDTH{1'b0}};
         end else begin
-            if (i_descramble_en && i_active_state_entered) begin
+            if (i_descramble_en && (current_state == DATA_TRANSFER)) begin
                 /* Output the descrambled words computed this cycle */
                 for (i = 0; i < 16; i = i + 1)
                     o_Data_by[i] <= temp_Data_by[i];
