@@ -62,10 +62,11 @@ module unit_tx_top #(
 
     // -------------------------------------------------------------------------
     // unit_lfsr_tx control
+    //   DATA_TRANSFER is now entered by driving i_lfsr_state = 3'b100; the old
+    //   i_active_state_entered pulse port was removed from unit_lfsr_tx.
     // -------------------------------------------------------------------------
     input  logic [2:0]              i_lfsr_state,           // requested LFSR state
     input  logic                    i_reversal_en,          // physical lane reversal
-    input  logic                    i_active_state_entered, // pulse: DATA_TRANSFER entered
 
     // -------------------------------------------------------------------------
     // unit_valid_tx control
@@ -141,7 +142,6 @@ module unit_tx_top #(
     // ----- LFSR_TX → data serializers ----------------------------------------
     logic [DATA_WIDTH-1:0] lfsr_lane [0:15];   // scrambled lane words
     logic        lfsr_ser_en;          // LFSR serializer-enable (data lanes + valid gating)
-    logic        lfsr_valid_frame_en;  // active-frame flag (unused by the unsued VALID_TX)
 
     // ----- VALID_TX → valid-lane serializer ----------------------------------
     logic [31:0] valid_word;           // 32-bit TVLD pattern word
@@ -176,6 +176,7 @@ module unit_tx_top #(
     // =========================================================================
     unit_clk_pattern_gen_tx u_clk_pattern_gen (
         .i_clk           (pll_clk),
+        .local_period  (pll_period),
         .i_rst_n         (i_rst_n),
         .clk_pattern_en  (i_clk_pattern_en),
         .clk_embedded_en (i_clk_embedded_en),
@@ -234,14 +235,12 @@ module unit_tx_top #(
         .i_scramble_en          (mapper_scramble_en),
         .i_width_deg_lfsr       (i_width_deg),
         .i_reversal_en          (i_reversal_en),
-        .i_active_state_entered (i_active_state_entered),
 
         .i_lane                 (mapper_lane),
         .o_lane                 (lfsr_lane),
 
         .o_ser_en_lfsr          (lfsr_ser_en),
-        .o_Lfsr_tx_done         (o_lfsr_tx_done),
-        .o_valid_frame_en       (lfsr_valid_frame_en)
+        .o_Lfsr_tx_done         (o_lfsr_tx_done)
     );
 
     // =========================================================================

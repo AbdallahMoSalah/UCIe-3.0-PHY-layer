@@ -5,6 +5,7 @@ module unit_clk_pattern_gen_tx (
     input  logic i_rst_n,
     input  logic clk_pattern_en,
     input  logic clk_embedded_en,
+    input  real  local_period,
     output logic o_clk_p,
     output logic o_clk_n,
     output logic track,
@@ -18,7 +19,8 @@ module unit_clk_pattern_gen_tx (
     logic [4:0] counter_zero;
     logic [7:0] counter_main;
 
-    phase_delay #(5) pd (
+    phase_delay pd (
+        .local_period(local_period),
         .in_signal(o_clk_p),
         .delayed_signal(o_clk_n)
     );
@@ -65,13 +67,12 @@ module unit_clk_pattern_gen_tx (
     end
 endmodule
 
-module phase_delay #(
-    parameter real PHASE_DELAY = 5
-) (
+module phase_delay(
+    input  real  local_period,
     input  logic in_signal,
     output logic delayed_signal
 );
 
-    assign #(PHASE_DELAY) delayed_signal = in_signal;
+    assign #(local_period/2) delayed_signal = in_signal;
 
 endmodule

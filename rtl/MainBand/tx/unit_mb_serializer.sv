@@ -56,7 +56,7 @@ assign rising_ser_en_pll = (sync3_toggle != load_toggle_mb);
 // ======================================================
 // Serializer logic (DDR: Shift 2 bits LSB first)
 // ======================================================
-wire logic load_condition = (rising_ser_en_pll );
+wire logic load_condition = (rising_ser_en_pll);
 
 
 always @(posedge PLL_clk or negedge i_rst_n) begin
