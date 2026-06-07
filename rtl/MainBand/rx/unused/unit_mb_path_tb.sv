@@ -150,8 +150,9 @@ module unit_mb_path_tb;
             for (p = 0; p < 64; p = p + 1) begin
                 grp  = p / 16;            // byte-lane 0..3
                 lane = p % 16;
-                // MSB byte first: out byte (63-p) = L[lane][8*grp +:8]
-                o[(63-p)*8 +: 8] = L[lane][8*grp +: 8];
+                // unit_demapper is now a faithful inverse of the mapper:
+                // out byte p = L[lane][8*grp +:8]  (no byte reversal)
+                o[p*8 +: 8] = L[lane][8*grp +: 8];
             end
             demap_x16 = o;
         end

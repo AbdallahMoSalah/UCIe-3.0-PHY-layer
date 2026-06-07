@@ -119,12 +119,10 @@ module Demapper_tb;
     begin
         $display("Testing Mode %b (%0d cycles)", mode, num_cycles);
         
-        // The unit_mapper and unit_demapper effectively reverse the byte order
-        // (i_in_data[7:0] becomes o_out_data[511:504]).
-        // So we compute the expected result by reversing the bytes of test_data.
-        for (i = 0; i < N_BYTES; i = i + 1) begin
-            expected_data[(N_BYTES-1-i)*8 +: 8] = test_data[i*8 +: 8];
-        end
+        // unit_demapper is now a faithful inverse of unit_mapper: the recovered
+        // flit equals the original (i_in_data[7:0] -> o_out_data[7:0]). So the
+        // expected result is simply test_data unchanged.
+        expected_data = test_data;
 
         i_width_deg = mode;
         i_in_data   = test_data;
