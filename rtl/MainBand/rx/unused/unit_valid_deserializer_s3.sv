@@ -67,12 +67,12 @@ always @(negedge pll_clk or negedge i_rst_n) begin
     end
 end
 
-always @(negedge pll_clk) begin
-    if (i_rst_n && o_state) begin
-        $display("[DES_S3] T=%0t r_data_pos=%b prev=%b state=%b count=%d shift_reg=0x%08h",
-                 $time, r_data_pos, prev_ser_data_in, o_state, o_count, shift_reg);
-    end
-end
+// always @(negedge pll_clk) begin
+//     if (i_rst_n && o_state) begin
+//         $display("[DES_S3] T=%0t r_data_pos=%b prev=%b state=%b count=%d shift_reg=0x%08h",
+//                  $time, r_data_pos, prev_ser_data_in, o_state, o_count, shift_reg);
+//     end
+// end
 
 assign o_shift_reg = shift_reg;
 

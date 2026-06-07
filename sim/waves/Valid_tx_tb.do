@@ -1,20 +1,41 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate /VALID_TX_tb/uut/i_clk
-add wave -noupdate /VALID_TX_tb/uut/i_rst_n
-add wave -noupdate /VALID_TX_tb/uut/valid_pattern_en
-add wave -noupdate /VALID_TX_tb/uut/ser_en_lfsr_i
-add wave -noupdate /VALID_TX_tb/uut/ser_en_o
-add wave -noupdate /VALID_TX_tb/uut/O_done
-add wave -noupdate /VALID_TX_tb/uut/o_TVLD_L
-add wave -noupdate -radix unsigned /VALID_TX_tb/uut/COUNTER
-add wave -noupdate /VALID_TX_tb/uut/current_state
-add wave -noupdate /VALID_TX_tb/uut/next_state
-add wave -noupdate /VALID_TX_tb/uut/ser_en_internal
+add wave -noupdate /unit_tx_top_tb/dut/i_rst_n
+add wave -noupdate /unit_tx_top_tb/dut/lp_data
+add wave -noupdate /unit_tx_top_tb/dut/lp_irdy
+add wave -noupdate /unit_tx_top_tb/dut/lp_valid
+add wave -noupdate /unit_tx_top_tb/dut/pl_trdy
+add wave -noupdate /unit_tx_top_tb/dut/i_mapper_en
+add wave -noupdate /unit_tx_top_tb/dut/i_width_deg
+add wave -noupdate /unit_tx_top_tb/dut/i_lfsr_state
+add wave -noupdate /unit_tx_top_tb/dut/i_reversal_en
+add wave -noupdate /unit_tx_top_tb/dut/i_valid_pattern_en
+add wave -noupdate /unit_tx_top_tb/dut/i_pll_en
+add wave -noupdate /unit_tx_top_tb/dut/i_pll_speed_sel
+add wave -noupdate /unit_tx_top_tb/dut/lclk_g
+add wave -noupdate /unit_tx_top_tb/dut/i_clk_pattern_en
+add wave -noupdate /unit_tx_top_tb/dut/i_clk_embedded_en
+add wave -noupdate /unit_tx_top_tb/dut/lclk
+add wave -noupdate /unit_tx_top_tb/dut/TD_P
+add wave -noupdate /unit_tx_top_tb/dut/TVLD_P
+add wave -noupdate /unit_tx_top_tb/dut/TCKP_P
+add wave -noupdate /unit_tx_top_tb/dut/TCKN_P
+add wave -noupdate /unit_tx_top_tb/dut/TTRK_P
+add wave -noupdate /unit_tx_top_tb/dut/o_lfsr_tx_done
+add wave -noupdate /unit_tx_top_tb/dut/o_valid_done
+add wave -noupdate /unit_tx_top_tb/dut/o_clk_done
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/even_src}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/odd_src}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/even_q}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/odd_q}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/high_reg}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/low_reg}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/data_reg}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/load_reg}
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {460596 ps} 0}
+WaveRestoreCursors {{Cursor 1} {2977964 ps} 0}
 quietly wave cursor active 1
-configure wave -namecolwidth 184
+configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
@@ -26,6 +47,6 @@ configure wave -gridoffset 0
 configure wave -gridperiod 1
 configure wave -griddelta 40
 configure wave -timeline 0
-configure wave -timelineunits ns
+configure wave -timelineunits ps
 update
-WaveRestoreZoom {346715 ps} {506413 ps}
+WaveRestoreZoom {2972291 ps} {3008008 ps}

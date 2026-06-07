@@ -30,8 +30,10 @@ add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/even_q}
 add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/odd_q}
 add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/high_reg}
 add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/low_reg}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/data_reg}
+add wave -noupdate {/unit_tx_top_tb/dut/gen_data_ser[15]/u_data_ser/load_reg}
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {3187134 ps} 0}
+WaveRestoreCursors {{Cursor 1} {2976167 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
@@ -47,4 +49,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {3347138 ps}
+WaveRestoreZoom {2974637 ps} {2993148 ps}
