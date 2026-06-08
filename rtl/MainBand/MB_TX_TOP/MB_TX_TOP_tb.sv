@@ -324,9 +324,10 @@ module MB_TX_TOP_tb;
         @(negedge o_mb_clk          );
         i_valid_pattern_en = 1'b1;
         $display("  Asserting i_valid_pattern_en for 1 o_mb_clk           cycle ...");
-        @(negedge o_mb_clk          );
+      
         // Burst = 32 o_mb_clk           cycles; 100-cycle timeout is generous
         wait_for_signal_mb("o_valid_done", o_valid_done, 100);
+        
         i_valid_pattern_en = 1'b0;
         wait_clk_mb(4);
 

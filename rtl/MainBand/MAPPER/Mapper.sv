@@ -33,312 +33,297 @@ module Mapper #(
     // Calculations
     //============================================================
     localparam N_BYTE_PER_LANE = WIDTH / 8;                    // 4
-    localparam N_BYTES_VAL     = 64;
-    localparam NUM_WORDS       = N_BYTES_VAL / N_BYTE_PER_LANE; // 16
+    localparam NUM_WORDS       = N_BYTES / N_BYTE_PER_LANE;    // 16
 
     localparam CLOCK_CYCLES_16 = NUM_WORDS / 16;  // 1
     localparam CLOCK_CYCLES_8  = NUM_WORDS / 8;   // 2
     localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;   // 4
 
     //============================================================
-    // Internal Registers and Handshake Logic
+    // Skid Buffer (1-Entry)
+    //============================================================
+    // Cycle Counter
     //============================================================
     reg [1:0] cycle_count;
 
-    // Latched registers for stabilizing mapping data mid-transfer
-    reg [8*N_BYTES-1:0] reg_in_data;
-    reg [2:0]           reg_width_deg_map;
+    //============================================================
+    // Skid Buffer (1-Entry)
+    //============================================================
+    reg [8*N_BYTES-1:0] buf_data;
+    reg                 buf_full;
 
-    // Active (lp_irdy && lp_valid): adapter has valid data and wants PL to sample
-    wire data_active = lp_irdy && lp_valid;
+    // Packet done determines when the transmission completes
+    wire packet_done = buf_full && (
+        ((i_width_deg_map == DEGRADE_LANES_0_TO_15) && (cycle_count == CLOCK_CYCLES_16 - 1)) ||
+        (((i_width_deg_map == DEGRADE_LANES_0_TO_7) || (i_width_deg_map == DEGRADE_LANES_8_TO_15)) && (cycle_count == CLOCK_CYCLES_8 - 1)) ||
+        (((i_width_deg_map == DEGRADE_LANES_0_TO_3) || (i_width_deg_map == DEGRADE_LANES_4_TO_7)) && (cycle_count == CLOCK_CYCLES_4 - 1)) ||
+        // Fallback for safety on unsupported/default modes
+        (i_width_deg_map != DEGRADE_LANES_0_TO_15 && 
+         i_width_deg_map != DEGRADE_LANES_0_TO_7 && 
+         i_width_deg_map != DEGRADE_LANES_8_TO_15 && 
+         i_width_deg_map != DEGRADE_LANES_0_TO_3 && 
+         i_width_deg_map != DEGRADE_LANES_4_TO_7)
+    );
 
-    // Helper for active degradation mode
-    wire mode_active = (i_width_deg_map == DEGRADE_LANES_0_TO_7)  ||
-                       (i_width_deg_map == DEGRADE_LANES_8_TO_15) ||
-                       (i_width_deg_map == DEGRADE_LANES_0_TO_15) ||
-                       (i_width_deg_map == DEGRADE_LANES_0_TO_3)  ||
-                       (i_width_deg_map == DEGRADE_LANES_4_TO_7);
+    // mapper_ready is high when buffer is empty or transmission is done
+    assign mapper_ready = (mapper_en && i_rst_n) ? (!buf_full || packet_done) : 1'b0;
 
-    // Handshake and active signals
-    wire handshake = lp_valid && lp_irdy && mapper_ready && mapper_en && mode_active;
-    wire is_active = handshake || (cycle_count != 2'd0);
+    // Push when input is valid and mapper is ready to accept
+    wire push = lp_valid && lp_irdy && mapper_ready;
 
-    // Multiplex between live input on handshake cycle and latched input on subsequent cycles
-    wire [8*N_BYTES-1:0] active_data          = (cycle_count == 2'd0) ? i_in_data       : reg_in_data;
-    wire [2:0]           active_width_deg_map = (cycle_count == 2'd0) ? i_width_deg_map : reg_width_deg_map;
+    wire pop = packet_done;
 
-    // Latch inputs on handshake
+    // Skid Buffer Sequential Logic
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
-            reg_in_data       <= {8*N_BYTES{1'b0}};
-            reg_width_deg_map <= 3'b0;
+            buf_full <= 1'b0;
+            buf_data <= {8*N_BYTES{1'b0}};
+        end else if (mapper_en) begin
+            if (push) begin
+                buf_data <= i_in_data;
+                buf_full <= 1'b1;
+            end else if (pop) begin
+                buf_full <= 1'b0;
+            end
         end else begin
-            if (!mapper_en || !mode_active) begin
-                reg_in_data       <= {8*N_BYTES{1'b0}};
-                reg_width_deg_map <= 3'b0;
-            end else if (handshake) begin
-                reg_in_data       <= i_in_data;
-                reg_width_deg_map <= i_width_deg_map;
-            end
+            buf_full <= 1'b0;
         end
     end
 
-    // Helper for cycles needed per flit
-    reg [2:0] cycles_needed;
-    always_comb begin
-        case (active_width_deg_map)
-            DEGRADE_LANES_0_TO_15: cycles_needed = 3'd1;
-            DEGRADE_LANES_0_TO_7,
-            DEGRADE_LANES_8_TO_15: cycles_needed = 3'd2;
-            DEGRADE_LANES_0_TO_3,
-            DEGRADE_LANES_4_TO_7:  cycles_needed = 3'd4;
-            default:               cycles_needed = 3'd1;
-        endcase
-    end
-
-    //============================================================
-    // Sequential Logic
-    //============================================================
+    // Cycle Counter Logic
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
-            cycle_count      <= 2'd0;
-            out_scramble_en  <= 1'b0;
-            mapper_ready     <= 1'b1; // Ready after reset!
-            o_lane_0         <= {WIDTH{1'b0}};
-            o_lane_1         <= {WIDTH{1'b0}};
-            o_lane_2         <= {WIDTH{1'b0}};
-            o_lane_3         <= {WIDTH{1'b0}};
-            o_lane_4         <= {WIDTH{1'b0}};
-            o_lane_5         <= {WIDTH{1'b0}};
-            o_lane_6         <= {WIDTH{1'b0}};
-            o_lane_7         <= {WIDTH{1'b0}};
-            o_lane_8         <= {WIDTH{1'b0}};
-            o_lane_9         <= {WIDTH{1'b0}};
-            o_lane_10        <= {WIDTH{1'b0}};
-            o_lane_11        <= {WIDTH{1'b0}};
-            o_lane_12        <= {WIDTH{1'b0}};
-            o_lane_13        <= {WIDTH{1'b0}};
-            o_lane_14        <= {WIDTH{1'b0}};
-            o_lane_15        <= {WIDTH{1'b0}};
+            cycle_count <= 2'd0;
+        end else if (mapper_en) begin
+            if (buf_full) begin
+                if (packet_done) begin
+                    cycle_count <= 2'd0;
+                end else begin
+                    cycle_count <= cycle_count + 1'b1;
+                end
+            end else begin
+                cycle_count <= 2'd0;
+            end
+        end else begin
+            cycle_count <= 2'd0;
         end
-        else begin
-            if (!mapper_en || !mode_active) begin
-                // Idle / Non-active mode
-                cycle_count      <= 2'd0;
-                out_scramble_en  <= 1'b0;
-                mapper_ready     <= 1'b1; // Ready when idle
-                o_lane_0         <= {WIDTH{1'b0}};
-                o_lane_1         <= {WIDTH{1'b0}};
-                o_lane_2         <= {WIDTH{1'b0}};
-                o_lane_3         <= {WIDTH{1'b0}};
-                o_lane_4         <= {WIDTH{1'b0}};
-                o_lane_5         <= {WIDTH{1'b0}};
-                o_lane_6         <= {WIDTH{1'b0}};
-                o_lane_7         <= {WIDTH{1'b0}};
-                o_lane_8         <= {WIDTH{1'b0}};
-                o_lane_9         <= {WIDTH{1'b0}};
-                o_lane_10        <= {WIDTH{1'b0}};
-                o_lane_11        <= {WIDTH{1'b0}};
-                o_lane_12        <= {WIDTH{1'b0}};
-                o_lane_13        <= {WIDTH{1'b0}};
-                o_lane_14        <= {WIDTH{1'b0}};
-                o_lane_15        <= {WIDTH{1'b0}};
-            end
-            else begin
-                // Active mode & enabled
-                if (!is_active) begin
-                    // Stall mid-transaction or waiting for first transaction
-                    out_scramble_en <= 1'b0;
-                    o_lane_0         <= {WIDTH{1'b0}};
-                    o_lane_1         <= {WIDTH{1'b0}};
-                    o_lane_2         <= {WIDTH{1'b0}};
-                    o_lane_3         <= {WIDTH{1'b0}};
-                    o_lane_4         <= {WIDTH{1'b0}};
-                    o_lane_5         <= {WIDTH{1'b0}};
-                    o_lane_6         <= {WIDTH{1'b0}};
-                    o_lane_7         <= {WIDTH{1'b0}};
-                    o_lane_8         <= {WIDTH{1'b0}};
-                    o_lane_9         <= {WIDTH{1'b0}};
-                    o_lane_10        <= {WIDTH{1'b0}};
-                    o_lane_11        <= {WIDTH{1'b0}};
-                    o_lane_12        <= {WIDTH{1'b0}};
-                    o_lane_13        <= {WIDTH{1'b0}};
-                    o_lane_14        <= {WIDTH{1'b0}};
-                    o_lane_15        <= {WIDTH{1'b0}};
+    end
 
-                    // mapper_ready is HIGH if we are ready for a new flit
-                    if (cycle_count == 2'd0 || cycle_count == cycles_needed - 1) begin
-                        mapper_ready <= 1'b1;
-                    end else begin
-                        mapper_ready <= 1'b0;
+    //============================================================
+    // Outputs Logic (Scramble Enable and Lane Mapping)
+    //============================================================
+    wire [8*N_BYTES-1:0] map_src   = push ? i_in_data : buf_data;
+    wire [1:0]           map_cycle = push ? 2'd0 : (cycle_count + 1'b1);
+
+    always @(posedge i_clk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            out_scramble_en <= 1'b0;
+            o_lane_0        <= {WIDTH{1'b0}};
+            o_lane_1        <= {WIDTH{1'b0}};
+            o_lane_2        <= {WIDTH{1'b0}};
+            o_lane_3        <= {WIDTH{1'b0}};
+            o_lane_4        <= {WIDTH{1'b0}};
+            o_lane_5        <= {WIDTH{1'b0}};
+            o_lane_6        <= {WIDTH{1'b0}};
+            o_lane_7        <= {WIDTH{1'b0}};
+            o_lane_8        <= {WIDTH{1'b0}};
+            o_lane_9        <= {WIDTH{1'b0}};
+            o_lane_10       <= {WIDTH{1'b0}};
+            o_lane_11       <= {WIDTH{1'b0}};
+            o_lane_12       <= {WIDTH{1'b0}};
+            o_lane_13       <= {WIDTH{1'b0}};
+            o_lane_14       <= {WIDTH{1'b0}};
+            o_lane_15       <= {WIDTH{1'b0}};
+        end else if (mapper_en) begin
+            if (push || (buf_full && !packet_done)) begin
+                out_scramble_en <= 1'b1;
+                case (i_width_deg_map)
+                    
+                    //================================================
+                    // 16 Lanes Active — 1 cycle
+                    //================================================
+                    DEGRADE_LANES_0_TO_15: begin
+                        o_lane_0  <= {map_src[391:384], map_src[263:256], map_src[135:128], map_src[  7:  0]};
+                        o_lane_1  <= {map_src[399:392], map_src[271:264], map_src[143:136], map_src[ 15:  8]};
+                        o_lane_2  <= {map_src[407:400], map_src[279:272], map_src[151:144], map_src[ 23: 16]};
+                        o_lane_3  <= {map_src[415:408], map_src[287:280], map_src[159:152], map_src[ 31: 24]};
+                        o_lane_4  <= {map_src[423:416], map_src[295:288], map_src[167:160], map_src[ 39: 32]};
+                        o_lane_5  <= {map_src[431:424], map_src[303:296], map_src[175:168], map_src[ 47: 40]};
+                        o_lane_6  <= {map_src[439:432], map_src[311:304], map_src[183:176], map_src[ 55: 48]};
+                        o_lane_7  <= {map_src[447:440], map_src[319:312], map_src[191:184], map_src[ 63: 56]};
+                        o_lane_8  <= {map_src[455:448], map_src[327:320], map_src[199:192], map_src[ 71: 64]};
+                        o_lane_9  <= {map_src[463:456], map_src[335:328], map_src[207:200], map_src[ 79: 72]};
+                        o_lane_10 <= {map_src[471:464], map_src[343:336], map_src[215:208], map_src[ 87: 80]};
+                        o_lane_11 <= {map_src[479:472], map_src[351:344], map_src[223:216], map_src[ 95: 88]};
+                        o_lane_12 <= {map_src[487:480], map_src[359:352], map_src[231:224], map_src[103: 96]};
+                        o_lane_13 <= {map_src[495:488], map_src[367:360], map_src[239:232], map_src[111:104]};
+                        o_lane_14 <= {map_src[503:496], map_src[375:368], map_src[247:240], map_src[119:112]};
+                        o_lane_15 <= {map_src[511:504], map_src[383:376], map_src[255:248], map_src[127:120]};
                     end
-                end
-                else begin
-                    // Real data active (is_active = 1)
-                    out_scramble_en <= 1'b1;
 
-                    // Clear all lanes as default, active ones will be overwritten in case statement
-                    o_lane_0  <= {WIDTH{1'b0}};
-                    o_lane_1  <= {WIDTH{1'b0}};
-                    o_lane_2  <= {WIDTH{1'b0}};
-                    o_lane_3  <= {WIDTH{1'b0}};
-                    o_lane_4  <= {WIDTH{1'b0}};
-                    o_lane_5  <= {WIDTH{1'b0}};
-                    o_lane_6  <= {WIDTH{1'b0}};
-                    o_lane_7  <= {WIDTH{1'b0}};
-                    o_lane_8  <= {WIDTH{1'b0}};
-                    o_lane_9  <= {WIDTH{1'b0}};
-                    o_lane_10 <= {WIDTH{1'b0}};
-                    o_lane_11 <= {WIDTH{1'b0}};
-                    o_lane_12 <= {WIDTH{1'b0}};
-                    o_lane_13 <= {WIDTH{1'b0}};
-                    o_lane_14 <= {WIDTH{1'b0}};
-                    o_lane_15 <= {WIDTH{1'b0}};
-
-                    case (active_width_deg_map)
-                        DEGRADE_LANES_0_TO_15: begin
-                            o_lane_0  <= {active_data[391:384], active_data[263:256], active_data[135:128], active_data[  7:  0]};
-                            o_lane_1  <= {active_data[399:392], active_data[271:264], active_data[143:136], active_data[ 15:  8]};
-                            o_lane_2  <= {active_data[407:400], active_data[279:272], active_data[151:144], active_data[ 23: 16]};
-                            o_lane_3  <= {active_data[415:408], active_data[287:280], active_data[159:152], active_data[ 31: 24]};
-                            o_lane_4  <= {active_data[423:416], active_data[295:288], active_data[167:160], active_data[ 39: 32]};
-                            o_lane_5  <= {active_data[431:424], active_data[303:296], active_data[175:168], active_data[ 47: 40]};
-                            o_lane_6  <= {active_data[439:432], active_data[311:304], active_data[183:176], active_data[ 55: 48]};
-                            o_lane_7  <= {active_data[447:440], active_data[319:312], active_data[191:184], active_data[ 63: 56]};
-                            o_lane_8  <= {active_data[455:448], active_data[327:320], active_data[199:192], active_data[ 71: 64]};
-                            o_lane_9  <= {active_data[463:456], active_data[335:328], active_data[207:200], active_data[ 79: 72]};
-                            o_lane_10 <= {active_data[471:464], active_data[343:336], active_data[215:208], active_data[ 87: 80]};
-                            o_lane_11 <= {active_data[479:472], active_data[351:344], active_data[223:216], active_data[ 95: 88]};
-                            o_lane_12 <= {active_data[487:480], active_data[359:352], active_data[231:224], active_data[103: 96]};
-                            o_lane_13 <= {active_data[495:488], active_data[367:360], active_data[239:232], active_data[111:104]};
-                            o_lane_14 <= {active_data[503:496], active_data[375:368], active_data[247:240], active_data[119:112]};
-                            o_lane_15 <= {active_data[511:504], active_data[383:376], active_data[255:248], active_data[127:120]};
-                        end
-
-                        DEGRADE_LANES_0_TO_7: begin
-                            case (cycle_count)
-                                2'd0: begin
-                                    o_lane_0 <= {active_data[199:192], active_data[135:128], active_data[ 71: 64], active_data[  7:  0]};
-                                    o_lane_1 <= {active_data[207:200], active_data[143:136], active_data[ 79: 72], active_data[ 15:  8]};
-                                    o_lane_2 <= {active_data[215:208], active_data[151:144], active_data[ 87: 80], active_data[ 23: 16]};
-                                    o_lane_3 <= {active_data[223:216], active_data[159:152], active_data[ 95: 88], active_data[ 31: 24]};
-                                    o_lane_4 <= {active_data[231:224], active_data[167:160], active_data[103: 96], active_data[ 39: 32]};
-                                    o_lane_5 <= {active_data[239:232], active_data[175:168], active_data[111:104], active_data[ 47: 40]};
-                                    o_lane_6 <= {active_data[247:240], active_data[183:176], active_data[119:112], active_data[ 55: 48]};
-                                    o_lane_7 <= {active_data[255:248], active_data[191:184], active_data[127:120], active_data[ 63: 56]};
-                                end
-                                2'd1: begin
-                                    o_lane_0 <= {active_data[455:448], active_data[391:384], active_data[327:320], active_data[263:256]};
-                                    o_lane_1 <= {active_data[463:456], active_data[399:392], active_data[335:328], active_data[271:264]};
-                                    o_lane_2 <= {active_data[471:464], active_data[407:400], active_data[343:336], active_data[279:272]};
-                                    o_lane_3 <= {active_data[479:472], active_data[415:408], active_data[351:344], active_data[287:280]};
-                                    o_lane_4 <= {active_data[487:480], active_data[423:416], active_data[359:352], active_data[295:288]};
-                                    o_lane_5 <= {active_data[495:488], active_data[431:424], active_data[367:360], active_data[303:296]};
-                                    o_lane_6 <= {active_data[503:496], active_data[439:432], active_data[375:368], active_data[311:304]};
-                                    o_lane_7 <= {active_data[511:504], active_data[447:440], active_data[383:376], active_data[319:312]};
-                                end
-                                default: begin end
-                            endcase
-                        end
-
-                        DEGRADE_LANES_8_TO_15: begin
-                            case (cycle_count)
-                                2'd0: begin
-                                    o_lane_8  <= {active_data[199:192], active_data[135:128], active_data[ 71: 64], active_data[  7:  0]};
-                                    o_lane_9  <= {active_data[207:200], active_data[143:136], active_data[ 79: 72], active_data[ 15:  8]};
-                                    o_lane_10 <= {active_data[215:208], active_data[151:144], active_data[ 87: 80], active_data[ 23: 16]};
-                                    o_lane_11 <= {active_data[223:216], active_data[159:152], active_data[ 95: 88], active_data[ 31: 24]};
-                                    o_lane_12 <= {active_data[231:224], active_data[167:160], active_data[103: 96], active_data[ 39: 32]};
-                                    o_lane_13 <= {active_data[239:232], active_data[175:168], active_data[111:104], active_data[ 47: 40]};
-                                    o_lane_14 <= {active_data[247:240], active_data[183:176], active_data[119:112], active_data[ 55: 48]};
-                                    o_lane_15 <= {active_data[255:248], active_data[191:184], active_data[127:120], active_data[ 63: 56]};
-                                end
-                                2'd1: begin
-                                    o_lane_8  <= {active_data[455:448], active_data[391:384], active_data[327:320], active_data[263:256]};
-                                    o_lane_9  <= {active_data[463:456], active_data[399:392], active_data[335:328], active_data[271:264]};
-                                    o_lane_10 <= {active_data[471:464], active_data[407:400], active_data[343:336], active_data[279:272]};
-                                    o_lane_11 <= {active_data[479:472], active_data[415:408], active_data[351:344], active_data[287:280]};
-                                    o_lane_12 <= {active_data[487:480], active_data[423:416], active_data[359:352], active_data[295:288]};
-                                    o_lane_13 <= {active_data[495:488], active_data[431:424], active_data[367:360], active_data[303:296]};
-                                    o_lane_14 <= {active_data[503:496], active_data[439:432], active_data[375:368], active_data[311:304]};
-                                    o_lane_15 <= {active_data[511:504], active_data[447:440], active_data[383:376], active_data[319:312]};
-                                end
-                                default: begin end
-                            endcase
-                        end
-
-                        DEGRADE_LANES_0_TO_3: begin
-                            case (cycle_count)
-                                2'd0: begin
-                                    o_lane_0 <= {active_data[103: 96], active_data[ 71: 64], active_data[ 39: 32], active_data[  7:  0]};
-                                    o_lane_1 <= {active_data[111:104], active_data[ 79: 72], active_data[ 47: 40], active_data[ 15:  8]};
-                                    o_lane_2 <= {active_data[119:112], active_data[ 87: 80], active_data[ 55: 48], active_data[ 23: 16]};
-                                    o_lane_3 <= {active_data[127:120], active_data[ 95: 88], active_data[ 63: 56], active_data[ 31: 24]};
-                                end
-                                2'd1: begin
-                                    o_lane_0 <= {active_data[231:224], active_data[199:192], active_data[167:160], active_data[135:128]};
-                                    o_lane_1 <= {active_data[239:232], active_data[207:200], active_data[175:168], active_data[143:136]};
-                                    o_lane_2 <= {active_data[247:240], active_data[215:208], active_data[183:176], active_data[151:144]};
-                                    o_lane_3 <= {active_data[255:248], active_data[223:216], active_data[191:184], active_data[159:152]};
-                                end
-                                2'd2: begin
-                                    o_lane_0 <= {active_data[359:352], active_data[327:320], active_data[295:288], active_data[263:256]};
-                                    o_lane_1 <= {active_data[367:360], active_data[335:328], active_data[303:296], active_data[271:264]};
-                                    o_lane_2 <= {active_data[375:368], active_data[343:336], active_data[311:304], active_data[279:272]};
-                                    o_lane_3 <= {active_data[383:376], active_data[351:344], active_data[319:312], active_data[287:280]};
-                                end
-                                2'd3: begin
-                                    o_lane_0 <= {active_data[487:480], active_data[455:448], active_data[423:416], active_data[391:384]};
-                                    o_lane_1 <= {active_data[495:488], active_data[463:456], active_data[431:424], active_data[399:392]};
-                                    o_lane_2 <= {active_data[503:496], active_data[471:464], active_data[439:432], active_data[407:400]};
-                                    o_lane_3 <= {active_data[511:504], active_data[479:472], active_data[447:440], active_data[415:408]};
-                                end
-                                default: begin end
-                            endcase
-                        end
-
-                        DEGRADE_LANES_4_TO_7: begin
-                            case (cycle_count)
-                                2'd0: begin
-                                    o_lane_4 <= {active_data[103: 96], active_data[ 71: 64], active_data[ 39: 32], active_data[  7:  0]};
-                                    o_lane_5 <= {active_data[111:104], active_data[ 79: 72], active_data[ 47: 40], active_data[ 15:  8]};
-                                    o_lane_6 <= {active_data[119:112], active_data[ 87: 80], active_data[ 55: 48], active_data[ 23: 16]};
-                                    o_lane_7 <= {active_data[127:120], active_data[ 95: 88], active_data[ 63: 56], active_data[ 31: 24]};
-                                end
-                                2'd1: begin
-                                    o_lane_4 <= {active_data[231:224], active_data[199:192], active_data[167:160], active_data[135:128]};
-                                    o_lane_5 <= {active_data[239:232], active_data[207:200], active_data[175:168], active_data[143:136]};
-                                    o_lane_6 <= {active_data[247:240], active_data[215:208], active_data[183:176], active_data[151:144]};
-                                    o_lane_7 <= {active_data[255:248], active_data[223:216], active_data[191:184], active_data[159:152]};
-                                end
-                                2'd2: begin
-                                    o_lane_4 <= {active_data[359:352], active_data[327:320], active_data[295:288], active_data[263:256]};
-                                    o_lane_5 <= {active_data[367:360], active_data[335:328], active_data[303:296], active_data[271:264]};
-                                    o_lane_6 <= {active_data[375:368], active_data[343:336], active_data[311:304], active_data[279:272]};
-                                    o_lane_7 <= {active_data[383:376], active_data[351:344], active_data[319:312], active_data[287:280]};
-                                end
-                                2'd3: begin
-                                    o_lane_4 <= {active_data[487:480], active_data[455:448], active_data[423:416], active_data[391:384]};
-                                    o_lane_5 <= {active_data[495:488], active_data[463:456], active_data[431:424], active_data[399:392]};
-                                    o_lane_6 <= {active_data[503:496], active_data[471:464], active_data[439:432], active_data[407:400]};
-                                    o_lane_7 <= {active_data[511:504], active_data[479:472], active_data[447:440], active_data[415:408]};
-                                end
-                                default: begin end
-                            endcase
-                        end
-                        default: begin end
-                    endcase
-
-                    // Update cycle_count and mapper_ready for the next clock cycle
-                    if (cycle_count == cycles_needed - 1) begin
-                        cycle_count  <= 2'd0;
-                        mapper_ready <= 1'b1;
-                    end else begin
-                        cycle_count  <= cycle_count + 2'd1;
-                        mapper_ready <= 1'b0;
+                    //================================================
+                    // Lanes 0→7 — 2 cycles
+                    //================================================
+                    DEGRADE_LANES_0_TO_7: begin
+                        case (map_cycle)
+                            2'd0: begin
+                                o_lane_0 <= {map_src[199:192], map_src[135:128], map_src[ 71: 64], map_src[  7:  0]};
+                                o_lane_1 <= {map_src[207:200], map_src[143:136], map_src[ 79: 72], map_src[ 15:  8]};
+                                o_lane_2 <= {map_src[215:208], map_src[151:144], map_src[ 87: 80], map_src[ 23: 16]};
+                                o_lane_3 <= {map_src[223:216], map_src[159:152], map_src[ 95: 88], map_src[ 31: 24]};
+                                o_lane_4 <= {map_src[231:224], map_src[167:160], map_src[103: 96], map_src[ 39: 32]};
+                                o_lane_5 <= {map_src[239:232], map_src[175:168], map_src[111:104], map_src[ 47: 40]};
+                                o_lane_6 <= {map_src[247:240], map_src[183:176], map_src[119:112], map_src[ 55: 48]};
+                                o_lane_7 <= {map_src[255:248], map_src[191:184], map_src[127:120], map_src[ 63: 56]};
+                            end
+                            2'd1: begin
+                                o_lane_0 <= {map_src[455:448], map_src[391:384], map_src[327:320], map_src[263:256]};
+                                o_lane_1 <= {map_src[463:456], map_src[399:392], map_src[335:328], map_src[271:264]};
+                                o_lane_2 <= {map_src[471:464], map_src[407:400], map_src[343:336], map_src[279:272]};
+                                o_lane_3 <= {map_src[479:472], map_src[415:408], map_src[351:344], map_src[287:280]};
+                                o_lane_4 <= {map_src[487:480], map_src[423:416], map_src[359:352], map_src[295:288]};
+                                o_lane_5 <= {map_src[495:488], map_src[431:424], map_src[367:360], map_src[303:296]};
+                                o_lane_6 <= {map_src[503:496], map_src[439:432], map_src[375:368], map_src[311:304]};
+                                o_lane_7 <= {map_src[511:504], map_src[447:440], map_src[383:376], map_src[319:312]};
+                            end
+                            default: begin end
+                        endcase
                     end
-                end
+
+                    //================================================
+                    // Lanes 8→15 — 2 cycles
+                    //================================================
+                    DEGRADE_LANES_8_TO_15: begin
+                        case (map_cycle)
+                            2'd0: begin
+                                o_lane_8  <= {map_src[199:192], map_src[135:128], map_src[ 71: 64], map_src[  7:  0]};
+                                o_lane_9  <= {map_src[207:200], map_src[143:136], map_src[ 79: 72], map_src[ 15:  8]};
+                                o_lane_10 <= {map_src[215:208], map_src[151:144], map_src[ 87: 80], map_src[ 23: 16]};
+                                o_lane_11 <= {map_src[223:216], map_src[159:152], map_src[ 95: 88], map_src[ 31: 24]};
+                                o_lane_12 <= {map_src[231:224], map_src[167:160], map_src[103: 96], map_src[ 39: 32]};
+                                o_lane_13 <= {map_src[239:232], map_src[175:168], map_src[111:104], map_src[ 47: 40]};
+                                o_lane_14 <= {map_src[247:240], map_src[183:176], map_src[119:112], map_src[ 55: 48]};
+                                o_lane_15 <= {map_src[255:248], map_src[191:184], map_src[127:120], map_src[ 63: 56]};
+                            end
+                            2'd1: begin
+                                o_lane_8  <= {map_src[455:448], map_src[391:384], map_src[327:320], map_src[263:256]};
+                                o_lane_9  <= {map_src[463:456], map_src[399:392], map_src[335:328], map_src[271:264]};
+                                o_lane_10 <= {map_src[471:464], map_src[407:400], map_src[343:336], map_src[279:272]};
+                                o_lane_11 <= {map_src[479:472], map_src[415:408], map_src[351:344], map_src[287:280]};
+                                o_lane_12 <= {map_src[487:480], map_src[423:416], map_src[359:352], map_src[295:288]};
+                                o_lane_13 <= {map_src[495:488], map_src[431:424], map_src[367:360], map_src[303:296]};
+                                o_lane_14 <= {map_src[503:496], map_src[439:432], map_src[375:368], map_src[311:304]};
+                                o_lane_15 <= {map_src[511:504], map_src[447:440], map_src[383:376], map_src[319:312]};
+                            end
+                            default: begin end
+                        endcase
+                    end
+
+                    //================================================
+                    // Lanes 0→3 — 4 cycles
+                    //================================================
+                    DEGRADE_LANES_0_TO_3: begin
+                        case (map_cycle)
+                            2'd0: begin
+                                o_lane_0 <= {map_src[103: 96], map_src[ 71: 64], map_src[ 39: 32], map_src[  7:  0]};
+                                o_lane_1 <= {map_src[111:104], map_src[ 79: 72], map_src[ 47: 40], map_src[ 15:  8]};
+                                o_lane_2 <= {map_src[119:112], map_src[ 87: 80], map_src[ 55: 48], map_src[ 23: 16]};
+                                o_lane_3 <= {map_src[127:120], map_src[ 95: 88], map_src[ 63: 56], map_src[ 31: 24]};
+                            end
+                            2'd1: begin
+                                o_lane_0 <= {map_src[231:224], map_src[199:192], map_src[167:160], map_src[135:128]};
+                                o_lane_1 <= {map_src[239:232], map_src[207:200], map_src[175:168], map_src[143:136]};
+                                o_lane_2 <= {map_src[247:240], map_src[215:208], map_src[183:176], map_src[151:144]};
+                                o_lane_3 <= {map_src[255:248], map_src[223:216], map_src[191:184], map_src[159:152]};
+                            end
+                            2'd2: begin
+                                o_lane_0 <= {map_src[359:352], map_src[327:320], map_src[295:288], map_src[263:256]};
+                                o_lane_1 <= {map_src[367:360], map_src[335:328], map_src[303:296], map_src[271:264]};
+                                o_lane_2 <= {map_src[375:368], map_src[343:336], map_src[311:304], map_src[279:272]};
+                                o_lane_3 <= {map_src[383:376], map_src[351:344], map_src[319:312], map_src[287:280]};
+                            end
+                            2'd3: begin
+                                o_lane_0 <= {map_src[487:480], map_src[455:448], map_src[423:416], map_src[391:384]};
+                                o_lane_1 <= {map_src[495:488], map_src[463:456], map_src[431:424], map_src[399:392]};
+                                o_lane_2 <= {map_src[503:496], map_src[471:464], map_src[439:432], map_src[407:400]};
+                                o_lane_3 <= {map_src[511:504], map_src[479:472], map_src[447:440], map_src[415:408]};
+                            end
+                            default: begin end
+                        endcase
+                    end
+
+                    //================================================
+                    // Lanes 4→7 — 4 cycles
+                    //================================================
+                    DEGRADE_LANES_4_TO_7: begin
+                        case (map_cycle)
+                            2'd0: begin
+                                o_lane_4 <= {map_src[103: 96], map_src[ 71: 64], map_src[ 39: 32], map_src[  7:  0]};
+                                o_lane_5 <= {map_src[111:104], map_src[ 79: 72], map_src[ 47: 40], map_src[ 15:  8]};
+                                o_lane_6 <= {map_src[119:112], map_src[ 87: 80], map_src[ 55: 48], map_src[ 23: 16]};
+                                o_lane_7 <= {map_src[127:120], map_src[ 95: 88], map_src[ 63: 56], map_src[ 31: 24]};
+                            end
+                            2'd1: begin
+                                o_lane_4 <= {map_src[231:224], map_src[199:192], map_src[167:160], map_src[135:128]};
+                                o_lane_5 <= {map_src[239:232], map_src[207:200], map_src[175:168], map_src[143:136]};
+                                o_lane_6 <= {map_src[247:240], map_src[215:208], map_src[183:176], map_src[151:144]};
+                                o_lane_7 <= {map_src[255:248], map_src[223:216], map_src[191:184], map_src[159:152]};
+                            end
+                            2'd2: begin
+                                o_lane_4 <= {map_src[359:352], map_src[327:320], map_src[295:288], map_src[263:256]};
+                                o_lane_5 <= {map_src[367:360], map_src[335:328], map_src[303:296], map_src[271:264]};
+                                o_lane_6 <= {map_src[375:368], map_src[343:336], map_src[311:304], map_src[279:272]};
+                                o_lane_7 <= {map_src[383:376], map_src[351:344], map_src[319:312], map_src[287:280]};
+                            end
+                            2'd3: begin
+                                o_lane_4 <= {map_src[487:480], map_src[455:448], map_src[423:416], map_src[391:384]};
+                                o_lane_5 <= {map_src[495:488], map_src[463:456], map_src[431:424], map_src[399:392]};
+                                o_lane_6 <= {map_src[503:496], map_src[471:464], map_src[439:432], map_src[407:400]};
+                                o_lane_7 <= {map_src[511:504], map_src[479:472], map_src[447:440], map_src[415:408]};
+                            end
+                            default: begin end
+                        endcase
+                    end
+
+                    default: begin end
+                endcase
+            end else begin
+                out_scramble_en <= 1'b0;
+                o_lane_0        <= {WIDTH{1'b0}};
+                o_lane_1        <= {WIDTH{1'b0}};
+                o_lane_2        <= {WIDTH{1'b0}};
+                o_lane_3        <= {WIDTH{1'b0}};
+                o_lane_4        <= {WIDTH{1'b0}};
+                o_lane_5        <= {WIDTH{1'b0}};
+                o_lane_6        <= {WIDTH{1'b0}};
+                o_lane_7        <= {WIDTH{1'b0}};
+                o_lane_8        <= {WIDTH{1'b0}};
+                o_lane_9        <= {WIDTH{1'b0}};
+                o_lane_10       <= {WIDTH{1'b0}};
+                o_lane_11       <= {WIDTH{1'b0}};
+                o_lane_12       <= {WIDTH{1'b0}};
+                o_lane_13       <= {WIDTH{1'b0}};
+                o_lane_14       <= {WIDTH{1'b0}};
+                o_lane_15       <= {WIDTH{1'b0}};
             end
+        end else begin
+            out_scramble_en <= 1'b0;
+            o_lane_0        <= {WIDTH{1'b0}};
+            o_lane_1        <= {WIDTH{1'b0}};
+            o_lane_2        <= {WIDTH{1'b0}};
+            o_lane_3        <= {WIDTH{1'b0}};
+            o_lane_4        <= {WIDTH{1'b0}};
+            o_lane_5        <= {WIDTH{1'b0}};
+            o_lane_6        <= {WIDTH{1'b0}};
+            o_lane_7        <= {WIDTH{1'b0}};
+            o_lane_8        <= {WIDTH{1'b0}};
+            o_lane_9        <= {WIDTH{1'b0}};
+            o_lane_10       <= {WIDTH{1'b0}};
+            o_lane_11       <= {WIDTH{1'b0}};
+            o_lane_12       <= {WIDTH{1'b0}};
+            o_lane_13       <= {WIDTH{1'b0}};
+            o_lane_14       <= {WIDTH{1'b0}};
+            o_lane_15       <= {WIDTH{1'b0}};
         end
     end
 

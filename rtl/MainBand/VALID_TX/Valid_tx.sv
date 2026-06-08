@@ -17,7 +17,7 @@ module VALID_TX (
 localparam VALID_8B = 8'b00001111; // Base 8-bit pattern: 4 ones, 4 zeros
 localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
-localparam MAX_COUNT = 31; // 0 to 31 count gives exactly 32 cycles of VALID_PATTERN
+localparam MAX_COUNT = 33; // 0 to 31 count gives exactly 32 cycles of VALID_PATTERN
 
 localparam [1:0]
     IDLE          = 2'b00,
@@ -117,7 +117,7 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 end
                 else begin // COUNTER == MAX_COUNT
                     O_done   <= 1'b1;
-                    ser_en_reg <= 1'b1;
+                    ser_en_reg <= 1'b0;       // was 0ne and i made it 0
                 end
             end
 

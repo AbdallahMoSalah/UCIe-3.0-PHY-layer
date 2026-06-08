@@ -87,33 +87,25 @@ end
 // Serialized output (DDR: MUX pos and neg)
 // ======================================================
 reg SER_pos_reg;
-reg SER_neg_prep;
 reg SER_neg_reg;
 
 always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         SER_pos_reg  <= 1'b0;
-        SER_neg_prep <= 1'b0;
+        SER_neg_reg <= 1'b0;
     end else begin
         if (load_condition) begin
             SER_pos_reg  <= load_reg[0];
-            SER_neg_prep <= load_reg[1];
+            SER_neg_reg <= load_reg[1];
         end else begin
             SER_pos_reg  <= data_reg[0];
-            SER_neg_prep <= data_reg[1];
+            SER_neg_reg <= data_reg[1];
         end
     end
 end
 
-always @(negedge PLL_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
-        SER_neg_reg <= 1'b0;
-    end else begin
-        SER_neg_reg <= SER_neg_prep;
-    end
-end
 
 // Select pos register when PLL_clk is High, neg register when PLL_clk is Low
-assign SER_out = PLL_clk ? SER_pos_reg : SER_neg_reg;
+assign SER_out = PLL_clk ? SER_pos_reg : SER_neg_reg; 
 
 endmodule
