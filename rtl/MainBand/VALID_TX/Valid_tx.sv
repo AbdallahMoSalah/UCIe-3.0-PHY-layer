@@ -14,7 +14,7 @@ module VALID_TX (
 // Local Parameters
 // ============================================================
 
-localparam VALID_8B = 8'b11110000; // Base 8-bit pattern: 4 ones, 4 zeros
+localparam VALID_8B = 8'b00001111; // Base 8-bit pattern: 4 ones, 4 zeros
 localparam VALID_PATTERN_CODE = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
 localparam MAX_COUNT = 31; // 0 to 31 count gives exactly 32 cycles of VALID_PATTERN
