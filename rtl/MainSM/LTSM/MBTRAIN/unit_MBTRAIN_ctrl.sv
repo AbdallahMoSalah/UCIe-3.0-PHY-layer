@@ -31,7 +31,7 @@ module unit_MBTRAIN_ctrl (
         // LTSM Interface (to unit_LTSM_ctrl)
         input  logic        mbtrain_en,                     // MBTRAIN state enable
         output logic        mbtrain_done,                   // MBTRAIN state completion
-        output logic [3:0]  current_mbtrain_substate,       // For RF logging
+        output ltsm_state_n_pkg::state_n_e  current_mbtrain_substate,       // For RF logging
 
         // Global Interrupts / External Requests
         input  logic        trainerror_detected,            // OR of all sub-state trainerror_req outputs
@@ -44,7 +44,7 @@ module unit_MBTRAIN_ctrl (
         // Entry Requests (from LTSM_ctrl on re-entry)
         input  logic        mbtrain_txselfcal_req,          // Re-enter at TXSELFCAL
         input  logic        mbtrain_speedidle_req,          // Re-enter at SPEEDIDLE
-        input  logic        mbtrain_repair_req,              // Re-enter at REPAIR
+        input  logic        mbtrain_repair_req,             // Re-enter at REPAIR
 
         // Sub-state Handshakes: VALVREF
         output logic        local_valvref_en,
@@ -134,6 +134,24 @@ module unit_MBTRAIN_ctrl (
 
     import ltsm_state_n_pkg::*;
 
+    // for current `mbtrain` sub-state
+    typedef enum logic [3:0] {
+        MBTRAIN_IDLE       = 4'd0,
+        VALVREF            = 4'd1,
+        DATAVREF           = 4'd2,
+        SPEEDIDLE          = 4'd3,
+        TXSELFCAL          = 4'd4,
+        RXSELFCAL          = 4'd5,
+        VALTRAINCENTER     = 4'd6,
+        VALTRAINVREF       = 4'd7,
+        DATATRAINCENTER1   = 4'd8,
+        DATATRAINVREF      = 4'd9,
+        RXDESKEW           = 4'd10,
+        DATATRAINCENTER2   = 4'd11,
+        LINKSPEED          = 4'd12,
+        REPAIR             = 4'd13,
+        MBTRAIN_DONE       = 4'd14
+    } mbtrain_substate_e;
     mbtrain_substate_e current_state, next_state;
 
     // Registered Routing Requests
@@ -194,7 +212,6 @@ module unit_MBTRAIN_ctrl (
     always_comb begin
         // Default Outputs
         mbtrain_done             = 1'b0;
-        current_mbtrain_substate = current_state;
         next_state               = current_state;
 
         ltsm_trainerror_req      = 1'b0;
@@ -217,6 +234,10 @@ module unit_MBTRAIN_ctrl (
         if (trainerror_detected) begin
             ltsm_trainerror_req = 1'b1;
             next_state          = MBTRAIN_DONE;
+            if (current_state == MBTRAIN_DONE) begin
+                mbtrain_done = 1'b1;
+                if (!mbtrain_en) next_state = MBTRAIN_IDLE;
+            end
         end
         else begin
             case (current_state)
@@ -345,4 +366,24 @@ module unit_MBTRAIN_ctrl (
         end
     end
 
+    always_comb begin
+        case (current_state)
+            MBTRAIN_IDLE    : current_mbtrain_substate = LOG_NOP                     ;
+            VALVREF         : current_mbtrain_substate = LOG_MBTRAIN_VALVREF         ;
+            DATAVREF        : current_mbtrain_substate = LOG_MBTRAIN_DATAVREF        ;
+            SPEEDIDLE       : current_mbtrain_substate = LOG_MBTRAIN_SPEEDIDLE       ;
+            TXSELFCAL       : current_mbtrain_substate = LOG_MBTRAIN_TXSELFCAL       ;
+            RXSELFCAL       : current_mbtrain_substate = LOG_MBTRAIN_RXSELFCAL       ;
+            VALTRAINCENTER  : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINCENTER  ;
+            VALTRAINVREF    : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINVREF    ;
+            DATATRAINCENTER1: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER1;
+            DATATRAINVREF   : current_mbtrain_substate = LOG_MBTRAIN_DATATRAINVREF   ;
+            RXDESKEW        : current_mbtrain_substate = LOG_MBTRAIN_RXDESKEW        ;
+            DATATRAINCENTER2: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER2;
+            LINKSPEED       : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ;
+            REPAIR          : current_mbtrain_substate = LOG_MBTRAIN_REPAIR          ;
+            MBTRAIN_DONE    : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ;
+            default         : current_mbtrain_substate = LOG_NOP                     ;
+        endcase
+    end
 endmodule

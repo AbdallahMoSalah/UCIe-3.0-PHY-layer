@@ -6,10 +6,12 @@ module unit_MBTRAIN_ctrl_tb;
     logic        rst_n;
     logic        is_ltsm_out_of_reset;
 
+    import ltsm_state_n_pkg::*;
+
     // LTSM Interface
     logic        mbtrain_en;
     logic        mbtrain_done;
-    logic [3:0]  current_mbtrain_substate;
+    state_n_e    current_mbtrain_substate;
 
     // Global Interrupts / External Requests
     logic        trainerror_detected;
@@ -109,17 +111,17 @@ module unit_MBTRAIN_ctrl_tb;
         repeat(5) @(posedge lclk);
     endtask
 
-    task automatic wait_state(input logic [3:0] expected_state);
+    task automatic wait_state(input state_n_e expected_state);
         int timeout = 0;
         while (current_mbtrain_substate !== expected_state) begin
             @(posedge lclk);
             timeout++;
             if (timeout > 5000) begin
-                $display("ERROR @%0t: Timeout waiting for state %0d (current=%0d)", $time, expected_state, current_mbtrain_substate);
+                $display("ERROR @%0t: Timeout waiting for state %s (current=%s)", $time, expected_state.name(), current_mbtrain_substate.name());
                 $stop;
             end
         end
-        $display("[%0t] Entered state %0d", $time, expected_state);
+        $display("[%0t] Entered state %s", $time, expected_state.name());
     endtask
 
     task automatic finish_substate(ref logic l_done, ref logic p_done);
@@ -142,56 +144,56 @@ module unit_MBTRAIN_ctrl_tb;
         mbtrain_en = 1;
         
         // 1. VALVREF
-        wait_state(4'd1);
+        wait_state(LOG_MBTRAIN_VALVREF);
         finish_substate(local_valvref_done, partner_valvref_done);
         
         // 2. DATAVREF
-        wait_state(4'd2);
+        wait_state(LOG_MBTRAIN_DATAVREF);
         finish_substate(local_datavref_done, partner_datavref_done);
 
         // 3. SPEEDIDLE
-        wait_state(4'd3);
+        wait_state(LOG_MBTRAIN_SPEEDIDLE);
         finish_substate(local_speedidle_done, partner_speedidle_done);
 
         // 4. TXSELFCAL
-        wait_state(4'd4);
+        wait_state(LOG_MBTRAIN_TXSELFCAL);
         finish_substate(local_txselfcal_done, partner_txselfcal_done);
 
         // 5. RXSELFCAL
-        wait_state(4'd5);
+        wait_state(LOG_MBTRAIN_RXSELFCAL);
         finish_substate(local_rxclkcal_done, partner_rxclkcal_done);
 
         // 6. VALTRAINCENTER
-        wait_state(4'd6);
+        wait_state(LOG_MBTRAIN_VALTRAINCENTER);
         finish_substate(local_valtraincenter_done, partner_valtraincenter_done);
 
         // 7. VALTRAINVREF
-        wait_state(4'd7);
+        wait_state(LOG_MBTRAIN_VALTRAINVREF);
         finish_substate(local_valtrainvref_done, partner_valtrainvref_done);
 
         // 8. DATATRAINCENTER1
-        wait_state(4'd8);
+        wait_state(LOG_MBTRAIN_DATATRAINCENTER1);
         finish_substate(local_dtc1_done, partner_dtc1_done);
 
         // 9. DATATRAINVREF
-        wait_state(4'd9);
+        wait_state(LOG_MBTRAIN_DATATRAINVREF);
         finish_substate(local_datatrainvref_done, partner_datatrainvref_done);
 
         // 10. RXDESKEW
-        wait_state(4'd10);
+        wait_state(LOG_MBTRAIN_RXDESKEW);
         finish_substate(local_rxdeskew_done, partner_rxdeskew_done);
 
         // 11. DATATRAINCENTER2
-        wait_state(4'd11);
+        wait_state(LOG_MBTRAIN_DATATRAINCENTER2);
         finish_substate(local_dtc2_done, partner_dtc2_done);
 
         // 12. LINKSPEED -> LINKINIT
-        wait_state(4'd12);
+        wait_state(LOG_MBTRAIN_LINKSPEED);
         local_linkinit_route_req = 1;
         finish_substate(local_linkspeed_done, partner_linkspeed_done);
 
         // 13. DONE
-        wait_state(4'd14);
+        wait(mbtrain_done);
         if (mbtrain_done && ltsm_linkinit_req) begin
             $display("Test 1 PASSED: Reached MBTRAIN_DONE with linkinit_req");
         end else begin
@@ -199,7 +201,7 @@ module unit_MBTRAIN_ctrl_tb;
         end
 
         mbtrain_en = 0;
-        wait_state(4'd0);
+        wait_state(LOG_NOP);
 
         // Test 2: RXDESKEW loopback
         $display("Test 2: RXDESKEW loop back to DTC1");
@@ -216,12 +218,12 @@ module unit_MBTRAIN_ctrl_tb;
         local_dtc1_done = 1; partner_dtc1_done = 1; @(posedge lclk); local_dtc1_done = 0; partner_dtc1_done = 0;
         local_datatrainvref_done = 1; partner_datatrainvref_done = 1; @(posedge lclk); local_datatrainvref_done = 0; partner_datatrainvref_done = 0;
         
-        wait_state(4'd10); // RXDESKEW
+        wait_state(LOG_MBTRAIN_RXDESKEW); // RXDESKEW
         repeat(2) @(posedge lclk);
         local_dtc1_loopback_req = 1;
         @(posedge lclk);
         local_dtc1_loopback_req = 0;
-        wait_state(4'd8); // Back to DTC1
+        wait_state(LOG_MBTRAIN_DATATRAINCENTER1); // Back to DTC1
         $display("Test 2 PASSED: Looped back to DTC1");
 
         // Test 3: LINKSPEED -> REPAIR -> TXSELFCAL
@@ -232,23 +234,23 @@ module unit_MBTRAIN_ctrl_tb;
         local_rxdeskew_done = 1; partner_rxdeskew_done = 1; @(posedge lclk); local_rxdeskew_done = 0; partner_rxdeskew_done = 0;
         local_dtc2_done = 1; partner_dtc2_done = 1; @(posedge lclk); local_dtc2_done = 0; partner_dtc2_done = 0;
 
-        wait_state(4'd12); // LINKSPEED
+        wait_state(LOG_MBTRAIN_LINKSPEED); // LINKSPEED
         local_linkinit_route_req = 0;
         local_repair_route_req = 1;
         finish_substate(local_linkspeed_done, partner_linkspeed_done);
         
-        wait_state(4'd13); // REPAIR
+        wait_state(LOG_MBTRAIN_REPAIR); // REPAIR
         local_repair_txselfcal_req = 1;
         finish_substate(local_repair_done, partner_repair_done);
         
-        wait_state(4'd4); // Back to TXSELFCAL
+        wait_state(LOG_MBTRAIN_TXSELFCAL); // Back to TXSELFCAL
         $display("Test 3 PASSED: REPAIR looped to TXSELFCAL");
 
         // Test 4: Emergency TRAINERROR
         $display("Test 4: Emergency TRAINERROR exit");
         repeat(5) @(posedge lclk);
         trainerror_detected = 1;
-        wait_state(4'd14); // MBTRAIN_DONE
+        wait(mbtrain_done); // MBTRAIN_DONE
         if (ltsm_trainerror_req) begin
             $display("Test 4 PASSED: Emergency exit to TRAINERROR");
         end else begin

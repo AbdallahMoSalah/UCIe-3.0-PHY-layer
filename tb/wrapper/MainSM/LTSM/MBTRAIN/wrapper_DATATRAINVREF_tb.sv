@@ -63,9 +63,10 @@ module wrapper_DATATRAINVREF_tb;
     ltsm_tb_attachments #(
         .TIMEOUT_CYCLES      (TB_TIMEOUT_CYCLES      ),
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
+        .MB_DELAY            (MB_DELAY            ),
         .MIN_DATA_VREF_CODE  (MIN_DATA_VREF_CODE  ),
         .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE  ),
-        .MB_DELAY            (MB_DELAY            )
+        .ENABLE_LOOPBACK     (1'b0                )
     ) dut_attach (
         .intf(dut_if)
     );
@@ -73,9 +74,10 @@ module wrapper_DATATRAINVREF_tb;
     ltsm_tb_attachments #(
         .TIMEOUT_CYCLES      (TB_TIMEOUT_CYCLES      ),
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
+        .MB_DELAY            (MB_DELAY            ),
         .MIN_DATA_VREF_CODE  (MIN_DATA_VREF_CODE  ),
         .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE  ),
-        .MB_DELAY            (MB_DELAY            )
+        .ENABLE_LOOPBACK     (1'b0                )
     ) ptn_attach (
         .intf(ptn_if)
     );
@@ -166,6 +168,7 @@ module wrapper_DATATRAINVREF_tb;
     always @(posedge lclk) begin
         if (dut_if.sweep_en) begin
             automatic logic [6:0] code = dut_if.swept_code;
+            $display("Time=%0t ps, swept_code=%0d", $time, code);
             for (int l = 0; l < 16; l = l + 1) begin
                 if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
                     if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
@@ -453,8 +456,3 @@ module wrapper_DATATRAINVREF_tb;
     end
 
 endmodule
-
-
-
-
-

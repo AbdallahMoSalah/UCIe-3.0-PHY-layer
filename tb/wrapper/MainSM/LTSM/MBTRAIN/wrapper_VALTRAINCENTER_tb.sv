@@ -50,7 +50,8 @@ module wrapper_VALTRAINCENTER_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DESKEW_CODE     (MIN_VAL_PI_CODE     ), // Map PI code range to deskew parameter for D2C PT config
         .MAX_DESKEW_CODE     (MAX_VAL_PI_CODE     ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) dut_attach (
         .intf(dut_if)
     );

@@ -65,7 +65,8 @@ module wrapper_DATAVREF_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DATA_VREF_CODE  (MIN_DATA_VREF_CODE  ),
         .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE  ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) dut_attach (
         .intf(dut_if)
     );
@@ -75,7 +76,8 @@ module wrapper_DATAVREF_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DATA_VREF_CODE  (MIN_DATA_VREF_CODE  ),
         .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE  ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) ptn_attach (
         .intf(ptn_if)
     );

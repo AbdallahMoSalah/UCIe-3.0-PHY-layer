@@ -44,7 +44,8 @@ module wrapper_RXDESKEW_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DESKEW_CODE     (MIN_DESKEW_CODE     ),
         .MAX_DESKEW_CODE     (MAX_DESKEW_CODE     ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) dut_attach (
         .intf(dut_if)
     );
@@ -54,7 +55,8 @@ module wrapper_RXDESKEW_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DESKEW_CODE     (MIN_DESKEW_CODE     ),
         .MAX_DESKEW_CODE     (MAX_DESKEW_CODE     ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) ptn_attach (
         .intf(ptn_if)
     );

@@ -282,7 +282,7 @@ module wrapper_SPEEDIDLE_tb;
         run_scenario("Scenario 1: From DATAVREF", LOG_MBTRAIN_DATAVREF, 3'b010, 3'b010, 0, 1'b1);
 
         // Scenario 2: Entry from L1_L2 -> keeps speed (last speed is 3'b010 from Scenario 1)
-        run_scenario("Scenario 2: From L1_L2", LOG_L1_L2, 3'b010, 3'b010, 0, 1'b0);
+        run_scenario("Scenario 2: From L1_L2", LOG_L1, 3'b010, 3'b010, 0, 1'b0);
 
         // Scenario 3: Entry from LINKSPEED -> decrements speed by 1 (3'b010 -> 3'b001)
         run_scenario("Scenario 3: From LINKSPEED", LOG_MBTRAIN_LINKSPEED, 3'b010, 3'b001, 0, 1'b0);
@@ -315,10 +315,10 @@ module wrapper_SPEEDIDLE_tb;
         for (int i = 0; i < 60; i++) begin
             automatic bit [1:0] state_sel = $urandom_range(0, 2);
             automatic state_n_e prev = (state_sel == 0) ? LOG_MBTRAIN_DATAVREF :
-                                       (state_sel == 1) ? LOG_L1_L2 : LOG_MBTRAIN_LINKSPEED;
+                                       (state_sel == 1) ? LOG_L1 : LOG_MBTRAIN_LINKSPEED;
             automatic bit [2:0] max_sp = $urandom_range(1, 4);
             automatic bit [2:0] exp_sp = (prev == LOG_MBTRAIN_DATAVREF) ? max_sp :
-                                         (prev == LOG_L1_L2) ? 3'b010 : 3'b001; // wait, depends on history, let's keep it simple
+                                         (prev == LOG_L1) ? 3'b010 : 3'b001; // wait, depends on history, let's keep it simple
             // Just test clean entry-exit for speedidle
             run_scenario($sformatf("Randomized Iteration %0d", i), LOG_MBTRAIN_DATAVREF, max_sp, max_sp, 0);
         end

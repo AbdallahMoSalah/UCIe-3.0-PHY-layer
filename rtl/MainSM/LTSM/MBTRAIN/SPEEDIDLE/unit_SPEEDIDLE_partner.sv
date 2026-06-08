@@ -94,7 +94,7 @@ module unit_SPEEDIDLE_partner (
             if (current_state == SPEEDIDLE_PTN_CONFIG) begin
                 if (state_n[1] == LOG_MBTRAIN_DATAVREF) begin
                     internal_phy_negotiated_speed <= param_negotiated_max_speed;
-                end else if (state_n[1] == LOG_L1_L2) begin
+                end else if (state_n[1] == LOG_L1 || state_n[1] == LOG_L2) begin
                     internal_phy_negotiated_speed <= internal_phy_negotiated_speed; // Keep
                 end else if (state_n[1] == LOG_MBTRAIN_LINKSPEED || state_n[1] == LOG_PHYRETRAIN) begin
                     if (internal_phy_negotiated_speed != 3'b000) begin
