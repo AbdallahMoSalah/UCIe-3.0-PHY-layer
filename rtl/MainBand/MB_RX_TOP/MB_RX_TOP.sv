@@ -59,6 +59,9 @@ module MB_RX_TOP #(
     input  logic [15:0]            i_max_error_threshold_per_lane_ID,
     input  logic [15:0]            i_max_error_threshold_aggergate,
 
+    // Pattern Comparator Width Degradation
+    input  logic [2:0]             i_width_deg_comp,
+
     // Demapper Controls
     input  logic                   demapper_en,
     input  logic                   rx_data_valid,
@@ -120,7 +123,17 @@ module MB_RX_TOP #(
 
     // Gated enables to fix CDC delay & training desync issues
     wire                     data_deser_enable = enable_des_valid_frame_w || de_ser_done;
-    wire                     gated_enable_buffer = i_enable_buffer && ( (i_state == 3'b010 || i_state == 3'b011) ? de_ser_done : 1'b1 );
+
+    reg [2:0] i_state_delayed;
+    always @(posedge MB_clk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            i_state_delayed <= 3'b000;
+        end else begin
+            i_state_delayed <= i_state;
+        end
+    end
+
+    wire                     gated_enable_buffer = i_enable_buffer && ( (i_state_delayed == 3'b010 || i_state_delayed == 3'b011) ? de_ser_done : 1'b1 );
 
     // =========================================================================
     // Block 1: Valid Lane Deserializer (MB_DES_VALID)
@@ -321,6 +334,7 @@ module MB_RX_TOP #(
         .i_clk(MB_clk),
         .i_rst_n(i_rst_n),
         .i_active(i_active_state_entered), // Bypass active when LFSR is in active state!
+        .i_width_deg_comp(i_width_deg_comp),
         .i_type_of_com(i_type_of_com),
         .i_enable_pattern_com(pattern_comp_en_w),
         .i_max_error_threshold_per_lane_ID(i_max_error_threshold_per_lane_ID),

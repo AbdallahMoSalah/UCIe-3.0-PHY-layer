@@ -1,3 +1,4 @@
+
 // Module: MB_pattern_comparator
 // Status: done 
 // Description: Pattern comparator for MainBand lanes (Per-Lane & Aggregate modes)
@@ -8,6 +9,7 @@ module PATTERN_COMPARATOR #(
     input  wire        i_clk,
     input  wire        i_rst_n,
     input  wire        i_active,                              // Active mode flag
+    input  wire [2:0]  i_width_deg_comp,                     // Lane degradation mode for comparison
     input  wire [1:0]  i_type_of_com,
     input  wire        i_enable_pattern_com,
     input  wire [15:0] i_max_error_threshold_per_lane_ID, // Threshold for per-lane error disabling
@@ -35,6 +37,31 @@ module PATTERN_COMPARATOR #(
     output wire [WIDTH-1:0] o_data_8,  o_data_9,  o_data_10, o_data_11,
     output wire [WIDTH-1:0] o_data_12, o_data_13, o_data_14, o_data_15
 );
+
+    // =========================================================================
+    // Lane Degradation Modes
+    // =========================================================================
+    localparam NONE_DEGRADE           = 3'b000;
+    localparam DEGRADE_LANES_0_TO_7   = 3'b001;
+    localparam DEGRADE_LANES_8_TO_15  = 3'b010;
+    localparam DEGRADE_LANES_0_TO_15  = 3'b011;
+    localparam DEGRADE_LANES_0_TO_3   = 3'b100;
+    localparam DEGRADE_LANES_4_TO_7   = 3'b101;
+
+    // =========================================================================
+    // Lane-Active Mask based on i_width_deg_comp
+    // =========================================================================
+    reg [15:0] lane_active;
+    always @(*) begin
+        case (i_width_deg_comp)
+            DEGRADE_LANES_0_TO_7:   lane_active = 16'h00FF; // Lanes 0-7
+            DEGRADE_LANES_8_TO_15:  lane_active = 16'hFF00; // Lanes 8-15
+            DEGRADE_LANES_0_TO_15:  lane_active = 16'hFFFF; // All 16 lanes
+            DEGRADE_LANES_0_TO_3:   lane_active = 16'h000F; // Lanes 0-3
+            DEGRADE_LANES_4_TO_7:   lane_active = 16'h00F0; // Lanes 4-7
+            default:                lane_active = 16'h0000; // No lanes (NONE_DEGRADE)
+        endcase
+    end
 
     // =========================================================================
     // Arrays for easier indexing
@@ -157,21 +184,30 @@ module PATTERN_COMPARATOR #(
                         lane_err_accum[k] <= 16'd0; // start fresh
                     end
                 end else if (iteration_ctr < 128) begin
-                    // ACCUMULATE
-                    // Accumulate per lane errors
+                    // ACCUMULATE — only count errors on active lanes
                     for (k = 0; k < 16; k = k + 1) begin
-                        lane_err_accum[k] <= lane_err_accum[k] + lane_total_mismatch[k];
+                        if (lane_active[k]) begin
+                            lane_err_accum[k] <= lane_err_accum[k] + lane_total_mismatch[k];
+                        end
                     end
-                    // Accumulate aggregate errors
+                    // Accumulate aggregate errors — only from active lanes
                     o_error_counter <= o_error_counter + 
-                                       lane_total_mismatch[0] + lane_total_mismatch[1] + 
-                                       lane_total_mismatch[2] + lane_total_mismatch[3] + 
-                                       lane_total_mismatch[4] + lane_total_mismatch[5] + 
-                                       lane_total_mismatch[6] + lane_total_mismatch[7] + 
-                                       lane_total_mismatch[8] + lane_total_mismatch[9] + 
-                                       lane_total_mismatch[10]+ lane_total_mismatch[11]+ 
-                                       lane_total_mismatch[12]+ lane_total_mismatch[13]+ 
-                                       lane_total_mismatch[14]+ lane_total_mismatch[15];
+                                       (lane_active[0]  ? lane_total_mismatch[0]  : 6'd0) +
+                                       (lane_active[1]  ? lane_total_mismatch[1]  : 6'd0) +
+                                       (lane_active[2]  ? lane_total_mismatch[2]  : 6'd0) +
+                                       (lane_active[3]  ? lane_total_mismatch[3]  : 6'd0) +
+                                       (lane_active[4]  ? lane_total_mismatch[4]  : 6'd0) +
+                                       (lane_active[5]  ? lane_total_mismatch[5]  : 6'd0) +
+                                       (lane_active[6]  ? lane_total_mismatch[6]  : 6'd0) +
+                                       (lane_active[7]  ? lane_total_mismatch[7]  : 6'd0) +
+                                       (lane_active[8]  ? lane_total_mismatch[8]  : 6'd0) +
+                                       (lane_active[9]  ? lane_total_mismatch[9]  : 6'd0) +
+                                       (lane_active[10] ? lane_total_mismatch[10] : 6'd0) +
+                                       (lane_active[11] ? lane_total_mismatch[11] : 6'd0) +
+                                       (lane_active[12] ? lane_total_mismatch[12] : 6'd0) +
+                                       (lane_active[13] ? lane_total_mismatch[13] : 6'd0) +
+                                       (lane_active[14] ? lane_total_mismatch[14] : 6'd0) +
+                                       (lane_active[15] ? lane_total_mismatch[15] : 6'd0);
 
                     iteration_ctr <= iteration_ctr + 1'b1;
                 end else begin
@@ -179,9 +215,9 @@ module PATTERN_COMPARATOR #(
                     in_progress <= 1'b0;
                     o_error_done <= 1'b1;
                     
-                    // Evaluate threshold limits per-lane
+                    // Evaluate threshold limits — only for active lanes
                     for (k = 0; k < 16; k = k + 1) begin
-                        if (lane_err_accum[k] > i_max_error_threshold_per_lane_ID) begin
+                        if (lane_active[k] && lane_err_accum[k] > i_max_error_threshold_per_lane_ID) begin
                             o_per_lane_error[k] <= 1'b1;
                         end else begin
                             o_per_lane_error[k] <= 1'b0;

@@ -316,8 +316,10 @@ module LFSR_RX #(
                  *---------------------------------------------------------*/
                 IDLE: begin
                     pattern_comp_en <= 1'b0; // editted by momen
-                    for (i = 0; i < 16; i = i + 1)
+                    for (i = 0; i < 16; i = i + 1) begin
                         temp_Data_by[i] <= {WIDTH{1'b0}};
+                        o_final_gene[i] <= {WIDTH{1'b0}};
+                    end
                 end
 
                 /*----------------------------------------------------------
@@ -325,8 +327,10 @@ module LFSR_RX #(
                  *             and recompute the first 9-bit output slice
                  *---------------------------------------------------------*/
                 CLEAR_LFSR: begin
-                    for (i = 0; i < 16; i = i + 1)
+                    for (i = 0; i < 16; i = i + 1) begin
                         temp_Data_by[i] <= {WIDTH{1'b0}};
+                        o_final_gene[i] <= {WIDTH{1'b0}};
+                    end
 
                     for (i = 0; i < 8; i = i + 1) begin
                         rx_lfsr_lane[i] <= SEED[i];

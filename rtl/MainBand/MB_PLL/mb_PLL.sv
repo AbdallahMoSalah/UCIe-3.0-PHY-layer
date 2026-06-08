@@ -16,10 +16,10 @@ module MB_PLL (
     // =========================
     always @(*) begin
         case (speed_sel)
-            2'b00: period = 500;    // 2 GHz
-            2'b01: period = 250;    // 4 GHz
-            2'b10: period = 125;    // 8 GHz
-            2'b11: period = 62.5;   // 16 GHz
+            2'b00: period = 500;    // 2 GHz  == 4GT/S
+            2'b01: period = 250;    // 4 GHz  == 8GT/S
+            2'b10: period = 125;    // 8 GHz  == 16GT/S
+            2'b11: period = 62.5;   // 16 GHz == 32GT/S
             default: period = 500;
         endcase
     end

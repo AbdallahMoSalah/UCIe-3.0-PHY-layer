@@ -30,7 +30,7 @@ module MB_RX_TOP_TB;
     parameter DATA_WIDTH = 32;
     parameter N_BYTES    = 64;
     parameter PLL_HALF   = 1;   // 1ns → pll_clk period = 2ns
-    parameter MB_HALF    = 32;  // 32ns → MB_clk period = 64ns = 32 * 2ns
+    parameter MB_HALF    = 16;  // 16ns → MB_clk period = 32ns = 16 * 2ns
 
     // =========================================================================
     // Signals
@@ -70,6 +70,7 @@ module MB_RX_TOP_TB;
     logic [1:0]            i_type_of_com;
     logic [15:0]           i_max_error_threshold_per_lane_ID;
     logic [15:0]           i_max_error_threshold_aggergate;
+    logic [2:0]            i_width_deg_comp;
 
     // Demapper controls
     logic                  demapper_en;
@@ -127,6 +128,7 @@ module MB_RX_TOP_TB;
         .i_type_of_com               (i_type_of_com),
         .i_max_error_threshold_per_lane_ID  (i_max_error_threshold_per_lane_ID),
         .i_max_error_threshold_aggergate    (i_max_error_threshold_aggergate),
+        .i_width_deg_comp            (i_width_deg_comp),
         .demapper_en                 (demapper_en),
         .rx_data_valid               (rx_data_valid),
         .i_width_deg_demap           (i_width_deg_demap),
@@ -410,6 +412,7 @@ module MB_RX_TOP_TB;
             i_type_of_com                = 2'b00;
             i_max_error_threshold_per_lane_ID  = 16'd50;
             i_max_error_threshold_aggergate    = 16'd800;
+            i_width_deg_comp             = 3'b011; // x16
             demapper_en                  = 1'b0;
             rx_data_valid                = 1'b0;
             i_width_deg_demap            = 3'b011; // x16
@@ -495,7 +498,7 @@ module MB_RX_TOP_TB;
         // Data in: send known data frames, comparator checks vs LFSR output
         // We send 135 frames to allow the comparator to complete its 128 cycles.
         // ==================================================================
-        $display("\n--- TEST 3: LFSR Training Mode - PATTERN_LFSR ---");
+        $display("\n--- TEST 3: PATTERN_LFSR - Mismatching Scenario (Expect Errors) ---");
         begin
             logic [31:0] tx_data [0:15];
             integer lane;
@@ -633,7 +636,7 @@ module MB_RX_TOP_TB;
         // ------------------------------------------------------------------
         // i_active_state_entered = 1 → LFSR_RX enters DATA_TRANSFER
         // Pattern Comparator BYPASSES all 16 lanes → data goes to Demapper
-        // Demapper (x16 mode) assembles one 512-bit flit in 1 MB_clk cycle
+// Demapper (x16 mode) assembles one 512-bit flit in 1 MB_clk cycle
         // ==================================================================
         $display("\n--- TEST 5: Active Mode - DATA_TRANSFER + Demapper ---");
         begin
@@ -689,6 +692,7 @@ module MB_RX_TOP_TB;
             // Wait for Demapper output
             fork
                 begin
+                    if (pl_valid) @(negedge pl_valid);
                     wait(pl_valid == 1'b1);
                     $display("[%0t] pl_valid asserted! Demapper output ready.", $time);
                     
@@ -699,10 +703,10 @@ module MB_RX_TOP_TB;
                         failed = 0;
                         for (lane = 0; lane < 16; lane++) begin
                             reconstructed_lane = {
-                                o_out_data[128 - 8*(lane+1) +: 8],
-                                o_out_data[256 - 8*(lane+1) +: 8],
-                                o_out_data[384 - 8*(lane+1) +: 8],
-                                o_out_data[512 - 8*(lane+1) +: 8]
+                                o_out_data[384 + 8*lane +: 8],
+                                o_out_data[256 + 8*lane +: 8],
+                                o_out_data[128 + 8*lane +: 8],
+                                o_out_data[0   + 8*lane +: 8]
                             };
                             if (reconstructed_lane !== tx_data[lane]) begin
                                 $display("ERROR: Lane %0d mismatch! Sent: %h, Recv: %h", lane, tx_data[lane], reconstructed_lane);
@@ -727,6 +731,201 @@ module MB_RX_TOP_TB;
         end
 
         // ==================================================================
+        // TEST 5A: Active Mode - x8 Mode (Lanes 0-7, 3'b001)
+        // ------------------------------------------------------------------
+        // Both Demapper and LFSR width_deg are set to 3'b001.
+        // Demapper (x8 mode) assembles 512 bits in 2 cycles.
+        // ==================================================================
+        $display("\n--- TEST 5A: Active Mode - x8 Mode (Lanes 0-7, 3'b001) ---");
+        begin
+            logic [31:0] tx_data_1 [0:15];
+            logic [31:0] tx_data_2 [0:15];
+            integer lane;
+
+            // Initialize frames
+            for (lane = 0; lane < 16; lane++) begin
+                tx_data_1[lane] = 32'hAAAA_0000 + lane;
+                tx_data_2[lane] = 32'hBBBB_0000 + lane;
+            end
+
+            // Enter Active State
+            i_state                = 3'b100; // DATA_TRANSFER
+            i_active_state_entered = 1'b1;   // Bypass comparator
+            i_enable_buffer        = 1'b1;
+            i_descramble_en        = 1'b0;
+
+            demapper_en       = 1'b1;
+            i_width_deg_demap = 3'b001; // x8 (Lanes 0-7)
+            i_width_deg_lfsr  = 3'b001; // x8 (Lanes 0-7)
+            i_width_deg_comp  = 3'b001; // x8 (Lanes 0-7)
+
+            $display("[%0t] Sending x8 Mode frames...", $time);
+            fork
+                // Thread 1: send 2 frames
+                begin
+                    @(posedge pll_clk);
+                    send_full_frame(32'hF0F0F0F0, tx_data_1);
+                    wait_for_data_done(20);
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b1;
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b0;
+
+                    repeat (2) @(posedge MB_clk);
+
+                    @(posedge pll_clk);
+                    send_full_frame(32'hF0F0F0F0, tx_data_2);
+                    wait_for_data_done(20);
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b1;
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b0;
+                end
+                // Thread 2: monitor demapper output
+                begin
+                    if (pl_valid) @(negedge pl_valid);
+                    wait(pl_valid == 1'b1);
+                    $display("[%0t] pl_valid asserted for x8 mode!", $time);
+                    
+                    // Verify lanes 0 to 7
+                    begin
+                        logic [31:0] recon_1, recon_2;
+                        logic failed;
+                        failed = 0;
+                        for (lane = 0; lane < 8; lane++) begin
+                            recon_1 = {
+                                o_out_data[192 + 8*lane +: 8],
+                                o_out_data[128 + 8*lane +: 8],
+                                o_out_data[64  + 8*lane +: 8],
+                                o_out_data[0   + 8*lane +: 8]
+                            };
+                            recon_2 = {
+                                o_out_data[256 + 192 + 8*lane +: 8],
+                                o_out_data[256 + 128 + 8*lane +: 8],
+                                o_out_data[256 + 64  + 8*lane +: 8],
+                                o_out_data[256 + 0   + 8*lane +: 8]
+                            };
+                            if (recon_1 !== tx_data_1[lane]) begin
+                                $display("ERROR: x8 Lane %0d Frame 1 mismatch! Sent: %h, Recv: %h", lane, tx_data_1[lane], recon_1);
+                                failed = 1;
+                            end
+                            if (recon_2 !== tx_data_2[lane]) begin
+                                $display("ERROR: x8 Lane %0d Frame 2 mismatch! Sent: %h, Recv: %h", lane, tx_data_2[lane], recon_2);
+                                failed = 1;
+                            end
+                        end
+                        if (!failed) begin
+                            $display("[%0t] TEST 5A PASSED: Demapper x8 output verified successfully.", $time);
+                        end else begin
+                            $display("[%0t] TEST 5A FAILED: Demapper x8 mismatch.", $time);
+                            $fatal("Test 5A Failed");
+                        end
+                    end
+                end
+                // Thread 3: timeout
+                begin
+                    repeat (100) @(posedge MB_clk);
+                    $display("[%0t] TEST 5A FAILED: Timeout waiting for pl_valid.", $time);
+                    $fatal("Test 5A Failed");
+                end
+            join_any
+            disable fork;
+            demapper_en = 1'b0;
+            apply_defaults();
+            repeat (5) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 5B: Active Mode - x4 Mode (Lanes 0-3, 3'b100)
+        // ------------------------------------------------------------------
+        // Both Demapper and LFSR width_deg are set to 3'b100.
+        // Demapper (x4 mode) assembles 512 bits in 4 cycles.
+        // ==================================================================
+        $display("\n--- TEST 5B: Active Mode - x4 Mode (Lanes 0-3, 3'b100) ---");
+        begin
+            logic [31:0] tx_data [0:3][0:15];
+            integer lane, frame_idx;
+
+            // Initialize 4 frames
+            for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                for (lane = 0; lane < 16; lane++) begin
+                    tx_data[frame_idx][lane] = ((frame_idx + 1) * 32'h1111_0000) + lane;
+                end
+            end
+
+            // Enter Active State
+            i_state                = 3'b100; // DATA_TRANSFER
+            i_active_state_entered = 1'b1;   // Bypass comparator
+            i_enable_buffer        = 1'b1;
+            i_descramble_en        = 1'b0;
+
+            demapper_en       = 1'b1;
+            i_width_deg_demap = 3'b100; // x4 (Lanes 0-3)
+            i_width_deg_lfsr  = 3'b100; // x4 (Lanes 0-3)
+            i_width_deg_comp  = 3'b100; // x4 (Lanes 0-3)
+
+            $display("[%0t] Sending x4 Mode frames...", $time);
+            fork
+                // Thread 1: send 4 frames
+                begin
+                    for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data[frame_idx]);
+                        wait_for_data_done(20);
+                        @(posedge MB_clk);
+                        rx_data_valid = 1'b1;
+                        @(posedge MB_clk);
+                        rx_data_valid = 1'b0;
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                // Thread 2: monitor demapper output
+                begin
+                    if (pl_valid) @(negedge pl_valid);
+                    wait(pl_valid == 1'b1);
+                    $display("[%0t] pl_valid asserted for x4 mode!", $time);
+                    
+                    // Verify lanes 0 to 3 across all 4 frames
+                    begin
+                        logic [31:0] recon;
+                        logic failed;
+                        failed = 0;
+                        for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                            for (lane = 0; lane < 4; lane++) begin
+                                recon = {
+                                    o_out_data[frame_idx*128 + 96 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 64 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 32 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 0  + 8*lane +: 8]
+                                };
+                                if (recon !== tx_data[frame_idx][lane]) begin
+                                    $display("ERROR: x4 Lane %0d Frame %0d mismatch! Sent: %h, Recv: %h", lane, frame_idx, tx_data[frame_idx][lane], recon);
+                                    failed = 1;
+                                end
+                            end
+                        end
+                        if (!failed) begin
+                            $display("[%0t] TEST 5B PASSED: Demapper x4 output verified successfully.", $time);
+                        end else begin
+                            $display("[%0t] TEST 5B FAILED: Demapper x4 mismatch.", $time);
+                            $fatal("Test 5B Failed");
+                        end
+                    end
+                end
+                // Thread 3: timeout
+                begin
+                    repeat (200) @(posedge MB_clk);
+                    $display("[%0t] TEST 5B FAILED: Timeout waiting for pl_valid.", $time);
+                    $fatal("Test 5B Failed");
+                end
+            join_any
+            disable fork;
+            demapper_en = 1'b0;
+            apply_defaults();
+            repeat (5) @(posedge MB_clk);
+        end
+
+        // ==================================================================
         // TEST 6: PATTERN_LFSR with MATCHING TX data → Comparator = 0 errors
         // ------------------------------------------------------------------
         // We compute the EXACT pattern the LFSR_RX generates locally using
@@ -735,7 +934,7 @@ module MB_RX_TOP_TB;
         //
         // Seed values from LFSR_RX.sv (x16 mode: lanes 8-15 reuse seeds 0-7)
         // ==================================================================
-        $display("\n--- TEST 6: PATTERN_LFSR with MATCHING data (expect 0 comparator errors) ---");
+        $display("\n--- TEST 6: PATTERN_LFSR - Matching Scenario (Expect 0 Errors) ---");
         begin
             logic [22:0] seeds [0:7];
             logic [22:0] cur_state [0:7];
@@ -837,6 +1036,615 @@ module MB_RX_TOP_TB;
             end
 
             // Return LFSR to IDLE
+            i_state = 3'b000;
+            repeat (3) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 6A: PATTERN_LFSR - Matching Scenario (x8 Mode - Lanes 0-7, 3'b001)
+        // ------------------------------------------------------------------
+        // We set i_width_deg_lfsr = 3'b001 → LFSR generates patterns on lanes 0-7.
+        // Lanes 8-15 must be 32'h0000_0000 to match local reference o_final_gene.
+        // ==================================================================
+        $display("\n--- TEST 6A: PATTERN_LFSR - Matching Scenario (x8 Mode - Lanes 0-7, 3'b001) ---");
+        begin
+            logic [22:0] seeds [0:7];
+            logic [22:0] cur_state [0:7];
+            logic [31:0] raw   [0:7];
+            logic [31:0] tx_data [0:15];
+            integer      lane, frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
+
+            // Fixed seeds (must match LFSR_RX.sv)
+            seeds[0] = 23'h1DBFBC;  seeds[1] = 23'h0607BB;
+            seeds[2] = 23'h1EC760;  seeds[3] = 23'h18C0DB;
+            seeds[4] = 23'h010F12;  seeds[5] = 23'h19CFC9;
+            seeds[6] = 23'h0277CE;  seeds[7] = 23'h1BB807;
+
+            for (lane = 0; lane < 8; lane++) begin
+                cur_state[lane] = seeds[lane];
+            end
+
+            // Return FSM to IDLE first so it can register the state change to CLEAR_LFSR
+            i_active_state_entered = 1'b0;
+            i_state = 3'b000; // IDLE
+            @(posedge MB_clk);
+
+            // Now enter CLEAR_LFSR (clear seeds)
+            i_state = 3'b001; // CLEAR_LFSR → reloads seeds
+            @(posedge MB_clk);
+            @(posedge MB_clk);
+
+            // Now transition to PATTERN_LFSR
+            i_state = 3'b010; // PATTERN_LFSR
+            i_width_deg_lfsr  = 3'b001; // x8 Mode (Lanes 0-7)
+            i_width_deg_demap = 3'b001; // x8 Mode (Lanes 0-7)
+            i_width_deg_comp  = 3'b001; // x8 Mode (Lanes 0-7)
+            i_enable_buffer = 1'b1;
+            @ (posedge MB_clk);
+
+            fork
+                begin
+                    // Loop 135 times with safe spacing
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        // Compute next LFSR state and output word
+                        for (lane = 0; lane < 16; lane++) begin
+                            if (lane < 8) begin
+                                if (frame_idx == 0) begin
+                                    tx_data[lane] = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                end else begin
+                                    raw[lane] = tb_next_lfsr_state(cur_state[lane]);
+                                    tx_data[lane] = {raw[lane][22:0], raw[lane][31:23]};
+                                    cur_state[lane] = raw[lane][22:0]; // update state
+                                end
+                            end else begin
+                                // Inactive lanes are driven to 0 to match reference generator o_final_gene
+                                tx_data[lane] = 32'h0000_0000;
+                            end
+                        end
+
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
+            repeat (5) @(posedge MB_clk);
+
+            // Check comparator result
+            $display("[%0t] Comparator results after x8 matching TX:", $time);
+            $display("  o_error_counter  = %0d  (expect 0)", captured_error_counter);
+            $display("  o_per_lane_error = %h  (expect 0000)", captured_per_lane_error);
+            $display("  o_error_done     = %b  (expect 1)", captured_error_done);
+
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
+                $display("[%0t] TEST 6A PASSED: Zero errors - TX matched LFSR x8 pattern perfectly.", $time);
+            end else begin
+                $display("[%0t] TEST 6A FAILED: Errors detected in LFSR x8 matching.", $time);
+                $fatal("Test 6A Failed");
+            end
+
+            // Return LFSR to IDLE
+            i_state = 3'b000;
+            repeat (3) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 6B: PATTERN_LFSR - Matching Scenario (x4 Mode - Lanes 0-3, 3'b100)
+        // ------------------------------------------------------------------
+        // We set i_width_deg_lfsr = 3'b100 → LFSR generates patterns on lanes 0-3.
+        // Lanes 4-15 must be 32'h0000_0000 to match local reference o_final_gene.
+        // ==================================================================
+        $display("\n--- TEST 6B: PATTERN_LFSR - Matching Scenario (x4 Mode - Lanes 0-3, 3'b100) ---");
+        begin
+            logic [22:0] seeds [0:7];
+            logic [22:0] cur_state [0:7];
+            logic [31:0] raw   [0:7];
+            logic [31:0] tx_data [0:15];
+            integer      lane, frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
+
+            // Fixed seeds (must match LFSR_RX.sv)
+            seeds[0] = 23'h1DBFBC;  seeds[1] = 23'h0607BB;
+            seeds[2] = 23'h1EC760;  seeds[3] = 23'h18C0DB;
+            seeds[4] = 23'h010F12;  seeds[5] = 23'h19CFC9;
+            seeds[6] = 23'h0277CE;  seeds[7] = 23'h1BB807;
+
+            for (lane = 0; lane < 8; lane++) begin
+                cur_state[lane] = seeds[lane];
+            end
+
+            // Return FSM to IDLE first so it can register the state change to CLEAR_LFSR
+            i_active_state_entered = 1'b0;
+            i_state = 3'b000; // IDLE
+            @(posedge MB_clk);
+
+            // Now enter CLEAR_LFSR (clear seeds)
+            i_state = 3'b001; // CLEAR_LFSR → reloads seeds
+            @(posedge MB_clk);
+            @(posedge MB_clk);
+
+            // Now transition to PATTERN_LFSR
+            i_state = 3'b010; // PATTERN_LFSR
+            i_width_deg_lfsr  = 3'b100; // x4 Mode (Lanes 0-3)
+            i_width_deg_demap = 3'b100; // x4 Mode (Lanes 0-3)
+            i_width_deg_comp  = 3'b100; // x4 Mode (Lanes 0-3)
+            i_enable_buffer = 1'b1;
+            @ (posedge MB_clk);
+
+            fork
+                begin
+                    // Loop 135 times with safe spacing
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        // Compute next LFSR state and output word
+                        for (lane = 0; lane < 16; lane++) begin
+                            if (lane < 4) begin
+                                if (frame_idx == 0) begin
+                                    tx_data[lane] = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                end else begin
+                                    raw[lane] = tb_next_lfsr_state(cur_state[lane]);
+                                    tx_data[lane] = {raw[lane][22:0], raw[lane][31:23]};
+                                    cur_state[lane] = raw[lane][22:0]; // update state
+                                end
+                            end else begin
+                                // Inactive lanes are driven to 0 to match reference generator o_final_gene
+                                tx_data[lane] = 32'h0000_0000;
+                            end
+                        end
+
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
+            repeat (5) @(posedge MB_clk);
+
+            // Check comparator result
+            $display("[%0t] Comparator results after x4 matching TX:", $time);
+            $display("  o_error_counter  = %0d  (expect 0)", captured_error_counter);
+            $display("  o_per_lane_error = %h  (expect 0000)", captured_per_lane_error);
+            $display("  o_error_done     = %b  (expect 1)", captured_error_done);
+
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
+                $display("[%0t] TEST 6B PASSED: Zero errors - TX matched LFSR x4 pattern perfectly.", $time);
+            end else begin
+                $display("[%0t] TEST 6B FAILED: Errors detected in LFSR x4 matching.", $time);
+                $fatal("Test 6B Failed");
+            end
+
+            // Return LFSR to IDLE
+            i_state = 3'b000;
+            repeat (3) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 7A: Active Mode - Width Degradation x8 (All 3 signals = 3'b001)
+        // ------------------------------------------------------------------
+        // Verify that data flows through LFSR_RX → (bypass) PATTERN_COMPARATOR
+        // → Demapper correctly when ALL width_deg signals are set to x8.
+        // ==================================================================
+        $display("\n--- TEST 7A: Active Mode - Full Width Deg x8 (3'b001) ---");
+        begin
+            logic [31:0] tx_data_1 [0:15];
+            logic [31:0] tx_data_2 [0:15];
+            integer lane;
+
+            // Initialize frames: unique data per lane
+            for (lane = 0; lane < 8; lane++) begin
+                tx_data_1[lane] = 32'hCC00_0000 + lane;
+                tx_data_2[lane] = 32'hDD00_0000 + lane;
+            end
+            for (lane = 8; lane < 16; lane++) begin
+                tx_data_1[lane] = 32'h0000_0000; // inactive lanes = 0
+                tx_data_2[lane] = 32'h0000_0000;
+            end
+
+            // Enter Active State with x8 degradation on ALL blocks
+            i_state                = 3'b100; // DATA_TRANSFER
+            i_active_state_entered = 1'b1;   // Bypass comparator
+            i_enable_buffer        = 1'b1;
+            i_descramble_en        = 1'b0;
+
+            demapper_en       = 1'b1;
+            i_width_deg_demap = 3'b001; // x8 (Lanes 0-7)
+            i_width_deg_lfsr  = 3'b001; // x8 (Lanes 0-7)
+            i_width_deg_comp  = 3'b001; // x8 (Lanes 0-7)
+
+            $display("[%0t] Sending Active x8 frames (all width_deg = 3'b001)...", $time);
+            fork
+                // Thread 1: send 2 frames (x8 needs 2 cycles for 512 bits)
+                begin
+                    @(posedge pll_clk);
+                    send_full_frame(32'hF0F0F0F0, tx_data_1);
+                    wait_for_data_done(20);
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b1;
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b0;
+
+                    repeat (2) @(posedge MB_clk);
+
+                    @(posedge pll_clk);
+                    send_full_frame(32'hF0F0F0F0, tx_data_2);
+                    wait_for_data_done(20);
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b1;
+                    @(posedge MB_clk);
+                    rx_data_valid = 1'b0;
+                end
+                // Thread 2: monitor demapper output
+                begin
+                    if (pl_valid) @(negedge pl_valid);
+                    wait(pl_valid == 1'b1);
+                    $display("[%0t] pl_valid asserted for Test 7A!", $time);
+                    
+                    begin
+                        logic [31:0] recon_1, recon_2;
+                        logic failed;
+                        failed = 0;
+                        for (lane = 0; lane < 8; lane++) begin
+                            recon_1 = {
+                                o_out_data[192 + 8*lane +: 8],
+                                o_out_data[128 + 8*lane +: 8],
+                                o_out_data[64  + 8*lane +: 8],
+                                o_out_data[0   + 8*lane +: 8]
+                            };
+                            recon_2 = {
+                                o_out_data[256 + 192 + 8*lane +: 8],
+                                o_out_data[256 + 128 + 8*lane +: 8],
+                                o_out_data[256 + 64  + 8*lane +: 8],
+                                o_out_data[256 + 0   + 8*lane +: 8]
+                            };
+                            if (recon_1 !== tx_data_1[lane]) begin
+                                $display("ERROR: T7A x8 Lane %0d Frame 1 mismatch! Sent: %h, Recv: %h", lane, tx_data_1[lane], recon_1);
+                                failed = 1;
+                            end
+                            if (recon_2 !== tx_data_2[lane]) begin
+                                $display("ERROR: T7A x8 Lane %0d Frame 2 mismatch! Sent: %h, Recv: %h", lane, tx_data_2[lane], recon_2);
+                                failed = 1;
+                            end
+                        end
+                        if (!failed) begin
+                            $display("[%0t] TEST 7A PASSED: Active x8 mode verified.", $time);
+                        end else begin
+                            $display("[%0t] TEST 7A FAILED: Active x8 mismatch.", $time);
+                            $fatal("Test 7A Failed");
+                        end
+                    end
+                end
+                // Thread 3: timeout
+                begin
+                    repeat (100) @(posedge MB_clk);
+                    $display("[%0t] TEST 7A FAILED: Timeout.", $time);
+                    $fatal("Test 7A Failed");
+                end
+            join_any
+            disable fork;
+            demapper_en = 1'b0;
+            apply_defaults();
+            repeat (5) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 7B: Active Mode - Width Degradation x4 (All 3 signals = 3'b100)
+        // ==================================================================
+        $display("\n--- TEST 7B: Active Mode - Full Width Deg x4 (3'b100) ---");
+        begin
+            logic [31:0] tx_data [0:3][0:15];
+            integer lane, frame_idx;
+
+            // Initialize 4 frames (x4 needs 4 cycles for 512 bits)
+            for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                for (lane = 0; lane < 4; lane++) begin
+                    tx_data[frame_idx][lane] = 32'hEE00_0000 + (frame_idx << 8) + lane;
+                end
+                for (lane = 4; lane < 16; lane++) begin
+                    tx_data[frame_idx][lane] = 32'h0000_0000; // inactive
+                end
+            end
+
+            // Enter Active State with x4 degradation on ALL blocks
+            i_state                = 3'b100;
+            i_active_state_entered = 1'b1;
+            i_enable_buffer        = 1'b1;
+            i_descramble_en        = 1'b0;
+
+            demapper_en       = 1'b1;
+            i_width_deg_demap = 3'b100; // x4 (Lanes 0-3)
+            i_width_deg_lfsr  = 3'b100; // x4 (Lanes 0-3)
+            i_width_deg_comp  = 3'b100; // x4 (Lanes 0-3)
+
+            $display("[%0t] Sending Active x4 frames (all width_deg = 3'b100)...", $time);
+            fork
+                // Thread 1: send 4 frames
+                begin
+                    for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data[frame_idx]);
+                        wait_for_data_done(20);
+                        @(posedge MB_clk);
+                        rx_data_valid = 1'b1;
+                        @(posedge MB_clk);
+                        rx_data_valid = 1'b0;
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                // Thread 2: monitor demapper output
+                begin
+                    if (pl_valid) @(negedge pl_valid);
+                    wait(pl_valid == 1'b1);
+                    $display("[%0t] pl_valid asserted for Test 7B!", $time);
+                    
+                    begin
+                        logic [31:0] recon;
+                        logic failed;
+                        failed = 0;
+                        for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
+                            for (lane = 0; lane < 4; lane++) begin
+                                recon = {
+                                    o_out_data[frame_idx*128 + 96 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 64 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 32 + 8*lane +: 8],
+                                    o_out_data[frame_idx*128 + 0  + 8*lane +: 8]
+                                };
+                                if (recon !== tx_data[frame_idx][lane]) begin
+                                    $display("ERROR: T7B x4 Lane %0d Frame %0d mismatch! Sent: %h, Recv: %h", lane, frame_idx, tx_data[frame_idx][lane], recon);
+                                    failed = 1;
+                                end
+                            end
+                        end
+                        if (!failed) begin
+                            $display("[%0t] TEST 7B PASSED: Active x4 mode verified.", $time);
+                        end else begin
+                            $display("[%0t] TEST 7B FAILED: Active x4 mismatch.", $time);
+                            $fatal("Test 7B Failed");
+                        end
+                    end
+                end
+                // Thread 3: timeout
+                begin
+                    repeat (200) @(posedge MB_clk);
+                    $display("[%0t] TEST 7B FAILED: Timeout.", $time);
+                    $fatal("Test 7B Failed");
+                end
+            join_any
+            disable fork;
+            demapper_en = 1'b0;
+            apply_defaults();
+            repeat (5) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 8A: Training LFSR Matching x8 (All 3 width_deg = 3'b001)
+        // ------------------------------------------------------------------
+        // Verify that PATTERN_COMPARATOR correctly ignores inactive lanes 8-15
+        // and reports 0 errors when active lanes 0-7 match the LFSR reference.
+        // ==================================================================
+        $display("\n--- TEST 8A: Training LFSR - Full Width Deg x8 Matching (3'b001) ---");
+        begin
+            logic [22:0] seeds [0:7];
+            logic [22:0] cur_state [0:7];
+            logic [31:0] raw   [0:7];
+            logic [31:0] tx_data [0:15];
+            integer      lane, frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
+
+            // Fixed seeds
+            seeds[0] = 23'h1DBFBC;  seeds[1] = 23'h0607BB;
+            seeds[2] = 23'h1EC760;  seeds[3] = 23'h18C0DB;
+            seeds[4] = 23'h010F12;  seeds[5] = 23'h19CFC9;
+            seeds[6] = 23'h0277CE;  seeds[7] = 23'h1BB807;
+
+            for (lane = 0; lane < 8; lane++)
+                cur_state[lane] = seeds[lane];
+
+            // IDLE → CLEAR_LFSR → PATTERN_LFSR
+            i_active_state_entered = 1'b0;
+            i_state = 3'b000; // IDLE
+            @(posedge MB_clk);
+
+            i_state = 3'b001; // CLEAR_LFSR
+            @(posedge MB_clk);
+            @(posedge MB_clk);
+
+            i_state = 3'b010; // PATTERN_LFSR
+            i_width_deg_lfsr  = 3'b001; // x8
+            i_width_deg_demap = 3'b001; // x8
+            i_width_deg_comp  = 3'b001; // x8 — comparator only checks lanes 0-7
+            i_enable_buffer = 1'b1;
+            @(posedge MB_clk);
+
+            fork
+                begin
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        for (lane = 0; lane < 16; lane++) begin
+                            if (lane < 8) begin
+                                if (frame_idx == 0) begin
+                                    tx_data[lane] = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                end else begin
+                                    raw[lane] = tb_next_lfsr_state(cur_state[lane]);
+                                    tx_data[lane] = {raw[lane][22:0], raw[lane][31:23]};
+                                    cur_state[lane] = raw[lane][22:0];
+                                end
+                            end else begin
+                                tx_data[lane] = 32'h0000_0000;
+                            end
+                        end
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
+            repeat (5) @(posedge MB_clk);
+
+            $display("[%0t] T8A → err_cnt=%0d, per_lane=%h, done=%b", $time, captured_error_counter, captured_per_lane_error, captured_error_done);
+
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
+                $display("[%0t] TEST 8A PASSED: Training LFSR x8 with width_deg_comp — 0 errors.", $time);
+            end else begin
+                $display("[%0t] TEST 8A FAILED: Errors in training LFSR x8.", $time);
+                $fatal("Test 8A Failed");
+            end
+
+            i_state = 3'b000;
+            repeat (3) @(posedge MB_clk);
+        end
+
+        // ==================================================================
+        // TEST 8B: Training LFSR Matching x4 (All 3 width_deg = 3'b100)
+        // ------------------------------------------------------------------
+        // Verify that PATTERN_COMPARATOR correctly ignores inactive lanes 4-15
+        // and reports 0 errors when active lanes 0-3 match the LFSR reference.
+        // ==================================================================
+        $display("\n--- TEST 8B: Training LFSR - Full Width Deg x4 Matching (3'b100) ---");
+        begin
+            logic [22:0] seeds [0:7];
+            logic [22:0] cur_state [0:7];
+            logic [31:0] raw   [0:7];
+            logic [31:0] tx_data [0:15];
+            integer      lane, frame_idx;
+            logic [31:0] captured_error_counter;
+            logic [15:0] captured_per_lane_error;
+            logic        captured_error_done;
+
+            captured_error_done = 0;
+            captured_error_counter = 0;
+            captured_per_lane_error = 0;
+
+            // Fixed seeds
+            seeds[0] = 23'h1DBFBC;  seeds[1] = 23'h0607BB;
+            seeds[2] = 23'h1EC760;  seeds[3] = 23'h18C0DB;
+            seeds[4] = 23'h010F12;  seeds[5] = 23'h19CFC9;
+            seeds[6] = 23'h0277CE;  seeds[7] = 23'h1BB807;
+
+            for (lane = 0; lane < 8; lane++)
+                cur_state[lane] = seeds[lane];
+
+            // IDLE → CLEAR_LFSR → PATTERN_LFSR
+            i_active_state_entered = 1'b0;
+            i_state = 3'b000; // IDLE
+            @(posedge MB_clk);
+
+            i_state = 3'b001; // CLEAR_LFSR
+            @(posedge MB_clk);
+            @(posedge MB_clk);
+
+            i_state = 3'b010; // PATTERN_LFSR
+            i_width_deg_lfsr  = 3'b100; // x4
+            i_width_deg_demap = 3'b100; // x4
+            i_width_deg_comp  = 3'b100; // x4 — comparator only checks lanes 0-3
+            i_enable_buffer = 1'b1;
+            @(posedge MB_clk);
+
+            fork
+                begin
+                    for (frame_idx = 0; frame_idx < 135; frame_idx++) begin
+                        for (lane = 0; lane < 16; lane++) begin
+                            if (lane < 4) begin
+                                if (frame_idx == 0) begin
+                                    tx_data[lane] = {cur_state[lane], tb_init_lane_23(cur_state[lane])};
+                                end else begin
+                                    raw[lane] = tb_next_lfsr_state(cur_state[lane]);
+                                    tx_data[lane] = {raw[lane][22:0], raw[lane][31:23]};
+                                    cur_state[lane] = raw[lane][22:0];
+                                end
+                            end else begin
+                                tx_data[lane] = 32'h0000_0000;
+                            end
+                        end
+                        @(posedge pll_clk);
+                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        wait_for_data_done(8);
+                        repeat (2) @(posedge MB_clk);
+                    end
+                end
+                begin
+                    while (!captured_error_done) begin
+                        @(posedge MB_clk);
+                        if (o_error_done) begin
+                            captured_error_done    = 1;
+                            captured_error_counter  = o_error_counter;
+                            captured_per_lane_error = o_per_lane_error;
+                        end
+                    end
+                end
+            join_any
+            disable fork;
+            apply_defaults();
+
+            repeat (5) @(posedge MB_clk);
+
+            $display("[%0t] T8B → err_cnt=%0d, per_lane=%h, done=%b", $time, captured_error_counter, captured_per_lane_error, captured_error_done);
+
+            if (captured_error_done && captured_error_counter == 0 && captured_per_lane_error == 16'h0000) begin
+                $display("[%0t] TEST 8B PASSED: Training LFSR x4 with width_deg_comp — 0 errors.", $time);
+            end else begin
+                $display("[%0t] TEST 8B FAILED: Errors in training LFSR x4.", $time);
+                $fatal("Test 8B Failed");
+            end
+
             i_state = 3'b000;
             repeat (3) @(posedge MB_clk);
         end
