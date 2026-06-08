@@ -34,7 +34,6 @@ module ltsm_wrapper
 
     output LTSM_state_e current_ltsm_state,
     output state_n_e    current_ltsm_state_n,
-    output logic [3:0]  state_status,
 
     // Triggers
     input  logic        phy_start_ucie_link_training_ctrl_out,
@@ -89,6 +88,7 @@ module ltsm_wrapper
     output logic        reg_PMO_enable_status,
     output logic        reg_L2SPD_enable_status,
     output logic        reg_PSPT_enable_status,
+    output logic        link_training_retraining,
 
     // =========================================================================
     // D2C point-test interface
@@ -158,7 +158,6 @@ module ltsm_wrapper
     // ACTIVE state interface
     // =========================================================================
     input  RDI_state    rdi_state,
-    input  logic        Start_UCIe_Link_Training,
 
     // =========================================================================
     // Exposed Handshakes for Unimplemented States (PHYRETRAIN, L1, L2, TRAINERROR)
@@ -320,7 +319,7 @@ module ltsm_wrapper
         .active_error(active_error),
         .current_ltsm_state(current_ltsm_state),
         .current_ltsm_state_n(current_ltsm_state_n),
-        .state_status(state_status),
+        .link_training_retraining(link_training_retraining),
 
         // Submodule enables / handshakes
         .reset_en(reset_en),
@@ -624,7 +623,7 @@ module ltsm_wrapper
         .rdi_state_sts(rdi_state),
         .timeout_expired(timer_timeout_expired),
         .Linkinit_enable(linkinit_en),
-        .start_ucie_link_training(Start_UCIe_Link_Training),
+        .start_ucie_link_training(phy_start_ucie_link_training_ctrl_out),
         .linkinit_done(linkinit_done),
         .timeout_rst_n(),
         .enable_timeout(),
@@ -641,7 +640,7 @@ module ltsm_wrapper
         .rst_n(rst_n),
         .active_enable(active_en),
         .rdi_state(rdi_state),
-        .Start_UCIe_Link_Training(Start_UCIe_Link_Training),
+        .Start_UCIe_Link_Training(phy_start_ucie_link_training_ctrl_out),
         .active_error(active_error),
         .next_ltsm_state(active_next_ltsm_state)
     );

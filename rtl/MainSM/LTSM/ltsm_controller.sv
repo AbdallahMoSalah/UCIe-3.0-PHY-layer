@@ -30,7 +30,7 @@ module ltsm_controller
 
     output LTSM_state_e     current_ltsm_state,
     output state_n_e        current_ltsm_state_n,
-    output logic [3:0]      state_status,
+    output logic            link_training_retraining,
 
     // Submodule enables / handshakes
     output logic            reset_en,
@@ -341,8 +341,6 @@ module ltsm_controller
         endcase
     end
 
-    assign state_status = 4'(current_ltsm_state);
-
     // =============================================================================
     // SHARED WATCHDOG TIMER CONTROL
     // =============================================================================
@@ -351,6 +349,15 @@ module ltsm_controller
                               (current_ltsm_state == MBTRAIN) ||
                               (current_ltsm_state == LINKINIT) ||
                               (current_ltsm_state == PHYRETRAIN);
+
+    // =============================================================================
+    // LINK TRAINING / RETRAINING STATUS (to Register File)
+    // =============================================================================
+    assign link_training_retraining = (current_ltsm_state == SBINIT) ||
+                                      (current_ltsm_state == MBINIT) ||
+                                      (current_ltsm_state == MBTRAIN) ||
+                                      (current_ltsm_state == LINKINIT) ||
+                                      (current_ltsm_state == PHYRETRAIN);
 
     state_n_e current_log_state;
     logic [4:0] current_log_state_d;
