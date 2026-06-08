@@ -12,5 +12,5 @@ module unit_valid_frame_detector_s2 #(
 );
 
 assign o_valid_frame_pulse = (i_shift_reg == VALID_PATTERN);
-
 endmodule
+
