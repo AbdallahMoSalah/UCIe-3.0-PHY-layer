@@ -129,11 +129,9 @@ module MBINIT
     input  logic        repairval_RVLD_L_pass,
 
     // =========================================================================
-    // External Watchdog Timer Interface
+    // External Watchdog Timer / Global Error Interface
     // =========================================================================
-    output logic timer_enable,
-    output logic timer_rst_n,
-    input  logic timer_timeout_expired
+    input  logic global_error
     
 );
 
@@ -262,11 +260,9 @@ module MBINIT
         .repairval_RVLD_L_pass(repairval_RVLD_L_pass),
     
         // =========================================================================
-        // External Watchdog Timer Interface
+        // External Watchdog Timer / Global Error Interface
         // =========================================================================
-        .timer_enable(timer_enable),
-        .timer_rst_n(timer_rst_n),
-        .timer_timeout_expired(timer_timeout_expired)
+        .global_error(global_error)
     );
 
     

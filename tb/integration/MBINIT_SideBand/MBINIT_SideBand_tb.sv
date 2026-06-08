@@ -378,9 +378,7 @@ module MBINIT_SideBand_tb;
         .repairval_RVLD_L_pass        (m_repairval_RVLD_L_pass),
 
         // Connect Watchdog
-        .timer_enable                 (m_timer_enable),
-        .timer_rst_n                  (m_timer_rst_n),
-        .timer_timeout_expired        (m_timer_timeout_expired)
+        .global_error                 (m_timer_timeout_expired)
     );
 
     // =========================================================================
@@ -479,10 +477,47 @@ module MBINIT_SideBand_tb;
         .repairval_RVLD_L_pass        (p_repairval_RVLD_L_pass),
 
         // Connect Watchdog
-        .timer_enable                 (p_timer_enable),
-        .timer_rst_n                  (p_timer_rst_n),
-        .timer_timeout_expired        (p_timer_timeout_expired)
+        .global_error                 (p_timer_timeout_expired)
     );
+
+    // =========================================================================
+    // LOCAL WATCHDOG TIMER CONTROL DRIVERS
+    // =========================================================================
+    always_comb begin
+        m_timer_enable = m_enable && !m_done && !m_error;
+    end
+
+    state_n_e m_mbinit_state_n_prev;
+    always @(posedge clk_100 or negedge rst_n) begin
+        if (!rst_n) begin
+            m_timer_rst_n         <= 1'b0;
+            m_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            m_timer_rst_n         <= 1'b1;
+            m_mbinit_state_n_prev <= m_mbinit_state_n;
+            if (m_mbinit_state_n != m_mbinit_state_n_prev) begin
+                m_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
+
+    always_comb begin
+        p_timer_enable = p_enable && !p_done && !p_error;
+    end
+
+    state_n_e p_mbinit_state_n_prev;
+    always @(posedge clk_100 or negedge rst_n) begin
+        if (!rst_n) begin
+            p_timer_rst_n         <= 1'b0;
+            p_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            p_timer_rst_n         <= 1'b1;
+            p_mbinit_state_n_prev <= p_mbinit_state_n;
+            if (p_mbinit_state_n != p_mbinit_state_n_prev) begin
+                p_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
 
     // =========================================================================
     // INSTANTIATION: TIMEOUT_COUNTER (WATCHDOG - DIE 0)

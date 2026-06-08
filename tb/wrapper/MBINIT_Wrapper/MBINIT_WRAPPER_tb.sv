@@ -2,6 +2,27 @@
 import UCIe_pkg::*;
 import ltsm_state_n_pkg::*;
 
+interface ucie_mb_cap_if;
+    logic        use_x8_mode;
+    logic [3:0]  negotiated_speed;
+    logic        negotiated_pmo;
+    logic        negotiated_l2spd;
+    logic        negotiated_pspt;
+    logic        negotiated_tarr;
+    logic        negotiated_so;
+    logic        negotiated_mtp;
+
+    logic        local_is_x8;
+    logic [3:0]  local_max_speed;
+    logic        local_sbfe;
+    logic        local_tarr;
+    logic        local_l2spd;
+    logic        local_pspt;
+    logic        local_so;
+    logic        local_pmo;
+    logic        local_mtp;
+endinterface
+
 module MBINIT_WRAPPER_tb;
 
     //////////////////////////////////////////////////
@@ -131,9 +152,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_done(m_done),
         .mbinit_error(m_error),
         .mbinit_state_n(m_mbinit_state_n),
-        .timer_enable(m_timer_enable),
-        .timer_rst_n(m_timer_rst_n),
-        .timer_timeout_expired(m_timer_timeout_expired),
+        .global_error(m_timer_timeout_expired),
         
         .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
@@ -235,9 +254,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_done(p_done),
         .mbinit_error(p_error),
         .mbinit_state_n(p_mbinit_state_n),
-        .timer_enable(p_timer_enable),
-        .timer_rst_n(p_timer_rst_n),
-        .timer_timeout_expired(p_timer_timeout_expired),
+        .global_error(p_timer_timeout_expired),
         
         .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
@@ -327,6 +344,45 @@ module MBINIT_WRAPPER_tb;
         .repairclk_rckp_pass(p_repairclk_rckp_pass),
         .repairval_RVLD_L_pass(p_repairval_RVLD_L_pass)
     );
+
+    //////////////////////////////////////////////////
+    // LOCAL WATCHDOG TIMER CONTROL DRIVERS
+    //////////////////////////////////////////////////
+    always_comb begin
+        m_timer_enable = m_enable && !m_done && !m_error;
+    end
+
+    state_n_e m_mbinit_state_n_prev;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m_timer_rst_n         <= 1'b0;
+            m_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            m_timer_rst_n         <= 1'b1;
+            m_mbinit_state_n_prev <= m_mbinit_state_n;
+            if (m_mbinit_state_n != m_mbinit_state_n_prev) begin
+                m_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
+
+    always_comb begin
+        p_timer_enable = p_enable && !p_done && !p_error;
+    end
+
+    state_n_e p_mbinit_state_n_prev;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            p_timer_rst_n         <= 1'b0;
+            p_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            p_timer_rst_n         <= 1'b1;
+            p_mbinit_state_n_prev <= p_mbinit_state_n;
+            if (p_mbinit_state_n != p_mbinit_state_n_prev) begin
+                p_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
 
     //////////////////////////////////////////////////
     // EXTERNAL WATCHDOG TIMER INSTANTIATIONS

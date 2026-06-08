@@ -13,7 +13,7 @@ import RDI_SM_pkg::*;
 
 module ltsm_wrapper
 #(
-    parameter int CLK_FRQ_HZ          = 800000000,
+    parameter int CLK_FRQ_HZ         = 800000000,
     parameter int MAX_VAL_VREF_CODE  = 127,
     parameter int MAX_DATA_VREF_CODE = 127,
     parameter int MAX_PI_PHASE_CODE  = 127,
@@ -176,6 +176,38 @@ module ltsm_wrapper
     input  logic        trainerror_done,
 
     // =========================================================================
+    // Exposed Handshakes & Interface for MBTRAIN (Unimplemented State)
+    // =========================================================================
+    output logic        mbtrain_en,
+    input  logic        mbtrain_done,
+    input  logic        mbtrain_error,
+    input  state_n_e    mbtrain_state_n,
+
+    // MBTRAIN Sideband interface
+    input  logic        mbtrain_tx_valid,
+    input  msg_no_e     mbtrain_tx_msg_id,
+    input  logic [15:0] mbtrain_tx_MsgInfo,
+    input  logic [63:0] mbtrain_tx_data_Field,
+
+    // MBTRAIN Mainband interface
+    input  logic        mbtrain_mb_tx_pattern_en,
+    input  logic [2:0]  mbtrain_mb_tx_pattern_setup,
+    input  logic [1:0]  mbtrain_mb_tx_data_pattern_sel,
+    input  logic        mbtrain_mb_tx_val_pattern_sel,
+    input  logic        mbtrain_mb_rx_compare_en,
+    input  logic [1:0]  mbtrain_mb_rx_compare_setup,
+    input  logic        mbtrain_clear_error_req,
+    input  logic        mbtrain_mb_lane_reversal_req,
+
+    // MBTRAIN D2C interface
+    input  logic        mbtrain_local_tx_pt_en,
+    input  logic        mbtrain_partner_tx_pt_en,
+    input  logic [2:0]  mbtrain_d2c_pattern_setup,
+    input  logic [1:0]  mbtrain_d2c_data_pattern_sel,
+    input  logic        mbtrain_d2c_pattern_mode,
+    input  logic [1:0]  mbtrain_d2c_compare_setup,
+
+    // =========================================================================
     // Watchdog and Settle Timers
     // =========================================================================
     output logic        timer_enable,
@@ -220,7 +252,6 @@ module ltsm_wrapper
     logic reset_en, reset_done;
     logic sbinit_en, sbinit_done;
     logic mbinit_en, mbinit_done, mbinit_error;
-    logic mbtrain_en, mbtrain_done, mbtrain_error;
     logic linkinit_en, linkinit_done;
     logic active_en;
 
@@ -239,11 +270,6 @@ module ltsm_wrapper
     logic [15:0] mbinit_tx_MsgInfo;
     logic [63:0] mbinit_tx_data_Field;
 
-    logic        mbtrain_tx_valid;
-    msg_no_e     mbtrain_tx_msg_id;
-    logic [15:0] mbtrain_tx_MsgInfo;
-    logic [63:0] mbtrain_tx_data_Field;
-
     // Submodule Mainband wires
     logic        mbinit_mb_tx_pattern_en;
     logic [2:0]  mbinit_mb_tx_pattern_setup;
@@ -254,15 +280,6 @@ module ltsm_wrapper
     logic        mbinit_clear_error_req;
     logic        mbinit_mb_lane_reversal_req;
 
-    logic        mbtrain_mb_tx_pattern_en;
-    logic [2:0]  mbtrain_mb_tx_pattern_setup;
-    logic [1:0]  mbtrain_mb_tx_data_pattern_sel;
-    logic        mbtrain_mb_tx_val_pattern_sel;
-    logic        mbtrain_mb_rx_compare_en;
-    logic [1:0]  mbtrain_mb_rx_compare_setup;
-    logic        mbtrain_clear_error_req;
-    logic        mbtrain_mb_lane_reversal_req;
-
     // Submodule D2C wires
     logic        mbinit_local_tx_pt_en;
     logic        mbinit_partner_tx_pt_en;
@@ -270,15 +287,6 @@ module ltsm_wrapper
     logic [1:0]  mbinit_d2c_data_pattern_sel;
     logic        mbinit_d2c_pattern_mode;
     logic [1:0]  mbinit_d2c_compare_setup;
-
-    logic        mbtrain_local_tx_pt_en;
-    logic        mbtrain_partner_tx_pt_en;
-    logic [2:0]  mbtrain_d2c_pattern_setup;
-    logic [1:0]  mbtrain_d2c_data_pattern_sel;
-    logic        mbtrain_d2c_pattern_mode;
-    logic [1:0]  mbtrain_d2c_compare_setup;
-
-
 
     // Submodule Status Capability wires
     logic        mbinit_Clock_Phase_enable_status;
@@ -292,12 +300,8 @@ module ltsm_wrapper
 
     // Submodule Error Log state_n values
     state_n_e    mbinit_state_n;
-    state_n_e    mbtrain_state_n;
 
     // Watchdog/Settle timer feedback routing
-    logic        sbinit_timer_enable;
-    logic        mbinit_timer_enable;
-    logic        mbtrain_timer_enable;
 
     // =========================================================================
     // LTSM CONTROLLER INSTANTIATION
@@ -513,8 +517,7 @@ module ltsm_wrapper
         .sb_det_pattern_req(sb_det_pattern_req),
         .req_iter_count(sbinit_req_iter_count),
         .ltsm_rdy(sb_ltsm_rdy),
-        .sbinit_timer_enable(sbinit_timer_enable),
-        .sbinit_timeout_expired(timer_timeout_expired)
+        .global_error(timer_timeout_expired)
     );
 
     // 3. MBINIT Top module
@@ -610,90 +613,27 @@ module ltsm_wrapper
         .repairclk_rckp_pass(repairclk_rckp_pass),
         .repairval_RVLD_L_pass(repairval_RVLD_L_pass),
 
-        // Watchdog Timer
-        .timer_enable(mbinit_timer_enable),
-        .timer_rst_n(), // Muxed internally inside controller
-        .timer_timeout_expired(timer_timeout_expired)
+        // Watchdog Timer / Global Error
+        .global_error(timer_timeout_expired)
     );
 
-    // 4. MBTRAIN (wrapper_MBTRAIN) state module
-    internal_ltsm_if #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MAX_PI_PHASE_CODE(MAX_PI_PHASE_CODE),
-        .MAX_DESKEW_CODE(MAX_DESKEW_CODE)
-    ) itf_mbtrain (
-        .lclk(clk),
-        .rst_n(rst_n)
+    // 4. LINKINIT state module
+    linkinit u_linkinit (
+        .clk(clk),
+        .rst_n(rst_n),
+        .rdi_state_sts(rdi_state),
+        .timeout_expired(timer_timeout_expired),
+        .Linkinit_enable(linkinit_en),
+        .start_ucie_link_training(Start_UCIe_Link_Training),
+        .linkinit_done(linkinit_done),
+        .timeout_rst_n(),
+        .enable_timeout(),
+        .linkinit_error()
     );
 
-    // Wire up the interface ports used by wrapper_MBTRAIN
-    assign itf_mbtrain.mbtrain_en                = mbtrain_en;
-    assign mbtrain_done                          = itf_mbtrain.mbtrain_done;
-    assign mbtrain_error                         = 1'b0; // Default or routed
-
-    assign itf_mbtrain.state_req                 = state_req;
-    assign itf_mbtrain.current_ltsm_state        = current_ltsm_state;
-    assign itf_mbtrain.mbinit_rx_data_lane_mask  = mbinit_rx_data_lane_mask;
-    assign itf_mbtrain.mbinit_tx_data_lane_mask  = mbinit_tx_data_lane_mask;
-
-    assign itf_mbtrain.mb_rx_perlane_pass        = mb_rx_perlane_pass;
-    assign itf_mbtrain.mb_tx_pattern_count_done  = mb_tx_pattern_count_done;
-
-    assign itf_mbtrain.rx_sb_msg_valid           = sb_rx_valid;
-    assign itf_mbtrain.rx_sb_msg                 = sb_rx_msg_id;
-    assign itf_mbtrain.rx_msginfo                = sb_rx_MsgInfo;
-    assign itf_mbtrain.rx_data_field             = sb_rx_data_Field;
-    assign itf_mbtrain.ltsm_rdy                  = sb_ltsm_rdy;
-
-    // Route MBTRAIN TX SB messages to controller
-    assign mbtrain_tx_valid                      = itf_mbtrain.tx_sb_msg_valid;
-    assign mbtrain_tx_msg_id                     = itf_mbtrain.tx_sb_msg;
-    assign mbtrain_tx_MsgInfo                    = itf_mbtrain.tx_msginfo;
-    assign mbtrain_tx_data_Field                 = itf_mbtrain.tx_data_field;
-
-    // Route MBTRAIN mainband outputs to controller
-    assign mbtrain_mb_tx_pattern_en              = itf_mbtrain.mb_tx_pattern_en;
-    assign mbtrain_mb_tx_pattern_setup           = itf_mbtrain.mb_tx_pattern_setup;
-    assign mbtrain_mb_tx_data_pattern_sel        = itf_mbtrain.mb_tx_data_pattern_sel;
-    assign mbtrain_mb_tx_val_pattern_sel         = itf_mbtrain.mb_tx_val_pattern_sel;
-    assign mbtrain_mb_rx_compare_en              = itf_mbtrain.mb_rx_compare_en;
-    assign mbtrain_mb_rx_compare_setup           = itf_mbtrain.mb_rx_compare_setup;
-    assign mbtrain_clear_error_req               = itf_mbtrain.clear_error_req;
-    assign mbtrain_mb_lane_reversal_req          = 1'b0; // Defaults
-
-    // MUX out MBTRAIN D2C point test inputs to controller
-    assign mbtrain_local_tx_pt_en                = itf_mbtrain.local_tx_pt_en;
-    assign mbtrain_partner_tx_pt_en              = itf_mbtrain.partner_tx_pt_en;
-    assign mbtrain_d2c_pattern_setup             = itf_mbtrain.d2c_pattern_setup;
-    assign mbtrain_d2c_data_pattern_sel          = itf_mbtrain.d2c_data_pattern_sel;
-    assign mbtrain_d2c_pattern_mode              = itf_mbtrain.d2c_pattern_mode;
-    assign mbtrain_d2c_compare_setup             = itf_mbtrain.d2c_compare_setup;
-
-    // Connect top-level D2C feedbacks directly to itf_mbtrain
-    assign itf_mbtrain.d2c_perlane_pass          = d2c_perlane_pass;
-    assign itf_mbtrain.local_test_d2c_done       = local_test_d2c_done;
-    assign itf_mbtrain.partner_test_d2c_done     = partner_test_d2c_done;
-
-    // Timer wiring
-    assign itf_mbtrain.timeout_8ms_occured        = timer_timeout_expired;
-    assign itf_mbtrain.analog_settle_time_done    = analog_settle_time_done;
-    assign analog_settle_timer_en                = itf_mbtrain.analog_settle_timer_en;
-
-    assign itf_mbtrain.param_negotiated_max_speed = reg_Link_Speed_enable_status;
-
-    // Instantiate wrapper_MBTRAIN
-    wrapper_MBTRAIN #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MAX_PI_PHASE_CODE(MAX_PI_PHASE_CODE),
-        .MAX_DESKEW_CODE(MAX_DESKEW_CODE)
-    ) u_mbtrain (
-        .mbtrain_if(itf_mbtrain.mbtrain_mp),
-        .d2c_if(itf_mbtrain.substate2d2c_mp)
-    );
-
-    assign mbtrain_state_n = state_n_e'(itf_mbtrain.state_n);
+    // MBTRAIN is now unimplemented at this level, and its signals are routed as top-level ports.
+    // We default analog_settle_timer_en to 1'b0 here since it was driven by mbtrain previously.
+    assign analog_settle_timer_en = 1'b0;
 
     // 5. ACTIVE state module
     ACTIVE u_active (

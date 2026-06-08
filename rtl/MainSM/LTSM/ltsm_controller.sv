@@ -346,16 +346,27 @@ module ltsm_controller
     // =============================================================================
     // SHARED WATCHDOG TIMER CONTROL
     // =============================================================================
-    assign timeout_timer_en = (current_state != CTRL_ACTIVE) && (current_state != CTRL_RESET);
+    assign timeout_timer_en = (current_ltsm_state == SBINIT) ||
+                              (current_ltsm_state == MBINIT) ||
+                              (current_ltsm_state == MBTRAIN) ||
+                              (current_ltsm_state == LINKINIT) ||
+                              (current_ltsm_state == PHYRETRAIN);
 
+    state_n_e current_log_state;
+    logic [4:0] current_log_state_d;
     logic timer_rst_n_reg;
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            timer_rst_n_reg <= 1'b0;
-        else if (next_state != current_state)
-            timer_rst_n_reg <= 1'b0; // reset active-low watchdog on transition
-        else
-            timer_rst_n_reg <= 1'b1;
+        if (!rst_n) begin
+            current_log_state_d <= LOG_RESET;
+            timer_rst_n_reg     <= 1'b0;
+        end else begin
+            current_log_state_d <= current_log_state;
+            if (current_log_state != current_log_state_d) begin
+                timer_rst_n_reg <= 1'b0;
+            end else begin
+                timer_rst_n_reg <= 1'b1;
+            end
+        end
     end
     assign timer_rst_n = timer_rst_n_reg;
 
@@ -554,7 +565,6 @@ module ltsm_controller
     // =============================================================================
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
     // =============================================================================
-    state_n_e current_log_state;
     always_comb begin
         case (current_state)
             CTRL_RESET:      current_log_state = LOG_RESET;

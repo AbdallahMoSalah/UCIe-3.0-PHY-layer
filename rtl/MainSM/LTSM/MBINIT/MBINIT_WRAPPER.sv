@@ -126,11 +126,9 @@ module MBINIT_WRAPPER
     input  logic        repairval_RVLD_L_pass,
 
     // =========================================================================
-    // External Watchdog Timer Interface
+    // External Watchdog Timer / Global Error Interface
     // =========================================================================
-    output logic timer_enable,
-    output logic timer_rst_n,
-    input  logic timer_timeout_expired
+    input  logic global_error
 );
 
     // =========================================================================
@@ -201,9 +199,7 @@ module MBINIT_WRAPPER
         .mbinit_done(mbinit_done),
         .mbinit_error(mbinit_error),
         .mbinit_state_n(mbinit_state_n),
-        .timer_enable(timer_enable),
-        .timer_rst_n(timer_rst_n),
-        .timer_timeout_expired(timer_timeout_expired),
+        .global_error(global_error),
 
         // Sideband Muxed Outputs
         .sb_tx_valid(sb_tx_valid),
@@ -543,7 +539,7 @@ module MBINIT_WRAPPER
     // 3. Error Check: Watchdog timeout assertion leading to top error
     property p_wrapper_timeout_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        timer_timeout_expired |-> ##[1:5] mbinit_error;
+        global_error |-> ##[1:5] mbinit_error;
     endproperty
     assert_wrapper_timeout_leads_to_error: assert property(p_wrapper_timeout_leads_to_error);
 

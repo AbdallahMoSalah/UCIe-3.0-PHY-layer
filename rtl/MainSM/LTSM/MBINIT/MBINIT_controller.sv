@@ -26,9 +26,7 @@ module MBINIT_CONTROLLER
     output logic mbinit_error,
     output state_n_e mbinit_state_n,
 
-    output logic timer_enable,
-    output logic timer_rst_n,
-    input  logic timer_timeout_expired,
+    input  logic global_error,
 
     // =========================================================================
     // RX / TX sideband message bus (Muxed Output)
@@ -190,7 +188,7 @@ always_comb begin
     if(!mbinit_enable)begin
         next_state = CTRL_IDLE;
     end
-    else if (timer_timeout_expired && !mbinit_done) begin
+    else if (global_error && !mbinit_done) begin
         next_state = CTRL_ERROR;
     end else begin
         case (current_state)
@@ -543,21 +541,7 @@ always_comb begin
     end
 end
 
-// =============================================================================
-// SHARED TIMER CONTROL SIGNALS
-// =============================================================================
-assign timer_enable = (current_state != CTRL_IDLE) && (current_state != CTRL_DONE) && (current_state != CTRL_ERROR);
-
-logic timer_rst_n_reg;
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-        timer_rst_n_reg <= 1'b0;
-    else if (next_state != current_state)
-        timer_rst_n_reg <= 1'b0; // reset the timer on state transition
-    else
-        timer_rst_n_reg <= 1'b1;
-end
-assign timer_rst_n = timer_rst_n_reg;
+// Timer control logic removed as the timer is managed at top LTSM level
 
 // =============================================================================
 // DONE / ERROR
