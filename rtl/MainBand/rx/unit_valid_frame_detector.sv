@@ -17,15 +17,12 @@ module unit_valid_frame_detector_s3 #(
     output logic                   o_valid_frame_vld
 );
 
- PULSE_GEN  pulse_gen
- (
-  .clk(i_clk),
-  .rst(i_rst_n),
-  .lvl_sig(i_count_16),
-  .pulse_sig(synch_count_16)
- );
-
-
+// Latch the deserialized word on i_count_16 DIRECTLY (aligned), NOT through a
+// PULSE_GEN-delayed copy. The deserializer shift register is free-running
+// (2 bits per pll_clk), so a delayed capture rotates the aligned 0x0F0F0F0F into
+// a wrong value (e.g. 0xC3C3C3C3 if 1 DDR cycle late). i_count_16 is high for
+// exactly one pll_clk period, so a level-gated capture latches the aligned word
+// exactly once per frame, matching the combinational o_valid_frame_pulse below.
 logic  [DATA_WIDTH-1:0] valid_frame_reg;
 logic valid_frame_vld;
 always @(posedge i_clk or negedge i_rst_n)begin
@@ -33,7 +30,7 @@ always @(posedge i_clk or negedge i_rst_n)begin
         valid_frame_reg <= {DATA_WIDTH{1'b0}};
         valid_frame_vld <= 1'b0;
     end else begin
-        if (synch_count_16) begin
+        if (i_count_16) begin
             valid_frame_reg <= i_shift_reg;
             valid_frame_vld <= 1'b1;
         end else begin

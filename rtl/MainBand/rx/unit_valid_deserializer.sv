@@ -18,6 +18,8 @@ module unit_valid_deserializer_s3 #(
 reg [DATA_WIDTH-1:0] shift_reg;
 reg                  r_data_pos;
 reg                  prev_ser_data_in;
+reg                  o_state;          // frame-align FSM: 0 = IDLE, 1 = RUNNING
+reg [3:0]            o_count;          // 0..15 bit-pair counter (16 pll-cycles = one 32-bit word)
 
 // Capture even bit on posedge pll_clk
 always @(posedge pll_clk or negedge i_rst_n) begin
