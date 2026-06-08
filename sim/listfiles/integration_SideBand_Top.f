@@ -55,4 +55,4 @@ rtl/SideBand/top/SideBand_Top.sv
 # TB
 tb/integration/SideBand_Top/SideBand_Top_tb.sv
 
-rtl/common/unit_clk_gate.sv
+rtl/common/CLK_GATE.sv 

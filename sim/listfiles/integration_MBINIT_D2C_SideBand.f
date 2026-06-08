@@ -11,7 +11,7 @@ rtl/common/FIFO/fifo_rptr_empty.sv
 rtl/common/FIFO/fifo_sync_2ff.sv
 rtl/common/FIFO/fifo_wptr_full.sv
 rtl/common/FIFO/fifo.sv
-rtl/MainBand/tx/unit_clk_gate.sv
+rtl/common/CLK_GATE.sv
 
 # Sideband modules
 rtl/SideBand/common/sb_demux.sv
