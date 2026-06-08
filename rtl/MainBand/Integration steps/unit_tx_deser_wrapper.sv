@@ -163,24 +163,31 @@ module unit_tx_deser_wrapper #(
     assign o_rx_pll_clk = rx_pll_clk;
 
     // =========================================================================
-    // 2. Valid-lane deserializer + frame detector (Solution 2, clear feedback)
+    // 2. Valid-lane deserializer + frame detector (Solution 3, gated count)
     // =========================================================================
-    unit_valid_deserializer_s2 #(
+    wire                  valid_count_16;
+
+    unit_valid_deserializer_s3 #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_valid_des (
         .pll_clk     (rx_pll_clk),
         .i_rst_n     (i_rst_n),
         .ser_data_in (TVLD_P),
-        .i_clear     (o_valid_frame_pulse),    // feedback: clear history on match
-        .o_shift_reg (o_valid_shift_reg)
+        .o_shift_reg (o_valid_shift_reg),
+        .o_count_16  (valid_count_16)
     );
 
-    unit_valid_frame_detector_s2 #(
+    unit_valid_frame_detector_s3 #(
         .DATA_WIDTH    (DATA_WIDTH),
         .VALID_PATTERN (VALID_PATTERN)
     ) u_frame_det (
+        .i_rst_n             (i_rst_n),
+        .i_clk               (rx_pll_clk),
         .i_shift_reg         (o_valid_shift_reg),
-        .o_valid_frame_pulse (o_valid_frame_pulse)
+        .i_count_16          (valid_count_16),
+        .o_valid_frame_pulse (o_valid_frame_pulse),
+        .o_valid_frame_data  (),
+        .o_valid_frame_vld   ()
     );
 
     // =========================================================================
@@ -190,7 +197,7 @@ module unit_tx_deser_wrapper #(
 
     generate
         for (gi = 0; gi < NUM_LANES; gi = gi + 1) begin : g_data_des
-            unit_data_deserializer_s2 #(
+            unit_data_deserializer_s3 #(
                 .DATA_WIDTH (DATA_WIDTH)
             ) u_data_des (
                 .mb_clk              (lclk),

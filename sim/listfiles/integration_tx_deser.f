@@ -35,10 +35,10 @@ rtl/common/FIFO/fifo_sync_2ff.sv
 rtl/common/FIFO/fifo_wptr_full.sv
 rtl/common/FIFO/fifo.sv
 
-# ---- RX deserializer chain (Solution 2) -------------------------------------
-rtl/MainBand/rx/unit_valid_deserializer_s2.sv
-rtl/MainBand/rx/unit_valid_frame_detector_s2.sv
-rtl/MainBand/rx/unit_data_deserializer_s2.sv
+# ---- RX deserializer chain (Solution 3) -------------------------------------
+rtl/MainBand/rx/unit_valid_deserializer.sv
+rtl/MainBand/rx/unit_valid_frame_detector.sv
+rtl/MainBand/rx/unit_data_deserializer.sv
 
 # ---- Integration wrapper + testbench ----------------------------------------
 "rtl/MainBand/Integration steps/unit_tx_deser_wrapper.sv"
