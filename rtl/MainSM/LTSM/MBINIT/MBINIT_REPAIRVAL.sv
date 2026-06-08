@@ -1,7 +1,5 @@
-import UCIe_pkg::*;
-
 module MBINIT_REPAIRVAL
-#( parameter int CLK_FRQ_HZ = 800000000)
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -12,8 +10,7 @@ module MBINIT_REPAIRVAL
 
     input  logic sb_repairval_rx_valid,
     input  msg_no_e sb_repairval_rx_msg_id,
-    input  logic [15:0] sb_repairval_rx_MsgInfo,
-    input  logic [63:0] sb_repairval_rx_data_Field,
+    input  logic sb_repairval_rx_MsgInfo,
 
     output logic sb_repairval_tx_valid,
     output msg_no_e sb_repairval_tx_msg_id,
@@ -148,7 +145,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             MBINIT_REPAIRVAL_result_resp : begin
                 if (current_state > MB_S3_RESULT_REQ_SEND) begin
                     s3_rsp_rcvd    <= 1'b1;
-                    partner_result <= sb_repairval_rx_MsgInfo[0]; // partner's pass/fail bit
+                    partner_result <= sb_repairval_rx_MsgInfo; // partner's pass/fail bit
                 end
             end
             MBINIT_REPAIRVAL_done_req    : begin

@@ -83,9 +83,7 @@ module MBINIT_REVERSALMB_tb;
     );
 
     // Instantiate DUT
-    MBINIT_REVERSALMB #(
-        .CLK_FRQ_HZ(100000)     // match our TB clock frequency of 100 kHz
-    ) dut (
+    MBINIT_REVERSALMB dut (
         .clk,
         .rst_n,
         .mb_reversal_enable,
@@ -93,8 +91,7 @@ module MBINIT_REVERSALMB_tb;
         .mb_reversal_error,
         .sb_reversal_rx_valid     (mb_reversal_rx_valid),
         .sb_reversal_rx_msg_id    (mb_reversal_rx_msg_id),
-        .sb_reversal_rx_MsgInfo   (mb_reversal_rx_MsgInfo),
-        .sb_reversal_rx_data_Field(mb_reversal_rx_data_Field),
+        .sb_reversal_rx_data_Field(mb_reversal_rx_data_Field[15:0]),
         .sb_reversal_tx_valid     (mb_reversal_tx_valid),
         .sb_reversal_tx_msg_id    (mb_reversal_tx_msg_id),
         .sb_reversal_tx_MsgInfo   (mb_reversal_tx_MsgInfo),

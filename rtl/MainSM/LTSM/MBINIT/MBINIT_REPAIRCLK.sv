@@ -1,7 +1,5 @@
-import UCIe_pkg::*;
-
 module MBINIT_REPAIRCLK
-#( parameter int CLK_FRQ_HZ = 800000000)
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -13,8 +11,7 @@ module MBINIT_REPAIRCLK
     // sb interface for messages
     input  logic sb_repairclk_rx_valid,
     input  msg_no_e sb_repairclk_rx_msg_id,
-    input  logic [15:0] sb_repairclk_rx_MsgInfo,
-    input  logic [63:0] sb_repairclk_rx_data_Field,
+    input  logic [2:0] sb_repairclk_rx_MsgInfo,
 
     output logic sb_repairclk_tx_valid,
     output msg_no_e sb_repairclk_tx_msg_id,

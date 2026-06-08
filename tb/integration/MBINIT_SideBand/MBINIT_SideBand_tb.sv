@@ -285,9 +285,7 @@ module MBINIT_SideBand_tb;
     // =========================================================================
     // INSTANTIATION: MBINIT (DIE 0)
     // =========================================================================
-    MBINIT #(
-        .CLK_FRQ_HZ (100_000_000)
-    ) u_mbinit_0 (
+    MBINIT u_mbinit_0 (
         .clk                          (clk_100),
         .rst_n                        (rst_n),
 
@@ -298,15 +296,11 @@ module MBINIT_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (m_reg_phy_x8_mode_ctrl),
-        .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
-        .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
         .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
-        .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
         .reg_so                       (1'b0),
@@ -339,6 +333,10 @@ module MBINIT_SideBand_tb;
         .d2c_data_pattern_sel         (m_d2c_data_pattern_sel),
         .d2c_pattern_mode             (m_d2c_pattern_mode),
         .d2c_compare_setup            (m_d2c_compare_setup),
+        .d2c_clk_sampling             (),
+        .d2c_burst_count              (),
+        .d2c_idle_count               (),
+        .d2c_iter_count               (),
         .d2c_perlane_pass             (m_d2c_perlane_pass),
         .local_test_d2c_done          (m_local_test_d2c_done),
         .partner_test_d2c_done        (m_partner_test_d2c_done),
@@ -346,8 +344,8 @@ module MBINIT_SideBand_tb;
         // Connect Sideband Msg Bus (TX & RX)
         .sb_rx_valid                  (mb_rx_valid[0]),
         .sb_rx_msg_id                 (mb_rx_msg_id[0]),
-        .sb_rx_MsgInfo                (mb_rx_MsgInfo[0]),
-        .sb_rx_data_Field             (mb_rx_data_Field[0]),
+        .sb_rx_MsgInfo                (mb_rx_MsgInfo[0][2:0]),
+        .sb_rx_data_Field             (mb_rx_data_Field[0][15:0]),
 
         .sb_tx_valid                  (mb_tx_valid[0]),
         .sb_ltsm_rdy                  (ltsm_rdy[0]),
@@ -383,9 +381,7 @@ module MBINIT_SideBand_tb;
     // =========================================================================
     // INSTANTIATION: MBINIT (DIE 1)
     // =========================================================================
-    MBINIT #(
-        .CLK_FRQ_HZ (100_000_000)
-    ) u_mbinit_1 (
+    MBINIT u_mbinit_1 (
         .clk                          (clk_100),
         .rst_n                        (rst_n),
 
@@ -396,15 +392,11 @@ module MBINIT_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (p_reg_phy_x8_mode_ctrl),
-        .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
-        .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
         .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
-        .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
         .reg_so                       (1'b0),
@@ -437,6 +429,10 @@ module MBINIT_SideBand_tb;
         .d2c_data_pattern_sel         (p_d2c_data_pattern_sel),
         .d2c_pattern_mode             (p_d2c_pattern_mode),
         .d2c_compare_setup            (p_d2c_compare_setup),
+        .d2c_clk_sampling             (),
+        .d2c_burst_count              (),
+        .d2c_idle_count               (),
+        .d2c_iter_count               (),
         .d2c_perlane_pass             (p_d2c_perlane_pass),
         .local_test_d2c_done          (p_local_test_d2c_done),
         .partner_test_d2c_done        (p_partner_test_d2c_done),
@@ -444,8 +440,8 @@ module MBINIT_SideBand_tb;
         // Connect Sideband Msg Bus (TX & RX)
         .sb_rx_valid                  (mb_rx_valid[1]),
         .sb_rx_msg_id                 (mb_rx_msg_id[1]),
-        .sb_rx_MsgInfo                (mb_rx_MsgInfo[1]),
-        .sb_rx_data_Field             (mb_rx_data_Field[1]),
+        .sb_rx_MsgInfo                (mb_rx_MsgInfo[1][2:0]),
+        .sb_rx_data_Field             (mb_rx_data_Field[1][15:0]),
 
         .sb_tx_valid                  (mb_tx_valid[1]),
         .sb_ltsm_rdy                  (ltsm_rdy[1]),

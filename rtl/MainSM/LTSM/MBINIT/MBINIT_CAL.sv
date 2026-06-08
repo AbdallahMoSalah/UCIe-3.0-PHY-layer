@@ -1,7 +1,5 @@
-import UCIe_pkg::*;
-
 module MBINIT_CAL 
-#(parameter int CLK_FRQ_HZ = 800000000)
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -15,8 +13,6 @@ module MBINIT_CAL
     // RX from partner
     input  logic sb_cal_rx_valid,
     input  msg_no_e sb_cal_rx_msg_id,
-    input  logic [15:0] sb_cal_rx_MsgInfo,
-    input  logic [63:0] sb_cal_rx_data_Field,
 
     // TX to partner
     output logic sb_cal_tx_valid,

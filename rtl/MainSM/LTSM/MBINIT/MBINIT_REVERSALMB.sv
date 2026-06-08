@@ -23,10 +23,8 @@ expected pattern. The error threshold is always 0 for this test.
 
 */
 
-import UCIe_pkg::*;
-
 module MBINIT_REVERSALMB
-#( parameter int CLK_FRQ_HZ = 800000000)
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -37,8 +35,7 @@ module MBINIT_REVERSALMB
 
     input  logic sb_reversal_rx_valid,
     input  msg_no_e sb_reversal_rx_msg_id,
-    input  logic [15:0] sb_reversal_rx_MsgInfo,
-    input  logic [63:0] sb_reversal_rx_data_Field,
+    input  logic [15:0] sb_reversal_rx_data_Field,
 
     output logic sb_reversal_tx_valid,
     output msg_no_e sb_reversal_tx_msg_id,

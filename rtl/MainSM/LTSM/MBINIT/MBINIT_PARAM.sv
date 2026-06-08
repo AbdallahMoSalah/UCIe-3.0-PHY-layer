@@ -47,10 +47,7 @@
 */
 
 module MBINIT_PARAM
-
 import UCIe_pkg::*;
-
-#( parameter int CLK_FRQ_HZ = 800000000)
 (
     input  logic clk,
     input  logic rst_n,
@@ -65,8 +62,9 @@ import UCIe_pkg::*;
     // RX from partner
     input  logic sb_param_rx_valid,
     input  msg_no_e sb_param_rx_msg_id,
-    input  logic [15:0] sb_param_rx_MsgInfo,
-    input  logic [63:0] sb_param_rx_data_Field,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  logic [15:0] sb_param_rx_data_Field, // bits [12:11,8:5] are reserved per UCIe spec
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // TX to partner
     output logic sb_param_tx_valid,
@@ -93,7 +91,6 @@ import UCIe_pkg::*;
     input logic L2SPD_support_local_cap,
     input logic PSPT_support_local_cap,
     input logic PMO_support_local_cap,
-    input logic [2:0] Max_Link_Width_cap,
     input logic [3:0] Max_Link_Speed_cap,
     
     // -------------------------------
@@ -320,12 +317,19 @@ logic param_rsp_rcvd;
 logic sbfe_req_rcvd;
 logic sbfe_rsp_rcvd;
 
-logic [63:0] partner_S1_REQ;
-logic [63:0] partner_S1_RESP;
-logic [63:0] partner_S2_REQ;
-logic [63:0] partner_S2_RESP;
-logic [63:0] partner_S4_REQ;
-logic [63:0] partner_S4_RESP;
+logic [3:0]  partner_S1_REQ_speed;
+logic        partner_S1_REQ_x8;
+logic        partner_S1_REQ_tarr;
+logic        partner_S1_REQ_sfes;
+logic        partner_S1_REQ_clk_phase;
+logic        partner_S1_REQ_clk_mode;
+logic [4:0]  partner_S2_REQ;
+logic        partner_S2_RESP_tarr;
+logic        partner_S2_RESP_sfes;
+logic        partner_S2_RESP_clk_phase;
+logic        partner_S2_RESP_clk_mode;
+logic [3:0]  partner_S2_RESP_speed;
+logic [4:0]  partner_S4_RESP;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n || !mb_param_enable) begin
@@ -333,12 +337,19 @@ always_ff @(posedge clk or negedge rst_n) begin
         param_rsp_rcvd                     <= 1'b0;
         sbfe_req_rcvd                      <= 1'b0;
         sbfe_rsp_rcvd                      <= 1'b0;
-        partner_S1_REQ                     <= 64'h0;
-        partner_S1_RESP                    <= 64'h0;
-        partner_S2_REQ                     <= 64'h0;
-        partner_S2_RESP                    <= 64'h0;
-        partner_S4_REQ                     <= 64'h0;
-        partner_S4_RESP                    <= 64'h0;
+        partner_S1_REQ_speed               <= 4'h0;
+        partner_S1_REQ_x8                  <= 1'b0;
+        partner_S1_REQ_tarr                <= 1'b0;
+        partner_S1_REQ_sfes                <= 1'b0;
+        partner_S1_REQ_clk_phase           <= 1'b0;
+        partner_S1_REQ_clk_mode            <= 1'b0;
+        partner_S2_REQ                     <= 5'h0;
+        partner_S2_RESP_tarr               <= 1'b0;
+        partner_S2_RESP_sfes               <= 1'b0;
+        partner_S2_RESP_clk_phase          <= 1'b0;
+        partner_S2_RESP_clk_mode           <= 1'b0;
+        partner_S2_RESP_speed              <= 4'h0;
+        partner_S4_RESP                    <= 5'h0;
     end else if (current_state == MB_S0_IDLE) begin
         param_req_rcvd <= 1'b0;
         param_rsp_rcvd <= 1'b0;
@@ -348,24 +359,33 @@ always_ff @(posedge clk or negedge rst_n) begin
         case (sb_param_rx_msg_id)
             MBINIT_PARAM_configuration_req: begin
                 param_req_rcvd  <= 1'b1;
-                partner_S1_REQ  <= sb_param_rx_data_Field;
+                partner_S1_REQ_speed     <= sb_param_rx_data_Field[3:0];
+                partner_S1_REQ_x8        <= sb_param_rx_data_Field[13];
+                partner_S1_REQ_tarr      <= sb_param_rx_data_Field[15];
+                partner_S1_REQ_sfes      <= sb_param_rx_data_Field[14];
+                partner_S1_REQ_clk_phase <= sb_param_rx_data_Field[10];
+                partner_S1_REQ_clk_mode  <= sb_param_rx_data_Field[9];
             end
             MBINIT_PARAM_configuration_resp: begin
                 if(current_state > MB_S1_PARAM_REQ_SEND) begin
-                    param_rsp_rcvd  <= 1'b1;
-                    partner_S2_RESP <= sb_param_rx_data_Field;
+                    param_rsp_rcvd            <= 1'b1;
+                    partner_S2_RESP_tarr      <= sb_param_rx_data_Field[15];
+                    partner_S2_RESP_sfes      <= sb_param_rx_data_Field[14];
+                    partner_S2_RESP_clk_phase <= sb_param_rx_data_Field[10];
+                    partner_S2_RESP_clk_mode  <= sb_param_rx_data_Field[9];
+                    partner_S2_RESP_speed     <= sb_param_rx_data_Field[3:0];
                 end
             end
             MBINIT_PARAM_SBFE_req: begin
                 if((current_state > MB_S1_PARAM_RSP_SEND) && param_rsp_rcvd) begin
                     sbfe_req_rcvd   <= 1'b1;
-                    partner_S2_REQ  <= sb_param_rx_data_Field;
+                    partner_S2_REQ  <= sb_param_rx_data_Field[4:0];
                 end
             end
             MBINIT_PARAM_SBFE_resp: begin
                 if(current_state > MB_S3_FEATURE_REQ_SEND) begin
                     sbfe_rsp_rcvd   <= 1'b1;
-                    partner_S4_RESP <= sb_param_rx_data_Field;
+                    partner_S4_RESP <= sb_param_rx_data_Field[4:0];
                 end
             end
             default : ; // ignore unrelated messages
@@ -398,10 +418,6 @@ logic [3:0] local_Link_width_enabled_status;
 
 // regester file outputs
 // Combinatorial lookahead logic for S1 capabilities:
-logic [63:0] comb_partner_S1_REQ;
-assign comb_partner_S1_REQ = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ? 
-                             sb_param_rx_data_Field : partner_S1_REQ;
-
 logic [3:0] comb_partner_link_speed_sel;
 logic comb_partner_UCIE_x8_sel;
 logic comb_partner_TARR_sel;
@@ -409,12 +425,18 @@ logic comb_partner_SFES_sel;
 logic comb_partner_clk_phase_sel;
 logic comb_partner_clk_mode_sel;
 
-assign comb_partner_link_speed_sel = comb_partner_S1_REQ[3:0];
-assign comb_partner_UCIE_x8_sel    = comb_partner_S1_REQ[13];
-assign comb_partner_TARR_sel       = comb_partner_S1_REQ[15];
-assign comb_partner_SFES_sel       = comb_partner_S1_REQ[14];
-assign comb_partner_clk_phase_sel  = comb_partner_S1_REQ[10];
-assign comb_partner_clk_mode_sel   = comb_partner_S1_REQ[9];
+assign comb_partner_link_speed_sel = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[3:0]  : partner_S1_REQ_speed;
+assign comb_partner_UCIE_x8_sel    = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[13]   : partner_S1_REQ_x8;
+assign comb_partner_TARR_sel       = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[15]   : partner_S1_REQ_tarr;
+assign comb_partner_SFES_sel       = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[14]   : partner_S1_REQ_sfes;
+assign comb_partner_clk_phase_sel  = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[10]   : partner_S1_REQ_clk_phase;
+assign comb_partner_clk_mode_sel   = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) ?
+                                     sb_param_rx_data_Field[9]    : partner_S1_REQ_clk_mode;
 
 logic [3:0] comb_negotiated_speed_val;
 assign comb_negotiated_speed_val = (link_speed_sel <= comb_partner_link_speed_sel) ? link_speed_sel : comb_partner_link_speed_sel;
@@ -438,9 +460,9 @@ assign lookahead_clk_mode  = (comb_negotiated_speed_val <= 4'd5) ?
                              (clk_mode_sel & comb_partner_clk_mode_sel) : 1'b1;
 
 // Combinatorial lookahead logic for S2 (SBFE) features:
-logic [63:0] comb_partner_S2_REQ;
+logic [4:0] comb_partner_S2_REQ;
 assign comb_partner_S2_REQ = (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_SBFE_req)) ? 
-                             sb_param_rx_data_Field : partner_S2_REQ;
+                             sb_param_rx_data_Field[4:0] : partner_S2_REQ;
 
 logic comb_partner_l2spd;
 logic comb_partner_pspt;
@@ -603,11 +625,11 @@ logic is_SFES;
 
 
 always_comb begin
-    partner_TARR_negotiated_status              = partner_S2_RESP[15];
-    partner_SFES_negotiated                     = partner_S2_RESP[14];
-    partner_clk_phase_negotiated_status         = partner_S2_RESP[10];
-    partner_clk_mode_negotiated_status          = partner_S2_RESP[9];
-    partner_Link_speed_enabled_negotiate_status = partner_S2_RESP[3:0];
+    partner_TARR_negotiated_status              = partner_S2_RESP_tarr;
+    partner_SFES_negotiated                     = partner_S2_RESP_sfes;
+    partner_clk_phase_negotiated_status         = partner_S2_RESP_clk_phase;
+    partner_clk_mode_negotiated_status          = partner_S2_RESP_clk_mode;
+    partner_Link_speed_enabled_negotiate_status = partner_S2_RESP_speed;
 end
 
 

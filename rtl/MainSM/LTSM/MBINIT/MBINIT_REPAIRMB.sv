@@ -11,10 +11,8 @@ externalizes the watchdog timer, implements ltsm_rdy handshaking,
 and utilizes sticky flags to latch partner messages.
 */
 
-import UCIe_pkg::*;
-
 module MBINIT_REPAIRMB
-#( parameter int CLK_FRQ_HZ = 800000000 )
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -28,8 +26,7 @@ module MBINIT_REPAIRMB
     // RX Sideband Interface
     input  logic            sb_repairmb_rx_valid,
     input  msg_no_e         sb_repairmb_rx_msg_id,
-    input  logic    [15:0]  sb_repairmb_rx_MsgInfo,
-    input  logic    [63:0]  sb_repairmb_rx_data_Field,
+    input  logic    [2:0]   sb_repairmb_rx_MsgInfo,
 
     // TX Sideband Interface
     output logic            sb_repairmb_tx_valid,
@@ -294,7 +291,7 @@ module MBINIT_REPAIRMB
         end
         else begin
             if (current_state >= MB_S3_DEGRADE_RSP_WAIT) begin
-                int local_w, partner_w, min_w;
+                automatic int local_w, partner_w, min_w;
                 local_w   = get_width(raw_local_map);
                 partner_w = get_width(partner_lane_map);
                 min_w     = (local_w < partner_w) ? local_w : partner_w;
@@ -325,7 +322,7 @@ module MBINIT_REPAIRMB
     logic [2:0] expected_partner_lane_map;
     always_comb begin
         if (retry_done) begin
-            int partner_w;
+            automatic int partner_w;
             partner_w = get_width(partner_lane_map);
             expected_partner_lane_map = degrade_map_to_width(prev_partner_lane_map, partner_w, local_lower_x4_pass, local_upper_x4_pass);
         end

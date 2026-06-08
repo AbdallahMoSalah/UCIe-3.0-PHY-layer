@@ -1,6 +1,3 @@
-import UCIe_pkg::*;
-import ltsm_state_n_pkg::*;
-
 // =============================================================================
 // MBINIT_CONTROLLER
 // =============================================================================
@@ -14,6 +11,8 @@ import ltsm_state_n_pkg::*;
 // =============================================================================
 
 module MBINIT_CONTROLLER
+import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
 (
     input  logic clk,
     input  logic rst_n,
@@ -461,17 +460,13 @@ end
 
 always_comb begin
     reg_Link_Width_enable_status = reg_Link_Width_enable_status_reg;
-
     if(current_state == CTRL_IDLE) begin
-        reg_Link_Width_enable_status = param_Link_Width_enable_status;
+        reg_Link_Width_enable_status <= param_Link_Width_enable_status;
     end
     else if(current_state == CTRL_PARAM)begin
-        reg_Link_Width_enable_status = param_Link_Width_enable_status;
+        reg_Link_Width_enable_status <= param_Link_Width_enable_status;
     end
-    else if (current_state == CTRL_REPAIRMB && repairmb_done) begin
-        reg_Link_Width_enable_status = get_width_code(mbinit_tx_data_lane_mask);
-    end 
-
+     
 end
 
 // =============================================================================

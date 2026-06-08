@@ -11,7 +11,7 @@ rtl/MainSM/common/LTSM_state_pkg.sv
 rtl/MainSM/LTSM/Common/internal_ltsm_if.sv
 
 # Common Sub-components
-rtl/MainSM/LTSM/Common/TimeOut_counter.sv
+rtl/MainSM/LTSM/Common/timeout_counter.sv
 
 # RESET state submodule
 rtl/MainSM/LTSM/RESET.sv
@@ -26,7 +26,7 @@ rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRCLK.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRVAL.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REVERSALMB.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRMB.sv
-rtl/MainSM/LTSM/MBINIT/MBINIT_controller.sv
+rtl/MainSM/LTSM/MBINIT/MBINIT_CONTROLLER.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_WRAPPER.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT.sv
 

@@ -1,7 +1,6 @@
 `timescale 1ns/1ps
-import UCIe_pkg::*;
-import ltsm_state_n_pkg::*;
 
+/* verilator lint_off DECLFILENAME */
 interface ucie_mb_cap_if;
     logic        use_x8_mode;
     logic [3:0]  negotiated_speed;
@@ -24,6 +23,8 @@ interface ucie_mb_cap_if;
 endinterface
 
 module MBINIT_WRAPPER_tb;
+    import UCIe_pkg::*;
+    import ltsm_state_n_pkg::*;
 
     //////////////////////////////////////////////////
     // CLOCK / RESET
@@ -144,7 +145,7 @@ module MBINIT_WRAPPER_tb;
     //////////////////////////////////////////////////
     // MODULE INSTANCE
     //////////////////////////////////////////////////
-    MBINIT #(.CLK_FRQ_HZ(100000)) \module (
+    MBINIT \module (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -160,15 +161,11 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_module.local_is_x8),
-        .local_sbfe(cap_if_module.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_module.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_module.local_l2spd),
         .reg_PSPT_support_local_cap(cap_if_module.local_pspt),
-        .local_so(cap_if_module.local_so),
         .reg_PMO_support_local_cap(cap_if_module.local_pmo),
-        .reg_Max_Link_Width_cap(3'b011),
         .reg_Max_Link_Speed_cap(4'b0011),
-        .local_mtp(cap_if_module.local_mtp),
 
         .reg_Supported_TX_Vswing(5'b00111),
         .reg_so(cap_if_module.local_so),
@@ -204,6 +201,10 @@ module MBINIT_WRAPPER_tb;
         .d2c_data_pattern_sel(d2c_if_module.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_module.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_module.d2c_compare_setup),
+        .d2c_clk_sampling(),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(d2c_if_module.mb_rx_perlane_pass),
         .local_test_d2c_done(d2c_if_module.local_test_d2c_done),
         .partner_test_d2c_done(d2c_if_module.partner_test_d2c_done),
@@ -211,8 +212,8 @@ module MBINIT_WRAPPER_tb;
         // Mainband
         .sb_rx_valid(p_tx_valid),
         .sb_rx_msg_id(p_tx_msg_id),
-        .sb_rx_MsgInfo(p_tx_MsgInfo),
-        .sb_rx_data_Field(p_tx_data),
+        .sb_rx_MsgInfo(p_tx_MsgInfo[2:0]),
+        .sb_rx_data_Field(p_tx_data[15:0]),
         
         .sb_tx_valid(m_tx_valid),
         .sb_tx_msg_id(m_tx_msg_id),
@@ -245,7 +246,7 @@ module MBINIT_WRAPPER_tb;
     //////////////////////////////////////////////////
     // PARTNER INSTANCE
     //////////////////////////////////////////////////
-    MBINIT #(.CLK_FRQ_HZ(100000)) partner (
+    MBINIT partner (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -261,15 +262,11 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_partner.local_is_x8),
-        .local_sbfe(cap_if_partner.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_partner.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_partner.local_l2spd),
         .reg_PSPT_support_local_cap(cap_if_partner.local_pspt),
-        .local_so(cap_if_partner.local_so),
         .reg_PMO_support_local_cap(cap_if_partner.local_pmo),
-        .reg_Max_Link_Width_cap(3'b011),
         .reg_Max_Link_Speed_cap(4'b0011),
-        .local_mtp(cap_if_partner.local_mtp),
 
         .reg_Supported_TX_Vswing(5'b00111),
         .reg_so(cap_if_partner.local_so),
@@ -305,6 +302,10 @@ module MBINIT_WRAPPER_tb;
         .d2c_data_pattern_sel(d2c_if_partner.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_partner.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_partner.d2c_compare_setup),
+        .d2c_clk_sampling(),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(d2c_if_partner.mb_rx_perlane_pass),
         .local_test_d2c_done(d2c_if_partner.local_test_d2c_done),
         .partner_test_d2c_done(d2c_if_partner.partner_test_d2c_done),
@@ -312,8 +313,8 @@ module MBINIT_WRAPPER_tb;
         // Mainband
         .sb_rx_valid(m_tx_valid),
         .sb_rx_msg_id(m_tx_msg_id),
-        .sb_rx_MsgInfo(m_tx_MsgInfo),
-        .sb_rx_data_Field(m_tx_data),
+        .sb_rx_MsgInfo(m_tx_MsgInfo[2:0]),
+        .sb_rx_data_Field(m_tx_data[15:0]),
         
         .sb_tx_valid(p_tx_valid),
         .sb_tx_msg_id(p_tx_msg_id),

@@ -9,7 +9,7 @@
 rtl/MainSM/RDI_SM/common/RDI_SM_pkg.sv
 
 # Dependencies
-rtl/MainSM/LTSM/Common/TimeOut_counter.sv
+rtl/MainSM/LTSM/Common/timeout_counter.sv
 
 # DUT
 rtl/MainSM/LTSM/LINKINIT/linkinit.sv

@@ -1,10 +1,6 @@
+module MBINIT
 import UCIe_pkg::*;
 import ltsm_state_n_pkg::*;
-
-module MBINIT
-#(
-    parameter int CLK_FRQ_HZ = 800000000
-)
 (
     input  logic clk,
     input  logic rst_n,
@@ -26,15 +22,11 @@ module MBINIT
     // =========================================================================
     // Local Inputs (from registers)
     input  logic        reg_phy_x8_mode_ctrl,
-    input  logic        local_sbfe,
     input  logic        reg_TARR_support_local_cap,
     input  logic        reg_L2SPD_support_local_cap,
     input  logic        reg_PSPT_support_local_cap,
-    input  logic        local_so,
     input  logic        reg_PMO_support_local_cap,
-    input  logic [2:0]  reg_Max_Link_Width_cap,
     input  logic [3:0]  reg_Max_Link_Speed_cap,
-    input  logic        local_mtp,
 
     input  logic [4:0]  reg_Supported_TX_Vswing,
     input  logic        reg_so,
@@ -78,6 +70,10 @@ module MBINIT
     output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
     output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
     output logic [1:0]      d2c_compare_setup, // 0: Per-Lane, 1: Aggregate,  2: Valid Lane, 3: Clock Lane Comparison.
+    output logic [1:0]      d2c_clk_sampling,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    output logic [15:0]     d2c_burst_count,   // Burst Count: duration of selected pattern (UI count).
+    output logic [15:0]     d2c_idle_count,    // IDLE Count: duration of low following the burst (UI count).
+    output logic [15:0]     d2c_iter_count,    // Iteration Count: iteration count of bursts followed by idle.
 
     input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
 
@@ -90,8 +86,8 @@ module MBINIT
     // =========================================================================
     input  logic        sb_rx_valid,
     input  msg_no_e     sb_rx_msg_id,
-    input  logic [15:0] sb_rx_MsgInfo,
-    input  logic [63:0] sb_rx_data_Field,
+    input  logic [2:0] sb_rx_MsgInfo,
+    input  logic [15:0] sb_rx_data_Field,
 
     output logic        sb_tx_valid,
     input  logic        sb_ltsm_rdy,
@@ -156,15 +152,11 @@ module MBINIT
         // =========================================================================
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(reg_phy_x8_mode_ctrl),
-        .local_sbfe(local_sbfe),
         .reg_TARR_support_local_cap(reg_TARR_support_local_cap),
         .reg_L2SPD_support_local_cap(reg_L2SPD_support_local_cap),
         .reg_PSPT_support_local_cap(reg_PSPT_support_local_cap),
-        .local_so(local_so),
         .reg_PMO_support_local_cap(reg_PMO_support_local_cap),
-        .reg_Max_Link_Width_cap(reg_Max_Link_Width_cap),
         .reg_Max_Link_Speed_cap(reg_Max_Link_Speed_cap),
-        .local_mtp(local_mtp),
     
         .reg_Supported_TX_Vswing(reg_Supported_TX_Vswing),
         .reg_so(reg_so),
@@ -208,6 +200,10 @@ module MBINIT
         .d2c_data_pattern_sel(d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_pattern_mode),
         .d2c_compare_setup(d2c_compare_setup),
+        .d2c_clk_sampling(d2c_clk_sampling),
+        .d2c_burst_count(d2c_burst_count),
+        .d2c_idle_count(d2c_idle_count),
+        .d2c_iter_count(d2c_iter_count),
     
         .d2c_perlane_pass(d2c_perlane_pass), // The Per-Lane Errors (Each bit represents one pass Data Lane).
     

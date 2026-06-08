@@ -113,9 +113,7 @@ module MBINIT_REPAIRMB_tb;
     ////////////////////////////////////////////////
     // DUT INSTANTIATIONS
     ////////////////////////////////////////////////
-    MBINIT_REPAIRMB #(
-        .CLK_FRQ_HZ(1000000)
-    ) master (
+    MBINIT_REPAIRMB master (
         .clk(clk),
         .rst_n(rst_n),
         .Link_Width_enable_status(m_width_status),
@@ -127,8 +125,7 @@ module MBINIT_REPAIRMB_tb;
         // RX
         .sb_repairmb_rx_valid(p_tx_valid_gated),
         .sb_repairmb_rx_msg_id(p_tx_msg_id),
-        .sb_repairmb_rx_MsgInfo(p_tx_MsgInfo),
-        .sb_repairmb_rx_data_Field(p_tx_data_Field),
+        .sb_repairmb_rx_MsgInfo(p_tx_MsgInfo[2:0]),
 
         // TX
         .sb_repairmb_tx_valid(m_tx_valid),
@@ -145,10 +142,14 @@ module MBINIT_REPAIRMB_tb;
         // d2cptest
         .local_tx_pt_en(m_local_tx_pt_en),
         .partner_tx_pt_en(m_partner_tx_pt_en),
+        .d2c_clk_sampling(),
         .d2c_pattern_setup(m_d2c_pattern_setup),
         .d2c_data_pattern_sel(m_d2c_data_pattern_sel),
         .d2c_pattern_mode(m_d2c_pattern_mode),
         .d2c_compare_setup(m_d2c_compare_setup),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(m_d2c_perlane_pass),
         .local_test_d2c_done(m_local_test_d2c_done),
         .partner_test_d2c_done(m_partner_test_d2c_done),
@@ -157,9 +158,7 @@ module MBINIT_REPAIRMB_tb;
         .mbinit_tx_data_lane_mask(m_mbinit_tx_data_lane_mask)
     );
 
-    MBINIT_REPAIRMB #(
-        .CLK_FRQ_HZ(1000000)
-    ) partner (
+    MBINIT_REPAIRMB partner (
         .clk(clk),
         .rst_n(rst_n),
         .Link_Width_enable_status(p_width_status),
@@ -171,8 +170,7 @@ module MBINIT_REPAIRMB_tb;
         // RX
         .sb_repairmb_rx_valid(m_tx_valid_gated),
         .sb_repairmb_rx_msg_id(m_tx_msg_id),
-        .sb_repairmb_rx_MsgInfo(m_tx_MsgInfo),
-        .sb_repairmb_rx_data_Field(m_tx_data_Field),
+        .sb_repairmb_rx_MsgInfo(m_tx_MsgInfo[2:0]),
 
         // TX
         .sb_repairmb_tx_valid(p_tx_valid),
@@ -189,10 +187,14 @@ module MBINIT_REPAIRMB_tb;
         // d2cptest
         .local_tx_pt_en(p_local_tx_pt_en),
         .partner_tx_pt_en(p_partner_tx_pt_en),
+        .d2c_clk_sampling(),
         .d2c_pattern_setup(p_d2c_pattern_setup),
         .d2c_data_pattern_sel(p_d2c_data_pattern_sel),
         .d2c_pattern_mode(p_d2c_pattern_mode),
         .d2c_compare_setup(p_d2c_compare_setup),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(p_d2c_perlane_pass),
         .local_test_d2c_done(p_local_test_d2c_done),
         .partner_test_d2c_done(p_partner_test_d2c_done),
