@@ -89,6 +89,7 @@ module ltsm_wrapper
     output logic        reg_L2SPD_enable_status,
     output logic        reg_PSPT_enable_status,
     output logic        link_training_retraining,
+    output logic        link_status,
 
     // =========================================================================
     // D2C point-test interface
@@ -320,6 +321,7 @@ module ltsm_wrapper
         .current_ltsm_state(current_ltsm_state),
         .current_ltsm_state_n(current_ltsm_state_n),
         .link_training_retraining(link_training_retraining),
+        .link_status(link_status),
 
         // Submodule enables / handshakes
         .reset_en(reset_en),

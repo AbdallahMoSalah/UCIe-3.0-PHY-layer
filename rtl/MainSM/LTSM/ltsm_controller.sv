@@ -31,6 +31,7 @@ module ltsm_controller
     output LTSM_state_e     current_ltsm_state,
     output state_n_e        current_ltsm_state_n,
     output logic            link_training_retraining,
+    output logic            link_status,
 
     // Submodule enables / handshakes
     output logic            reset_en,
@@ -358,6 +359,14 @@ module ltsm_controller
                                       (current_ltsm_state == MBTRAIN) ||
                                       (current_ltsm_state == LINKINIT) ||
                                       (current_ltsm_state == PHYRETRAIN);
+
+    // =============================================================================
+    // LINK STATUS (to Register File)
+    // =============================================================================
+    assign link_status = (current_ltsm_state == ACTIVE) ||
+                         (current_ltsm_state == PHYRETRAIN) ||
+                         (current_ltsm_state == L1) ||
+                         (current_ltsm_state == L2);
 
     state_n_e current_log_state;
     logic [4:0] current_log_state_d;

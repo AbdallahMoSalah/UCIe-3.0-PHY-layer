@@ -15,6 +15,7 @@ module unit_LTSM_ctrl_tb;
     logic [3:0] state_status;
     logic timeout_timer_en;
     logic link_training_retraining;
+    logic link_status;
     logic timeout_8ms_occured;
     logic mbtrain_en;
     logic mbtrain_done;
@@ -70,6 +71,7 @@ module unit_LTSM_ctrl_tb;
         .current_ltsm_state(itf.current_ltsm_state),
         .current_ltsm_state_n(current_ltsm_state_n),
         .link_training_retraining(link_training_retraining),
+        .link_status(link_status),
         
         .reset_en(itf.reset_en),
         .reset_done(reset_done),
@@ -238,11 +240,16 @@ module unit_LTSM_ctrl_tb;
 
     task check_state_and_outputs(input logic [3:0] exp_state, input logic exp_mbtrain_en);
         logic exp_training_retraining;
+        logic exp_link_status;
         exp_training_retraining = (exp_state == SBINIT_VAL) ||
                                   (exp_state == MBINIT_VAL) ||
                                   (exp_state == MBTRAIN_VAL) ||
                                   (exp_state == LINKINIT_VAL) ||
                                   (exp_state == PHYRETRAIN_VAL);
+        exp_link_status = (exp_state == ACTIVE_VAL) ||
+                          (exp_state == PHYRETRAIN_VAL) ||
+                          (exp_state == L1_VAL) ||
+                          (exp_state == L2_VAL);
         @(posedge lclk);
         #1;
         if (state_status !== exp_state) begin
@@ -255,6 +262,10 @@ module unit_LTSM_ctrl_tb;
         end
         if (link_training_retraining !== exp_training_retraining) begin
             $display("ERROR @%0t: Expected link_training_retraining %0b in state %0d, got %0b", $time, exp_training_retraining, exp_state, link_training_retraining);
+            error_count++;
+        end
+        if (link_status !== exp_link_status) begin
+            $display("ERROR @%0t: Expected link_status %0b in state %0d, got %0b", $time, exp_link_status, exp_state, link_status);
             error_count++;
         end
     endtask
@@ -294,6 +305,10 @@ module unit_LTSM_ctrl_tb;
         end
         if (link_training_retraining !== 1'b0) begin
             $display("ERROR @%0t: Expected link_training_retraining 0 in RESET, got %0b", $time, link_training_retraining);
+            error_count++;
+        end
+        if (link_status !== 1'b0) begin
+            $display("ERROR @%0t: Expected link_status 0 in RESET, got %0b", $time, link_status);
             error_count++;
         end
         reset_done = 1;
