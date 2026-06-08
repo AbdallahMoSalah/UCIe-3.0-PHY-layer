@@ -1,7 +1,6 @@
 `timescale 1ps/1ps
 
 module MB_PLL (
-    input  logic       i_ref_clk,  // Reference clock (from CLK_PATTERN_GEN_TX o_clk_p)
     input  logic       en,         // Enable signal
     input  logic [1:0] speed_sel,  // Select speed (frequency)
     output reg         clk,        // Output PLL clock

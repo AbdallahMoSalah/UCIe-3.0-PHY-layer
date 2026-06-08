@@ -16,7 +16,7 @@
 //
 //  Clock domains
 //  -------------
-//  i_mb_clk    : Main-band functional clock  (used by Mapper, LFSR_TX, VALID_TX
+//  o_mb_clk              : Main-band functional clock  (used by Mapper, LFSR_TX, VALID_TX
 //                and the slow side of every serializer)
 //  o_clk_p     : Differential clock from CLK_PATTERN_GEN_TX → feeds MB_PLL
 //  o_pll_clk   : High-speed PLL output clock (used by the fast side of every
@@ -31,7 +31,7 @@ module MB_TX_TOP #(
     // -------------------------------------------------------------------------
     // Global
     // -------------------------------------------------------------------------
-    input  logic                    i_mb_clk,          // Main-band clock
+   
     input  logic                    i_rst_n,           // Active-low synchronous reset
     output logic                    o_pll_clk,         // High-speed PLL clock (DDR)
     output real                      period,
@@ -77,6 +77,7 @@ module MB_TX_TOP #(
     // -------------------------------------------------------------------------
     // CLK_PATTERN_GEN_TX outputs
     // -------------------------------------------------------------------------
+    output logic                   o_mb_clk          ,          // Main-band clock
     output logic                    o_clk_p,           // Differential clock + (also → MB_PLL ref)
     output logic                    o_clk_n,           // Differential clock −  (phase_delay of o_clk_p)
     output logic                    o_clk_track,       // Debug / tracking signal
@@ -140,12 +141,21 @@ module MB_TX_TOP #(
     // =========================================================================
     // 0a. MB_PLL  (reference = o_clk_p from CLK_PATTERN_GEN_TX)
     // =========================================================================
-    MB_PLL u_mb_pll (
-        .i_ref_clk (i_mb_clk),        // differential clock pattern as PLL reference
+    MB_PLL u_mb_pll (        
         .en        (i_pll_en),
         .speed_sel (i_pll_speed_sel),
         .clk       (o_pll_clk),
         .period    (period)
+    );
+
+    ClkDiv #(
+    .RangeWidth (8)
+    ) u_ClkDiv  (
+    .i_ref_clk (o_pll_clk),
+    .i_rst_n   (i_rst_n),
+    .i_clk_en  (1),
+    .i_div_ratio (16),
+    .o_div_clk (o_mb_clk          )
     );
 
     // =========================================================================
@@ -171,7 +181,7 @@ module MB_TX_TOP #(
         .NUM_LANES (NUM_LANES),
         .N_BYTES   (N_BYTES)
     ) u_mapper (
-        .i_clk           (i_mb_clk), 
+        .i_clk           (o_mb_clk), 
         .i_rst_n         (i_rst_n),
         .i_in_data       (i_raw_data),
         .mapper_en       (i_mapper_en),
@@ -206,7 +216,7 @@ module MB_TX_TOP #(
     LFSR_TX #(
         .WIDTH (DATA_WIDTH)
     ) u_lfsr_tx (
-        .i_clk                  (i_mb_clk), 
+        .i_clk                  (o_mb_clk), 
         .i_rst_n                (i_rst_n),
         .i_state                (i_lfsr_state),
         .i_scramble_en          (mapper_scramble_en),
@@ -226,12 +236,12 @@ module MB_TX_TOP #(
     // 3.  VALID_TX
     // =========================================================================
     VALID_TX u_valid_tx (
-        .i_clk            (i_mb_clk), 
+        .i_clk            (o_mb_clk), 
         .i_rst_n          (i_rst_n),
         .valid_pattern_en (i_valid_pattern_en),
         .valid_frame_en   (lfsr_valid_frame_en),
 
-        .ser_en_o         (valid_ser_en),
+        .valid_ser_en         (valid_ser_en),
         .O_done           (o_valid_done),
         .o_TVLD_L         (valid_word)
     );
@@ -245,7 +255,7 @@ module MB_TX_TOP #(
             MB_SERIALIZER #(
                 .DATA_WIDTH (DATA_WIDTH)
             ) u_data_ser (
-                .mb_clk  (i_mb_clk), 
+                .mb_clk  (o_mb_clk), 
                 .PLL_clk (o_pll_clk),
                 .i_rst_n (i_rst_n),
                 .Ser_en  (lfsr_ser_en),       // enable from LFSR_TX
@@ -261,7 +271,7 @@ module MB_TX_TOP #(
     MB_SERIALIZER #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_valid_ser (
-        .mb_clk  (i_mb_clk), 
+        .mb_clk  (o_mb_clk), 
         .PLL_clk (o_pll_clk),
         .i_rst_n (i_rst_n),
         .Ser_en  (valid_ser_en),          // enable from VALID_TX

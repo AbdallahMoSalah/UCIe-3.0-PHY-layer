@@ -1,13 +1,13 @@
 module VALID_TX (
-    input  wire        i_clk,
-    input  wire        i_rst_n,
-    input  wire        valid_pattern_en,
-    input  wire        valid_frame_en,
+    input  logic        i_clk,
+    input  logic        i_rst_n,
+    input  logic        valid_pattern_en,
+    input  logic        valid_frame_en,
 
     // Outputs
-    output reg         ser_en_o,
-    output reg         O_done,
-    output reg [31:0]  o_TVLD_L
+    output logic         valid_ser_en,
+    output logic         O_done,
+    output logic [31:0]  o_TVLD_L
 );
 
 // ============================================================
@@ -25,15 +25,18 @@ localparam [1:0]
     VALID_PATTERN = 2'b11;
 
 // ============================================================
-// Internal Registers
+// Internal logicisters
 // ============================================================
+logic ser_en_reg;
 
-reg [7:0] COUNTER;
-reg [1:0] current_state;
+logic [7:0] COUNTER;
+logic [1:0] current_state;
 
 // ============================================================
 // FSM - State Transition Logic
 // ============================================================
+assign valid_ser_en = (current_state == (VALID_PATTERN))? ser_en_reg: valid_frame_en;
+assign o_TVLD_L = VALID_PATTERN_CODE;
 
 always @(posedge i_clk or negedge i_rst_n) begin
     if (!i_rst_n)
@@ -77,10 +80,9 @@ end
 
 always @(posedge i_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        o_TVLD_L <= 32'b0;
         O_done   <= 1'b0;
         COUNTER  <= 8'd0;
-        ser_en_o <= 1'b0;
+        ser_en_reg <= 1'b0;
     end
     else begin
         case (current_state)
@@ -89,20 +91,18 @@ always @(posedge i_clk or negedge i_rst_n) begin
             // IDLE
             // -------------------------
             IDLE: begin
-                o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o <= 1'b0;
+                ser_en_reg <= 1'b0;
             end
 
             // -------------------------
             // VALID_FRAME (continuous)
             // -------------------------
             VALID_FRAME: begin
-                o_TVLD_L <= VALID_PATTERN_CODE;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o <= 1'b1; 
+                ser_en_reg <= 1'b1; 
             end
 
             // -------------------------
@@ -112,22 +112,19 @@ always @(posedge i_clk or negedge i_rst_n) begin
                 COUNTER <= COUNTER + 1'b1;  
                 
                 if (COUNTER < MAX_COUNT) begin
-                    o_TVLD_L <= VALID_PATTERN_CODE;
                     O_done   <= 1'b0;
-                    ser_en_o <= 1'b1;               // was zero and i made it 1                                      
+                    ser_en_reg <= 1'b1;               // was zero and i made it 1                                      
                 end
                 else begin // COUNTER == MAX_COUNT
-                    o_TVLD_L <= VALID_PATTERN_CODE;
                     O_done   <= 1'b1;
-                    ser_en_o <= 1'b1;
+                    ser_en_reg <= 1'b1;
                 end
             end
 
             default: begin
-                o_TVLD_L <= 32'b0;
                 O_done   <= 1'b0;
                 COUNTER  <= 8'd0;
-                ser_en_o <= 1'b0; 
+                ser_en_reg <= 1'b0; 
             end
 
         endcase

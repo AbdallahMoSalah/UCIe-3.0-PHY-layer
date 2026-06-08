@@ -19,8 +19,7 @@ reg [DATA_WIDTH-1:0] data_reg;
 reg [DATA_WIDTH-1:0] load_reg;
 
 // CDC Synchronizer registers for PLL_clk domain
-reg sync1_toggle;
-reg sync2_toggle;
+
 reg sync3_toggle;
 
 wire rising_ser_en_pll;
@@ -46,18 +45,19 @@ end
 // ======================================================
 always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
-        sync1_toggle <= 1'b0;
-        sync2_toggle <= 1'b0;
+        //sync1_toggle <= 1'b0;
+        //sync2_toggle <= 1'b0;
         sync3_toggle <= 1'b0;
     end else begin
-        sync1_toggle <= load_toggle_mb;       // 1st sync flop from mb_clk domain
-        sync2_toggle <= sync1_toggle;         // 2nd sync flop
-        sync3_toggle <= sync2_toggle;         // 3rd flop for edge detection
+        //sync1_toggle <= load_toggle_mb;       // 1st sync flop from mb_clk domain
+        //sync2_toggle <= sync1_toggle;         // 2nd sync flop
+        //sync3_toggle <= sync2_toggle;         // 3rd flop for edge detection
+        sync3_toggle <= load_toggle_mb;   
     end
 end
 
 // Pulse strictly localized to 1 cycle of PLL_clk on any toggle
-assign rising_ser_en_pll = (sync2_toggle != sync3_toggle);
+assign rising_ser_en_pll = (load_toggle_mb != sync3_toggle);
 
 // ======================================================
 // Serializer logic (DDR: Shift 2 bits LSB first)
