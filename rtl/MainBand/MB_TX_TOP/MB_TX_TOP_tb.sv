@@ -310,6 +310,7 @@ module MB_TX_TOP_tb;
                      o_clk_n, period_out / 2.0);
 
         wait_clk_pll(4);
+         i_clk_embedded_en = 1;
 
         // ==================================================================
         // PHASE 2 – VALID Pattern  (o_mb_clk           domain)

@@ -22,21 +22,11 @@ phase_delay pd (.i_half_period(i_period / 2.0),.in_signal(o_clk_p),.delayed_sign
             counter_main = 0;
             counter_zero = 0;
             o_done = 0;
-        end else begin
-            if (clk_embedded_en) begin
-                if (counter_toggle < TOGGLE) begin
+        end else if (clk_embedded_en) begin               
+            
                     o_clk_p = i_clk;
                     track = i_clk;
-                    counter_toggle = counter_toggle + 1; 
-                end else if (counter_toggle == TOGGLE && counter_zero < ZERO) begin
-                    o_clk_p = 0;
-                    track = 0;
-                    counter_zero = counter_zero + 1;
-                    if (counter_zero == ZERO) begin
-                        counter_toggle = 0;
-                        counter_zero = 0;
-                    end
-                end
+                
             end else begin
                 if (clk_pattern_en) begin
                     if (counter_main < MAIN) begin
@@ -64,7 +54,7 @@ phase_delay pd (.i_half_period(i_period / 2.0),.in_signal(o_clk_p),.delayed_sign
                 end 
             end
         end
-    end
+    
 endmodule
 
 module phase_delay(
