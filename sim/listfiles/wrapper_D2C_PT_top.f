@@ -16,4 +16,4 @@ rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
 rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
 
 # Testbench
-rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top_tb.sv
+tb/wrapper/MainSM/LTSM/D2C_PT/wrapper_D2C_PT_top_tb.sv

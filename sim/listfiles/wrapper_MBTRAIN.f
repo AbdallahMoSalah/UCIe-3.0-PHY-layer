@@ -1,46 +1,95 @@
-// =============================================================================
-// Listfile: wrapper_MBTRAIN.f
-// Purpose : Compilation list for wrapper_MBTRAIN + wrapper_D2C_PT integration
-//           testbench. Includes all 13 sub-state RTL files, the MBTRAIN
-//           controller, both D2C PT modules, and the wrapper RTL.
-// Run     : .\run_sim.ps1 -CONFIG wrapper_MBTRAIN -TOP wrapper_MBTRAIN_tb -MODE run
-// =============================================================================
-
-// --- Packages (order matters: dependencies first) ---
+// Packages
 rtl/common/UCIe_pkg.sv
 rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
-rtl/MainSM/common/LTSM_state_pkg.sv
-rtl/MainSM/LTSM/common/internal_ltsm_if.sv
 
-// --- MBTRAIN Controller ---
+// Common MBTRAIN files
+rtl/MainSM/LTSM/MBTRAIN/common/unit_negotiated_lanes.sv
+rtl/MainSM/LTSM/MBTRAIN/common/unit_negotiated_speed.sv
 rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv
 
-// --- Sub-state FSMs (13, ordered by MBTRAIN sequencing) ---
-rtl/MainSM/LTSM/MBTRAIN/unit_VALVREF.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_DATAVREF.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_SPEEDIDLE.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_TXSELFCAL.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_RXCLKCAL.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_VALTRAINCENTER.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_VALTRAINVREF.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_DATATRAINCENTER1.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_DATATRAINVREF.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_RXDESKEW/unit_phase_interpolator_for_deskew.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_RXDESKEW/unit_RXDESKEW.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_DATATRAINCENTER2.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_LINKSPEED.sv
-rtl/MainSM/LTSM/MBTRAIN/unit_REPAIR.sv
+// D2C point-test and sweep files
+rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT/unit_RX_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT/unit_RX_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
+rtl/MainSM/LTSM/D2C_PT/unit_D2C_sweep.sv
 
-// --- Shared D2C Test Modules ---
-rtl/MainSM/LTSM/D2C_PT/unit_TX_D2C_PT.sv
-rtl/MainSM/LTSM/D2C_PT/unit_RX_D2C_PT.sv
-rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT.sv
+// MBTRAIN.VALVREF
+rtl/MainSM/LTSM/MBTRAIN/VALVREF/unit_VALVREF_local.sv
+rtl/MainSM/LTSM/MBTRAIN/VALVREF/unit_VALVREF_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/VALVREF/wrapper_VALVREF.sv
 
-// --- Wrapper RTL (DUT) ---
+// MBTRAIN.DATAVREF
+rtl/MainSM/LTSM/MBTRAIN/DATAVREF/unit_DATAVREF_local.sv
+rtl/MainSM/LTSM/MBTRAIN/DATAVREF/unit_DATAVREF_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/DATAVREF/wrapper_DATAVREF.sv
+
+// MBTRAIN.SPEEDIDLE
+rtl/MainSM/LTSM/MBTRAIN/SPEEDIDLE/unit_SPEEDIDLE_local.sv
+rtl/MainSM/LTSM/MBTRAIN/SPEEDIDLE/unit_SPEEDIDLE_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/SPEEDIDLE/wrapper_SPEEDIDLE.sv
+
+// MBTRAIN.TXSELFCAL
+rtl/MainSM/LTSM/MBTRAIN/TXSELFCAL/unit_TXSELFCAL_local.sv
+rtl/MainSM/LTSM/MBTRAIN/TXSELFCAL/unit_TXSELFCAL_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/TXSELFCAL/wrapper_TXSELFCAL.sv
+
+// MBTRAIN.RXCLKCAL
+rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_local.sv
+rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_IQ_local.sv
+rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_IQ_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/wrapper_RXCLKCAL.sv
+
+// MBTRAIN.VALTRAINCENTER
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/unit_VALTRAINCENTER_local.sv
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/unit_VALTRAINCENTER_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/wrapper_VALTRAINCENTER.sv
+
+// MBTRAIN.VALTRAINVREF
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINVREF/unit_VALTRAINVREF_local.sv
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINVREF/unit_VALTRAINVREF_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/VALTRAINVREF/wrapper_VALTRAINVREF.sv
+
+// MBTRAIN.DATATRAINCENTER1
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER1/unit_DATATRAINCENTER1_local.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER1/unit_DATATRAINCENTER1_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER1/wrapper_DATATRAINCENTER1.sv
+
+// MBTRAIN.DATATRAINVREF
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINVREF/unit_DATATRAINVREF_local.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINVREF/unit_DATATRAINVREF_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINVREF/wrapper_DATATRAINVREF.sv
+
+// MBTRAIN.RXDESKEW
+rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/unit_RXDESKEW_local.sv
+rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/unit_RXDESKEW_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/wrapper_RXDESKEW.sv
+
+// MBTRAIN.DATATRAINCENTER2
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER2/unit_DATATRAINCENTER2_local.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER2/unit_DATATRAINCENTER2_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/DATATRAINCENTER2/wrapper_DATATRAINCENTER2.sv
+
+// MBTRAIN.LINKSPEED
+rtl/MainSM/LTSM/MBTRAIN/LINKSPEED/unit_LINKSPEED_local.sv
+rtl/MainSM/LTSM/MBTRAIN/LINKSPEED/unit_LINKSPEED_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/LINKSPEED/wrapper_LINKSPEED.sv
+
+// MBTRAIN.REPAIR
+rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_local.sv
+rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv
+rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
+
+// MBTRAIN top wrapper
 rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 
-// --- MUX TB Wrapper ---
-tb/wrapper/MainSM/LTSM/common/wrapper_mbtrain_mbinit_d2c_mux_tb.sv
+// Testbench support
+tb/unit/MainSM/LTSM/common/ltsm_tb_if.sv
+tb/unit/MainSM/LTSM/common/ltsm_tb_attachments.sv
 
-// --- Top-level Testbench ---
+// Testbench top
 tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb.sv

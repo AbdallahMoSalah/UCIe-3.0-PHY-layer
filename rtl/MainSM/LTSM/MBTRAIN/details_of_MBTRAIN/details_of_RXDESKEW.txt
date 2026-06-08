@@ -1,0 +1,70 @@
+4.5.3.4.10 MBTRAIN.RXDESKEW
+The UCIe Module is permitted to optionally perform per Lane deskew on its Receivers to improve 
+timing margin in this state. The Track Transmitter is held Low. When not performing the actions 
+relevant to this state:
+• Clock Receivers are enabled
+• Data and Valid Transmitters are held low
+• Data and Valid Receivers are enabled
+• If the operating speed is <= 32 GT/s AND Strobe mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are held differential low (for differential clocking) or 
+simultaneous low (for Quadrature clocking)
+• If the operating speed is > 32 GT/s OR continuous clock mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are providing the free-running forwarded clock
+Following is the MBTRAIN.RXDESKEW sequence:
+1. The UCIe Module must send the {MBTRAIN.RXDESKEW start req} sideband message. When 
+{MBTRAIN.RXDESKEW start req} sideband message is received, the UCIe Module Partner 
+responds with the {MBTRAIN.RXDESKEW start resp} sideband message. If the operating speed is 
+<= 32 GT/s, then proceed to Step 3.
+2. If the operating speed is > 32 GT/s, the UCIe Module is permitted to request a preset TX EQ 
+setting for the transmitters at the UCIe Module Partner in this step. To request a preset TX EQ 
+setting, the UCIe Module sends the {MBTRAIN.RXDESKEW EQ Preset req} sideband message. A 
+4-bit EQ preset encoding is provided in the Message Info field of this message (see Table 5-7 for 
+the preset encodings). The UCIe Module Partner applies the EQ preset if the request had a valid 
+encoding (i.e., one of the encodings from Table 5-7), and responds with the 
+{MBTRAIN.RXDESKEW EQ Preset resp} sideband message that indicates a status of “Success” 
+(see Table 7-9 for the sideband message encodings). If the request had a reserved encoding (i.e., 
+it is not one of the encodings from Table 5-7), the UCIe Module Partner does not change its EQ 
+preset and responds with an {MBTRAIN.RXDESKEW EQ Preset resp} sideband message that 
+indicates a status of “Fail”. In case of a “Fail” status, the UCIe Module is permitted to request 
+another preset by sending another {MBTRAIN.RXDESKEW EQ Preset req} sideband message and 
+repeating Step 2 before proceeding to Step 3.
+3. The UCIe Module optionally performs per Lane deskew on its Receivers by one or more Receiver￾initiated Data-to-Clock eye width sweeps (see Section 4.5.1.4) (AND/OR) one or more Receiver￾initiated Data-to-Clock point tests (see Section 4.5.1.3). Step 3 is optional and implementation 
+specific.
+a. If per Lane deskew is performed:
+o The Transmitter must be set up to send 4K UI of continuous mode LFSR pattern described 
+in Section 4.4.1. The LFSR pattern on data must be accompanied by correct valid framing 
+on the Valid Lane as described in Section 4.1.2. The Receiver must be set up to perform 
+per Lane comparison.
+o Detection on a Receiver Lane is considered successful if total error count is less than the 
+set threshold (see Section 9.5.3.29).
+b. If the operating speed is > 32 GT/s, the following additional rules apply:
+o The UCIe Module is permitted to repeat Step 2 and Step 3 multiple times, as long as 
+doing so does not lead to a state residency timeout for MBTRAIN.RXDESKEW.
+o The UCIe Module is also permitted to issue an {MBTRAIN.RXDESKEW exit to 
+DATATRAINCENTER1 req} sideband message to request the next state to be 
+MBTRAIN.DATATRAINCENTER1 to allow additional transmitter side adjustments for the EQ 
+preset selected. The UCIe Module is permitted to take the RXDESKEW to 
+DATATRAINCENTER1 arc a maximum of four times.
+o After the UCIe Module Partner receives an {MBTRAIN.RXDESKEW exit to 
+DATATRAINCENTER1 req} sideband message, if the UCIe Module Partner has not reached 
+the maximum limit of RXDESKEW to DATATRAINCENTER1 arc iterations, the UCIe Module 
+Partner responds with an {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 resp} 
+sideband message and transitions the state to MBTRAIN.DATATRAINCENTER1. If the 
+maximum limit of RXDESKEW to DATATRAINCENTER1 arc iterations is exceeded, the UCIe 
+Module Partner performs the TRAINERROR handshake and Link state transitions to 
+TRAINERROR state.
+o After an {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 resp} sideband message is 
+sent or received, any pending {MBTRAIN.RXDESKEW end req} sideband messages are 
+discarded and that handshake is not completed (i.e,. the originator must not expect a 
+response for any discarded {MBTRAIN.RXDESKEW end req} sideband messages).
+o If a UCIe Module receives an {MBTRAIN.RXDESKEW end req} sideband message but the 
+UCIe Module intends to send an {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} 
+sideband message, the UCIe Module must not send an {MBTRAIN.RXDESKEW end resp} 
+sideband message (i.e., the UCIe Module will not proceed to Step 4).
+o If no other EQ preset adjustments are needed as determined by the Receiver, the UCIe 
+Module proceeds to Step 4.
+4. The UCIe Module must send {MBTRAIN.RXDESKEW end req} sideband message after the deskew 
+is performed or skipped. When {MBTRAIN.RXDESKEW end req} is received, the UCIe Module 
+Partner must respond with {MBTRAIN.RXDESKEW end resp}. Once UCIe Module has sent and 
+received the sideband message {MBTRAIN.RXDESKEW end resp}, it must exit to 
+MBTRAIN.DATATRAINCENTER2.

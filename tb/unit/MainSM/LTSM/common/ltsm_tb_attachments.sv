@@ -4,12 +4,25 @@ module ltsm_tb_attachments #(
         parameter real    SB_CLK_PERIOD        = 1.25       , // That means SB clk period = 1.25ns (800MHz).
         parameter integer TIMEOUT_CYCLES       = 'D8_000_000, // Number of lclk cycles to wait before declaring a timeout.
         parameter integer ANALOG_SETTLE_CYCLES = 'D10       , // Number of lclk cycles to wait the analog circuits in the MB to settle.
-        parameter integer SB_DELAY             = 159          // SB msg transmitting delay in lclk cycles.
+        parameter integer SB_DELAY             = 159        , // SB msg transmitting delay in lclk cycles.
+        parameter bit     ENABLE_LOOPBACK      = 1'b1       , // 1: Enable local sideband loopback, 0: Disable.
+        parameter integer MB_DELAY             = 10         ,
+        parameter integer MIN_VAL_VREF_CODE    = 10         ,
+        parameter integer MAX_VAL_VREF_CODE    = 16         ,
+        parameter integer MIN_DATA_VREF_CODE   = 10         ,
+        parameter integer MAX_DATA_VREF_CODE   = 16         ,
+        parameter integer MIN_VAL_PI_CODE      = 1          ,
+        parameter integer MAX_VAL_PI_CODE      = 16         ,
+        parameter integer MIN_DATA_PI_CODE     = 1          ,
+        parameter integer MAX_DATA_PI_CODE     = 16         ,
+        parameter integer MIN_DESKEW_CODE      = 0          ,
+        parameter integer MAX_DESKEW_CODE      = 16
     ) (
-        internal_ltsm_if intf
+        interface intf
     );
 
     import UCIe_pkg::*;
+    import ltsm_state_n_pkg::*;
 
     // Testbench overrides for partner completion
     reg       tb_partner_test_d2c_done_en;
@@ -51,6 +64,23 @@ module ltsm_tb_attachments #(
     wire [1:0]  mb_tx_data_pattern_sel;
     wire        mb_tx_val_pattern_sel;
 
+    // =========================================================================
+    // Wires between unit_D2C_sweep and wrapper_D2C_PT_top
+    // =========================================================================
+    wire        local_tx_pt_en;
+    wire        local_rx_pt_en;
+    wire        partner_tx_pt_en;
+    wire        partner_rx_pt_en;
+    wire [1:0]  d2c_clk_sampling;
+    wire [2:0]  d2c_pattern_setup;
+    wire [1:0]  d2c_data_pattern_sel;
+    wire        d2c_val_pattern_sel;
+    wire        d2c_pattern_mode;
+    wire [15:0] d2c_burst_count;
+    wire [15:0] d2c_idle_count;
+    wire [15:0] d2c_iter_count;
+    wire [1:0]  d2c_compare_setup;
+
     wire        wrapper_tx_sb_msg_valid;
     wire [7:0]  wrapper_tx_sb_msg;
     wire [15:0] wrapper_tx_msginfo;
@@ -60,61 +90,82 @@ module ltsm_tb_attachments #(
     // ===================================================================== //
     //                      Sideband Propagation Delay Line                  //
     // ===================================================================== //
-    localparam SB_DELAY_STAGES = SB_DELAY; // 127 SB cycles * 1.25ns / 1.0ns lclk period
-    reg        val_shreg  [SB_DELAY_STAGES];
-    msg_no_e   msg_shreg  [SB_DELAY_STAGES];
-    reg [15:0] info_shreg [SB_DELAY_STAGES];
-    reg [63:0] data_shreg [SB_DELAY_STAGES];
+    generate
+        if (ENABLE_LOOPBACK) begin : g_loopback
+            localparam SB_DELAY_STAGES = SB_DELAY; // 127 SB cycles * 1.25ns / 1.0ns lclk period
+            reg        val_shreg  [SB_DELAY_STAGES];
+            msg_no_e   msg_shreg  [SB_DELAY_STAGES];
+            reg [15:0] info_shreg [SB_DELAY_STAGES];
+            reg [63:0] data_shreg [SB_DELAY_STAGES];
 
-    always @(posedge intf.lclk or negedge intf.rst_n) begin
-        if (!intf.rst_n) begin
-            for (int i = 0; i < SB_DELAY_STAGES; i++) begin
-                val_shreg[i]  <= 1'b0;
-                msg_shreg[i]  <= NOTHING;
-                info_shreg[i] <= 16'h0;
-                data_shreg[i] <= 64'h0;
-            end
-            intf.rx_sb_msg_valid <= 1'b0;
-            intf.rx_sb_msg       <= NOTHING;
-            intf.rx_msginfo      <= 16'h0;
-            intf.rx_data_field   <= 64'h0;
-        end else begin
-            // Shift the registers
-            for (int i = SB_DELAY_STAGES-1; i > 0; i--) begin
-                val_shreg[i]  <= val_shreg[i-1];
-                msg_shreg[i]  <= msg_shreg[i-1];
-                info_shreg[i] <= info_shreg[i-1];
-                data_shreg[i] <= data_shreg[i-1];
-            end
+            always @(posedge intf.lclk or negedge intf.rst_n) begin
+                if (!intf.rst_n) begin
+                    for (int i = 0; i < SB_DELAY_STAGES; i++) begin
+                        val_shreg[i]  <= 1'b0;
+                        msg_shreg[i]  <= NOTHING;
+                        info_shreg[i] <= 16'h0;
+                        data_shreg[i] <= 64'h0;
+                    end
+                    intf.rx_sb_msg_valid <= 1'b0;
+                    intf.rx_sb_msg       <= NOTHING;
+                    intf.rx_msginfo      <= 16'h0;
+                    intf.rx_data_field   <= 64'h0;
+                end else begin
+                    // Shift the registers
+                    for (int i = SB_DELAY_STAGES-1; i > 0; i--) begin
+                        val_shreg[i]  <= val_shreg[i-1];
+                        msg_shreg[i]  <= msg_shreg[i-1];
+                        info_shreg[i] <= info_shreg[i-1];
+                        data_shreg[i] <= data_shreg[i-1];
+                    end
 
-            val_shreg[0]  <= intf.tb_muxed_tx_sb_msg_valid;
-            msg_shreg[0]  <= intf.tb_muxed_tx_sb_msg;
-            info_shreg[0] <= intf.tb_muxed_tx_msginfo;
-            data_shreg[0] <= intf.tb_muxed_tx_data_field;
+                    val_shreg[0]  <= intf.tb_muxed_tx_sb_msg_valid;
+                    msg_shreg[0]  <= msg_no_e'(intf.tb_muxed_tx_sb_msg);
+                    info_shreg[0] <= intf.tb_muxed_tx_msginfo;
+                    data_shreg[0] <= intf.tb_muxed_tx_data_field;
 
-            // Output from delay line
-            if (intf.tb_wait_timeout == 1'b0) begin
-                intf.rx_sb_msg_valid <= val_shreg[SB_DELAY_STAGES-1];
-                intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? intf.tb_wrong_sb_msg : msg_shreg[SB_DELAY_STAGES-1];
-                intf.rx_msginfo      <= intf.tb_wrong_msginfo;
-                intf.rx_data_field   <= intf.tb_wrong_data_field;
+                    // Output from delay line
+                    if (intf.tb_wait_timeout == 1'b0) begin
+                        intf.rx_sb_msg_valid <= val_shreg[SB_DELAY_STAGES-1];
+                        intf.rx_sb_msg       <= (intf.tb_wrong_sb_msg_en) ? intf.tb_wrong_sb_msg : msg_shreg[SB_DELAY_STAGES-1];
+                        intf.rx_msginfo      <= intf.tb_wrong_msginfo;
+                        intf.rx_data_field   <= intf.tb_wrong_data_field;
 
-                if (!intf.tb_wrong_sb_msg_en) begin
-                    intf.rx_msginfo      <= info_shreg[SB_DELAY_STAGES-1];
-                    intf.rx_data_field   <= data_shreg[SB_DELAY_STAGES-1];
+                        if (!intf.tb_wrong_sb_msg_en) begin
+                            intf.rx_msginfo      <= info_shreg[SB_DELAY_STAGES-1];
+                            intf.rx_data_field   <= data_shreg[SB_DELAY_STAGES-1];
+                        end
+                    end else begin
+                        intf.rx_sb_msg_valid <= 1'b0;
+                    end
                 end
-            end else begin
-                intf.rx_sb_msg_valid <= 1'b0;
             end
         end
-    end
+    endgenerate
 
     // ===================================================================== //
     //                          MB Simulation Block.                         //
     // ===================================================================== //
-    integer burst_counter, idle_counter, iter_counter;
+    integer burst_counter = 0;
+    integer idle_counter  = 0;
+    integer iter_counter  = 0;
 
-    wire mb_tx_pattern_count_done = (iter_counter == mb_rx_iter_count && (intf.tb_wait_timeout == 0)) ? 1'b1 : 1'b0;
+    wire real_mb_tx_pattern_en   = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_pattern_en : mb_tx_pattern_en;
+    wire [15:0] real_mb_tx_burst_count = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_burst_count : mb_tx_burst_count;
+    wire [15:0] real_mb_rx_burst_count = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_burst_count : mb_rx_burst_count;
+    wire [15:0] real_mb_tx_idle_count  = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_idle_count  : mb_tx_idle_count;
+    wire [15:0] real_mb_rx_idle_count  = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_idle_count  : mb_rx_idle_count;
+    wire [15:0] real_mb_tx_iter_count  = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_iter_count  : mb_tx_iter_count;
+    wire [15:0] real_mb_rx_iter_count  = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_iter_count  : mb_rx_iter_count;
+
+    wire [15:0] target_burst = real_mb_tx_pattern_en ? real_mb_tx_burst_count : real_mb_rx_burst_count;
+    wire [15:0] target_idle  = real_mb_tx_pattern_en ? real_mb_tx_idle_count  : real_mb_rx_idle_count;
+    wire [15:0] target_iter  = real_mb_tx_pattern_en ? real_mb_tx_iter_count  : real_mb_rx_iter_count;
+
+    // Use MB_DELAY instead of 4096 to speed up data pattern transmission/reception in simulation
+    wire [15:0] effective_target_burst = (target_burst == 4096) ? MB_DELAY : target_burst;
+
+    wire mb_tx_pattern_count_done = (iter_counter == target_iter && (intf.tb_wait_timeout == 0)) ? 1'b1 : 1'b0;
 
     reg         mb_rx_compare_done;
     reg  [15:0] mb_rx_perlane_pass;
@@ -133,14 +184,14 @@ module ltsm_tb_attachments #(
             tb_partner_test_d2c_done    <= 0;
         end
         else begin
-            if(mb_tx_pattern_en || intf.local_rx_pt_en) begin
-                if(burst_counter != mb_rx_burst_count && iter_counter != mb_rx_iter_count) begin
+            if(real_mb_tx_pattern_en || local_rx_pt_en) begin
+                if(burst_counter != effective_target_burst && iter_counter != target_iter) begin
                     burst_counter <= burst_counter + 1;
                 end
-                else if(idle_counter != mb_rx_idle_count && iter_counter != mb_rx_iter_count) begin
+                else if(idle_counter != target_idle && iter_counter != target_iter) begin
                     idle_counter <= idle_counter + 1;
                 end
-                else if(iter_counter != mb_rx_iter_count) begin
+                else if(iter_counter != target_iter) begin
                     iter_counter  <= iter_counter + 1;
                     burst_counter <= 0;
                     idle_counter  <= 0;
@@ -154,8 +205,8 @@ module ltsm_tb_attachments #(
 
             if(mb_tx_pattern_count_done == 1'b1) begin
                 mb_rx_compare_done <= 1'b1;
-                mb_rx_perlane_pass <= intf.tb_perlane_pass;
-                mb_rx_val_pass     <= intf.tb_val_pass;
+                mb_rx_perlane_pass <= intf.tb_force_perlane_pass;
+                mb_rx_val_pass     <= intf.tb_force_val_pass;
             end
             else begin
                 mb_rx_compare_done <= 1'b0;
@@ -167,7 +218,7 @@ module ltsm_tb_attachments #(
     assign intf.mb_tx_pattern_count_done = mb_tx_pattern_count_done;
     assign intf.mb_rx_perlane_pass       = mb_rx_perlane_pass;
     assign intf.mb_rx_val_pass           = mb_rx_val_pass;
-    assign intf.mb_rx_aggr_err           = intf.tb_aggr_err;
+    assign intf.mb_rx_aggr_pass          = mb_rx_aggr_pass;
 
     // ===================================================================== //
     //                          Timeout 8ms Counter                          //
@@ -203,6 +254,81 @@ module ltsm_tb_attachments #(
     end
     assign intf.analog_settle_time_done = (analog_settle_counter >= ANALOG_SETTLE_CYCLES) && intf.analog_settle_timer_en;
 
+    // =========================================================================
+    // 1. Instantiate unit_negotiated_speed
+    // =========================================================================
+    unit_negotiated_speed u_negotiated_speed (
+        .phy_negotiated_speed (intf.phy_negotiated_speed),
+        .is_high_speed        (intf.is_high_speed)
+    );
+
+    // =========================================================================
+    // 2. Instantiate unit_negotiated_lanes
+    // =========================================================================
+    unit_negotiated_lanes u_negotiated_lanes (
+        .mb_rx_data_lane_mask      (intf.mb_rx_data_lane_mask),
+        .mb_tx_data_lane_mask      (intf.mb_tx_data_lane_mask),
+        .active_rx_lanes           (intf.active_rx_lanes),
+        .active_tx_lanes           (intf.active_tx_lanes),
+        .success_lanes             (intf.linkspeed_success_lanes),
+        .rf_cap_SPMW               (intf.rf_cap_SPMW),
+        .rf_ctrl_target_link_width (intf.rf_ctrl_target_link_width),
+        .param_UCIe_S_x8           (intf.param_UCIe_S_x8),
+        .degraded_lane_map_code    (intf.degraded_lane_map_code),
+        .degrade_feasible          (intf.degrade_feasible)
+    );
+
+
+
+    // =========================================================================
+    // 3. Instantiate unit_D2C_sweep
+    // =========================================================================
+    unit_D2C_sweep #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
+        .MAX_VAL_PI_CODE   (MAX_VAL_PI_CODE),
+        .MAX_DATA_PI_CODE  (MAX_DATA_PI_CODE),
+        .MAX_DESKEW_CODE   (MAX_DESKEW_CODE),
+        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE),
+        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE),
+        .MIN_VAL_PI_CODE   (MIN_VAL_PI_CODE),
+        .MIN_DATA_PI_CODE  (MIN_DATA_PI_CODE),
+        .MIN_DESKEW_CODE   (MIN_DESKEW_CODE)
+    ) u_D2C_sweep (
+        .lclk                 (intf.lclk),
+        .rst_n                (intf.rst_n),
+        .active_lanes         (intf.active_rx_lanes),
+
+        .local_sweep_en       (intf.sweep_en),
+        .partner_sweep_en     (intf.partner_sweep_en),
+        .state_n              (intf.state_n[0]),
+
+        .local_test_d2c_done  (intf.local_test_d2c_done),
+        .partner_test_d2c_done(intf.partner_test_d2c_done),
+        .d2c_perlane_pass     (intf.d2c_perlane_pass),
+        .d2c_val_pass         (intf.d2c_val_pass),
+
+        .local_tx_pt_en       (local_tx_pt_en),
+        .local_rx_pt_en       (local_rx_pt_en),
+        .partner_tx_pt_en     (partner_tx_pt_en),
+        .partner_rx_pt_en     (partner_rx_pt_en),
+
+        .d2c_clk_sampling     (d2c_clk_sampling),
+        .d2c_pattern_setup    (d2c_pattern_setup),
+        .d2c_data_pattern_sel (d2c_data_pattern_sel),
+        .d2c_val_pattern_sel  (d2c_val_pattern_sel),
+        .d2c_pattern_mode     (d2c_pattern_mode),
+        .d2c_burst_count      (d2c_burst_count),
+        .d2c_idle_count       (d2c_idle_count),
+        .d2c_iter_count       (d2c_iter_count),
+        .d2c_compare_setup    (d2c_compare_setup),
+
+        .swept_code           (intf.swept_code),
+        .best_code            (intf.best_code),
+        .min_eye_width        (intf.min_eye_width),
+        .sweep_done           (intf.sweep_done)
+    );
+
     // ===================================================================== //
     //                      Wrapper D2C PT Top Instance                      //
     // ===================================================================== //
@@ -217,33 +343,20 @@ module ltsm_tb_attachments #(
         .d2c_aggr_pass              (intf.d2c_aggr_pass),
         .d2c_val_pass               (intf.d2c_val_pass),
 
-        // Tie mbinit_* to 0
-        .mbinit_local_tx_pt_en      (1'b0),
-        .mbinit_partner_tx_pt_en    (1'b0),
-        .mbinit_d2c_clk_sampling    (2'b00),
-        .mbinit_d2c_pattern_setup   (3'b000),
-        .mbinit_d2c_data_pattern_sel(2'b00),
-        .mbinit_d2c_val_pattern_sel (1'b0),
-        .mbinit_d2c_pattern_mode    (1'b0),
-        .mbinit_d2c_burst_count     (16'd0),
-        .mbinit_d2c_idle_count      (16'd0),
-        .mbinit_d2c_iter_count      (16'd0),
-        .mbinit_d2c_compare_setup   (2'b00),
-
-        // Connect mbtrain_* to corresponding intf.d2c_*
-        .mbtrain_local_tx_pt_en     (intf.local_tx_pt_en),
-        .mbtrain_partner_tx_pt_en   (intf.partner_tx_pt_en),
-        .mbtrain_local_rx_pt_en     (intf.local_rx_pt_en),
-        .mbtrain_partner_rx_pt_en   (intf.partner_rx_pt_en),
-        .mbtrain_d2c_clk_sampling   (intf.d2c_clk_sampling),
-        .mbtrain_d2c_pattern_setup  (intf.d2c_pattern_setup),
-        .mbtrain_d2c_data_pattern_sel(intf.d2c_data_pattern_sel),
-        .mbtrain_d2c_val_pattern_sel(intf.d2c_val_pattern_sel),
-        .mbtrain_d2c_pattern_mode   (intf.d2c_pattern_mode),
-        .mbtrain_d2c_burst_count    (intf.d2c_burst_count),
-        .mbtrain_d2c_idle_count     (intf.d2c_idle_count),
-        .mbtrain_d2c_iter_count     (intf.d2c_iter_count),
-        .mbtrain_d2c_compare_setup  (intf.d2c_compare_setup),
+        // Connect sweep signals to wrapper unified ports
+        .local_tx_pt_en             (local_tx_pt_en),
+        .partner_tx_pt_en           (partner_tx_pt_en),
+        .local_rx_pt_en             (local_rx_pt_en),
+        .partner_rx_pt_en           (partner_rx_pt_en),
+        .d2c_clk_sampling           (d2c_clk_sampling),
+        .d2c_pattern_setup          (d2c_pattern_setup),
+        .d2c_data_pattern_sel       (d2c_data_pattern_sel),
+        .d2c_val_pattern_sel        (d2c_val_pattern_sel),
+        .d2c_pattern_mode           (d2c_pattern_mode),
+        .d2c_burst_count            (d2c_burst_count),
+        .d2c_idle_count             (d2c_idle_count),
+        .d2c_iter_count             (d2c_iter_count),
+        .d2c_compare_setup          (d2c_compare_setup),
 
         .cfg_max_err_thresh_perlane (intf.cfg_train4_max_err_thresh_perlane),
         .cfg_max_err_thresh_aggr    (intf.cfg_train4_max_err_thresh_aggr),

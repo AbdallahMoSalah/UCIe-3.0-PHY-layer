@@ -1,0 +1,10 @@
+4.5.3.4.4 MBTRAIN.TXSELFCAL
+The UCIe Module calibrates its circuit parameters independent of the UCIe Module Partner. Data, 
+Clock, Valid, and Track Transmitters are tri-stated. Data, Clock, Valid, and Track Receivers are 
+permitted to be disabled.
+1. UCIe Module is permitted to perform implementation specific Transmitter-related calibration.
+2. Upon completion of calibration, the UCIe Module must send the {MBTRAIN.TXSELFCAL Done req} 
+sideband message. When {MBTRAIN.TXSELFCAL Done req} sideband message is received, the 
+UCIe Module Partner must respond with {MBTRAIN.TXSELFCAL Done resp}. When the UCIe 
+Module has sent and received the {MBTRAIN.TXSELFCAL Done resp} sideband message, it must 
+exit to MBTRAIN. RXCLKCAL.

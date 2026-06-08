@@ -1,9 +1,9 @@
+`timescale 1ps/1ps
 // =============================================================================
 // wrapper_D2C_PT_tb.sv — Wrapper Level Comprehensive Testbench
 // Instantiates BOTH wrapper_D2C_PT_local and wrapper_D2C_PT_partner.
 // Tests happy paths for TX and RX Point Tests, followed by 200 randomized runs.
 // =============================================================================
-`timescale 1ps/1ps
 
 module wrapper_D2C_PT_tb;
 
@@ -1088,3 +1088,8 @@ module wrapper_D2C_PT_tb;
     end
 
 endmodule
+
+
+
+
+

@@ -1,0 +1,129 @@
+4.5.3.4.12 MBTRAIN.LINKSPEED
+In this state, the UCIe Module checks Link stability at the operating date rate. The Track Transmitter is 
+held Low. When not performing the actions relevant to this state:
+• Clock Receivers are enabled
+• Data and Valid Transmitters are held low
+• Data and Valid Receivers are enabled
+• If the operating speed is <= 32 GT/s AND Strobe mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are held differential low (for differential clocking) or 
+simultaneous low (for Quadrature clocking)
+• If the operating speed is > 32 GT/s OR continuous clock mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are providing the free-running forwarded clock
+The following steps must be executed sequentially, when applicable:
+1. The UCIe Module sends the sideband message {MBTRAIN.LINKSPEED start req}. When 
+{MBTRAIN.LINKSPEED start req} sideband message is received, the UCIe Module Partner 
+responds with {MBTRAIN.LINKSPEED start resp}.
+2. The UCIe Module must perform a Transmitter-initiated Data-to-Clock point test (see 
+Section 4.5.1.1) with the final clock sampling phase calculated in the previous 
+MBTRAIN.DATACENTER2 state. LFSR pattern described in Section 4.4.1 must be used in this 
+state.
+a. The Transmitter must be set up to send 4K UI of continuous mode LFSR pattern described in 
+Section 4.4.1. The LFSR pattern on data must be accompanied by correct valid framing on the 
+Valid Lane as described in Section 4.1.2. The Receiver must be set up to perform per Lane 
+comparison.
+b. Detection on a Receiver Lane is considered successful if total error count is less than the set 
+threshold (see Section 9.5.3.29).
+3. For single-Module instantiations, if errors are encountered, the UCIe Module sets its Transmitters 
+to an electrical idle state and sends {MBTRAIN.LINKSPEED error req} sideband message. If an 
+{MBTRAIN.LINKSPEED error req} sideband message is received, the UCIe Module Partner must 
+complete Step 1 and Step 2, evaluate the results and if not initiating an {MBTRAIN.LINKSPEED 
+exit to phy retrain req} sideband message, the UCIe Module Partner enters electrical idle on its 
+Receiver and sends the {MBTRAIN.LINKSPEED error resp} sideband message. If an 
+{MBTRAIN.LINKSPEED exit to phy retrain req} sideband message is received, the UCIe Module 
+must exit to PHYRETRAIN and send an {MBTRAIN.LINKSPEED exit to PHY retrain resp} sideband 
+message; any outstanding messages are abandoned. Otherwise, after the {MBTRAIN.LINKSPEED 
+error resp} sideband message is received, the PHY_IN_RETRAIN flag is cleared and the following 
+rules apply:
+a. Based on the number of Lanes encountering errors, the UCIe Module checks if the failing 
+Lanes can be repaired (for Advanced package) or Width degraded (for standard package). 
+If Lanes can be can be repaired (for Advanced package) or Width degraded (for standard 
+package), the UCIe Module must send {MBTRAIN.LINKSPEED exit to repair req} to the UCIe 
+Module Partner. The UCIe Module Partner, if not initiating a speed degrade, enters 
+MBTRAIN.REPAIR and sends the sideband message {MBTRAIN.LINKSPEED exit to repair resp}. 
+If {MBTRAIN.LINKSPEED exit to repair resp} is received in response to a 
+{MBTRAIN.LINKSPEED exit to repair req}, the UCIe Module must exit to MBTRAIN.REPAIR. If 
+a UCIe Module is initiating a speed degrade, it must not respond to {MBTRAIN.LINKSPEED exit 
+to repair req}.
+b. If the Lanes cannot be repaired (for Advanced package) or width degraded (for Standard 
+package), the speed must be degraded. The UCIe Module sends {MBTRAIN.LINKSPEED exit to 
+speed degrade req} sideband message and waits for a response from the remote Link partner. 
+The UCIe Module Partner must respond with {MBTRAIN.LINKSPEED exit to speed degrade 
+resp}. Following this handshake, the UCIe Module must exit to MBTRAIN.SPEEDIDLE to set 
+data rate to next lower speed.
+c. If the UCIe Module receives an {MBTRAIN.LINKSPEED exit to speed degrade req} any 
+outstanding {MBTRAIN.LINKSPEED exit to repair req} must be abandoned and the UCIe 
+Module must respond to {MBTRAIN.LINKSPEED exit to speed degrade req}.
+d. Any outstanding {MBTRAIN.LINKSPEED done req} must be abandoned if a UCIe Module has 
+received a {MBTRAIN.LINKSPEED error req}.
+4. For single- or multi-module instantiations, if no errors are encountered, the UCIe Module must set 
+the clock phase on its Transmitter to sample the data eye at the optimal point to maximize eye 
+margins. If PHY_IN_RETRAIN is not set for single-module instantiations, proceed to Step 6. If 
+PHY_IN_RETRAIN is not set, for multi-module instantiations, the UCIe Module must send the 
+{MBTRAIN.LINKSPEED done req} (if not waiting for Link match criteria as a Retimer) to the 
+remote UCIe Module Partner and wait for multi-module PHY Logic (MMPL) resolution in Step 5c. If 
+the PHY_IN_RETRAIN variable is set, the following actions must be taken:
+a. If a change is detected in Runtime Link Test Control register relative to the values at previous 
+PHYRETRAIN entry, the UCIe Module must send an {MBTRAIN.LINKSPEED exit to phy retrain 
+req} sideband message and wait for a response. Upon receiving this message, the UCIe Module 
+Partner must exit to PHY retrain and send an {MBTRAIN.LINKSPEED exit to PHY retrain resp} 
+sideband message. Once this sideband message is received, the UCIe Module must exit to PHY 
+retrain.
+b. Else if no change is detected in the Runtime Link Test Control register relative to the values at 
+previous PHYRETRAIN entry, Busy bit in Runtime Link Test Status and PHY_IN_RETRAIN 
+variable must be cleared and the UCIe Module must proceed to Step 6.
+5. For multi-module instantiations, if errors are encountered, the UCIe Module sets its Transmitters 
+to an electrical idle state and sends {MBTRAIN.LINKSPEED error req} sideband message. If an 
+{MBTRAIN.LINKSPEED error req} sideband message is received, the UCIe Module Partner must 
+complete Step 1 and Step 2, evaluate the results and if not initiating an {MBTRAIN.LINKSPEED 
+exit to phy retrain req} sideband message, the UCIe Module Partner enters electrical idle on its 
+Receiver, and sends the {MBTRAIN.LINKSPEED error resp} sideband message. If an 
+{MBTRAIN.LINKSPEED exit to phy retrain req} sideband message is received on any of the 
+modules in the multi-module Link, the UCIe Module must exit to PHYRETRAIN and send an 
+{MBTRAIN.LINKSPEED exit to PHY retrain resp} sideband message; any outstanding messages 
+are abandoned. Otherwise, after the {MBTRAIN.LINKSPEED error resp} sideband message is 
+received, the PHY_IN_RETRAIN flag is cleared and the following rules apply:
+a. Based on the number of Lanes encountering errors, the UCIe Module checks whether the failing 
+Lanes can be repaired (for Advanced Package) or Width degraded (for Standard Package). If 
+Lanes can be can be repaired (for Advanced Package) or Width degraded (for Standard 
+Package), the UCIe Module must send {MBTRAIN.LINKSPEED exit to repair req} to the UCIe 
+Module Partner.
+b. If the Lanes cannot be repaired (for Advanced Package) or width degraded (for Standard 
+Package), the speed must be degraded. The UCIe Module sends {MBTRAIN.LINKSPEED exit to 
+speed degrade req}.
+c. The UCIe Module informs MMPL of local and remote error requests, done requests, or speed 
+degrade requests, and waits for resolution. It also informs MMPL of any prior width degrade 
+(for example in MBINIT.REPAIRMB), and MMPL treats this as the corresponding module 
+requesting width degrade from the full operational width.
+d. Based on the resolution flow chart in Section 4.7, MMPL directs each Module to send either the 
+{MBTRAIN.LINKSPEED exit to repair resp} (indicating next state is REPAIR), 
+{MBTRAIN.LINKSPEED exit to speed degrade resp} (indicating next state is SPEEDIDLE with 
+target speed to next-lower speed), {MBTRAIN.LINKSPEED multi-module disable module resp} 
+(indicating next state is TRAINERROR and eventually RESET), or {MBTRAIN.LINKSPEED done 
+resp} (indicating next state is LINKINIT). This is done regardless of the module’s original error 
+request or done request, and indicates the result of the resolution and next state to each 
+module. The UCIe Module transitions to next state once it has sent and received the sideband 
+response message that matches the expected resolution. Any mismatch on received message 
+vs. expected resolution must take all modules to TRAINERROR. For Retimer dies, the resolution must take into account any Link match requirements, and while resolving the target 
+configuration with remote Retimer partner, each UCIe Module from the Retimer die must send 
+{MBTRAIN.LINKSPEED done resp} with stall encoding every 4 ms. The UCIe Retimer must 
+ensure that this stall is not perpetual, and an implementation-specific timeout must be included 
+in the Retimer. If {MBTRAIN.LINKSPEED done resp} with stall encoding is received, it must 
+reset timers for state transition as well as any outstanding handshakes for multi-module 
+resolution.
+6. If the UCIe die is not a Retimer, proceed to Step 7. If the UCIe die is a Retimer, the following rules 
+apply to achieve Link match (if required):
+a. Retimer must not send {MBTRAIN.LINKSPEED done req} unless the target Link speed and 
+width of the remote Retimer partner resolves to current Link and width. Proceed to Step 7 if 
+Link match is achieved or if it is not required.
+b. While resolving the target Link speed and width with the remote Retimer partner, if a Retimer 
+has received an {MBTRAIN.LINKSPEED done req}, it must send {MBTRAIN.LINKSPEED done 
+resp} with stall encoding every 4 ms. UCIe Retimer must ensure that this stall is not perpetual, 
+and an implementation specific timeout must be included in the Retimer.
+c. If the local UCIe Link speed or width is greater than the remote Retimer UCIe Link, then it must 
+treat this as an error condition, and perform Step 3 or Step 5 with repair or speed degrade 
+(whichever is applicable).
+7. The UCIe Module must send {MBTRAIN.LINKSPEED done req} sideband message. When 
+{MBTRAIN.LINKSPEED done req} is received, the UCIe Module must respond with 
+{MBTRAIN.LINKSPEED done resp} and when a UCIe Module has sent and received the 
+{MBTRAIN.LINKSPEED done resp} sideband message, both Transmitters and Receivers are now 
+enabled and idle and both devices exit to LINKINIT.

@@ -1,3 +1,4 @@
+`timescale 1ps/1ps
 // unit_RX_D2C_PT_tb.sv — Dual-die TB for unit_RX_D2C_PT_local + unit_RX_D2C_PT_partner
 // Comprehensive testbench: verifies ALL interface signals at EVERY FSM state.
 //
@@ -8,7 +9,6 @@
 //     data_field[63:0]  : 1h = Pass, 0h = Fail (per data lane)
 //     MsgInfo[4]        : 1  = Pass, 0  = Fail (aggregate/cumulative)
 //
-`timescale 1ps/1ps
 module unit_RX_D2C_PT_tb;
     import UCIe_pkg::*;
     parameter LCLK_PERIOD   = 1000;
@@ -1104,3 +1104,8 @@ module unit_RX_D2C_PT_tb;
     end
 
 endmodule
+
+
+
+
+

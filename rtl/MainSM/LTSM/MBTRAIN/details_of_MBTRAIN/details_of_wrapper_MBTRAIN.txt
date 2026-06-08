@@ -1,0 +1,31 @@
+// =============================================================================
+// Module  : wrapper_MBTRAIN
+//           Note: There should be there are 2 wrappers:
+//                 - wrapper_MBTRAIN_req : for the UCIe die requester prespective.
+//                 - wrapper_MBTRAIN_resp: for the UCIe die responder prespective (partner prespective).
+// Purpose : Centralized wrapper for MBTRAIN sub-states and control logic.
+//           Instantiates all 13 sub-state FSMs, unit_MBTRAIN_ctrl, and
+//           the shared D2C test modules (via wrapper_D2C_PT).
+//           Implements MUX/DEMUX logic for D2C handshakes and MB/SB/PHY signals.
+// =============================================================================
+
+// This module is a wrapper for the MBTRAIN module
+// It instantiates these Substates Modules:
+//    .------.---------------------------.----------------------------------------------------.
+//    |  No. |      Substate Name        |                      Modules                       |
+//    '------'---------------------------'----------------------------------------------------'
+//    |   1.    MBTRAIN.VALVREF          | unit_VALVREF                                       |
+//    |   2.    MBTRAIN.DATAVREF         | unit_DATAVREF                                      |
+//    |   3.    MBTRAIN.SPEEDIDLE        | unit_SPEEDIDLE                                     |
+//    |   4.    MBTRAIN.TXSELFCAL        | unit_TXSELFCAL                                     |
+//    |   5.    MBTRAIN.RXCLKCAL         | unit_RXCLKCAL                                      |
+//    |   6.    MBTRAIN.VALTRAINCENTER   | unit_VALTRAINCENTER                                |
+//    |   7.    MBTRAIN.VALTRAINVREF     | unit_VALTRAINVREF                                  |
+//    |   8.    MBTRAIN.DATATRAINCENTER1 | unit_DATATRAINCENTER1                              |
+//    |   9.    MBTRAIN.DATATRAINVREF    | unit_DATATRAINVREF                                 |
+//    |   10.   MBTRAIN.RXDESKEW         | unit_RXDESKEW & unit_phase_interpolator_for_deskew |
+//    |   11.   MBTRAIN.DATATRAINCENTER2 | unit_DATATRAINCENTER2                              |
+//    |   12.   MBTRAIN.LINKSPEED        | unit_LINKSPEED                                     |
+//    |   13.   MBTRAIN.REPAIR           | unit_REPAIR                                        |
+//    |   --             ---             | unit_MBTRAIN_ctrl                                  |
+//    '----------------------------------'----------------------------------------------------'

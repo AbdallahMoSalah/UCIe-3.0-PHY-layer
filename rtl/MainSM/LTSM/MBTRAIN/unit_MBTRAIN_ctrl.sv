@@ -1,37 +1,187 @@
-module unit_MBTRAIN_ctrl (
-        internal_ltsm_if.mbtrain_ctrl_mp itf
-    );
-    import ltsm_state_n_pkg::*;
-    // for current `mbtrain` sub-state
-    import ltsm_state_n_pkg::mbtrain_substate_e;
-    import ltsm_state_n_pkg::MBTRAIN_IDLE      ;
-    import ltsm_state_n_pkg::VALVREF           ;
-    import ltsm_state_n_pkg::DATAVREF          ;
-    import ltsm_state_n_pkg::SPEEDIDLE         ;
-    import ltsm_state_n_pkg::TXSELFCAL         ;
-    import ltsm_state_n_pkg::RXSELFCAL         ;
-    import ltsm_state_n_pkg::VALTRAINCENTER    ;
-    import ltsm_state_n_pkg::VALTRAINVREF      ;
-    import ltsm_state_n_pkg::DATATRAINCENTER1  ;
-    import ltsm_state_n_pkg::DATATRAINVREF     ;
-    import ltsm_state_n_pkg::RXDESKEW          ;
-    import ltsm_state_n_pkg::DATATRAINCENTER2  ;
-    import ltsm_state_n_pkg::LINKSPEED         ;
-    import ltsm_state_n_pkg::REPAIR            ;
-    import ltsm_state_n_pkg::MBTRAIN_DONE      ;
+// ====================================================================================================
+// unit_MBTRAIN_ctrl.sv — MBTRAIN Top-Level Sequencer
+//
+// This module sequences all 13 MBTRAIN sub-states. It follows a unified control
+// architecture where each sub-state transition requires BOTH the Local (Initiator)
+// and Partner (Responder) FSMs on this die to report completion.
+//
+// Sequence:
+//   1. VALVREF         (Rx Valid Lane Vref)
+//   2. DATAVREF        (Rx Data Lanes Vref)
+//   3. SPEEDIDLE       (Link Speed Negotiation)
+//   4. TXSELFCAL       (Tx Self-Calibration)
+//   5. RXSELFCAL       (I/Q & Clock Lock)
+//   6. VALTRAINCENTER  (Tx Valid PI Centering)
+//   7. VALTRAINVREF    (Rx Valid Vref Training)
+//   8. DATATRAINCENTER1(Tx Data PI Centering - Pass 1)
+//   9. DATATRAINVREF   (Rx Data Vref Training)
+//   10. RXDESKEW       (Rx Data Deskew & EQ-Preset Loop)
+//   11. DATATRAINCENTER2(Tx Data PI Centering - Pass 2)
+//   12. LINKSPEED      (Link Stability Check)
+//   13. REPAIR         (Width Degradation)
+//
+// ====================================================================================================
 
+module unit_MBTRAIN_ctrl (
+        // Clock and Reset
+        input  logic        lclk,                           // LTSM clock domain
+        input  logic        rst_n,                          // Async active-low reset
+        input  logic        is_ltsm_out_of_reset,           // Soft reset
+
+        // LTSM Interface (to unit_LTSM_ctrl)
+        input  logic        mbtrain_en,                     // MBTRAIN state enable
+        output logic        mbtrain_done,                   // MBTRAIN state completion
+        output logic [3:0]  current_mbtrain_substate,       // For RF logging
+
+        // Global Interrupts / External Requests
+        input  logic        trainerror_detected,            // OR of all sub-state trainerror_req outputs
+        output logic        ltsm_trainerror_req,            // Request LTSM move to TRAINERROR
+        output logic        ltsm_linkinit_req,              // Request LTSM move to LINKINIT
+        output logic        ltsm_phyretrain_req,            // Request LTSM move to PHYRETRAIN
+        output logic        ltsm_repair_req,                // Request LTSM move to REPAIR (loop)
+        output logic        ltsm_speedidle_req,             // Request LTSM move to SPEEDIDLE (loop)
+
+        // Entry Requests (from LTSM_ctrl on re-entry)
+        input  logic        mbtrain_txselfcal_req,          // Re-enter at TXSELFCAL
+        input  logic        mbtrain_speedidle_req,          // Re-enter at SPEEDIDLE
+        input  logic        mbtrain_repair_req,              // Re-enter at REPAIR
+
+        // Sub-state Handshakes: VALVREF
+        output logic        local_valvref_en,
+        input  logic        local_valvref_done,
+        output logic        partner_valvref_en,
+        input  logic        partner_valvref_done,
+
+        // Sub-state Handshakes: DATAVREF
+        output logic        local_datavref_en,
+        input  logic        local_datavref_done,
+        output logic        partner_datavref_en,
+        input  logic        partner_datavref_done,
+
+        // Sub-state Handshakes: SPEEDIDLE
+        output logic        local_speedidle_en,
+        input  logic        local_speedidle_done,
+        output logic        partner_speedidle_en,
+        input  logic        partner_speedidle_done,
+
+        // Sub-state Handshakes: TXSELFCAL
+        output logic        local_txselfcal_en,
+        input  logic        local_txselfcal_done,
+        output logic        partner_txselfcal_en,
+        input  logic        partner_txselfcal_done,
+
+        // Sub-state Handshakes: RXCLKCAL
+        output logic        local_rxclkcal_en,
+        input  logic        local_rxclkcal_done,
+        output logic        partner_rxclkcal_en,
+        input  logic        partner_rxclkcal_done,
+
+        // Sub-state Handshakes: VALTRAINCENTER
+        output logic        local_valtraincenter_en,
+        input  logic        local_valtraincenter_done,
+        output logic        partner_valtraincenter_en,
+        input  logic        partner_valtraincenter_done,
+
+        // Sub-state Handshakes: VALTRAINVREF
+        output logic        local_valtrainvref_en,
+        input  logic        local_valtrainvref_done,
+        output logic        partner_valtrainvref_en,
+        input  logic        partner_valtrainvref_done,
+
+        // Sub-state Handshakes: DATATRAINCENTER1
+        output logic        local_dtc1_en,
+        input  logic        local_dtc1_done,
+        output logic        partner_dtc1_en,
+        input  logic        partner_dtc1_done,
+
+        // Sub-state Handshakes: DATATRAINVREF
+        output logic        local_datatrainvref_en,
+        input  logic        local_datatrainvref_done,
+        output logic        partner_datatrainvref_en,
+        input  logic        partner_datatrainvref_done,
+
+        // Sub-state Handshakes: RXDESKEW
+        output logic        local_rxdeskew_en,
+        input  logic        local_rxdeskew_done,
+        output logic        partner_rxdeskew_en,
+        input  logic        partner_rxdeskew_done,
+        input  logic        local_dtc1_loopback_req,        // From RXDESKEW to loop back to DTC1
+
+        // Sub-state Handshakes: DATATRAINCENTER2
+        output logic        local_dtc2_en,
+        input  logic        local_dtc2_done,
+        output logic        partner_dtc2_en,
+        input  logic        partner_dtc2_done,
+
+        // Sub-state Handshakes: LINKSPEED
+        output logic        local_linkspeed_en,
+        input  logic        local_linkspeed_done,
+        output logic        partner_linkspeed_en,
+        input  logic        partner_linkspeed_done,
+        // LINKSPEED routing outputs (fed back to ctrl)
+        input  logic        local_linkinit_route_req,
+        input  logic        local_speedidle_route_req,
+        input  logic        local_repair_route_req,
+        input  logic        local_phyretrain_route_req,
+
+        // Sub-state Handshakes: REPAIR
+        output logic        local_repair_en,
+        input  logic        local_repair_done,
+        output logic        partner_repair_en,
+        input  logic        partner_repair_done,
+        input  logic        local_repair_txselfcal_req       // From REPAIR to loop back to TXSELFCAL
+    );
+
+    import ltsm_state_n_pkg::*;
 
     mbtrain_substate_e current_state, next_state;
 
-    always_ff @(posedge itf.lclk or negedge itf.rst_n) begin
-        if (!itf.rst_n) begin
+    // Registered Routing Requests
+    logic reg_linkinit_req, reg_phyretrain_req, reg_repair_req, reg_speedidle_req;
+
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            reg_linkinit_req   <= 1'b0;
+            reg_phyretrain_req <= 1'b0;
+            reg_repair_req     <= 1'b0;
+            reg_speedidle_req  <= 1'b0;
+        end
+        else if (!is_ltsm_out_of_reset) begin
+            reg_linkinit_req   <= 1'b0;
+            reg_phyretrain_req <= 1'b0;
+            reg_repair_req     <= 1'b0;
+            reg_speedidle_req  <= 1'b0;
+        end
+        else if (current_state == MBTRAIN_IDLE) begin
+            reg_linkinit_req   <= 1'b0;
+            reg_phyretrain_req <= 1'b0;
+            reg_repair_req     <= 1'b0;
+            reg_speedidle_req  <= 1'b0;
+        end
+        else if (current_state == LINKSPEED && local_linkspeed_done && partner_linkspeed_done) begin
+            reg_linkinit_req   <= local_linkinit_route_req;
+            reg_phyretrain_req <= local_phyretrain_route_req;
+            reg_repair_req     <= local_repair_route_req;
+            reg_speedidle_req  <= local_speedidle_route_req;
+        end
+    end
+
+    // Assign registered requests to outputs
+    assign ltsm_linkinit_req   = reg_linkinit_req;
+    assign ltsm_phyretrain_req = reg_phyretrain_req;
+    assign ltsm_repair_req     = reg_repair_req;
+    assign ltsm_speedidle_req  = reg_speedidle_req;
+
+    // State Register
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
             current_state <= MBTRAIN_IDLE;
         end
-        else if (!itf.is_ltsm_out_of_reset) begin
+        else if (!is_ltsm_out_of_reset) begin
             current_state <= MBTRAIN_IDLE;
         end
         else begin
-            if (!itf.mbtrain_en) begin
+            if (!mbtrain_en) begin
                 current_state <= MBTRAIN_IDLE;
             end
             else begin
@@ -40,166 +190,159 @@ module unit_MBTRAIN_ctrl (
         end
     end
 
-
-    // Combinational FSM: state transitions happen immediately, not waiting for clock edge.
+    // Combinational Next State & Output Logic
     always_comb begin
-        // -----------------------------------------------------------------------
-        // Defaults (prevents latches on all outputs)
-        // -----------------------------------------------------------------------
-        itf.mbtrain_done             = 1'b0;
-        itf.current_mbtrain_substate = current_state;
-        next_state                   = current_state;
+        // Default Outputs
+        mbtrain_done             = 1'b0;
+        current_mbtrain_substate = current_state;
+        next_state               = current_state;
 
-        itf.valvref_en          = 1'b0;
-        itf.datavref_en         = 1'b0;
-        itf.speedidle_en        = 1'b0;
-        itf.txselfcal_en        = 1'b0;
-        itf.rxclkcal_en         = 1'b0;
-        itf.valtraincenter_en   = 1'b0;
-        itf.valtrainvref_en     = 1'b0;
-        itf.datatraincenter1_en = 1'b0;
-        itf.datatrainvref_en    = 1'b0;
-        itf.rxdeskew_en         = 1'b0;
-        itf.datatraincenter2_en = 1'b0;
-        itf.linkspeed_en        = 1'b0;
-        itf.repair_en           = 1'b0;
+        ltsm_trainerror_req      = 1'b0;
 
-        // -----------------------------------------------------------------------
-        // Normal FSM and Global priority interrupts to TRAINERROR
-        // -----------------------------------------------------------------------
-        // Reason why trainerror_req can be asserted inside MBTRAIN:
-        //   1. Global 8 ms timeout (handled externally by ltsm_ctrl).
-        //   2. Receiving a {TRAINERROR Entry req} SB message.
-        //   3. VALVREF: fatal — no valid Vref found for the Valid Lane.
-        //   4. SPEEDIDLE: entering from LINKSPEED/PHYRETRAIN while already at 4 GT/s.
-        //   5. RXCLKCAL: partner TCKN shift out of range after all IQ retries.
-        //   6. RXDESKEW: Receiving {MBTRAIN.RXDESKEW exit to DATATRAINCENTER1 req} SB message after 4 arc iterations to DATATRAINCENTER1
-        //   7. REPAIR: partner responds with "Degrade not possible".
-        // When asserted, hold the current state; ltsm_ctrl will move to TRAINERROR.
-        if (itf.trainerror_req) begin
-            next_state = (itf.mbtrain_en)? current_state : MBTRAIN_IDLE;
+        local_valvref_en         = 1'b0; partner_valvref_en         = 1'b0;
+        local_datavref_en        = 1'b0; partner_datavref_en        = 1'b0;
+        local_speedidle_en       = 1'b0; partner_speedidle_en       = 1'b0;
+        local_txselfcal_en       = 1'b0; partner_txselfcal_en       = 1'b0;
+        local_rxclkcal_en        = 1'b0; partner_rxclkcal_en        = 1'b0;
+        local_valtraincenter_en  = 1'b0; partner_valtraincenter_en  = 1'b0;
+        local_valtrainvref_en    = 1'b0; partner_valtrainvref_en    = 1'b0;
+        local_dtc1_en            = 1'b0; partner_dtc1_en            = 1'b0;
+        local_datatrainvref_en   = 1'b0; partner_datatrainvref_en   = 1'b0;
+        local_rxdeskew_en        = 1'b0; partner_rxdeskew_en        = 1'b0;
+        local_dtc2_en            = 1'b0; partner_dtc2_en            = 1'b0;
+        local_linkspeed_en       = 1'b0; partner_linkspeed_en       = 1'b0;
+        local_repair_en          = 1'b0; partner_repair_en          = 1'b0;
+
+        // Emergency TRAINERROR Exit
+        if (trainerror_detected) begin
+            ltsm_trainerror_req = 1'b1;
+            next_state          = MBTRAIN_DONE;
         end
         else begin
             case (current_state)
-                // Wait for `ltsm_ctrl` to enable us.
                 MBTRAIN_IDLE: begin
-                    if (itf.mbtrain_en) begin
-                        // Priority check for re-entry requests from LTSM (e.g. from PHYRETRAIN)
-                        if (itf.mbtrain_txselfcal_req) next_state = TXSELFCAL;
-                        else if (itf.mbtrain_speedidle_req) next_state = SPEEDIDLE;
-                        else if (itf.mbtrain_repair_req) next_state = REPAIR;
-                        else next_state = VALVREF;
+                    if (mbtrain_en) begin
+                        // Entry priority from external requests
+                        if      (mbtrain_txselfcal_req)  next_state = TXSELFCAL;
+                        else if (mbtrain_speedidle_req) next_state = SPEEDIDLE;
+                        else if (mbtrain_repair_req)    next_state = REPAIR;
+                        else                            next_state = VALVREF;
                     end
                 end
 
-                // -- Sub-state: VALVREF --
                 VALVREF: begin
-                    itf.valvref_en = 1'b1;
-                    if (itf.valvref_done) next_state = DATAVREF;
+                    local_valvref_en   = 1'b1;
+                    partner_valvref_en = 1'b1;
+                    if (local_valvref_done && partner_valvref_done) next_state = DATAVREF;
                 end
 
-                // -- Sub-state: DATAVREF --
                 DATAVREF: begin
-                    itf.datavref_en = 1'b1;
-                    if (itf.datavref_done) next_state = SPEEDIDLE;
+                    local_datavref_en   = 1'b1;
+                    partner_datavref_en = 1'b1;
+                    if (local_datavref_done && partner_datavref_done) next_state = SPEEDIDLE;
                 end
 
-                // -- Sub-state: SPEEDIDLE --
                 SPEEDIDLE: begin
-                    itf.speedidle_en = 1'b1;
-                    if (itf.speedidle_done) next_state = TXSELFCAL;
+                    local_speedidle_en   = 1'b1;
+                    partner_speedidle_en = 1'b1;
+                    if (local_speedidle_done && partner_speedidle_done) next_state = TXSELFCAL;
                 end
 
-                // -- Sub-state: TXSELFCAL --
-                // Also entered after REPAIR (width-degrade) or via mbtrain_txselfcal_req
-                // when ltsm_ctrl re-enables MBTRAIN after PHYRETRAIN.
                 TXSELFCAL: begin
-                    itf.txselfcal_en = 1'b1;
-                    if (itf.txselfcal_done) next_state = RXSELFCAL;
+                    local_txselfcal_en   = 1'b1;
+                    partner_txselfcal_en = 1'b1;
+                    if (local_txselfcal_done && partner_txselfcal_done) next_state = RXSELFCAL;
                 end
 
-                // -- Sub-state: RXCLKCAL --
                 RXSELFCAL: begin
-                    itf.rxclkcal_en = 1'b1;
-                    if (itf.rxclkcal_done) next_state = VALTRAINCENTER;
+                    local_rxclkcal_en   = 1'b1;
+                    partner_rxclkcal_en = 1'b1;
+                    if (local_rxclkcal_done && partner_rxclkcal_done) next_state = VALTRAINCENTER;
                 end
 
-                // -- Sub-state: VALTRAINCENTER --
                 VALTRAINCENTER: begin
-                    itf.valtraincenter_en = 1'b1;
-                    if (itf.valtraincenter_done) next_state = VALTRAINVREF;
+                    local_valtraincenter_en   = 1'b1;
+                    partner_valtraincenter_en = 1'b1;
+                    if (local_valtraincenter_done && partner_valtraincenter_done) next_state = VALTRAINVREF;
                 end
 
-                // -- Sub-state: VALTRAINVREF --
                 VALTRAINVREF: begin
-                    itf.valtrainvref_en = 1'b1;
-                    if (itf.valtrainvref_done) next_state = DATATRAINCENTER1;
+                    local_valtrainvref_en   = 1'b1;
+                    partner_valtrainvref_en = 1'b1;
+                    if (local_valtrainvref_done && partner_valtrainvref_done) next_state = DATATRAINCENTER1;
                 end
 
-                // -- Sub-state: DATATRAINCENTER1 --
-                // Also re-entered from RXDESKEW when the EQ-preset loop requires
-                // another DTC1 pass (datatraincenter1_req from RXDESKEW sub-FSM).
                 DATATRAINCENTER1: begin
-                    itf.datatraincenter1_en = 1'b1;
-                    if (itf.datatraincenter1_done) next_state = DATATRAINVREF;
+                    local_dtc1_en   = 1'b1;
+                    partner_dtc1_en = 1'b1;
+                    if (local_dtc1_done && partner_dtc1_done) next_state = DATATRAINVREF;
                 end
 
-                // -- Sub-state: DATATRAINVREF --
                 DATATRAINVREF: begin
-                    itf.datatrainvref_en = 1'b1;
-                    if (itf.datatrainvref_done) next_state = RXDESKEW;
+                    local_datatrainvref_en   = 1'b1;
+                    partner_datatrainvref_en = 1'b1;
+                    if (local_datatrainvref_done && partner_datatrainvref_done) next_state = RXDESKEW;
                 end
 
-                // -- Sub-state: RXDESKEW --
-                // At speeds > 32 GT/s (up to 64 GT/s for our x16 Standard Package),
-                // the EQ-preset tuning loop inside the RXDESKEW sub-FSM may request
-                // another DATATRAINCENTER1 pass via itf.datatraincenter1_req.
-                // Priority: DTC1-loop request beats the sub-state done signal.
                 RXDESKEW: begin
-                    itf.rxdeskew_en = 1'b1;
-                    if      (itf.datatraincenter1_req) next_state = DATATRAINCENTER1;
-                    else if (itf.rxdeskew_done)        next_state = DATATRAINCENTER2;
-                end
-
-                // -- Sub-state: DATATRAINCENTER2 --
-                DATATRAINCENTER2: begin
-                    itf.datatraincenter2_en = 1'b1;
-                    if (itf.datatraincenter2_done) next_state = LINKSPEED;
-                end
-
-                // -- Sub-state: LINKSPEED --
-                // Per UCIe spec §4.5.3.4.12 and LTSM_from_MBTRAIN.docx §LINKSPEED:
-                //   linkinit_req  → success path  → exit to LINKINIT via MBTRAIN_DONE
-                //   phyretrain_req→ Runtime retrain → exit to PHYRETRAIN via MBTRAIN_DONE
-                //   speedidle_req → speed-degrade   → re-enter SPEEDIDLE
-                //   repair_req   → width-degrade   → enter REPAIR
-                // The external req signals are driven by the LINKSPEED sub-state FSM.
-                LINKSPEED: begin
-                    itf.linkspeed_en = 1'b1;
-                    if (itf.linkspeed_done) begin
-                        if      (itf.linkinit_req   || itf.phyretrain_req) next_state = MBTRAIN_DONE;
-                        else if (itf.speedidle_req)                        next_state = SPEEDIDLE;
-                        else if (itf.repair_req)                           next_state = REPAIR;
+                    local_rxdeskew_en   = 1'b1;
+                    partner_rxdeskew_en = 1'b1;
+                    // Transition Logic:
+                    // 1. Arc loop back to DTC1 takes precedence.
+                    // 2. Normal completion moves to DTC2.
+                    if (local_dtc1_loopback_req) begin
+                        next_state = DATATRAINCENTER1;
+                    end
+                    else if (local_rxdeskew_done && partner_rxdeskew_done) begin
+                        next_state = DATATRAINCENTER2;
                     end
                 end
 
-                // -- Sub-state: REPAIR --
-                REPAIR: begin
-                    itf.repair_en = 1'b1;
-                    if (itf.repair_done) next_state = TXSELFCAL;
+                DATATRAINCENTER2: begin
+                    local_dtc2_en   = 1'b1;
+                    partner_dtc2_en = 1'b1;
+                    if (local_dtc2_done && partner_dtc2_done) next_state = LINKSPEED;
                 end
 
-                // -- MBTRAIN_DONE --
-                // Assert mbtrain_done to tell ltsm_ctrl to advance to LINKINIT or
-                // PHYRETRAIN (the ltsm_ctrl decodes phyretrain_req independently).
-                // Stay here until ltsm_ctrl de-asserts mbtrain_en.
+                LINKSPEED: begin
+                    local_linkspeed_en   = 1'b1;
+                    partner_linkspeed_en = 1'b1;
+                    if (local_linkspeed_done && partner_linkspeed_done) begin
+                        // Routing decisions from LINKSPEED (next state only)
+                        if (local_linkinit_route_req || local_phyretrain_route_req) begin
+                            next_state = MBTRAIN_DONE;
+                        end
+                        else if (local_speedidle_route_req) begin
+                            next_state = SPEEDIDLE;
+                        end
+                        else if (local_repair_route_req) begin
+                            next_state = REPAIR;
+                        end
+                        else begin
+                            ltsm_trainerror_req = 1'b1;
+                            next_state          = MBTRAIN_DONE;
+                        end
+                    end
+                end
+
+                REPAIR: begin
+                    local_repair_en   = 1'b1;
+                    partner_repair_en = 1'b1;
+                    if (local_repair_done && partner_repair_done) begin
+                        // Per Spec, REPAIR exits back to TXSELFCAL or SPEEDIDLE
+                        if (local_repair_txselfcal_req) next_state = TXSELFCAL;
+                        else                            next_state = SPEEDIDLE;
+                    end
+                end
+
                 MBTRAIN_DONE: begin
-                    itf.mbtrain_done = 1'b1;
-                    if (!itf.mbtrain_en) next_state = MBTRAIN_IDLE;
+                    mbtrain_done = 1'b1;
+                    if (!mbtrain_en) next_state = MBTRAIN_IDLE;
                 end
 
                 default: next_state = MBTRAIN_IDLE;
             endcase
         end
     end
+
 endmodule

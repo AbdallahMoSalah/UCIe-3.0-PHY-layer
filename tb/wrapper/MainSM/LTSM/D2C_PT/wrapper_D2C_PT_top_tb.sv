@@ -1,3 +1,4 @@
+`timescale 1ps/1ps
 // =============================================================================
 // wrapper_D2C_PT_top_tb.sv — Top-Level D2C Point Test Wrapper Dual-Die TB
 //
@@ -19,7 +20,6 @@
 //   G. Back-to-Back (B2B) verification without hard resets.
 //   H. 200 Randomized iterations spanning all configurations and results.
 // =============================================================================
-`timescale 1ps/1ps
 
 module wrapper_D2C_PT_top_tb;
 
@@ -69,33 +69,21 @@ module wrapper_D2C_PT_top_tb;
     wire       dut_d2c_aggr_pass;
     wire       dut_d2c_val_pass;
 
-    reg        mbinit_local_tx_pt_en   = 0;
-    reg        mbinit_partner_tx_pt_en = 0;
-    reg [1:0]  mbinit_d2c_clk_sampling      = 2'b00;
-    reg [2:0]  mbinit_d2c_pattern_setup     = 3'b001;
-    reg [1:0]  mbinit_d2c_data_pattern_sel  = 2'b00;
-    reg        mbinit_d2c_val_pattern_sel   = 1'b0;
-    reg        mbinit_d2c_pattern_mode      = 1'b0;
-    reg [15:0] mbinit_d2c_burst_count       = 16'd50;
-    reg [15:0] mbinit_d2c_idle_count        = 16'd0;
-    reg [15:0] mbinit_d2c_iter_count        = 16'd1;
-    reg [1:0]  mbinit_d2c_compare_setup     = 2'b00;
-    reg [11:0] cfg_max_err_thresh_perlane   = 12'd0;
-    reg [15:0] cfg_max_err_thresh_aggr      = 16'd0;
-
-    reg        mbtrain_local_tx_pt_en   = 0;
-    reg        mbtrain_partner_tx_pt_en = 0;
-    reg        mbtrain_local_rx_pt_en   = 0;
-    reg        mbtrain_partner_rx_pt_en = 0;
-    reg [1:0]  mbtrain_d2c_clk_sampling      = 2'b00;
-    reg [2:0]  mbtrain_d2c_pattern_setup     = 3'b001;
-    reg [1:0]  mbtrain_d2c_data_pattern_sel  = 2'b00;
-    reg        mbtrain_d2c_val_pattern_sel   = 1'b0;
-    reg        mbtrain_d2c_pattern_mode      = 1'b0;
-    reg [15:0] mbtrain_d2c_burst_count       = 16'd50;
-    reg [15:0] mbtrain_d2c_idle_count        = 16'd0;
-    reg [15:0] mbtrain_d2c_iter_count        = 16'd1;
-    reg [1:0]  mbtrain_d2c_compare_setup     = 2'b00;
+    reg        local_tx_pt_en          = 0;
+    reg        partner_tx_pt_en        = 0;
+    reg        local_rx_pt_en          = 0;
+    reg        partner_rx_pt_en        = 0;
+    reg [1:0]  d2c_clk_sampling        = 2'b00;
+    reg [2:0]  d2c_pattern_setup       = 3'b001;
+    reg [1:0]  d2c_data_pattern_sel    = 2'b00;
+    reg        d2c_val_pattern_sel     = 1'b0;
+    reg        d2c_pattern_mode        = 1'b0;
+    reg [15:0] d2c_burst_count         = 16'd50;
+    reg [15:0] d2c_idle_count          = 16'd0;
+    reg [15:0] d2c_iter_count          = 16'd1;
+    reg [1:0]  d2c_compare_setup       = 2'b00;
+    reg [11:0] cfg_max_err_thresh_perlane = 12'd0;
+    reg [15:0] cfg_max_err_thresh_aggr    = 16'd0;
 
     // Die 0 (DUT) Mainband Interface outputs
     wire [1:0]  dut_mb_tx_trk_lane_sel;
@@ -152,12 +140,10 @@ module wrapper_D2C_PT_top_tb;
     // =========================================================================
     // Die 1 (u_partner_die) Control & Config
     // =========================================================================
-    reg        ptn_mbinit_local_tx_pt_en    = 0;
-    reg        ptn_mbinit_partner_tx_pt_en  = 0;
-    reg        ptn_mbtrain_local_tx_pt_en   = 0;
-    reg        ptn_mbtrain_partner_tx_pt_en = 0;
-    reg        ptn_mbtrain_local_rx_pt_en   = 0;
-    reg        ptn_mbtrain_partner_rx_pt_en = 0;
+    reg        ptn_local_tx_pt_en      = 0;
+    reg        ptn_partner_tx_pt_en    = 0;
+    reg        ptn_local_rx_pt_en      = 0;
+    reg        ptn_partner_rx_pt_en    = 0;
 
     wire       ptn_local_test_d2c_done;
     wire       ptn_partner_test_d2c_done;
@@ -217,6 +203,7 @@ module wrapper_D2C_PT_top_tb;
     wire [15:0] ptn_rx_msginfo;
     wire [63:0] ptn_rx_data_field;
 
+
     // =========================================================================
     // DUT (Die 0) Instantiation
     // =========================================================================
@@ -229,30 +216,19 @@ module wrapper_D2C_PT_top_tb;
         .d2c_perlane_pass               (dut_d2c_perlane_pass          ),
         .d2c_aggr_pass                  (dut_d2c_aggr_pass             ),
         .d2c_val_pass                   (dut_d2c_val_pass              ),
-        .mbinit_local_tx_pt_en          (mbinit_local_tx_pt_en         ),
-        .mbinit_partner_tx_pt_en        (mbinit_partner_tx_pt_en       ),
-        .mbinit_d2c_clk_sampling        (mbinit_d2c_clk_sampling       ),
-        .mbinit_d2c_pattern_setup       (mbinit_d2c_pattern_setup      ),
-        .mbinit_d2c_data_pattern_sel    (mbinit_d2c_data_pattern_sel   ),
-        .mbinit_d2c_val_pattern_sel     (mbinit_d2c_val_pattern_sel    ),
-        .mbinit_d2c_pattern_mode        (mbinit_d2c_pattern_mode       ),
-        .mbinit_d2c_burst_count         (mbinit_d2c_burst_count        ),
-        .mbinit_d2c_idle_count          (mbinit_d2c_idle_count         ),
-        .mbinit_d2c_iter_count          (mbinit_d2c_iter_count         ),
-        .mbinit_d2c_compare_setup       (mbinit_d2c_compare_setup      ),
-        .mbtrain_local_tx_pt_en         (mbtrain_local_tx_pt_en        ),
-        .mbtrain_partner_tx_pt_en       (mbtrain_partner_tx_pt_en      ),
-        .mbtrain_local_rx_pt_en         (mbtrain_local_rx_pt_en        ),
-        .mbtrain_partner_rx_pt_en       (mbtrain_partner_rx_pt_en      ),
-        .mbtrain_d2c_clk_sampling       (mbtrain_d2c_clk_sampling      ),
-        .mbtrain_d2c_pattern_setup      (mbtrain_d2c_pattern_setup     ),
-        .mbtrain_d2c_data_pattern_sel   (mbtrain_d2c_data_pattern_sel  ),
-        .mbtrain_d2c_val_pattern_sel    (mbtrain_d2c_val_pattern_sel   ),
-        .mbtrain_d2c_pattern_mode       (mbtrain_d2c_pattern_mode      ),
-        .mbtrain_d2c_burst_count        (mbtrain_d2c_burst_count       ),
-        .mbtrain_d2c_idle_count         (mbtrain_d2c_idle_count        ),
-        .mbtrain_d2c_iter_count         (mbtrain_d2c_iter_count        ),
-        .mbtrain_d2c_compare_setup      (mbtrain_d2c_compare_setup     ),
+        .local_tx_pt_en                 (local_tx_pt_en                ),
+        .partner_tx_pt_en               (partner_tx_pt_en              ),
+        .local_rx_pt_en                 (local_rx_pt_en                ),
+        .partner_rx_pt_en               (partner_rx_pt_en              ),
+        .d2c_clk_sampling               (d2c_clk_sampling              ),
+        .d2c_pattern_setup              (d2c_pattern_setup             ),
+        .d2c_data_pattern_sel           (d2c_data_pattern_sel          ),
+        .d2c_val_pattern_sel            (d2c_val_pattern_sel           ),
+        .d2c_pattern_mode               (d2c_pattern_mode              ),
+        .d2c_burst_count                (d2c_burst_count               ),
+        .d2c_idle_count                 (d2c_idle_count                ),
+        .d2c_iter_count                 (d2c_iter_count                ),
+        .d2c_compare_setup              (d2c_compare_setup             ),
         .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane    ),
         .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr       ),
         .mb_tx_trk_lane_sel             (dut_mb_tx_trk_lane_sel        ),
@@ -315,30 +291,19 @@ module wrapper_D2C_PT_top_tb;
         .d2c_perlane_pass               (ptn_d2c_perlane_pass          ),
         .d2c_aggr_pass                  (ptn_d2c_aggr_pass             ),
         .d2c_val_pass                   (ptn_d2c_val_pass              ),
-        .mbinit_local_tx_pt_en          (ptn_mbinit_local_tx_pt_en     ),
-        .mbinit_partner_tx_pt_en        (ptn_mbinit_partner_tx_pt_en   ),
-        .mbinit_d2c_clk_sampling        (mbinit_d2c_clk_sampling       ),
-        .mbinit_d2c_pattern_setup       (mbinit_d2c_pattern_setup      ),
-        .mbinit_d2c_data_pattern_sel    (mbinit_d2c_data_pattern_sel   ),
-        .mbinit_d2c_val_pattern_sel     (mbinit_d2c_val_pattern_sel    ),
-        .mbinit_d2c_pattern_mode        (mbinit_d2c_pattern_mode       ),
-        .mbinit_d2c_burst_count         (mbinit_d2c_burst_count        ),
-        .mbinit_d2c_idle_count          (mbinit_d2c_idle_count         ),
-        .mbinit_d2c_iter_count          (mbinit_d2c_iter_count         ),
-        .mbinit_d2c_compare_setup       (mbinit_d2c_compare_setup      ),
-        .mbtrain_local_tx_pt_en         (ptn_mbtrain_local_tx_pt_en    ),
-        .mbtrain_partner_tx_pt_en       (ptn_mbtrain_partner_tx_pt_en  ),
-        .mbtrain_local_rx_pt_en         (ptn_mbtrain_local_rx_pt_en    ),
-        .mbtrain_partner_rx_pt_en       (ptn_mbtrain_partner_rx_pt_en  ),
-        .mbtrain_d2c_clk_sampling       (mbtrain_d2c_clk_sampling      ),
-        .mbtrain_d2c_pattern_setup      (mbtrain_d2c_pattern_setup     ),
-        .mbtrain_d2c_data_pattern_sel   (mbtrain_d2c_data_pattern_sel  ),
-        .mbtrain_d2c_val_pattern_sel    (mbtrain_d2c_val_pattern_sel   ),
-        .mbtrain_d2c_pattern_mode       (mbtrain_d2c_pattern_mode      ),
-        .mbtrain_d2c_burst_count        (mbtrain_d2c_burst_count       ),
-        .mbtrain_d2c_idle_count         (mbtrain_d2c_idle_count        ),
-        .mbtrain_d2c_iter_count         (mbtrain_d2c_iter_count        ),
-        .mbtrain_d2c_compare_setup      (mbtrain_d2c_compare_setup     ),
+        .local_tx_pt_en                 (ptn_local_tx_pt_en            ),
+        .partner_tx_pt_en               (ptn_partner_tx_pt_en          ),
+        .local_rx_pt_en                 (ptn_local_rx_pt_en            ),
+        .partner_rx_pt_en               (ptn_partner_rx_pt_en          ),
+        .d2c_clk_sampling               (d2c_clk_sampling              ),
+        .d2c_pattern_setup              (d2c_pattern_setup             ),
+        .d2c_data_pattern_sel           (d2c_data_pattern_sel          ),
+        .d2c_val_pattern_sel            (d2c_val_pattern_sel           ),
+        .d2c_pattern_mode               (d2c_pattern_mode              ),
+        .d2c_burst_count                (d2c_burst_count               ),
+        .d2c_idle_count                 (d2c_idle_count                ),
+        .d2c_iter_count                 (d2c_iter_count                ),
+        .d2c_compare_setup              (d2c_compare_setup             ),
         .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane    ),
         .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr       ),
         .mb_tx_trk_lane_sel             (ptn_mb_tx_trk_lane_sel        ),
@@ -580,9 +545,7 @@ module wrapper_D2C_PT_top_tb;
     // =========================================================================
     integer watchdog_cnt = 0;
     reg     timeout_occurred = 0;
-    wire any_test_active = mbinit_local_tx_pt_en    | mbinit_partner_tx_pt_en  |
-        mbtrain_local_tx_pt_en   | mbtrain_partner_tx_pt_en |
-        mbtrain_local_rx_pt_en   | mbtrain_partner_rx_pt_en;
+    wire any_test_active = local_tx_pt_en | partner_tx_pt_en | local_rx_pt_en | partner_rx_pt_en;
 
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
@@ -683,17 +646,17 @@ module wrapper_D2C_PT_top_tb;
     endfunction
 
     always @(dut_loc_tx_state)
-        if (tb_verbose && (mbinit_local_tx_pt_en || mbtrain_local_tx_pt_en))
+        if (tb_verbose && local_tx_pt_en)
             $display("%12t ps [DUT  LOC TX] FSM = %s", $time, get_tx_local_state_name(dut_loc_tx_state));
     always @(ptn_ptn_tx_state)
-        if (tb_verbose && (mbinit_local_tx_pt_en || mbtrain_local_tx_pt_en))
+        if (tb_verbose && local_tx_pt_en)
             $display("%12t ps [PTN  PTN TX] FSM = %s", $time, get_tx_partner_state_name(ptn_ptn_tx_state));
 
     always @(dut_loc_rx_state)
-        if (tb_verbose && mbtrain_local_rx_pt_en)
+        if (tb_verbose && local_rx_pt_en)
             $display("%12t ps [DUT  LOC RX] FSM = %s", $time, get_rx_local_state_name(dut_loc_rx_state));
     always @(ptn_ptn_rx_state)
-        if (tb_verbose && mbtrain_local_rx_pt_en)
+        if (tb_verbose && local_rx_pt_en)
             $display("%12t ps [PTN  PTN RX] FSM = %s", $time, get_rx_partner_state_name(ptn_ptn_rx_state));
 
     // =========================================================================
@@ -701,50 +664,35 @@ module wrapper_D2C_PT_top_tb;
     // Automatically configures u_partner_die (Die 1) based on u_dut (Die 0)
     // =========================================================================
     always_comb begin : PARTNER_ENABLES_LOGIC
-        ptn_mbinit_local_tx_pt_en    = 0;
-        ptn_mbinit_partner_tx_pt_en  = 0;
-        ptn_mbtrain_local_tx_pt_en   = 0;
-        ptn_mbtrain_partner_tx_pt_en = 0;
-        ptn_mbtrain_local_rx_pt_en   = 0;
-        ptn_mbtrain_partner_rx_pt_en = 0;
+        ptn_local_tx_pt_en    = 0;
+        ptn_partner_tx_pt_en  = 0;
+        ptn_local_rx_pt_en    = 0;
+        ptn_partner_rx_pt_en  = 0;
 
-        // MBINIT TX routing configurations
-        if (mbinit_local_tx_pt_en && mbinit_partner_tx_pt_en) begin
+        // TX routing configurations
+        if (local_tx_pt_en && partner_tx_pt_en) begin
             // Case AB: Both initiate TX Point Test
-            ptn_mbinit_local_tx_pt_en   = 1;
-            ptn_mbinit_partner_tx_pt_en = 1;
-        end else if (mbinit_local_tx_pt_en) begin
+            ptn_local_tx_pt_en   = 1;
+            ptn_partner_tx_pt_en = 1;
+        end else if (local_tx_pt_en) begin
             // Case A: Local TX only
-            ptn_mbinit_partner_tx_pt_en = 1;
-        end else if (mbinit_partner_tx_pt_en) begin
+            ptn_partner_tx_pt_en = 1;
+        end else if (partner_tx_pt_en) begin
             // Case B: Partner TX only
-            ptn_mbinit_local_tx_pt_en   = 1;
+            ptn_local_tx_pt_en   = 1;
         end
 
-        // MBTRAIN TX routing configurations
-        if (mbtrain_local_tx_pt_en && mbtrain_partner_tx_pt_en) begin
-            // Case AB: Both initiate TX Point Test
-            ptn_mbtrain_local_tx_pt_en   = 1;
-            ptn_mbtrain_partner_tx_pt_en = 1;
-        end else if (mbtrain_local_tx_pt_en) begin
-            // Case A: Local TX only
-            ptn_mbtrain_partner_tx_pt_en = 1;
-        end else if (mbtrain_partner_tx_pt_en) begin
-            // Case B: Partner TX only
-            ptn_mbtrain_local_tx_pt_en   = 1;
-        end
-
-        // MBTRAIN RX routing configurations
-        if (mbtrain_local_rx_pt_en && mbtrain_partner_rx_pt_en) begin
+        // RX routing configurations
+        if (local_rx_pt_en && partner_rx_pt_en) begin
             // Case CD: Both initiate RX Point Test
-            ptn_mbtrain_local_rx_pt_en   = 1;
-            ptn_mbtrain_partner_rx_pt_en = 1;
-        end else if (mbtrain_local_rx_pt_en) begin
+            ptn_local_rx_pt_en   = 1;
+            ptn_partner_rx_pt_en = 1;
+        end else if (local_rx_pt_en) begin
             // Case C: Local RX only
-            ptn_mbtrain_partner_rx_pt_en = 1;
-        end else if (mbtrain_partner_rx_pt_en) begin
+            ptn_partner_rx_pt_en = 1;
+        end else if (partner_rx_pt_en) begin
             // Case D: Partner RX only
-            ptn_mbtrain_local_rx_pt_en   = 1;
+            ptn_local_rx_pt_en   = 1;
         end
     end
 
@@ -763,12 +711,10 @@ module wrapper_D2C_PT_top_tb;
     // ── Task: reset() ────────────────────────────────────────────────────────
     task automatic reset();
         rst_n = 0;
-        mbinit_local_tx_pt_en      = 0;
-        mbinit_partner_tx_pt_en    = 0;
-        mbtrain_local_tx_pt_en     = 0;
-        mbtrain_partner_tx_pt_en   = 0;
-        mbtrain_local_rx_pt_en     = 0;
-        mbtrain_partner_rx_pt_en   = 0;
+        local_tx_pt_en             = 0;
+        partner_tx_pt_en           = 0;
+        local_rx_pt_en             = 0;
+        partner_rx_pt_en           = 0;
 
         tb_suppress_dut2ptn        = 0;
         tb_suppress_ptn2dut        = 0;
@@ -776,27 +722,17 @@ module wrapper_D2C_PT_top_tb;
         tb_aggr_pass               = 1;
         tb_val_pass                = 1;
 
-        mbinit_d2c_clk_sampling    = 2'b00;
-        mbinit_d2c_pattern_setup   = 3'b001;
-        mbinit_d2c_data_pattern_sel= 2'b00;
-        mbinit_d2c_val_pattern_sel = 1'b0;
-        mbinit_d2c_pattern_mode    = 1'b0;
-        mbinit_d2c_burst_count     = 16'd50;
-        mbinit_d2c_idle_count      = 16'd0;
-        mbinit_d2c_iter_count      = 16'd1;
-        mbinit_d2c_compare_setup   = 2'b00;
+        d2c_clk_sampling           = 2'b00;
+        d2c_pattern_setup          = 3'b001;
+        d2c_data_pattern_sel       = 2'b00;
+        d2c_val_pattern_sel        = 1'b0;
+        d2c_pattern_mode           = 1'b0;
+        d2c_burst_count            = 16'd50;
+        d2c_idle_count             = 16'd0;
+        d2c_iter_count             = 16'd1;
+        d2c_compare_setup          = 2'b00;
         cfg_max_err_thresh_perlane = 12'd0;
         cfg_max_err_thresh_aggr    = 16'd0;
-
-        mbtrain_d2c_clk_sampling   = 2'b00;
-        mbtrain_d2c_pattern_setup  = 3'b001;
-        mbtrain_d2c_data_pattern_sel= 2'b00;
-        mbtrain_d2c_val_pattern_sel= 1'b0;
-        mbtrain_d2c_pattern_mode   = 1'b0;
-        mbtrain_d2c_burst_count    = 16'd50;
-        mbtrain_d2c_idle_count     = 16'd0;
-        mbtrain_d2c_iter_count     = 16'd1;
-        mbtrain_d2c_compare_setup  = 2'b00;
 
         repeat(5) @(posedge lclk);
         rst_n = 1;
@@ -804,74 +740,49 @@ module wrapper_D2C_PT_top_tb;
         if (tb_verbose) $display("%12t ps: Reset released.", $time);
     endtask
 
-    // ── Task: set_mbinit_config() ────────────────────────────────────────────
-    task automatic set_mbinit_config(
+    // ── Task: set_config() ───────────────────────────────────────────
+    task automatic set_config(
             input [1:0]  cs, input [2:0] ps,  input [1:0]  dp,
             input        vp, input        pm,  input [15:0] bc,
             input [15:0] ic, input [15:0] nc,  input [1:0]  cmp
         );
-        mbinit_d2c_clk_sampling      = cs;
-        mbinit_d2c_pattern_setup     = ps;
-        mbinit_d2c_data_pattern_sel  = dp;
-        mbinit_d2c_val_pattern_sel   = vp;
-        mbinit_d2c_pattern_mode      = pm;
-        mbinit_d2c_burst_count       = bc;
-        mbinit_d2c_idle_count        = ic;
-        mbinit_d2c_iter_count        = nc;
-        mbinit_d2c_compare_setup     = cmp;
-    endtask
-
-    // ── Task: set_mbtrain_config() ───────────────────────────────────────────
-    task automatic set_mbtrain_config(
-            input [1:0]  cs, input [2:0] ps,  input [1:0]  dp,
-            input        vp, input        pm,  input [15:0] bc,
-            input [15:0] ic, input [15:0] nc,  input [1:0]  cmp
-        );
-        mbtrain_d2c_clk_sampling     = cs;
-        mbtrain_d2c_pattern_setup    = ps;
-        mbtrain_d2c_data_pattern_sel = dp;
-        mbtrain_d2c_val_pattern_sel  = vp;
-        mbtrain_d2c_pattern_mode     = pm;
-        mbtrain_d2c_burst_count      = bc;
-        mbtrain_d2c_idle_count       = ic;
-        mbtrain_d2c_iter_count       = nc;
-        mbtrain_d2c_compare_setup    = cmp;
+        d2c_clk_sampling     = cs;
+        d2c_pattern_setup    = ps;
+        d2c_data_pattern_sel = dp;
+        d2c_val_pattern_sel  = vp;
+        d2c_pattern_mode     = pm;
+        d2c_burst_count      = bc;
+        d2c_idle_count       = ic;
+        d2c_iter_count       = nc;
+        d2c_compare_setup    = cmp;
     endtask
 
     // ── Task: run_test() ─────────────────────────────────────────────────────
     task automatic run_test(
             input integer kind,
-            input logic   is_mbinit,
             input logic   expect_timeout
         );
         @(posedge lclk);
         case (kind)
             TEST_LOCAL_TX: begin
-                if (is_mbinit) mbinit_local_tx_pt_en = 1;
-                else           mbtrain_local_tx_pt_en = 1;
+                local_tx_pt_en = 1;
             end
             TEST_PARTNER_TX: begin
-                if (is_mbinit) mbinit_partner_tx_pt_en = 1;
-                else           mbtrain_partner_tx_pt_en = 1;
+                partner_tx_pt_en = 1;
             end
             TEST_LOCAL_RX: begin
-                mbtrain_local_rx_pt_en = 1;
+                local_rx_pt_en = 1;
             end
             TEST_PARTNER_RX: begin
-                mbtrain_partner_rx_pt_en = 1;
+                partner_rx_pt_en = 1;
             end
             TEST_PARALLEL_TX: begin
-                if (is_mbinit) begin
-                    mbinit_local_tx_pt_en = 1;
-                    mbinit_partner_tx_pt_en = 1;
-                end else begin
-                    mbtrain_local_tx_pt_en = 1;
-                    mbtrain_partner_tx_pt_en = 1;
-                end
+                local_tx_pt_en = 1;
+                partner_tx_pt_en = 1;
             end
             TEST_PARALLEL_RX: begin
-                mbtrain_local_rx_pt_en = 1;
-                mbtrain_partner_rx_pt_en = 1;
+                local_rx_pt_en = 1;
+                partner_rx_pt_en = 1;
             end
             default: $display("[WARN] run_test: unknown kind=%0d", kind);
         endcase
@@ -900,9 +811,8 @@ module wrapper_D2C_PT_top_tb;
                 end
 
                 @(posedge lclk);
-                mbinit_local_tx_pt_en   = 0; mbinit_partner_tx_pt_en  = 0;
-                mbtrain_local_tx_pt_en  = 0; mbtrain_partner_tx_pt_en = 0;
-                mbtrain_local_rx_pt_en  = 0; mbtrain_partner_rx_pt_en = 0;
+                local_tx_pt_en          = 0; partner_tx_pt_en        = 0;
+                local_rx_pt_en          = 0; partner_rx_pt_en        = 0;
 
                 if (timeout_occurred) begin
                     if (expect_timeout) begin
@@ -972,171 +882,146 @@ module wrapper_D2C_PT_top_tb;
     reg     expected_aggr;
     reg [1:0] active_compare_setup;
 
-    initial begin
-        $display("\n=== wrapper_D2C_PT_top_tb — Comprehensive Dual-Die Top-Level Testbench ===\n");
+        initial begin
+        $display("\n=== wrapper_D2C_PT_top_tb \u2014 Comprehensive Dual-Die Top-Level Testbench ===\n");
         $display("  Signal polarity: *_pass = 1 means pass, 0 means fail.\n");
 
         tb_verbose = 1;
 
         // =====================================================================
-        // SECTION A: MBINIT LOCAL TX Tests
+        // SECTION A: Local TX Tests
         // =====================================================================
-        $display("=> Scenario %0d: MBINIT Local TX Happy Path (all pass)", test_no);
+        $display("=> Scenario %0d: Local TX Happy Path (all pass)", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbinit_config(2'b00, 3'b011, 2'b00, 0, 0, 80, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 80, 0, 1, 2'd0);
         tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 1, 0);
-        check_result("MBINIT LOCAL TX All Pass", 16'hFFFF, 1, 1);
+        run_test(TEST_LOCAL_TX, 0);
+        check_result("LOCAL TX All Pass", 16'hFFFF, 1, 1);
 
-        $display("=> Scenario %0d: MBINIT Local TX Partial Lane Failure", test_no);
+        $display("=> Scenario %0d: Local TX Partial Lane Failure", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbinit_config(2'b00, 3'b011, 2'b00, 0, 0, 40, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 40, 0, 1, 2'd0);
         tb_perlane_pass = 16'hBEEF; tb_aggr_pass = 0; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 1, 0);
-        check_result("MBINIT LOCAL TX Partial", 16'hBEEF, 0, 1);
+        run_test(TEST_LOCAL_TX, 0);
+        check_result("LOCAL TX Partial", 16'hBEEF, 0, 1);
 
         // =====================================================================
-        // SECTION B: MBINIT PARTNER TX Tests
+        // SECTION B: Partner TX Tests
         // =====================================================================
-        $display("=> Scenario %0d: MBINIT Partner TX Happy Path (all pass)", test_no);
+        $display("=> Scenario %0d: Partner TX Happy Path (all pass)", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbinit_config(2'b00, 3'b001, 2'b00, 0, 0, 60, 0, 1, 2'd0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 60, 0, 1, 2'd0);
         tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_PARTNER_TX, 1, 0);
-        check_result("MBINIT PARTNER TX All Pass", 16'hFFFF, 1, 1);
+        run_test(TEST_PARTNER_TX, 0);
+        check_result("PARTNER TX All Pass", 16'hFFFF, 1, 1);
 
-        $display("=> Scenario %0d: MBINIT Partner TX Partial Failure", test_no);
+        $display("=> Scenario %0d: Partner TX Partial Failure", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbinit_config(2'b00, 3'b011, 2'b00, 0, 0, 30, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 30, 0, 1, 2'd0);
         tb_perlane_pass = 16'hDEAD; tb_aggr_pass = 0; tb_val_pass = 0;
-        run_test(TEST_PARTNER_TX, 1, 0);
-        check_result("MBINIT PARTNER TX Partial", 16'hDEAD, 0, 0);
+        run_test(TEST_PARTNER_TX, 0);
+        check_result("PARTNER TX Partial", 16'hDEAD, 0, 0);
 
         // =====================================================================
-        // SECTION C: MBTRAIN LOCAL TX Tests
+        // SECTION C: Local TX Aggregate Failure Tests
         // =====================================================================
-        $display("=> Scenario %0d: MBTRAIN Local TX Happy Path", test_no);
-        test_no = test_no + 1;
-        reset();
-        set_mbtrain_config(2'b00, 3'b011, 2'b00, 0, 0, 80, 0, 1, 2'd0);
-        tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 0, 0);
-        check_result("MBTRAIN LOCAL TX All Pass", 16'hFFFF, 1, 1);
-
-        $display("=> Scenario %0d: MBTRAIN Local TX Aggregate Failure", test_no);
+        $display("=> Scenario %0d: Local TX Aggregate Failure", test_no);
         test_no = test_no + 1;
         reset();
         cfg_max_err_thresh_aggr = 16'h0050;
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 30, 0, 1, 2'd1);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 30, 0, 1, 2'd1);
         tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 0; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 0, 0);
+        run_test(TEST_LOCAL_TX, 0);
         if (cap_aggr_pass == 1'b0)
-            $display("  [OK] MBTRAIN LOCAL TX Aggregate failure verified.");
+            $display("  [OK] Local TX Aggregate failure verified.");
         else begin
-            $display("  [FAIL] MBTRAIN LOCAL TX Aggregate expected 0, got 1.");
+            $display("  [FAIL] Local TX Aggregate expected 0, got 1.");
             fail_count = fail_count + 1; $stop;
         end
 
         // =====================================================================
-        // SECTION D: MBTRAIN LOCAL RX Tests
+        // SECTION D: Local RX Tests
         // =====================================================================
-        $display("=> Scenario %0d: MBTRAIN Local RX Happy Path (all pass)", test_no);
+        $display("=> Scenario %0d: Local RX Happy Path (all pass)", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b011, 2'b00, 0, 0, 80, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 80, 0, 1, 2'd0);
         tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_RX, 0, 0);
-        check_result("MBTRAIN LOCAL RX All Pass", 16'hFFFF, 1, 1);
+        run_test(TEST_LOCAL_RX, 0);
+        check_result("LOCAL RX All Pass", 16'hFFFF, 1, 1);
 
-        $display("=> Scenario %0d: MBTRAIN Local RX Partial Lane Failure", test_no);
+        $display("=> Scenario %0d: Local RX Partial Lane Failure", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b011, 2'b00, 0, 0, 40, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 40, 0, 1, 2'd0);
         tb_perlane_pass = 16'hA5A5; tb_aggr_pass = 0; tb_val_pass = 1;
-        run_test(TEST_LOCAL_RX, 0, 0);
-        check_result("MBTRAIN LOCAL RX Partial", 16'hA5A5, 0, 1);
+        run_test(TEST_LOCAL_RX, 0);
+        check_result("LOCAL RX Partial", 16'hA5A5, 0, 1);
 
         // =====================================================================
-        // SECTION E: MBTRAIN PARTNER RX Tests
+        // SECTION E: Partner RX Tests
         // =====================================================================
-        $display("=> Scenario %0d: MBTRAIN Partner RX Happy Path", test_no);
+        $display("=> Scenario %0d: Partner RX Happy Path", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 60, 0, 1, 2'd0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 60, 0, 1, 2'd0);
         tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_PARTNER_RX, 0, 0);
-        check_result("MBTRAIN PARTNER RX All Pass", 16'hFFFF, 1, 1);
+        run_test(TEST_PARTNER_RX, 0);
+        check_result("PARTNER RX All Pass", 16'hFFFF, 1, 1);
 
-        $display("=> Scenario %0d: MBTRAIN Partner RX Partial Failure", test_no);
+        $display("=> Scenario %0d: Partner RX Partial Failure", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b011, 2'b00, 0, 0, 25, 0, 1, 2'd0);
+        set_config(2'b00, 3'b011, 2'b00, 0, 0, 25, 0, 1, 2'd0);
         tb_perlane_pass = 16'h5A5A; tb_aggr_pass = 0; tb_val_pass = 0;
-        run_test(TEST_PARTNER_RX, 0, 0);
-        check_result("MBTRAIN PARTNER RX Partial", 16'h5A5A, 0, 0);
+        run_test(TEST_PARTNER_RX, 0);
+        check_result("PARTNER RX Partial", 16'h5A5A, 0, 0);
 
         // =====================================================================
-        // SECTION F: Config MUX Correctness
+        // SECTION F: Timeout Tests
         // =====================================================================
-        $display("=> Scenario %0d: Config MUX — MBTRAIN config takes priority over MBINIT", test_no);
-        test_no = test_no + 1;
-        reset();
-        set_mbinit_config  (2'b01, 3'b001, 2'b00, 0, 0, 200, 0, 1, 2'd0); // burst=200
-        set_mbtrain_config (2'b10, 3'b001, 2'b00, 0, 0,  50, 0, 1, 2'd0); // burst=50
-        tb_perlane_pass = 16'hFFFF; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 0, 0);
-        if (cap_perlane_pass == 16'hFFFF)
-            $display("  [OK] Config MUX correctness verified.");
-        else begin
-            $display("  [FAIL] Config MUX test did not complete as expected.");
-            fail_count = fail_count + 1; $stop;
-        end
-
-        // =====================================================================
-        // SECTION G: Timeout Tests
-        // =====================================================================
-        $display("=> Scenario %0d: Timeout — MBINIT Local TX with suppressed SB", test_no);
+        $display("=> Scenario %0d: Timeout \u2014 Local TX with suppressed SB", test_no);
         test_no = test_no + 1;
         reset();
         tb_suppress_dut2ptn = 1;
-        set_mbinit_config(2'b00, 3'b001, 2'b00, 0, 0, 100, 0, 1, 2'd0);
-        run_test(TEST_LOCAL_TX, 1, 1);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 100, 0, 1, 2'd0);
+        run_test(TEST_LOCAL_TX, 1);
 
-        $display("=> Scenario %0d: Timeout — MBTRAIN Local RX with suppressed SB", test_no);
+        $display("=> Scenario %0d: Timeout \u2014 Local RX with suppressed SB", test_no);
         test_no = test_no + 1;
         reset();
         tb_suppress_ptn2dut = 1;
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 100, 0, 1, 2'd0);
-        run_test(TEST_LOCAL_RX, 0, 1);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 100, 0, 1, 2'd0);
+        run_test(TEST_LOCAL_RX, 1);
 
         // =====================================================================
-        // SECTION H: Parallel tests
+        // SECTION G: Parallel tests
         // =====================================================================
-        $display("=> Scenario %0d: Parallel TX Test (Case AB) — Both dies initiating TX", test_no);
+        $display("=> Scenario %0d: Parallel TX Test (Case AB) \u2014 Both dies initiating TX", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 50, 0, 1, 2'd0);
-        run_test(TEST_PARALLEL_TX, 0, 0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 50, 0, 1, 2'd0);
+        run_test(TEST_PARALLEL_TX, 0);
 
-        $display("=> Scenario %0d: Parallel RX Test (Case CD) — Both dies initiating RX", test_no);
+        $display("=> Scenario %0d: Parallel RX Test (Case CD) \u2014 Both dies initiating RX", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 50, 0, 1, 2'd0);
-        run_test(TEST_PARALLEL_RX, 0, 0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 50, 0, 1, 2'd0);
+        run_test(TEST_PARALLEL_RX, 0);
 
         // =====================================================================
-        // SECTION I: Back-to-Back Tests (no reset in between)
+        // SECTION H: Back-to-Back Tests (no reset in between)
         // =====================================================================
-        $display("=> Scenario %0d: B2B — MBINIT Local TX then MBTRAIN Local RX", test_no);
+        $display("=> Scenario %0d: B2B \u2014 Local TX then Local RX", test_no);
         test_no = test_no + 1;
         reset();
-        set_mbinit_config(2'b00, 3'b001, 2'b00, 0, 0, 20, 0, 1, 2'd0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 20, 0, 1, 2'd0);
         tb_perlane_pass = 16'hAAAA; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_TX, 1, 0);
+        run_test(TEST_LOCAL_TX, 0);
         if (cap_perlane_pass == 16'hAAAA)
             $display("  [OK] B2B Part 1 TX complete.");
         else begin
@@ -1144,9 +1029,9 @@ module wrapper_D2C_PT_top_tb;
             fail_count = fail_count + 1; $stop;
         end
 
-        set_mbtrain_config(2'b00, 3'b001, 2'b00, 0, 0, 20, 0, 1, 2'd0);
+        set_config(2'b00, 3'b001, 2'b00, 0, 0, 20, 0, 1, 2'd0);
         tb_perlane_pass = 16'h5555; tb_aggr_pass = 1; tb_val_pass = 1;
-        run_test(TEST_LOCAL_RX, 0, 0);
+        run_test(TEST_LOCAL_RX, 0);
         if (cap_perlane_pass == 16'h5555)
             $display("  [OK] B2B Part 2 RX complete.");
         else begin
@@ -1165,7 +1050,7 @@ module wrapper_D2C_PT_top_tb;
         end
 
         // =====================================================================
-        // SECTION J: 100 Randomized Dual-Die Iterations
+        // SECTION I: 100 Randomized Dual-Die Iterations
         // =====================================================================
         tb_verbose = 0;
         $display("Starting 100 Randomized Dual-Die Iterations...\n");
@@ -1173,7 +1058,6 @@ module wrapper_D2C_PT_top_tb;
         for (r = 0; r < 100; r = r + 1) begin
             reset();
             rnd_kind_sel = $urandom_range(0, 5);
-            rnd_mbinit   = $urandom_range(0, 1);
 
             case (rnd_kind_sel)
                 0: rnd_kind = TEST_LOCAL_TX;
@@ -1185,10 +1069,6 @@ module wrapper_D2C_PT_top_tb;
                 default: rnd_kind = TEST_LOCAL_TX;
             endcase
 
-            // RX and Parallel RX are MBTRAIN only
-            if (rnd_kind == TEST_LOCAL_RX || rnd_kind == TEST_PARTNER_RX || rnd_kind == TEST_PARALLEL_RX)
-                rnd_mbinit = 0;
-
             tb_perlane_pass = $urandom();
             tb_aggr_pass    = $urandom_range(0, 1);
             tb_val_pass     = $urandom_range(0, 1);
@@ -1197,26 +1077,17 @@ module wrapper_D2C_PT_top_tb;
             tb_suppress_dut2ptn = rnd_suppress[0];
             tb_suppress_ptn2dut = rnd_suppress[0];
 
-            if (rnd_mbinit) begin
-                set_mbinit_config(
-                    $urandom_range(0, 2), $urandom_range(0, 7), $urandom_range(0, 2),
-                    $urandom_range(0, 1), $urandom_range(0, 1),
-                    $urandom_range(1, 40), $urandom_range(0, 10), $urandom_range(1, 3),
-                    $urandom_range(0, 3)
-                );
-            end else begin
-                set_mbtrain_config(
-                    $urandom_range(0, 2), $urandom_range(0, 7), $urandom_range(0, 2),
-                    $urandom_range(0, 1), $urandom_range(0, 1),
-                    $urandom_range(1, 40), $urandom_range(0, 10), $urandom_range(1, 3),
-                    $urandom_range(0, 3)
-                );
-            end
+            set_config(
+                $urandom_range(0, 2), $urandom_range(0, 7), $urandom_range(0, 2),
+                $urandom_range(0, 1), $urandom_range(0, 1),
+                $urandom_range(1, 40), $urandom_range(0, 10), $urandom_range(1, 3),
+                $urandom_range(0, 3)
+            );
 
-            run_test(rnd_kind, rnd_mbinit[0], tb_suppress_dut2ptn);
+            run_test(rnd_kind, tb_suppress_dut2ptn);
 
             if (!tb_suppress_dut2ptn) begin
-                active_compare_setup = rnd_mbinit ? mbinit_d2c_compare_setup : mbtrain_d2c_compare_setup;
+                active_compare_setup = d2c_compare_setup;
                 if (rnd_kind == TEST_LOCAL_TX || rnd_kind == TEST_PARTNER_TX || rnd_kind == TEST_PARALLEL_TX) begin
                     expected_aggr = (active_compare_setup != 2'b00) ? tb_aggr_pass : (&tb_perlane_pass);
                 end else begin

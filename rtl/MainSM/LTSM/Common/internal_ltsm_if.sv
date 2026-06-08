@@ -66,10 +66,10 @@ interface internal_ltsm_if #(
     // PHY_IN_RETRAIN handshake between PHYRETRAIN state and MBTRAIN.LINKSPEED sub-state.
     // Spec 4.5.3.4.12: if PHY-retrain set PHY_IN_RETRAIN=1 AND params_changed=1,
     // LINKSPEED must exit via phy_retrain path instead of the normal done path.
-    logic phyretrain_PHY_IN_RETRAIN; // Input to LINKSPEED: did PHYRETRAIN assert PHY_IN_RETRAIN?
-    logic linkspeed_PHY_IN_RETRAIN ; // Output from LINKSPEED: sampled copy used in EVAL_RESULT decision.
-    logic params_changed           ; // Input to LINKSPEED: did link parameters change during PHYRETRAIN?
-    logic is_ltsm_out_of_reset     ; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
+    logic PHY_IN_RETRAIN      ; // Input to LINKSPEED: did PHYRETRAIN assert PHY_IN_RETRAIN?
+    logic PHY_IN_RETRAIN_rst  ; // Output from LINKSPEED: to give an order to reset the PHY_IN_RETRAIN flag (in the State PHYRETRAIN).
+    logic params_changed      ; // Input to LINKSPEED: did link parameters change during PHYRETRAIN?
+    logic is_ltsm_out_of_reset; // We use this signal to apply reset for all needed signal in the MBTRAIN substates to add the feature of the software reset.
 
 
     //=====================================//
@@ -1878,12 +1878,11 @@ interface internal_ltsm_if #(
         // PHY_IN_RETRAIN interface (spec 4.5.3.4.12)
         // Sampled once at LINKSPEED_START_REQ; used in EVAL_RESULT to decide
         // whether to exit via phy_retrain path (if params changed during retrain).
-        input  phyretrain_PHY_IN_RETRAIN, // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
-        output linkspeed_PHY_IN_RETRAIN , // Sampled copy held stable through the sub-state.
-        input  params_changed           , // Were link parameters changed during PHYRETRAIN?
+        input  PHY_IN_RETRAIN        , // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
+        output PHY_IN_RETRAIN_rst    , // Give an order to reset PHY_IN_RETRAIN.
+        input  params_changed        , // Were link parameters changed during PHYRETRAIN?
 
         // // Previous substates fail flags (read-only inputs to decide exit path)
-        // input  valtraincenter_fail_flag  ,
         output linkspeed_success_lanes,
 
         // Negotiated speed from MBTRAIN.SPEEDIDLE
@@ -2102,9 +2101,9 @@ interface internal_ltsm_if #(
         // Sampled once at LINKSPEED_START_REQ; used in EVAL_RESULT to decide       //
         // whether to exit via phy_retrain path (if params changed during retrain). //
         // ======================================================================== //
-        input  phyretrain_PHY_IN_RETRAIN, // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
-        output linkspeed_PHY_IN_RETRAIN , // Sampled copy held stable through the sub-state.
-        input  params_changed           , // Were link parameters changed during PHYRETRAIN?
+        input  PHY_IN_RETRAIN    , // From PHYRETRAIN state: was PHY_IN_RETRAIN asserted?
+        output PHY_IN_RETRAIN_rst, // To order to reset PHY_IN_RETRAIN.
+        input  params_changed    , // Were link parameters changed during PHYRETRAIN?
         // ======================================================================== //
 
 

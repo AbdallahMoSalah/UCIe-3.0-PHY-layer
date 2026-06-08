@@ -1,0 +1,29 @@
+4.5.3.4.2 MBTRAIN.DATAVREF
+Receiver reference voltage (Vref) to sample the incoming data is optimized in this state. The data rate 
+on the UCIe Module mainband continues to be at the lowest supported data rate (4 GT/s). The 
+Transmitter sets the forwarded clock phase at the center of the data UI. The Track Transmitter is held 
+low and the Track Receiver is permitted to be disabled. When not performing the actions relevant to 
+this state:
+• Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for 
+Quadrature clocking)
+• Clock Receivers are enabled
+• Data and Valid Transmitters are held low
+• Data and Valid Receivers are enabled
+The sequence for data Receiver reference voltage adjustment is as follows:
+1. The UCIe Module sends the sideband message {MBTRAIN.DATAVREF start req}. When 
+{MBTRAIN.DATAVREF start req} sideband message is received, the UCIe Module Partner responds 
+with {MBTRAIN.DATAVREF start resp}.
+2. The UCIe Module optimizes data Vref by adjusting data Receiver reference voltage and 
+performing one or more Receiver-initiated Data-to-Clock point tests (see Section 4.5.1.3) (AND/
+OR) one or more Receiver-initiated Data-to-Clock eye width sweeps (see Section 4.5.1.4).
+a. The Transmitter must be set up to send 4K UI of continuous mode LFSR pattern described in 
+Section 4.4.1. The LFSR pattern on Data must be accompanied by correct Valid framing on the 
+Valid Lane as described in Section 4.1.2. The Receiver must be set up to perform per Lane 
+comparison.
+b. Detection on a Receiver Lane is considered successful if total error count is less than the set 
+error threshold (see Section 9.5.3.29).
+3. The UCIe Module must send {MBTRAIN.DATAVREF end req} sideband message after the Vref 
+optimization (One way to perform Vref Optimization is to step through Vref and perform step 2 at 
+each setting). When {MBTRAIN.DATAVREF end req} is received, the UCIe Module Partner must 
+respond with {MBTRAIN.DATAVREF end resp}. Once the UCIe Module has sent and received the 
+sideband message {MBTRAIN.DATAVREF end resp}, it must exit to MBTRAIN.SPEEDIDLE.

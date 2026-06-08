@@ -33,35 +33,20 @@ module wrapper_D2C_PT_top(
         output logic        d2c_aggr_pass,                  // (for TX/RX_D2C_PT) 16-bit aggregate error count across all data lanes. (1: success, 0: failed)
         output logic        d2c_val_pass,                   // (for TX/RX_D2C_PT) 1: No Valid Lane error, 0: Valid Lane pattern mismatch detected.
 
-        // These signals are coming from MBINIT State (from its MBINIT.REPAIRMB substate).
-        input  logic        mbinit_local_tx_pt_en,                 // (for TX_D2C_PT) Enable local   TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-        input  logic        mbinit_partner_tx_pt_en,               // (for TX_D2C_PT) Enable partner TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-        // input  logic        mbinit_local_rx_pt_en,                 // Enable local   RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
-        // input  logic        mbinit_partner_rx_pt_en,               // Enable partner RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
-        input  logic [1:0]  mbinit_d2c_clk_sampling,               // (for TX_D2C_PT) 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
-        input  logic [2:0]  mbinit_d2c_pattern_setup,              // (for TX_D2C_PT) Bit0: Data Pattern Enable, Bit1: Valid Pattern Enable, Bit2: Clock Pattern Enable.
-        input  logic [1:0]  mbinit_d2c_data_pattern_sel,           // (for TX_D2C_PT) 00: LFSR pattern, 01: Per-Lane ID, 10: Fixed All Zeros, 11: Reserved.
-        input  logic        mbinit_d2c_val_pattern_sel,            // (for TX_D2C_PT) 0: VALTRAIN/functional pattern, 1: Held Low / Operational Valid.
-        input  logic        mbinit_d2c_pattern_mode,               // (for TX_D2C_PT) 0: Continuous mode (indefinite), 1: Burst mode (burst/idle counts).
-        input  logic [15:0] mbinit_d2c_burst_count,                // (for TX_D2C_PT) Unsigned 16-bit burst duration in Unit Intervals (UI).
-        input  logic [15:0] mbinit_d2c_idle_count,                 // (for TX_D2C_PT) Unsigned 16-bit idle duration in Unit Intervals (UI).
-        input  logic [15:0] mbinit_d2c_iter_count,                 // (for TX_D2C_PT) Unsigned 16-bit iteration count of burst-idle cycles.
-        input  logic [1:0]  mbinit_d2c_compare_setup,              // (for TX_D2C_PT) 00: Per-Lane comparison, 01: Aggregate, 10: Valid Lane, 11: Clock Lane.
-
-        // These signals are coming from MBTRAIN State (from its substates: MBTRAIN.VALVREF, MBTRAIN.DATAVREF, MBTRAIN.VALTRAINVREF, MBTRAIN.DATATRAINVREF, MBTRAIN.VALTRAINCENTER, MBTRAIN.DATATRAINCENTER1, MBTRAIN.RXDESKEW, MBTRAIN.DATATRAINCENTER2, MBTRAIN.LINKSPEED).
-        input  logic        mbtrain_local_tx_pt_en,                 // (for TX_D2C_PT) Enable local   TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-        input  logic        mbtrain_partner_tx_pt_en,               // (for TX_D2C_PT) Enable partner TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
-        input  logic        mbtrain_local_rx_pt_en,                 // (for RX_D2C_PT) Enable local   RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
-        input  logic        mbtrain_partner_rx_pt_en,               // (for RX_D2C_PT) Enable partner RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
-        input  logic [1:0]  mbtrain_d2c_clk_sampling,               // (for TX/RX_D2C_PT) 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
-        input  logic [2:0]  mbtrain_d2c_pattern_setup,              // (for TX/RX_D2C_PT) Bit0: Data Pattern Enable, Bit1: Valid Pattern Enable, Bit2: Clock Pattern Enable.
-        input  logic [1:0]  mbtrain_d2c_data_pattern_sel,           // (for TX/RX_D2C_PT) 00: LFSR pattern, 01: Per-Lane ID, 10: Fixed All Zeros, 11: Reserved.
-        input  logic        mbtrain_d2c_val_pattern_sel,            // (for TX/RX_D2C_PT) 0: VALTRAIN/functional pattern, 1: Held Low / Operational Valid.
-        input  logic        mbtrain_d2c_pattern_mode,               // (for TX/RX_D2C_PT) 0: Continuous mode (indefinite), 1: Burst mode (burst/idle counts).
-        input  logic [15:0] mbtrain_d2c_burst_count,                // (for TX/RX_D2C_PT) Unsigned 16-bit burst duration in Unit Intervals (UI).
-        input  logic [15:0] mbtrain_d2c_idle_count,                 // (for TX/RX_D2C_PT) Unsigned 16-bit idle duration in Unit Intervals (UI).
-        input  logic [15:0] mbtrain_d2c_iter_count,                 // (for TX/RX_D2C_PT) Unsigned 16-bit iteration count of burst-idle cycles.
-        input  logic [1:0]  mbtrain_d2c_compare_setup,              // (for TX/RX_D2C_PT) 00: Per-Lane comparison, 01: Aggregate, 10: Valid Lane, 11: Clock Lane.
+        // These signals are coming from MBINIT State (from its MBINIT.REPAIRMB substate) and MBTRAIN State (from its substates: MBTRAIN.VALVREF, MBTRAIN.DATAVREF, MBTRAIN.VALTRAINVREF, MBTRAIN.DATATRAINVREF, MBTRAIN.VALTRAINCENTER, MBTRAIN.DATATRAINCENTER1, MBTRAIN.RXDESKEW, MBTRAIN.DATATRAINCENTER2, MBTRAIN.LINKSPEED).
+        input  logic        local_tx_pt_en,                 // (for TX_D2C_PT) Enable local   TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+        input  logic        partner_tx_pt_en,               // (for TX_D2C_PT) Enable partner TX D2C point test (1: enable/initiate test handshake, 0: disable/idle).
+        input  logic        local_rx_pt_en,                 // (for RX_D2C_PT) Enable local   RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
+        input  logic        partner_rx_pt_en,               // (for RX_D2C_PT) Enable partner RX D2C point test (1: enable/initiate test handshake, 0: disable/idle). RX_D2C_PT test is used only in MBTRAIN substates.
+        input  logic [1:0]  d2c_clk_sampling,               // (for TX/RX_D2C_PT) 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
+        input  logic [2:0]  d2c_pattern_setup,              // (for TX/RX_D2C_PT) Bit0: Data Pattern Enable, Bit1: Valid Pattern Enable, Bit2: Clock Pattern Enable.
+        input  logic [1:0]  d2c_data_pattern_sel,           // (for TX/RX_D2C_PT) 00: LFSR pattern, 01: Per-Lane ID, 10: Fixed All Zeros, 11: Reserved.
+        input  logic        d2c_val_pattern_sel,            // (for TX/RX_D2C_PT) 0: VALTRAIN/functional pattern, 1: Held Low / Operational Valid.
+        input  logic        d2c_pattern_mode,               // (for TX/RX_D2C_PT) 0: Continuous mode (indefinite), 1: Burst mode (burst/idle counts).
+        input  logic [15:0] d2c_burst_count,                // (for TX/RX_D2C_PT) Unsigned 16-bit burst duration in Unit Intervals (UI).
+        input  logic [15:0] d2c_idle_count,                 // (for TX/RX_D2C_PT) Unsigned 16-bit idle duration in Unit Intervals (UI).
+        input  logic [15:0] d2c_iter_count,                 // (for TX/RX_D2C_PT) Unsigned 16-bit iteration count of burst-idle cycles.
+        input  logic [1:0]  d2c_compare_setup,              // (for TX/RX_D2C_PT) 00: Per-Lane comparison, 01: Aggregate, 10: Valid Lane, 11: Clock Lane.
 
         // These signals are unified for both MBINIT and MBTRAIN substates.
         input  logic [11:0] cfg_max_err_thresh_perlane,             // Unsigned 12-bit max error threshold per lane from Register File.
@@ -144,36 +129,7 @@ module wrapper_D2C_PT_top(
     // Just to remember: It's imposible to get ((`mbtrain_local_tx_pt_en`  =1 OR `mbinit_local_tx_pt_en`  =1) AND `mbtrain_local_rx_pt_en`  =1) at the same moment. so, There is no conflict in Tx and Rx signals assignment, and We are safe.
     //                   It's imposible to get ((`mbtrain_partner_tx_pt_en`=1 OR `mbinit_partner_tx_pt_en`=1) AND `mbtrain_partner_rx_pt_en`=1) at the same moment. so, There is no conflict in Tx and Rx signals assignment, and We are safe.
 
-    // Combined local TX enable: either MBINIT or MBTRAIN requests a local TX test.
-    wire local_tx_pt_en   = mbinit_local_tx_pt_en   | mbtrain_local_tx_pt_en;
 
-    // Combined partner TX enable: either MBINIT or MBTRAIN requests a partner TX test.
-    wire partner_tx_pt_en = mbinit_partner_tx_pt_en  | mbtrain_partner_tx_pt_en;
-
-    // Local RX enable: only MBTRAIN can issue an RX test.
-    wire local_rx_pt_en   = mbtrain_local_rx_pt_en;
-
-    // Partner RX enable: only MBTRAIN can issue a partner RX test.
-    wire partner_rx_pt_en = mbtrain_partner_rx_pt_en;
-
-    // MBTRAIN is the active source when any of its enables is asserted.
-    wire mbtrain_active   = mbtrain_local_tx_pt_en | mbtrain_partner_tx_pt_en |
-        mbtrain_local_rx_pt_en | mbtrain_partner_rx_pt_en;
-
-    // =========================================================================
-    // Internal Wires: Selected (MUXed) Configuration Signals
-    // =========================================================================
-    // These wires carry the configuration selected between MBTRAIN and MBINIT.
-    // They feed wrapper_D2C_PT_local (which needs a unified config bus).
-    logic [1:0]  sel_d2c_clk_sampling;
-    logic [2:0]  sel_d2c_pattern_setup;
-    logic [1:0]  sel_d2c_data_pattern_sel;
-    logic        sel_d2c_val_pattern_sel;
-    logic        sel_d2c_pattern_mode;
-    logic [15:0] sel_d2c_burst_count;
-    logic [15:0] sel_d2c_idle_count;
-    logic [15:0] sel_d2c_iter_count;
-    logic [1:0]  sel_d2c_compare_setup;
 
     // =========================================================================
     // Internal Wires: Sub-wrapper MB Outputs
@@ -267,38 +223,6 @@ module wrapper_D2C_PT_top(
     logic        ptn_test_d2c_done;
 
     // =========================================================================
-    // MUX 1: MBINIT vs MBTRAIN Configuration Selection
-    // =========================================================================
-    // When any MBTRAIN enable is active  (1: MBTRAIN), select MBTRAIN config.
-    // When only MBINIT enables are active (0: MBINIT),  select MBINIT  config.
-    // This is a purely combinational, latch-free selection.
-    always_comb begin : CONFIG_MUX
-        if (mbtrain_active) begin
-            // ── MBTRAIN configuration selected ──────────────────────────────
-            sel_d2c_clk_sampling            = mbtrain_d2c_clk_sampling;
-            sel_d2c_pattern_setup           = mbtrain_d2c_pattern_setup;
-            sel_d2c_data_pattern_sel        = mbtrain_d2c_data_pattern_sel;
-            sel_d2c_val_pattern_sel         = mbtrain_d2c_val_pattern_sel;
-            sel_d2c_pattern_mode            = mbtrain_d2c_pattern_mode;
-            sel_d2c_burst_count             = mbtrain_d2c_burst_count;
-            sel_d2c_idle_count              = mbtrain_d2c_idle_count;
-            sel_d2c_iter_count              = mbtrain_d2c_iter_count;
-            sel_d2c_compare_setup           = mbtrain_d2c_compare_setup;
-        end else begin
-            // ── MBINIT configuration selected ───────────────────────────────
-            sel_d2c_clk_sampling            = mbinit_d2c_clk_sampling;
-            sel_d2c_pattern_setup           = mbinit_d2c_pattern_setup;
-            sel_d2c_data_pattern_sel        = mbinit_d2c_data_pattern_sel;
-            sel_d2c_val_pattern_sel         = mbinit_d2c_val_pattern_sel;
-            sel_d2c_pattern_mode            = mbinit_d2c_pattern_mode;
-            sel_d2c_burst_count             = mbinit_d2c_burst_count;
-            sel_d2c_idle_count              = mbinit_d2c_idle_count;
-            sel_d2c_iter_count              = mbinit_d2c_iter_count;
-            sel_d2c_compare_setup           = mbinit_d2c_compare_setup;
-        end
-    end
-
-    // =========================================================================
     // Sub-wrapper Instantiation 1: wrapper_D2C_PT_local
     // =========================================================================
     wrapper_D2C_PT_local u_wrapper_D2C_PT_local (
@@ -309,19 +233,19 @@ module wrapper_D2C_PT_top(
         // ── Group 2: LTSM Control and Configuration ──────────────────────────
         // Enable signals: local module acts as TX-local when local_tx_pt_en=1,
         //                 local module acts as RX-local when local_rx_pt_en=1.
-        .tx_pt_en                       (local_tx_pt_en                ), // 1: local TX D2C test is active (from MBINIT or MBTRAIN).
-        .rx_pt_en                       (local_rx_pt_en                ), // 1: local RX D2C test is active (MBTRAIN only).
+        .tx_pt_en                       (local_tx_pt_en                ), // 1: local TX D2C test is active.
+        .rx_pt_en                       (local_rx_pt_en                ), // 1: local RX D2C test is active.
         .test_d2c_done                  (loc_test_d2c_done             ), // Completion flag from local sub-wrapper.
-        .d2c_clk_sampling               (sel_d2c_clk_sampling          ), // Selected clock sampling phase config.
-        .d2c_pattern_setup              (sel_d2c_pattern_setup         ), // Selected pattern component enable bits.
-        .d2c_data_pattern_sel           (sel_d2c_data_pattern_sel      ), // Selected data pattern type.
-        .d2c_val_pattern_sel            (sel_d2c_val_pattern_sel       ), // Selected valid pattern type.
-        .d2c_pattern_mode               (sel_d2c_pattern_mode          ), // Selected pattern generation mode.
-        .d2c_burst_count                (sel_d2c_burst_count           ), // Selected burst duration in UI.
-        .d2c_idle_count                 (sel_d2c_idle_count            ), // Selected idle duration in UI.
-        .d2c_iter_count                 (sel_d2c_iter_count            ), // Selected iteration loop count.
-        .d2c_compare_setup              (sel_d2c_compare_setup         ), // Selected comparison mode.
-        .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane), // Selected per-lane error threshold.
+        .d2c_clk_sampling               (d2c_clk_sampling              ), // Selected clock sampling phase config.
+        .d2c_pattern_setup              (d2c_pattern_setup             ), // Selected pattern component enable bits.
+        .d2c_data_pattern_sel           (d2c_data_pattern_sel          ), // Selected data pattern type.
+        .d2c_val_pattern_sel            (d2c_val_pattern_sel           ), // Selected valid pattern type.
+        .d2c_pattern_mode               (d2c_pattern_mode              ), // Selected pattern generation mode.
+        .d2c_burst_count                (d2c_burst_count               ), // Selected burst duration in UI.
+        .d2c_idle_count                 (d2c_idle_count                ), // Selected idle duration in UI.
+        .d2c_iter_count                 (d2c_iter_count                ), // Selected iteration loop count.
+        .d2c_compare_setup              (d2c_compare_setup             ), // Selected comparison mode.
+        .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane    ), // Selected per-lane error threshold.
         .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr       ), // aggregate error threshold.
         .d2c_perlane_pass               (loc_d2c_perlane_pass          ), // Per-lane pass status from local module.
         .d2c_aggr_pass                  (loc_d2c_aggr_pass             ), // Aggregate pass status from local module.
@@ -482,7 +406,7 @@ module wrapper_D2C_PT_top(
     //     The local die's RX (Die 0 RX) is the RECEIVER      → MB RX pins come from loc (RX side). and we drive a default values of MB TX signals (that we get from 'wrapper_D2C_PT_partner').
     //     (Note: local_tx_pt_en=0 in this case since it's the partner's TX (partner's TX_D2C_PT) init test)
     //
-    //   3) Case AB — Local TX & RX, and Partner TX & RX test (local_tx_pt_en=1 & partner_tx_pt_en=1) & (local_rx_pt_en=0 & partner_rx_pt_en=0):
+    //   3) Case AB — Local TX, and Partner TX test (local_tx_pt_en=1 & partner_tx_pt_en=1) & (local_rx_pt_en=0 & partner_rx_pt_en=0):
     //     The partner die's TX (Die 1 TX) is the TRANSMITTER → MB TX pins come from ptn (TX side).
     //     The partner die's RX (Die 1 RX) is the RECEIVER    → MB RX pins come from ptn (RX side).
     //     The local die's TX (Die 0 TX) is the TRANSMITTER   → MB TX pins come from loc (TX side). and we drive the values of MB RX signals (that we get from 'wrapper_D2C_PT_partner').
@@ -497,7 +421,7 @@ module wrapper_D2C_PT_top(
     //     The partner die is the RECEIVER         → MB RX pins come from ptn (RX side).
     //     The local die's TX is the TRANSMITTER   → MB TX pins come from loc (TX side). and we drive a default values of MB RX signals (that we get from 'wrapper_D2C_PT_partner').
     //
-    //   6) Case CD — Local TX & RX, and Partner TX & RX test (local_rx_pt_en=0 & partner_rx_pt_en=0) & (local_rx_pt_en=1 & partner_rx_pt_en=1):
+    //   6) Case CD — Local RX, and Partner RX test (local_rx_pt_en=0 & partner_rx_pt_en=0) & (local_rx_pt_en=1 & partner_rx_pt_en=1):
     //     The partner die's TX (Die 1 TX) is the TRANSMITTER → MB TX pins come from ptn (TX side).
     //     The partner die's RX (Die 1 RX) is the RECEIVER    → MB RX pins come from ptn (RX side).
     //     The local die's TX (Die 0 TX) is the TRANSMITTER   → MB TX pins come from loc (TX side). and we drive the values of MB RX signals (that we get from 'wrapper_D2C_PT_local').
@@ -706,3 +630,5 @@ module wrapper_D2C_PT_top(
     end
 
 endmodule
+
+
