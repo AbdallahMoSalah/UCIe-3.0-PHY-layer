@@ -160,7 +160,6 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_module.local_is_x8),
-        .local_max_speed(cap_if_module.local_max_speed),
         .local_sbfe(cap_if_module.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_module.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_module.local_l2spd),
@@ -262,7 +261,6 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_partner.local_is_x8),
-        .local_max_speed(cap_if_partner.local_max_speed),
         .local_sbfe(cap_if_partner.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_partner.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_partner.local_l2spd),

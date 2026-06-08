@@ -24,7 +24,6 @@ module MBINIT_WRAPPER
     // =========================================================================
     // Local Inputs (from registers)
     input  logic        reg_phy_x8_mode_ctrl,
-    input  logic [3:0]  local_max_speed,
     input  logic        local_sbfe,
     input  logic        reg_TARR_support_local_cap,
     input  logic        reg_L2SPD_support_local_cap,

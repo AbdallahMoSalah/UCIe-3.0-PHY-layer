@@ -298,7 +298,6 @@ module MBINIT_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (m_reg_phy_x8_mode_ctrl),
-        .local_max_speed              (4'b0101), // 32GT/s
         .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
@@ -397,7 +396,6 @@ module MBINIT_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (p_reg_phy_x8_mode_ctrl),
-        .local_max_speed              (4'b0101), // 32GT/s
         .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),

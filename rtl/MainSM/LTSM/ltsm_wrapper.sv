@@ -535,7 +535,6 @@ module ltsm_wrapper
 
         // Configs
         .reg_phy_x8_mode_ctrl(reg_phy_x8_mode_ctrl),
-        .local_max_speed(local_max_speed),
         .local_sbfe(local_sbfe),
         .reg_TARR_support_local_cap(reg_TARR_support_local_cap),
         .reg_L2SPD_support_local_cap(reg_L2SPD_support_local_cap),
