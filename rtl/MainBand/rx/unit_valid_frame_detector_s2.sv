@@ -11,6 +11,8 @@ module unit_valid_frame_detector_s2 #(
     output wire                   o_valid_frame_pulse
 );
 
-assign o_valid_frame_pulse = (i_shift_reg == VALID_PATTERN);
+assign mask = (i_shift_reg ^ VALID_PATTERN);
+assign o_valid_frame_pulse = (~|mask);
+
 endmodule
 

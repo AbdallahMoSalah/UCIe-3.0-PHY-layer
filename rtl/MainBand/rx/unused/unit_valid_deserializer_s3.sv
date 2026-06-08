@@ -12,8 +12,7 @@ module unit_valid_deserializer_s3 #(
     input  wire                   ser_data_in,
 
     output wire [DATA_WIDTH-1:0]  o_shift_reg,
-    output reg                    o_state,       // 0=IDLE, 1=RUNNING
-    output reg  [3:0]             o_count        // 0..15 counter
+    output reg                    o_count_16        // 0..15 counter
 );
 
 reg [DATA_WIDTH-1:0] shift_reg;
@@ -73,7 +72,7 @@ end
 //                  $time, r_data_pos, prev_ser_data_in, o_state, o_count, shift_reg);
 //     end
 // end
-
+assign o_count_16 = (o_count == 4'd15);
 assign o_shift_reg = shift_reg;
 
 endmodule
