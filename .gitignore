@@ -35,3 +35,5 @@ tb/unit/MainSM/RDI_SM/unit_active_pmnak_state/.fuse_hidden0000047e00000003
 docs/MB/.$MainBand.drawio.bkp
 # for claude code 
 CLAUDE.md
+sim/waves/MB_SERIALIZER_TB.do
+sim/waves/Valid_TX_tb.do
