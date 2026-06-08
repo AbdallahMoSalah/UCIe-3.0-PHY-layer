@@ -7,14 +7,14 @@ module unit_valid_frame_detector_s3 #(
     parameter DATA_WIDTH   = 32,
     parameter VALID_PATTERN = 32'h0F0F0F0F
 )(
-    input  wire                   i_rst_n,
-    input  wire                   i_clk,
-    input  wire [DATA_WIDTH-1:0]  i_shift_reg,
-    input  wire                   i_count_16, //
-    input  wire [11:0]            i_max_error_threshold_per_lane,
+    input  logic                   i_rst_n,
+    input  logic                   i_clk,
+    input  logic [DATA_WIDTH-1:0]  i_shift_reg,
+    input  logic                   i_count_16, 
 
-    output wire                   o_valid_frame_pulse,
-    output wire                   valid_pass
+    output logic                   o_valid_frame_pulse,
+    output logic [DATA_WIDTH-1:0]  o_valid_frame_data,
+    output logic                   o_valid_frame_vld
 );
 
  PULSE_GEN  pulse_gen
@@ -26,28 +26,28 @@ module unit_valid_frame_detector_s3 #(
  );
 
 
-reg  [DATA_WIDTH-1:0] valid_frame_reg;
-wire [DATA_WIDTH-1:0] mismatch;
+logic  [DATA_WIDTH-1:0] valid_frame_reg;
+logic valid_frame_vld;
 always @(posedge i_clk or negedge i_rst_n)begin
     if (!i_rst_n) begin
         valid_frame_reg <= {DATA_WIDTH{1'b0}};
+        valid_frame_vld <= 1'b0;
     end else begin
-        if (synch_count_16)
+        if (synch_count_16) begin
             valid_frame_reg <= i_shift_reg;
+            valid_frame_vld <= 1'b1;
+        end else begin
+            valid_frame_vld <= 1'b0;
+        end
     end
 end
 
-assign mismatch = valid_frame_reg ^ VALID_PATTERN;
+assign o_valid_frame_data = valid_frame_reg;
+assign o_valid_frame_vld = valid_frame_vld;
+
+
+// This pulse indicates that the current cycle's deserialized word matches 
+// the expected Valid-frame pattern (0x0F0F0F0F).
 assign o_valid_frame_pulse = i_count_16 & (i_shift_reg == VALID_PATTERN);
-assign result_count = popcount_w(mismatch);
 
-
-function automatic [5:0] popcount_w(input [DATA_WIDTH-1:0] v);
-    integer i;
-    begin
-        popcount_w = 5'd0;
-        for (i = 0; i < DATA_WIDTH; i = i + 1)
-                popcount_w = popcount_w + v[i];
-        end
-endfunction
 endmodule

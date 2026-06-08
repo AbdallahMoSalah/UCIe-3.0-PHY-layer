@@ -31,21 +31,22 @@ module unit_valid_comparator #(
     parameter int        CONSEC_PASS = 16,            // consecutive matching bytes required to PASS (mode 0)
     parameter [7:0]      VALID_BYTE  = 8'b00001111    // expected Valid-frame byte (0x0F)
 )(
-    input  wire              i_clk,
-    input  wire              i_rst_n,
+    input  logic              i_clk,
+    input  logic              i_rst_n,
 
     // ---------------- Control ----------------
-    input  wire              i_enable,                 // run a comparison test while high
-    input  wire              i_mode,                   // 0 = 16 consecutive iterations, 1 = bit-error threshold
-    input  wire [15:0]       i_max_error_threshold,    // bit-error threshold (mode 1)
-    input  wire              i_clear_error,
+    input  logic              i_enable,                 // run a comparison test while high
+    input  logic              i_mode,                   // 0 = 16 consecutive iterations, 1 = bit-error threshold
+    input  logic [15:0]       i_max_error_threshold,    // bit-error threshold (mode 1)
+    input  logic              i_clear_error,
 
     // ---------------- Received data ----------------
-    input  wire [WIDTH-1:0]  i_rx_data,                // deserialized Valid-Lane word
+    input  logic [WIDTH-1:0]  i_valid_frame_data,                // deserialized Valid-Lane word
+    input  logic              i_valid_frame_vld,                // deserialized Valid-Lane word
 
     // ---------------- Results ----------------
-    output reg               o_done,                   // test complete, result valid
-    output reg               o_pass                    // 1 = Valid Lane PASS
+    output logic              o_done,                   // test complete, result valid
+    output logic              o_pass                    // 1 = Valid Lane PASS
 );
     // -------------------------------------------------------------------------
     // Derived sizes
@@ -71,7 +72,7 @@ module unit_valid_comparator #(
     // =========================================================================
     // Per-cycle combinational mismatch evaluation
     // =========================================================================
-    wire [WIDTH-1:0] mismatch = i_rx_data ^ EXP_WORD;   // bitwise mismatch vs expected
+    wire [WIDTH-1:0] mismatch = i_valid_frame_data ^ EXP_WORD;   // bitwise mismatch vs expected
     wire [15:0]      err_inc  = popcount_w(mismatch);   // mismatched bits this cycle
 
     // =========================================================================
@@ -123,13 +124,13 @@ module unit_valid_comparator #(
                 S_COMPARE: begin
                     if (!i_enable) begin
                         state <= S_IDLE;            // aborted before completion
-                    end else begin
+                    end else if (i_valid_frame_vld) begin
                         if (i_mode == 1'b0) begin
                             // ---- 16 consecutive byte iterations ----
                             temp_ctr  = consecutive_ctr;
                             temp_pass = o_pass;
                             for (b = 0; b < BYTES_PER_WORD; b = b + 1) begin
-                                if (i_rx_data[b*8 +: 8] == VALID_BYTE) begin
+                                if (i_valid_frame_data[b*8 +: 8] == VALID_BYTE) begin
                                     if (temp_ctr < CONSEC_PASS)
                                         temp_ctr = temp_ctr + 5'd1;
                                     if (temp_ctr == CONSEC_PASS)
