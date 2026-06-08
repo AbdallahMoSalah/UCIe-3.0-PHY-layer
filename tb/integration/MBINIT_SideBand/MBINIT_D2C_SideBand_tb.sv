@@ -334,9 +334,7 @@ module MBINIT_D2C_SideBand_tb;
     // =========================================================================
     // INSTANTIATION: MBINIT (DIE 0)
     // =========================================================================
-    MBINIT #(
-        .CLK_FRQ_HZ (100_000_000)
-    ) u_mbinit_0 (
+    MBINIT u_mbinit_0 (
         .clk                          (clk_100),
         .rst_n                        (rst_n),
 
@@ -347,15 +345,11 @@ module MBINIT_D2C_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (m_reg_phy_x8_mode_ctrl),
-        .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
-        .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
         .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
-        .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
         .reg_so                       (1'b0),
@@ -432,9 +426,7 @@ module MBINIT_D2C_SideBand_tb;
     // =========================================================================
     // INSTANTIATION: MBINIT (DIE 1)
     // =========================================================================
-    MBINIT #(
-        .CLK_FRQ_HZ (100_000_000)
-    ) u_mbinit_1 (
+    MBINIT u_mbinit_1 (
         .clk                          (clk_100),
         .rst_n                        (rst_n),
 
@@ -445,15 +437,11 @@ module MBINIT_D2C_SideBand_tb;
         .SPMW                         (1'b0),
 
         .reg_phy_x8_mode_ctrl         (p_reg_phy_x8_mode_ctrl),
-        .local_sbfe                   (1'b1),
         .reg_TARR_support_local_cap   (1'b1),
         .reg_L2SPD_support_local_cap  (1'b1),
         .reg_PSPT_support_local_cap   (1'b1),
-        .local_so                     (1'b0),
         .reg_PMO_support_local_cap    (1'b1),
-        .reg_Max_Link_Width_cap       (3'b000),  // x16 (0h)
         .reg_Max_Link_Speed_cap       (4'b0101), // 32GT/s (5h)
-        .local_mtp                    (1'b1),
 
         .reg_Supported_TX_Vswing      (5'b00111),
         .reg_so                       (1'b0),

@@ -176,6 +176,7 @@ import ltsm_state_n_pkg::*;
     logic [2:0] repairmb_tx_data_lane_mask;
 
     logic [3:0] param_Link_Width_enable_status;
+    logic [3:0] reg_Link_Width_enable_status_reg_val;
     logic       param_Clock_Phase_enable_status;
     logic       param_Clock_mode_enable_status;
     logic       param_TARR_enable_status;
@@ -291,6 +292,7 @@ import ltsm_state_n_pkg::*;
 
         .param_Link_Width_enable_status(param_Link_Width_enable_status),
         .reg_Link_Width_enable_status(reg_Link_Width_enable_status),
+        .reg_Link_Width_enable_status_reg_val(reg_Link_Width_enable_status_reg_val),
 
         .param_Clock_Phase_enable_status(param_Clock_Phase_enable_status),
         .reg_Clock_Phase_enable_status(reg_Clock_Phase_enable_status),
@@ -456,7 +458,7 @@ import ltsm_state_n_pkg::*;
         .sb_reversal_tx_msg_id(reversalmb_tx_msg_id),
         .sb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
         .sb_reversal_tx_data_Field(reversalmb_tx_data_Field),
-        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .Link_Width_enable_status(reg_Link_Width_enable_status_reg_val),
         .mb_tx_data_pattern_sel(reversalmb_tx_data_pattern_sel),
         .mb_tx_pattern_setup(reversalmb_tx_pattern_setup),
         .mb_rx_compare_setup(reversalmb_rx_compare_setup),
@@ -474,7 +476,7 @@ import ltsm_state_n_pkg::*;
     MBINIT_REPAIRMB u_repairmb (
         .clk(clk),
         .rst_n(rst_n),
-        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .Link_Width_enable_status(reg_Link_Width_enable_status_reg_val),
         .SPMW(SPMW),
         .mb_repairmb_enable(repairmb_enable),
         .mb_repairmb_done(repairmb_done),

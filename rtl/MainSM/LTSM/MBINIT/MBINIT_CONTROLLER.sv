@@ -128,6 +128,7 @@ import ltsm_state_n_pkg::*;
 
     input  logic [3:0] param_Link_Width_enable_status,
     output logic [3:0] reg_Link_Width_enable_status,
+    output logic [3:0] reg_Link_Width_enable_status_reg_val,
 
     input  logic       param_Clock_Phase_enable_status,
     output logic       reg_Clock_Phase_enable_status,
@@ -441,6 +442,7 @@ function automatic logic [3:0] get_width_code(logic [2:0] map);
 endfunction
 
 logic [3:0] reg_Link_Width_enable_status_reg;
+assign reg_Link_Width_enable_status_reg_val = reg_Link_Width_enable_status_reg;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -461,11 +463,14 @@ end
 always_comb begin
     reg_Link_Width_enable_status = reg_Link_Width_enable_status_reg;
     if(current_state == CTRL_IDLE) begin
-        reg_Link_Width_enable_status <= param_Link_Width_enable_status;
+        reg_Link_Width_enable_status = param_Link_Width_enable_status;
     end
     else if(current_state == CTRL_PARAM)begin
-        reg_Link_Width_enable_status <= param_Link_Width_enable_status;
+        reg_Link_Width_enable_status = param_Link_Width_enable_status;
     end
+    else if (current_state == CTRL_REPAIRMB && repairmb_done) begin
+        reg_Link_Width_enable_status = get_width_code(mbinit_tx_data_lane_mask);
+    end 
      
 end
 
