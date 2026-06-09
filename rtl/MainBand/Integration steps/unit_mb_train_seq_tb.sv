@@ -103,6 +103,7 @@ module unit_mb_train_seq_tb;
     logic [NUM_LANES-1:0]  o_pcmp_per_lane_pass;
     logic [15:0]           o_pcmp_agg_err_cnt;
     logic                  o_vcmp_done, o_vcmp_pass;
+    logic                  o_valid_frame_error;
     logic                  o_clk_p_pass, o_clk_n_pass, o_track_pass;
 
     // ---------------------------------------------------------------- DUT
@@ -172,6 +173,7 @@ module unit_mb_train_seq_tb;
         .o_pcmp_agg_error     (o_pcmp_agg_error),
         .o_vcmp_done          (o_vcmp_done),
         .o_vcmp_pass          (o_vcmp_pass),
+        .o_valid_frame_error  (o_valid_frame_error),
         .o_clk_p_pass         (o_clk_p_pass),
         .o_clk_n_pass         (o_clk_n_pass),
         .o_track_pass         (o_track_pass)
@@ -208,7 +210,12 @@ module unit_mb_train_seq_tb;
     task automatic start_stream(input [1:0] rxmode, input [2:0] lfsr_st);
         @(negedge lclk);
         i_rx_mode  = rxmode;
-        i_mapper_en=1; lp_irdy=1; lp_valid=1; lp_data='0;
+        if (lfsr_st == LFSR_DATA) begin
+            i_mapper_en = 1; lp_irdy = 1; lp_valid = 1;
+        end else begin
+            i_mapper_en = 0; lp_irdy = 0; lp_valid = 0;
+        end
+        lp_data='0;
         @(negedge lclk); i_lfsr_state = lfsr_st;
     endtask
 
@@ -220,16 +227,22 @@ module unit_mb_train_seq_tb;
         int t;
         link_reset(.embedded_clk(0));                 // burst mode: embedded off
         // dead clock lane as seen by the RX clock-pattern detector
-        if (fault == FAULT_CLK) force dut.u_rx_top.i_TCKP_P = 1'b0;
+        if (fault == FAULT_CLK) force dut.u_rx_top.i_RCKP_P = 1'b0;
         @(negedge o_pll_clk); i_clk_pattern_en=1; i_clk_detector_en=1;
         t = 0;
-        while (!(o_clk_p_pass && o_clk_n_pass && o_track_pass) && t < 4000) begin
+        while (!(o_clk_p_pass && o_clk_n_pass && o_track_pass && o_clk_done) && t < 4000) begin
             @(posedge o_rx_pll_clk); t++;
         end
-        ok = (o_clk_p_pass && o_clk_n_pass && o_track_pass);
+        ok = (o_clk_p_pass && o_clk_n_pass && o_track_pass && o_clk_done);
+        if (ok) begin
+            repeat (20) @(posedge o_rx_pll_clk);
+            if (!(o_clk_p_pass && o_clk_n_pass && o_track_pass && o_clk_done)) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] CLOCK TEST  : clk_p=%0b clk_n=%0b track=%0b  (%0d clk)%s",
                  lbl, o_clk_p_pass, o_clk_n_pass, o_track_pass, t, ok ? "" : "  <-- FAIL");
-        if (fault == FAULT_CLK) release dut.u_rx_top.i_TCKP_P;
+        if (fault == FAULT_CLK) release dut.u_rx_top.i_RCKP_P;
         @(negedge o_pll_clk); i_clk_pattern_en=0; i_clk_detector_en=0;
     endtask
 
@@ -241,21 +254,27 @@ module unit_mb_train_seq_tb;
         int t;
         link_reset(.embedded_clk(1));
         // valid lane tracks the clock => recovers 0x55../0xAA.. != 0x0F0F0F0F
-        if (fault == FAULT_VALID) force dut.u_rx_top.i_TVLD_P = dut.u_rx_top.i_TCKP_P;
+        if (fault == FAULT_VALID) force dut.u_rx_top.i_RVLD_P = dut.u_rx_top.i_RCKP_P;
         start_stream(RXMODE_DATA, LFSR_DATA);
         t = 0; while (!o_rx_en && t < 400) begin @(posedge lclk); t++; end
 
         @(negedge lclk); i_vcmp_mode = mode1; i_vcmp_thr = 16'd0; i_vcmp_clear = 1;
         @(negedge lclk); i_vcmp_clear = 0;
-        @(negedge lclk); i_vcmp_enable = 1;
+        @(negedge lclk); i_vcmp_enable = 1; i_valid_pattern_en = 1;
 
-        t = 0; while (!o_vcmp_done && t < 2000) begin @(posedge lclk); t++; end
-        ok = (o_vcmp_done && o_vcmp_pass);
+        t = 0; while (!(o_vcmp_done && o_vcmp_pass && o_valid_done) && t < 2000) begin @(posedge lclk); t++; end
+        ok = (o_vcmp_done && o_vcmp_pass && o_valid_done);
+        if (ok) begin
+            repeat (20) @(posedge lclk);
+            if (!(o_vcmp_done && o_vcmp_pass && o_valid_done)) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] VALID  m%0d  : rx_en=%0b done=%0b pass=%0b  (%0d clk)%s",
                  lbl, mode1, o_rx_en, o_vcmp_done, o_vcmp_pass, t, ok ? "" : "  <-- FAIL");
 
-        @(negedge lclk); i_vcmp_enable = 0;
-        if (fault == FAULT_VALID) release dut.u_rx_top.i_TVLD_P;
+        @(negedge lclk); i_vcmp_enable = 0; i_valid_pattern_en = 0;
+        if (fault == FAULT_VALID) release dut.u_rx_top.i_RVLD_P;
     endtask
 
     // -------------------------------------------------------------------------
@@ -273,7 +292,7 @@ module unit_mb_train_seq_tb;
                                     output bit   ok);
         int t;
         link_reset(.embedded_clk(1));
-        if (fault == FAULT_DATA) force dut.u_rx_top.i_TD_P[3] = 1'b0;  // stuck data lane 3
+        if (fault == FAULT_DATA) force dut.u_rx_top.i_RD_P[3] = 1'b0;  // stuck data lane 3
 
         @(negedge lclk);
         i_pcmp_mode         = 0;          // per-lane comparison
@@ -293,16 +312,22 @@ module unit_mb_train_seq_tb;
             t = 0; while (!o_pattern_comp_en && t < 400) begin @(posedge lclk); t++; end
             wait_mb(3);
             @(negedge lclk); i_pcmp_enable = 1;
-            t = 0; while (!o_pcmp_done && t < 800) begin @(posedge lclk); t++; end
+            t = 0; while (!(o_pcmp_done && o_lfsr_tx_done) && t < 800) begin @(posedge lclk); t++; end
         end
-        ok = (o_rx_en && o_pcmp_done && (o_pcmp_per_lane_pass === 16'hFFFF));
+        ok = o_pcmp_done && o_lfsr_tx_done && (o_pcmp_per_lane_pass === 16'hFFFF);
+        if (ok) begin
+            repeat (20) @(posedge lclk);
+            if (!(o_pcmp_done && o_lfsr_tx_done && (o_pcmp_per_lane_pass === 16'hFFFF))) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] %-12s: rx_en=%0b done=%0b per_lane=0x%04h agg_err=%0d%s",
                  lbl, (pat_mode ? "DATA perlane" : "DATA lfsr"),
                  o_rx_en, o_pcmp_done, o_pcmp_per_lane_pass, o_pcmp_agg_err_cnt,
                  ok ? "" : "  <-- FAIL");
 
         @(negedge lclk); i_pcmp_enable = 0;
-        if (fault == FAULT_DATA) release dut.u_rx_top.i_TD_P[3];
+        if (fault == FAULT_DATA) release dut.u_rx_top.i_RD_P[3];
     endtask
 
     // -------------------------------------------------------------------------

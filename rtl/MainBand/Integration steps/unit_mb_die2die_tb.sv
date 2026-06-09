@@ -34,6 +34,7 @@ module unit_mb_die2die_tb;
     localparam int FLITW      = 8*N_BYTES;
 
     localparam logic [2:0] LFSR_IDLE     = 3'b000;
+    localparam logic [2:0] LFSR_CLEAR    = 3'b001;   // CLEAR_LFSR
     localparam logic [2:0] LFSR_PATTERN  = 3'b010;   // PATTERN_LFSR
     localparam logic [2:0] LFSR_PERLANE  = 3'b011;   // PER_LANE_IDE
     localparam logic [2:0] LFSR_DATA     = 3'b100;   // DATA_TRANSFER
@@ -52,7 +53,8 @@ module unit_mb_die2die_tb;
     logic                  i_rst_n;
     logic                  lp_irdy, lp_valid;
     logic                  i_mapper_en;
-    logic [2:0]            i_width_deg;
+    logic [2:0]            i_width_deg_tx;
+    logic [2:0]            i_width_deg_rx;
     logic [2:0]            i_lfsr_state;
     logic                  i_reversal_en;
     logic                  i_valid_pattern_en;
@@ -61,6 +63,8 @@ module unit_mb_die2die_tb;
     logic                  lclk_g;
     logic                  i_clk_pattern_en, i_clk_embedded_en;
     logic [1:0]            i_rx_mode;
+    logic                  demapper_en;
+    assign demapper_en = (i_lfsr_state == LFSR_DATA);
     logic                  i_pcmp_enable, i_pcmp_mode, i_pcmp_pattern_mode, i_pcmp_clear;
     logic [NUM_LANES-1:0]  i_pcmp_lane_mask;
     logic [15:0]           i_pcmp_thr_per_lane, i_pcmp_thr_aggregate, i_pcmp_iter_count;
@@ -83,6 +87,7 @@ module unit_mb_die2die_tb;
     logic                  o_pcmp_done0, o_pcmp_agg_error0;
     logic [NUM_LANES-1:0]  o_pcmp_per_lane_pass0;  logic [15:0] o_pcmp_agg_err_cnt0;
     logic                  o_vcmp_done0, o_vcmp_pass0;
+    logic                  o_valid_frame_error0;
     logic                  o_clk_p_pass0, o_clk_n_pass0, o_track_pass0;
 
     // ---------------------------------------------------------- die 1 outputs
@@ -97,6 +102,7 @@ module unit_mb_die2die_tb;
     logic                  o_pcmp_done1, o_pcmp_agg_error1;
     logic [NUM_LANES-1:0]  o_pcmp_per_lane_pass1;  logic [15:0] o_pcmp_agg_err_cnt1;
     logic                  o_vcmp_done1, o_vcmp_pass1;
+    logic                  o_valid_frame_error1;
     logic                  o_clk_p_pass1, o_clk_n_pass1, o_track_pass1;
 
     // ============================================================== die 0
@@ -106,11 +112,11 @@ module unit_mb_die2die_tb;
     ) die0 (
         .i_rst_n(i_rst_n),
         .lp_data(lp_data0), .lp_irdy(lp_irdy), .lp_valid(lp_valid), .pl_trdy(pl_trdy0),
-        .i_mapper_en(i_mapper_en), .i_width_deg(i_width_deg), .i_lfsr_state(i_lfsr_state),
+        .i_mapper_en(i_mapper_en), .i_width_deg_tx(i_width_deg_tx), .i_width_deg_rx(i_width_deg_rx), .i_lfsr_state(i_lfsr_state),
         .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
-        .i_rx_mode(i_rx_mode),
+        .i_state(i_lfsr_state), .demapper_en(demapper_en),
         .i_pcmp_enable(i_pcmp_enable), .i_pcmp_mode(i_pcmp_mode), .i_pcmp_lane_mask(i_pcmp_lane_mask),
         .i_pcmp_thr_per_lane(i_pcmp_thr_per_lane), .i_pcmp_thr_aggregate(i_pcmp_thr_aggregate),
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
@@ -124,11 +130,9 @@ module unit_mb_die2die_tb;
         .lclk(lclk0), .o_pll_clk(o_pll_clk0),
         .o_lfsr_tx_done(o_lfsr_tx_done0), .o_valid_done(o_valid_done0), .o_clk_done(o_clk_done0),
         .o_out_data(o_out_data0), .o_pl_valid(o_pl_valid0),
-        .o_par_data(o_par_data0), .o_data_valid(o_data_valid0), .o_valid_frame_pulse(o_valid_frame_pulse0),
-        .o_rx_lane(o_rx_lane0), .o_rx_en(o_rx_en0), .o_pattern_comp_en(o_pattern_comp_en0),
         .o_pcmp_done(o_pcmp_done0), .o_pcmp_per_lane_pass(o_pcmp_per_lane_pass0),
         .o_pcmp_agg_err_cnt(o_pcmp_agg_err_cnt0), .o_pcmp_agg_error(o_pcmp_agg_error0),
-        .o_vcmp_done(o_vcmp_done0), .o_vcmp_pass(o_vcmp_pass0),
+        .o_vcmp_done(o_vcmp_done0), .o_vcmp_pass(o_vcmp_pass0), .o_valid_frame_error(o_valid_frame_error0),
         .o_clk_p_pass(o_clk_p_pass0), .o_clk_n_pass(o_clk_n_pass0), .o_track_pass(o_track_pass0)
     );
 
@@ -139,11 +143,11 @@ module unit_mb_die2die_tb;
     ) die1 (
         .i_rst_n(i_rst_n),
         .lp_data(lp_data1), .lp_irdy(lp_irdy), .lp_valid(lp_valid), .pl_trdy(pl_trdy1),
-        .i_mapper_en(i_mapper_en), .i_width_deg(i_width_deg), .i_lfsr_state(i_lfsr_state),
+        .i_mapper_en(i_mapper_en), .i_width_deg_tx(i_width_deg_tx), .i_width_deg_rx(i_width_deg_rx), .i_lfsr_state(i_lfsr_state),
         .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
-        .i_rx_mode(i_rx_mode),
+        .i_state(i_lfsr_state), .demapper_en(demapper_en),
         .i_pcmp_enable(i_pcmp_enable), .i_pcmp_mode(i_pcmp_mode), .i_pcmp_lane_mask(i_pcmp_lane_mask),
         .i_pcmp_thr_per_lane(i_pcmp_thr_per_lane), .i_pcmp_thr_aggregate(i_pcmp_thr_aggregate),
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
@@ -157,11 +161,9 @@ module unit_mb_die2die_tb;
         .lclk(lclk1), .o_pll_clk(o_pll_clk1),
         .o_lfsr_tx_done(o_lfsr_tx_done1), .o_valid_done(o_valid_done1), .o_clk_done(o_clk_done1),
         .o_out_data(o_out_data1), .o_pl_valid(o_pl_valid1),
-        .o_par_data(o_par_data1), .o_data_valid(o_data_valid1), .o_valid_frame_pulse(o_valid_frame_pulse1),
-        .o_rx_lane(o_rx_lane1), .o_rx_en(o_rx_en1), .o_pattern_comp_en(o_pattern_comp_en1),
         .o_pcmp_done(o_pcmp_done1), .o_pcmp_per_lane_pass(o_pcmp_per_lane_pass1),
         .o_pcmp_agg_err_cnt(o_pcmp_agg_err_cnt1), .o_pcmp_agg_error(o_pcmp_agg_error1),
-        .o_vcmp_done(o_vcmp_done1), .o_vcmp_pass(o_vcmp_pass1),
+        .o_vcmp_done(o_vcmp_done1), .o_vcmp_pass(o_vcmp_pass1), .o_valid_frame_error(o_valid_frame_error1),
         .o_clk_p_pass(o_clk_p_pass1), .o_clk_n_pass(o_clk_n_pass1), .o_track_pass(o_track_pass1)
     );
 
@@ -174,8 +176,8 @@ module unit_mb_die2die_tb;
         return (o_clk_p_pass0 && o_clk_n_pass0 && o_track_pass0 &&
                 o_clk_p_pass1 && o_clk_n_pass1 && o_track_pass1);
     endfunction
-    function automatic bit both_rx_en();    return (o_rx_en0 && o_rx_en1);             endfunction
-    function automatic bit both_pcomp_en(); return (o_pattern_comp_en0 && o_pattern_comp_en1); endfunction
+    function automatic bit both_rx_en();    return (die0.u_rx_top.o_rx_en && die1.u_rx_top.o_rx_en);             endfunction
+    function automatic bit both_pcomp_en(); return (die0.u_rx_top.o_pattern_comp_en && die1.u_rx_top.o_pattern_comp_en); endfunction
     function automatic bit both_vcmp_done();return (o_vcmp_done0 && o_vcmp_done1);      endfunction
     function automatic bit both_pcmp_done();return (o_pcmp_done0 && o_pcmp_done1);       endfunction
 
@@ -200,27 +202,36 @@ module unit_mb_die2die_tb;
         wait_pll(20); wait_mb(4);
     endtask
 
+    task automatic rx_reset();
+        wait_mb(5);
+    endtask
+
     task automatic start_stream(input [1:0] rxmode, input [2:0] lfsr_st);
         @(negedge lclk0);
         i_rx_mode  = rxmode;
-        i_mapper_en=1; lp_irdy=1; lp_valid=1; lp_data0='0; lp_data1='0;
+        if (lfsr_st == LFSR_DATA) begin
+            i_mapper_en = 1; lp_irdy = 1; lp_valid = 1;
+        end else begin
+            i_mapper_en = 0; lp_irdy = 0; lp_valid = 0;
+        end
+        lp_data0='0; lp_data1='0;
         @(negedge lclk0); i_lfsr_state = lfsr_st;
     endtask
 
     // Fault helpers: corrupt the die1->die0 link as seen by die0's RX inputs.
     task automatic inject(input int fault);
         case (fault)
-            FAULT_CLK  : force die0.u_rx_top.i_TCKP_P = 1'b0;
-            FAULT_VALID: force die0.u_rx_top.i_TVLD_P = die0.u_rx_top.i_TCKP_P;
-            FAULT_DATA : force die0.u_rx_top.i_TD_P[3] = 1'b0;
+            FAULT_CLK  : force die0.u_rx_top.i_RCKP_P = 1'b0;
+            FAULT_VALID: force die0.u_rx_top.i_RVLD_P = die0.u_rx_top.i_RCKP_P;
+            FAULT_DATA : force die0.u_rx_top.i_RD_P[3] = 1'b0;
             default    : ;
         endcase
     endtask
     task automatic uninject(input int fault);
         case (fault)
-            FAULT_CLK  : release die0.u_rx_top.i_TCKP_P;
-            FAULT_VALID: release die0.u_rx_top.i_TVLD_P;
-            FAULT_DATA : release die0.u_rx_top.i_TD_P[3];
+            FAULT_CLK  : release die0.u_rx_top.i_RCKP_P;
+            FAULT_VALID: release die0.u_rx_top.i_RVLD_P;
+            FAULT_DATA : release die0.u_rx_top.i_RD_P[3];
             default    : ;
         endcase
     endtask
@@ -234,8 +245,14 @@ module unit_mb_die2die_tb;
         if (fault == FAULT_CLK) inject(FAULT_CLK);
         @(negedge o_pll_clk0); i_clk_pattern_en=1; i_clk_detector_en=1;
         t = 0;
-        while (!both_clk_pass() && t < 4000) begin @(posedge o_pll_clk0); t++; end
-        ok = both_clk_pass();
+        while (!(both_clk_pass() && o_clk_done0 && o_clk_done1) && t < 4000) begin @(posedge o_pll_clk0); t++; end
+        ok = both_clk_pass() && o_clk_done0 && o_clk_done1;
+        if (ok) begin
+            repeat (20) @(posedge o_pll_clk0);
+            if (!(both_clk_pass() && o_clk_done0 && o_clk_done1)) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] CLOCK TEST  : d0(p/n/t)=%0b%0b%0b d1(p/n/t)=%0b%0b%0b (%0d)%s",
                  lbl, o_clk_p_pass0,o_clk_n_pass0,o_track_pass0,
                  o_clk_p_pass1,o_clk_n_pass1,o_track_pass1, t, ok ? "" : "  <-- FAIL");
@@ -255,14 +272,20 @@ module unit_mb_die2die_tb;
 
         @(negedge lclk0); i_vcmp_mode=mode1; i_vcmp_thr=16'd0; i_vcmp_clear=1;
         @(negedge lclk0); i_vcmp_clear=0;
-        @(negedge lclk0); i_vcmp_enable=1;
+        @(negedge lclk0); i_vcmp_enable=1; i_valid_pattern_en=1;
 
-        t = 0; while (!both_vcmp_done() && t < 2000) begin @(posedge lclk0); t++; end
-        ok = (both_vcmp_done() && o_vcmp_pass0 && o_vcmp_pass1);
+        t = 0; while (!(both_vcmp_done() && o_valid_done0 && o_valid_done1) && t < 2000) begin @(posedge lclk0); t++; end
+        ok = (both_vcmp_done() && o_vcmp_pass0 && o_vcmp_pass1 && o_valid_done0 && o_valid_done1);
+        if (ok) begin
+            repeat (20) @(posedge lclk0);
+            if (!(both_vcmp_done() && o_vcmp_pass0 && o_vcmp_pass1 && o_valid_done0 && o_valid_done1)) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] VALID  m%0d  : d0(done/pass)=%0b/%0b d1(done/pass)=%0b/%0b (%0d)%s",
                  lbl, mode1, o_vcmp_done0,o_vcmp_pass0, o_vcmp_done1,o_vcmp_pass1, t, ok ? "" : "  <-- FAIL");
 
-        @(negedge lclk0); i_vcmp_enable=0;
+        @(negedge lclk0); i_vcmp_enable=0; i_valid_pattern_en=0;
         if (fault == FAULT_VALID) uninject(FAULT_VALID);
     endtask
 
@@ -288,10 +311,17 @@ module unit_mb_die2die_tb;
             t = 0; while (!both_pcomp_en() && t < 400) begin @(posedge lclk0); t++; end
             wait_mb(3);
             @(negedge lclk0); i_pcmp_enable=1;
-            t = 0; while (!both_pcmp_done() && t < 800) begin @(posedge lclk0); t++; end
+            t = 0; while (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1) && t < 800) begin @(posedge lclk0); t++; end
         end
-        ok = (both_rx_en() && both_pcmp_done() &&
+        ok = (both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1 &&
               (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF));
+        if (ok) begin
+            repeat (20) @(posedge lclk0);
+            if (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1 &&
+                  (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF))) begin
+                ok = 0;
+            end
+        end
         $display("  [%s] %-12s: d0 per_lane=0x%04h d1 per_lane=0x%04h%s",
                  lbl, (pat_mode ? "DATA perlane" : "DATA lfsr"),
                  o_pcmp_per_lane_pass0, o_pcmp_per_lane_pass1, ok ? "" : "  <-- FAIL");
@@ -377,6 +407,415 @@ module unit_mb_die2die_tb;
         $display("  >>> %s : BOTH dies reached ACTIVE cleanly <<<", lbl);
     endtask
 
+    // -------------------------------------------------------------------------
+    // Scenario: fulltraining_happy_scenario
+    // -------------------------------------------------------------------------
+    task automatic run_fulltraining_happy_scenario(output bit ok);
+        int t;
+        bit step_ok;
+        logic [FLITW-1:0] f0, f1;
+        ok = 1;
+        $display("\n===============================================================");
+        $display("  RUNNING SCENARIO: fulltraining_happy_scenario");
+        $display("===============================================================");
+
+        // 1. Reset
+        $display("Step 1: System Reset");
+        link_reset(.embedded_clk(0));
+        i_pll_speed_sel = 2'b00; // lowest speed
+        wait_pll(10);
+
+        // 2. Clock Pattern Test (lowest speed)
+        $display("Step 2: Clock Pattern Test at lowest speed (full-duplex)");
+        @(negedge o_pll_clk0);
+        i_clk_pattern_en = 1;
+        i_clk_detector_en = 1;
+        t = 0;
+        while (!(both_clk_pass() && o_clk_done0 && o_clk_done1) && t < 4000) begin
+            @(posedge o_pll_clk0);
+            t++;
+        end
+        step_ok = both_clk_pass() && o_clk_done0 && o_clk_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Clock pattern test failed or timed out. d0(p/n/t)=%0b%0b%0b d1(p/n/t)=%0b%0b%0b, t=%0d",
+                     o_clk_p_pass0, o_clk_n_pass0, o_track_pass0,
+                     o_clk_p_pass1, o_clk_n_pass1, o_track_pass1, t);
+            ok = 0; return;
+        end
+        $display("  [PASS] Clock pattern test complete. t=%0d", t);
+
+        // Verify clock stays locked and done stays high (wait 20 cycles)
+        repeat (20) @(posedge o_pll_clk0);
+        if (!(both_clk_pass() && o_clk_done0 && o_clk_done1)) begin
+            $display("  [FAIL] Clock lock dropped after completion.");
+            ok = 0; return;
+        end
+
+        // Disable clock pattern test
+        @(negedge o_pll_clk0);
+        i_clk_pattern_en = 0;
+        i_clk_detector_en = 0;
+        wait_pll(5);
+
+        // 3. Valid Pattern Test (lowest speed, 16 consecutive iter)
+        $display("Step 3: Valid Pattern Test at lowest speed (consecutive iter, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_clk_embedded_en = 1; // embedded clock free-running
+        i_rx_mode = RXMODE_DATA;
+        i_vcmp_mode = 1'b0; // 16 consecutive iter
+        i_vcmp_thr = 16'd0;
+        i_vcmp_clear = 1;
+        @(negedge lclk0);
+        i_vcmp_clear = 0;
+        @(negedge lclk0);
+        i_vcmp_enable = 1;
+        i_valid_pattern_en = 1;
+
+        t = 0;
+        while (!(both_vcmp_done() && o_valid_done0 && o_valid_done1) && t < 2000) begin
+            @(posedge lclk0);
+            t++;
+        end
+        step_ok = both_vcmp_done() && o_vcmp_pass0 && o_vcmp_pass1 && o_valid_done0 && o_valid_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Valid pattern test failed or timed out. t=%0d", t);
+            ok = 0; return;
+        end
+        $display("  [PASS] Valid pattern test complete. t=%0d", t);
+
+        // Verify done/pass stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_valid_done0 && o_valid_done1 && o_vcmp_pass0 && o_vcmp_pass1 && both_vcmp_done())) begin
+            $display("  [FAIL] Valid done or pass dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_valid_pattern_en = 0;
+        i_vcmp_enable = 0;
+        wait_mb(5);
+
+        // 4. Data Pattern Perlane ID (lowest speed, consecutive iter)
+        $display("Step 4: Data Pattern Perlane ID at lowest speed (consecutive iter, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_CLEAR;
+        wait_mb(2);
+        i_lfsr_state = LFSR_IDLE;
+        wait_mb(2);
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_PERLANE;
+        i_lfsr_state = LFSR_PERLANE;
+        i_pcmp_mode = 1'b0; // per-lane comparison
+        i_pcmp_pattern_mode = 1'b1; // perlane ID pattern
+        i_pcmp_iter_count = 16'd16; // 16 consecutive iterations
+        i_pcmp_lane_mask = '0;
+        i_pcmp_thr_per_lane = 16'd0;
+        i_pcmp_thr_aggregate = 16'd0;
+        i_pcmp_clear = 1;
+        @(negedge lclk0);
+        i_pcmp_clear = 0;
+        
+        // Start streaming
+        i_pcmp_enable = 1;
+        t = 0;
+        while (!both_rx_en() && t < 400) begin @(posedge lclk0); t++; end
+        if (both_rx_en()) begin
+            t = 0;
+            while (!both_pcomp_en() && t < 400) begin @(posedge lclk0); t++; end
+            wait_mb(3);
+            @(negedge lclk0);
+            
+            t = 0;
+            while (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1) && t < 800) begin @(posedge lclk0); t++; end
+        end
+        step_ok = both_rx_en() && both_pcmp_done() && 
+                  (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF) &&
+                  o_lfsr_tx_done0 && o_lfsr_tx_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Data perlane test failed. rx_en=%b, pcmp_done=%b, pass0=%h, pass1=%h",
+                     both_rx_en(), both_pcmp_done(), o_pcmp_per_lane_pass0, o_pcmp_per_lane_pass1);
+            ok = 0; return;
+        end
+        $display("  [PASS] Data perlane test complete.");
+
+        // Verify done stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_lfsr_tx_done0 && o_lfsr_tx_done1 && both_pcmp_done() && o_pcmp_per_lane_pass0 === 16'hFFFF && o_pcmp_per_lane_pass1 === 16'hFFFF)) begin
+            $display("  [FAIL] Data LFSR TX done dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_IDLE;
+        i_pcmp_enable = 0;
+        wait_mb(5);
+
+        // 5. Data Pattern LFSR (lowest speed, threshold mode)
+        $display("Step 5: Data Pattern LFSR at lowest speed (threshold mode, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_CLEAR;
+        wait_mb(2);
+        i_lfsr_state = LFSR_IDLE;
+        wait_mb(2);
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_PATTERN;
+        i_lfsr_state = LFSR_PATTERN;
+        i_pcmp_mode = 1'b0; // per-lane
+        i_pcmp_pattern_mode = 1'b0; // LFSR pattern
+        i_pcmp_iter_count = 16'd32; // threshold iteration count
+        i_pcmp_thr_per_lane = 16'd5; // threshold errors
+        i_pcmp_clear = 1;
+        @(negedge lclk0);
+        i_pcmp_clear = 0;
+        i_pcmp_enable = 1;
+
+
+        t = 0;
+        while (!both_rx_en() && t < 400) begin @(posedge lclk0); t++; end
+        if (both_rx_en()) begin
+            t = 0;
+            while (!both_pcomp_en() && t < 400) begin @(posedge lclk0); t++; end
+            wait_mb(3);
+            @(negedge lclk0);
+            
+            t = 0;
+            while (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1) && t < 800) begin @(posedge lclk0); t++; end
+        end
+        step_ok = both_rx_en() && both_pcmp_done() &&
+                  (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF) &&
+                  o_lfsr_tx_done0 && o_lfsr_tx_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Data LFSR test failed.");
+            ok = 0; return;
+        end
+        $display("  [PASS] Data LFSR test complete.");
+
+        // Verify done stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_lfsr_tx_done0 && o_lfsr_tx_done1 && both_pcmp_done() && o_pcmp_per_lane_pass0 === 16'hFFFF && o_pcmp_per_lane_pass1 === 16'hFFFF)) begin
+            $display("  [FAIL] Data LFSR TX done dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_IDLE;
+        i_pcmp_enable = 0;
+        wait_mb(5);
+
+        // 6. Speed change (no reset)
+        $display("Step 6: PLL Speed Change to 2'b01 (no reset)");
+        @(negedge o_pll_clk0);
+        i_pll_speed_sel = 2'b01; // higher speed
+        wait_pll(40);
+        wait_mb(5);
+
+        // 7. Valid Pattern Test (high speed, threshold mode)
+        $display("Step 7: Valid Pattern Test at higher speed (threshold mode, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_DATA;
+        i_vcmp_mode = 1'b1; // threshold mode
+        i_vcmp_thr = 16'd5;
+        i_vcmp_clear = 1;
+        @(negedge lclk0);
+        i_vcmp_clear = 0;
+        @(negedge lclk0);
+        i_vcmp_enable = 1;
+        i_valid_pattern_en = 1;
+
+        t = 0;
+        while (!(both_vcmp_done() && o_valid_done0 && o_valid_done1) && t < 2000) begin
+            @(posedge lclk0);
+            t++;
+        end
+        step_ok = both_vcmp_done() && o_vcmp_pass0 && o_vcmp_pass1 && o_valid_done0 && o_valid_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Valid pattern test at high speed failed.");
+            ok = 0; return;
+        end
+        $display("  [PASS] Valid pattern test at high speed complete.");
+
+        // Verify done stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_valid_done0 && o_valid_done1 && o_vcmp_pass0 && o_vcmp_pass1 && both_vcmp_done())) begin
+            $display("  [FAIL] Valid done dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_valid_pattern_en = 0;
+        i_vcmp_enable = 0;
+        wait_mb(5);
+
+        // 8. Data Pattern Perlane ID (high speed, consecutive iter)
+        $display("Step 8: Data Pattern Perlane ID at higher speed (consecutive iter, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_CLEAR;
+        wait_mb(2);
+        i_lfsr_state = LFSR_IDLE;
+        wait_mb(2);
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_PERLANE;
+        i_lfsr_state = LFSR_PERLANE;
+        i_pcmp_mode = 1'b0;
+        i_pcmp_pattern_mode = 1'b1;
+        i_pcmp_iter_count = 16'd16;
+        i_pcmp_clear = 1;
+        @(negedge lclk0);
+        i_pcmp_clear = 0;
+        i_pcmp_enable = 1;
+
+
+        t = 0;
+        while (!both_rx_en() && t < 400) begin @(posedge lclk0); t++; end
+        if (both_rx_en()) begin
+            t = 0;
+            while (!both_pcomp_en() && t < 400) begin @(posedge lclk0); t++; end
+            wait_mb(3);
+            @(negedge lclk0);
+            
+            t = 0;
+            while (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1) && t < 800) begin @(posedge lclk0); t++; end
+        end
+        step_ok = both_rx_en() && both_pcmp_done() &&
+                  (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF) &&
+                  o_lfsr_tx_done0 && o_lfsr_tx_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Data perlane test at high speed failed.");
+            ok = 0; return;
+        end
+        $display("  [PASS] Data perlane test at high speed complete.");
+
+        // Verify done stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_lfsr_tx_done0 && o_lfsr_tx_done1 && both_pcmp_done() && o_pcmp_per_lane_pass0 === 16'hFFFF && o_pcmp_per_lane_pass1 === 16'hFFFF)) begin
+            $display("  [FAIL] Data LFSR TX done dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_IDLE;
+        i_pcmp_enable = 0;
+        wait_mb(5);
+
+        // 9. Data Pattern LFSR (high speed, threshold mode)
+        $display("Step 9: Data Pattern LFSR at higher speed (threshold mode, no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_CLEAR;
+        wait_mb(2);
+        i_lfsr_state = LFSR_IDLE;
+        wait_mb(2);
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_PATTERN;
+        i_lfsr_state = LFSR_PATTERN;
+        i_pcmp_mode = 1'b0;
+        i_pcmp_pattern_mode = 1'b0;
+        i_pcmp_iter_count = 16'd32;
+        i_pcmp_thr_per_lane = 16'd5;
+        i_pcmp_clear = 1;
+        @(negedge lclk0);
+        i_pcmp_clear = 0;
+        i_pcmp_enable = 1;
+
+
+        t = 0;
+        while (!both_rx_en() && t < 400) begin @(posedge lclk0); t++; end
+        if (both_rx_en()) begin
+            t = 0;
+            while (!both_pcomp_en() && t < 400) begin @(posedge lclk0); t++; end
+            wait_mb(3);
+            @(negedge lclk0);
+            
+            t = 0;
+            while (!(both_pcmp_done() && o_lfsr_tx_done0 && o_lfsr_tx_done1) && t < 800) begin @(posedge lclk0); t++; end
+        end
+        step_ok = both_rx_en() && both_pcmp_done() &&
+                  (o_pcmp_per_lane_pass0 === 16'hFFFF) && (o_pcmp_per_lane_pass1 === 16'hFFFF) &&
+                  o_lfsr_tx_done0 && o_lfsr_tx_done1;
+        if (!step_ok) begin
+            $display("  [FAIL] Data LFSR test at high speed failed.");
+            ok = 0; return;
+        end
+        $display("  [PASS] Data LFSR test at high speed complete.");
+
+        // Verify done stays high even if en is still high (wait 20 cycles)
+        repeat (20) @(posedge lclk0);
+        if (!(o_lfsr_tx_done0 && o_lfsr_tx_done1 && both_pcmp_done() && o_pcmp_per_lane_pass0 === 16'hFFFF && o_pcmp_per_lane_pass1 === 16'hFFFF)) begin
+            $display("  [FAIL] Data LFSR TX done dropped while enable remains high.");
+            ok = 0; return;
+        end
+
+        // Lower enables
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_IDLE;
+        i_pcmp_enable = 0;
+        wait_mb(5);
+
+        // 10. Active Mode (bidirectional data exchange with different data at different times)
+        $display("Step 10: Entering ACTIVE Mode (no reset)");
+        rx_reset();
+        @(negedge lclk0);
+        i_lfsr_state = LFSR_CLEAR;
+        wait_mb(2);
+        i_lfsr_state = LFSR_IDLE;
+        wait_mb(2);
+        @(negedge lclk0);
+        i_rx_mode = RXMODE_DATA;
+        i_lfsr_state = LFSR_DATA;
+        i_mapper_en = 1;
+        lp_irdy = 1;
+        lp_valid = 1;
+        wait_mb(15);
+
+        // Send different random data back and forth at different times/delays
+        $display("  [ACTIVE] Exchanging 5 different data pairs...");
+        
+        // Pair 1
+        run_flit_pair({16{32'hAAAA5555}}, {16{32'h5555AAAA}}, "AA55/55AA", step_ok);
+        if (!step_ok) begin ok = 0; return; end
+        wait_mb(10);
+
+        // Pair 2 (delay one side)
+        lp_data0 = {16{32'h00FF00FF}};
+        wait_mb(5);
+        lp_data1 = {16{32'hFF00FF00}};
+        t = 0;
+        while (!(o_pl_valid0 && o_out_data0 === {16{32'hFF00FF00}} && o_pl_valid1 && o_out_data1 === {16{32'h00FF00FF}}) && t < 400) begin
+            @(posedge lclk0); t++;
+        end
+        step_ok = (o_out_data0 === {16{32'hFF00FF00}} && o_out_data1 === {16{32'h00FF00FF}});
+        $display("      flit pair 2 (staggered)       : %s (settle %0d)", step_ok?"MATCH":"MISS", t);
+        if (!step_ok) begin ok = 0; return; end
+        wait_mb(10);
+
+        // Pair 3
+        run_flit_pair({16{32'h0F0F0F0F}}, {16{32'hF0F0F0F0}}, "0F0F/F0F0", step_ok);
+        if (!step_ok) begin ok = 0; return; end
+        wait_mb(10);
+
+        // Pair 4 (different random data)
+        run_flit_pair({16{32'h12345678}}, {16{32'h87654321}}, "1234/8765", step_ok);
+        if (!step_ok) begin ok = 0; return; end
+        wait_mb(10);
+
+        // Pair 5
+        run_flit_pair({16{32'hDEADBEEF}}, {16{32'hCAFEBABE}}, "DEAD/CAFE", step_ok);
+        if (!step_ok) begin ok = 0; return; end
+        wait_mb(10);
+
+        $display("  [PASS] ACTIVE mode bidirectional exchange verified with zero errors.");
+    endtask
+
     task automatic expect_active(input string lbl, input int fault_sel, input bit want_active);
         bit got_active;
         run_training(lbl, fault_sel, got_active);
@@ -391,12 +830,26 @@ module unit_mb_die2die_tb;
 
     // ---------------------------------------------------------------- stimulus
     initial begin
-        i_width_deg = WIDTH_DEG_ALL;
+        i_width_deg_tx = WIDTH_DEG_ALL;
+        i_width_deg_rx = WIDTH_DEG_ALL;
         i_pll_en = 1; i_pll_speed_sel = 2'b00; lclk_g = 1;
         i_rst_n = 1; i_clk_embedded_en = 0;
         scenarios_pass = 0; scenarios_fail = 0;
 
         $display("\n============ MB TWO-DIE (die0 <-> die1) TRAINING SEQUENCE ============");
+
+        // Run full training happy scenario
+        begin
+            bit happy_ok;
+            run_fulltraining_happy_scenario(happy_ok);
+            if (happy_ok) begin
+                scenarios_pass++;
+                $display("  [SCENARIO PASS] fulltraining_happy_scenario passed successfully.");
+            end else begin
+                scenarios_fail++;
+                $display("  [SCENARIO FAIL] fulltraining_happy_scenario FAILED!");
+            end
+        end
 
         expect_active("clean (all pass)",         FAULT_NONE,  1'b1);
         expect_active("fault: dead clock d1->d0", FAULT_CLK,   1'b0);
