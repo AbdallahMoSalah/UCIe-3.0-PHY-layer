@@ -771,4 +771,7 @@ Keep these critical rules in mind when writing or modifying SystemVerilog module
 5. **Speed Change Settle Cycles**: When changing PLL speed rates in `SPEEDIDLE`, FSMs must request `analog_settle_timer_en = 1` and wait for `analog_settle_time_done == 1` before sending sideband status updates, ensuring the PLL clocks are stable before launching point tests.
 
 
+## 17. There are old files we may need to take an idea about some logic used inside time (but note, we already changed many details in the new design according to the old files)
+1. `tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb_old.sv`
+2. `rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_old.sv`
 
