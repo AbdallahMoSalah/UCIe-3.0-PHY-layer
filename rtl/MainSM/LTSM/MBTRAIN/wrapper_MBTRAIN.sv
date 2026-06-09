@@ -31,10 +31,11 @@ module wrapper_MBTRAIN #(
         // Clock, reset, and MBTRAIN state control
         input  logic        lclk,
         input  logic        rst_n,
-        input  logic        is_ltsm_out_of_reset,
+        // NOTE: is_ltsm_out_of_reset is generated INTERNALLY from state_n[0].
+        // It is NOT a port – the higher-level LTSM passes state_n instead.
         input  logic        mbtrain_en,
         output logic        mbtrain_done,
-        output logic [3:0]  current_mbtrain_substate,
+        output ltsm_state_n_pkg::state_n_e current_mbtrain_substate,
 
         output logic        ltsm_trainerror_req,
         output logic        ltsm_linkinit_req,
@@ -83,6 +84,8 @@ module wrapper_MBTRAIN #(
 
         // External D2C point-test results
         input  logic [15:0] d2c_perlane_pass,
+        input  logic        d2c_aggr_pass,
+        input  logic        d2c_val_pass,
 
         // PHY controls driven by MBTRAIN substates
         output logic [2:0]  phy_negotiated_speed,
@@ -135,6 +138,30 @@ module wrapper_MBTRAIN #(
     );
 
     import ltsm_state_n_pkg::*;
+
+    // =========================================================================
+    // Internal Software Reset Generation
+    // is_ltsm_out_of_reset is generated here using state_n[0].
+    // It deasserts when the LTSM enters RESET (so all substate FSMs soft-reset),
+    // and asserts when the LTSM reaches SBINIT (unblocking all substate FSMs).
+    // =========================================================================
+    logic is_ltsm_out_of_reset;
+    logic first_enter_flag;
+
+    always_ff @(posedge lclk or negedge rst_n) begin : SOFT_RESET_GEN
+        if (!rst_n) begin
+            is_ltsm_out_of_reset <= 1'b0;
+            first_enter_flag     <= 1'b0;
+        end else if (state_n[0] == LOG_RESET && !first_enter_flag) begin
+            // First time we see RESET → assert soft-reset to all substates
+            is_ltsm_out_of_reset <= 1'b0;
+            first_enter_flag     <= 1'b1;
+        end else if (state_n[0] == LOG_SBINIT && first_enter_flag) begin
+            // LTSM has left RESET and entered SBINIT → release soft-reset
+            is_ltsm_out_of_reset <= 1'b1;
+            first_enter_flag     <= 1'b0;
+        end
+    end
 
     // ================================================================================================
     // 2. Local parameters and shared declarations
@@ -201,7 +228,7 @@ module wrapper_MBTRAIN #(
     // Common decoder outputs and lane-map degradation result.
     logic        is_high_speed;
     logic [15:0] active_rx_lanes;
-    logic [15:0] active_tx_lanes;
+    // active_tx_lanes removed
     logic [15:0] linkspeed_success_lanes;
     logic [2:0]  degraded_lane_map_code;
     logic        degrade_feasible;
@@ -279,22 +306,37 @@ module wrapper_MBTRAIN #(
     assign ss_active[SS_REPAIR]         = local_repair_en         | partner_repair_en;
 
     logic trainerror_detected;
-    logic local_dtc1_loopback_req;
+    logic local_dtc1_loopback_req , partner_dtc1_loopback_req , dtc1_loopback_req;
     logic local_linkinit_route_req;
     logic local_speedidle_route_req;
     logic local_repair_route_req;
     logic local_phyretrain_route_req;
     logic local_repair_txselfcal_req;
     logic repair_update_lane_mask;
+    // Retention register: captures VALVREF's update_lane_mask decision at the
+    // moment VALVREF completes (both Local and Partner done). This sticky value
+    // is forwarded to wrapper_REPAIR which runs much later in the sequence.
+    logic update_lane_mask_r;
 
     assign trainerror_detected = |ss_local_trainerror_req | |ss_partner_trainerror_req;
 
     assign local_sweep_en     = |ss_sweep_en;
     assign partner_sweep_en   = |ss_partner_sweep_en;
-    // assign timeout_timer_en   = |ss_timeout_timer_en;
-    // assign analog_settle_timer_en = |ss_analog_settle_timer_en;
     assign sweep_active_lanes = active_rx_lanes;
 
+    always_ff @(posedge lclk or negedge rst_n) begin : UPDATE_LANE_MASK_RETAIN
+        if (!rst_n)
+            update_lane_mask_r <= 1'b0;
+        else if (!is_ltsm_out_of_reset)
+            update_lane_mask_r <= 1'b0;
+        else if (local_valvref_done && partner_valvref_done)
+            update_lane_mask_r <= ss_update_lane_mask[SS_VALVREF];
+    end
+    // repair_update_lane_mask is no longer a live OR of all substates;
+    // it is the retained VALVREF decision passed to wrapper_REPAIR.
+    assign repair_update_lane_mask = update_lane_mask_r;
+
+    assign dtc1_loopback_req = local_dtc1_loopback_req & partner_dtc1_loopback_req;
 
     // ================================================================================================
     // 4. Common-file instantiations
@@ -355,7 +397,7 @@ module wrapper_MBTRAIN #(
         .local_rxdeskew_done          (local_rxdeskew_done),
         .partner_rxdeskew_en          (partner_rxdeskew_en),
         .partner_rxdeskew_done        (partner_rxdeskew_done),
-        .local_dtc1_loopback_req      (local_dtc1_loopback_req),
+        .local_dtc1_loopback_req      (dtc1_loopback_req),
         .local_dtc2_en                (local_dtc2_en),
         .local_dtc2_done              (local_dtc2_done),
         .partner_dtc2_en              (partner_dtc2_en),
@@ -375,8 +417,12 @@ module wrapper_MBTRAIN #(
         .local_repair_txselfcal_req   (local_repair_txselfcal_req)
     );
 
+    // Bug fix: use the REGISTERED speed value, not the combinational output port.
+    // During the SPEEDIDLE substate, phy_negotiated_speed (combinational) glitches
+    // as the FSM resolves. phy_negotiated_speed_r is stable after SPEEDIDLE completes
+    // and is safe to use as the is_high_speed configuration input for RXCLKCAL/RXDESKEW.
     unit_negotiated_speed u_negotiated_speed (
-        .phy_negotiated_speed (phy_negotiated_speed),
+        .phy_negotiated_speed (phy_negotiated_speed_r),
         .is_high_speed        (is_high_speed)
     );
 
@@ -384,7 +430,7 @@ module wrapper_MBTRAIN #(
         .mb_rx_data_lane_mask      (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask      (mb_tx_data_lane_mask),
         .active_rx_lanes           (active_rx_lanes),
-        .active_tx_lanes           (active_tx_lanes),
+        .active_tx_lanes           (),
         .success_lanes             (linkspeed_success_lanes),
         .rf_cap_SPMW               (rf_cap_SPMW),
         .rf_ctrl_target_link_width (rf_ctrl_target_link_width),
@@ -769,7 +815,7 @@ module wrapper_MBTRAIN #(
         .local_trainerror_req         (ss_local_trainerror_req[SS_RXDESKEW]),
         .partner_rxdeskew_en          (partner_rxdeskew_en),
         .partner_rxdeskew_done        (partner_rxdeskew_done),
-        .partner_datatraincenter1_req (),
+        .partner_datatraincenter1_req (partner_dtc1_loopback_req),                          // <==== See this
         .partner_trainerror_req       (ss_partner_trainerror_req[SS_RXDESKEW]),
         .timeout_timer_en             (ss_timeout_timer_en[SS_RXDESKEW]),
         .phy_rx_deskew_ctrl           (rxdeskew_phy_rx_deskew_ctrl),
@@ -870,6 +916,8 @@ module wrapper_MBTRAIN #(
         .local_sweep_en               (ss_sweep_en[SS_LINKSPEED]),
         .partner_sweep_en             (ss_partner_sweep_en[SS_LINKSPEED]),
         .d2c_perlane_pass             (d2c_perlane_pass),
+        // .d2c_aggr_pass                (d2c_aggr_pass),
+        // .d2c_val_pass                 (d2c_val_pass),
         .local_sweep_done             (sweep_done),
         .linkspeed_success_lanes      (linkspeed_success_lanes),
         .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_LINKSPEED]),
@@ -960,15 +1008,18 @@ module wrapper_MBTRAIN #(
     // 6. Output Arbitration, Muxing, and Retained PHY Controls
     // ================================================================================================
 
-    // Combine substate timer enables and other common requests
+    // Combine substate timer enables (repair_update_lane_mask is driven from retention reg above)
     assign timeout_timer_en        = |ss_timeout_timer_en;
     assign analog_settle_timer_en  = |ss_analog_settle_timer_en;
-    assign repair_update_lane_mask = |ss_update_lane_mask;
+    // Note: repair_update_lane_mask is already assigned above via update_lane_mask_r retention register.
 
     // Arbitration for D2C State Selection
     // Tells the external sweep engine which training substate we are currently in.
     always_comb begin : D2C_STATE_SELECT
-        d2c_state_n = LOG_MBTRAIN_VALVREF;
+        // Default: LOG_NOP = sweep engine is idle; prevents VALVREF-range
+        // configuration from leaking into non-sweep substates (SPEEDIDLE,
+        // TXSELFCAL, RXCLKCAL, REPAIR).
+        d2c_state_n = LOG_NOP;
 
         if      (ss_active[SS_VALVREF])        d2c_state_n = LOG_MBTRAIN_VALVREF;
         else if (ss_active[SS_DATAVREF])       d2c_state_n = LOG_MBTRAIN_DATAVREF;
@@ -979,6 +1030,8 @@ module wrapper_MBTRAIN #(
         else if (ss_active[SS_RXDESKEW])       d2c_state_n = LOG_MBTRAIN_RXDESKEW;
         else if (ss_active[SS_DTC2])           d2c_state_n = LOG_MBTRAIN_DATATRAINCENTER2;
         else if (ss_active[SS_LINKSPEED])      d2c_state_n = LOG_MBTRAIN_LINKSPEED;
+        // All other active substates (SPEEDIDLE, TXSELFCAL, RXCLKCAL, REPAIR)
+        // do not use the sweep engine → stays LOG_NOP.
     end
 
     // Selected Substate Output Muxing
@@ -1000,6 +1053,7 @@ module wrapper_MBTRAIN #(
 
         for (int i = 0; i < NUM_SUBSTATES; i++) begin
             if (ss_active[i]) begin
+                // MB lane selectors: owned by the currently active substate
                 substate_mb_tx_clk_lane_sel  = ss_mb_tx_clk_lane_sel[i];
                 substate_mb_tx_data_lane_sel = ss_mb_tx_data_lane_sel[i];
                 substate_mb_tx_val_lane_sel  = ss_mb_tx_val_lane_sel[i];
@@ -1008,13 +1062,15 @@ module wrapper_MBTRAIN #(
                 substate_mb_rx_data_lane_sel = ss_mb_rx_data_lane_sel[i];
                 substate_mb_rx_val_lane_sel  = ss_mb_rx_val_lane_sel[i];
                 substate_mb_rx_trk_lane_sel  = ss_mb_rx_trk_lane_sel[i];
-            end
 
-            if (ss_tx_sb_msg_valid[i]) begin
-                substate_tx_sb_msg_valid = ss_tx_sb_msg_valid[i];
-                substate_tx_sb_msg       = ss_tx_sb_msg[i];
-                substate_tx_msginfo      = ss_tx_msginfo[i];
-                substate_tx_data_field   = ss_tx_data_field[i];
+                // BUG FIX: SB bus strictly owned by the active substate.
+                // Previously the ss_tx_sb_msg_valid check was OUTSIDE the
+                // ss_active guard, allowing any stale/inactive substate to
+                // hijack the SB bus for 1 cycle during state transitions.
+                substate_tx_sb_msg_valid     = ss_tx_sb_msg_valid[i];
+                substate_tx_sb_msg           = ss_tx_sb_msg[i];
+                substate_tx_msginfo          = ss_tx_msginfo[i];
+                substate_tx_data_field       = ss_tx_data_field[i];
             end
         end
     end
@@ -1068,17 +1124,17 @@ module wrapper_MBTRAIN #(
             end
         end else begin
             // Speed Negotiation
-            if (ss_active[SS_SPEEDIDLE]) begin
+            if (local_speedidle_done && partner_speedidle_done) begin
                 phy_negotiated_speed_r <= speedidle_phy_negotiated_speed;
             end
 
             // Self-Calibration
-            if (ss_active[SS_TXSELFCAL]) begin
+            if (local_txselfcal_done && partner_txselfcal_done) begin
                 phy_tx_selfcal_en_r <= txselfcal_phy_tx_selfcal_en;
             end
 
             // Clock & Tracking Lock
-            if (ss_active[SS_RXCLKCAL]) begin
+            if (local_rxclkcal_done && partner_rxclkcal_done) begin
                 phy_rx_clock_lock_en_r     <= rxclkcal_phy_rx_clock_lock_en;
                 phy_rx_track_lock_en_r     <= rxclkcal_phy_rx_track_lock_en;
                 phy_rx_phase_detector_en_r <= rxclkcal_phy_rx_phase_detector_en;
@@ -1088,37 +1144,37 @@ module wrapper_MBTRAIN #(
             end
 
             // Vref Training
-            if (ss_active[SS_VALVREF]) begin
+            if (local_valvref_done && partner_valvref_done) begin
                 phy_rx_valvref_ctrl_r <= valvref_phy_rx_valvref_ctrl;
-            end else if (ss_active[SS_VALTRAINVREF]) begin
+            end else if (local_valtrainvref_done && partner_valtrainvref_done) begin
                 phy_rx_valvref_ctrl_r <= valtrainvref_phy_rx_valvref_ctrl;
             end
 
             // PI Centering
-            if (ss_active[SS_VALTRAINCENTER]) begin
+            if (local_valtraincenter_done && partner_valtraincenter_done) begin
                 phy_tx_val_pi_phase_ctrl_r <= valtraincenter_phy_tx_val_pi_phase_ctrl;
             end
 
             // EQ Preset Negotiation
-            if (ss_active[SS_RXDESKEW] && rxdeskew_phy_tx_eq_preset_en) begin
+            if (local_rxdeskew_done && partner_rxdeskew_done && rxdeskew_phy_tx_eq_preset_en) begin
                 phy_tx_eq_preset_ctrl_r <= rxdeskew_phy_tx_eq_preset_ctrl;
             end
 
             // Per-Lane Controls
             for (int i = 0; i < 16; i++) begin
-                if (ss_active[SS_DATAVREF]) begin
+                if (local_datavref_done && partner_datavref_done) begin
                     phy_rx_datavref_ctrl_r[i] <= datavref_phy_rx_datavref_ctrl[i];
-                end else if (ss_active[SS_DATATRAINVREF]) begin
+                end else if (local_datatrainvref_done && partner_datatrainvref_done) begin
                     phy_rx_datavref_ctrl_r[i] <= datatrainvref_phy_rx_datavref_ctrl[i];
                 end
 
-                if (ss_active[SS_DTC1]) begin
+                if (local_dtc1_done && partner_dtc1_done) begin
                     phy_tx_data_pi_phase_ctrl_r[i] <= dtc1_phy_tx_data_pi_phase_ctrl[i];
-                end else if (ss_active[SS_DTC2]) begin
+                end else if (local_dtc2_done && partner_dtc2_done) begin
                     phy_tx_data_pi_phase_ctrl_r[i] <= dtc2_phy_tx_data_pi_phase_ctrl[i];
                 end
 
-                if (ss_active[SS_RXDESKEW]) begin
+                if (local_rxdeskew_done && partner_rxdeskew_done) begin
                     phy_rx_deskew_ctrl_r[i] <= rxdeskew_phy_rx_deskew_ctrl[i];
                 end
             end
