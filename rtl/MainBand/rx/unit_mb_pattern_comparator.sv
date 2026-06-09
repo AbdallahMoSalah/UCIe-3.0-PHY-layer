@@ -48,7 +48,7 @@ module unit_mb_pattern_comparator #(
     // ---------------- Patterns (the two inputs) ----------------
     input  wire [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
     input  wire [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
-
+    input  wire                  i_pcmp_enable,
     // ---------------- Results ----------------
     output reg                   o_done,                      // test complete, results valid
     output reg  [NUM_LANES-1:0]  o_per_lane_pass,             // 1 = Lane PASS, sticky (Fig 4-28 / per-lane ID)
@@ -173,7 +173,7 @@ module unit_mb_pattern_comparator #(
                 S_COMPARE: begin
                     if (!i_enable) begin
                         state <= S_IDLE;            // aborted before completion
-                    end else begin
+                    end else if (i_pcmp_enable) begin
                         // 1. Lane Pass / Mismatch calculation
                         if (i_pattern_mode == 1'b1) begin
                             // ---- Per-lane ID pattern mode (16 consecutive successful iterations) ----

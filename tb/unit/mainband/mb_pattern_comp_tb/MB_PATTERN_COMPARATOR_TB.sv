@@ -16,6 +16,7 @@ module MB_PATTERN_COMPARATOR_TB;
     reg [15:0] i_iteration_count;
     reg        i_pattern_mode;
     reg        i_clear_error;
+    reg        i_pcmp_enable;
 
     // Patterns
     reg [WIDTH-1:0] local_gen [0:NUM_LANES-1];
@@ -47,6 +48,7 @@ module MB_PATTERN_COMPARATOR_TB;
         .i_clear_error(i_clear_error),
         .i_local_pattern(local_gen),
         .i_rx_pattern(rcv_data),
+        .i_pcmp_enable(i_pcmp_enable),
         .o_done(o_done),
         .o_per_lane_pass(o_per_lane_pass),
         .o_aggregate_error_counter(o_aggregate_error_counter),
@@ -68,6 +70,7 @@ module MB_PATTERN_COMPARATOR_TB;
         i_iteration_count = 16'd128;
         i_pattern_mode = 0;
         i_clear_error = 0;
+        i_pcmp_enable = 1;
 
         for (i = 0; i < NUM_LANES; i = i + 1) begin
             local_gen[i] = 0;
@@ -422,6 +425,72 @@ module MB_PATTERN_COMPARATOR_TB;
             $stop;
         end else begin
             $display("-> PASSED Test 8!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 9: i_pcmp_enable GATING TEST
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 9: i_pcmp_enable Gating Test ====", $time);
+        i_pattern_mode = 0; // LFSR mode
+        i_comparison_mode = 0; // Per-lane mode
+        i_lane_mask = 0;
+        i_iteration_count = 16'd5;
+        i_max_error_threshold_per_lane = 16'd0; // Any error will fail lane immediately
+
+        @(posedge i_clk);
+        i_pcmp_enable = 0; // Disable comparison
+        i_enable = 1;
+
+        // Drive mismatches, but since i_pcmp_enable=0, no error should be detected
+        // and iter_ctr should not increment (it should stay 0).
+        for (iter = 0; iter < 10; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = 32'hAAAA_AAAA;
+                rcv_data[i]  = 32'hBBBB_BBBB; // Mismatch on all lanes
+            end
+        end
+
+        // Wait a few cycles, verify that iter_ctr (or o_done) is still 0, and o_per_lane_pass has no errors.
+        #1;
+        if (o_done) begin
+            $display("-> FAILED Test 9: o_done went high when comparator was disabled!");
+            $stop;
+        end
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 9: errors detected while comparator was disabled!");
+            $stop;
+        end
+
+        // Now enable i_pcmp_enable and drive matching data
+        @(posedge i_clk);
+        i_pcmp_enable = 1;
+        for (i = 0; i < NUM_LANES; i = i + 1) begin
+            local_gen[i] = 32'h1234_5678;
+            rcv_data[i]  = 32'h1234_5678;
+        end
+
+        // Drive matching random data for the actual comparison
+        for (iter = 0; iter < 5; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = $random(seed);
+                rcv_data[i]  = local_gen[i]; // No errors now
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 9: failed on matching iterations!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 9!");
         end
 
         #50;
