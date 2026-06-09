@@ -235,7 +235,7 @@ module MB_TX_TOP_tb;
         i_rst_n                = 1'b0;
         i_raw_data             = '0;
         i_mapper_en            = 1'b0;
-        i_width_deg            = WIDTH_DEG_ALL;
+        i_width_deg            = 3'b100;//WIDTH_DEG_ALL;
         i_lp_irdy              = 1'b0;
         i_lp_valid             = 1'b0;
         i_lfsr_state           = LFSR_IDLE;
@@ -395,7 +395,7 @@ module MB_TX_TOP_tb;
                 i_raw_data[b*8 +: 8] = (b % 2 == 0) ? 8'hA5 : 8'h5A;
         end
 
-        i_width_deg = WIDTH_DEG_ALL;
+       
         i_mapper_en = 1'b1;
         i_lp_irdy   = 1'b1;
         i_lp_valid  = 1'b1;
@@ -497,7 +497,7 @@ module MB_TX_TOP_tb;
                 i_raw_data[b*8 +: 8] = (b % 2 == 0) ? 8'hA5 : 8'h5A;
         end
 
-        i_width_deg = WIDTH_DEG_ALL;
+       
         i_mapper_en = 1'b1;
         i_lp_irdy   = 1'b1;
         i_lp_valid  = 1'b1;
