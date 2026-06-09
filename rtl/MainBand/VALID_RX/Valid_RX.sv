@@ -14,7 +14,7 @@ module VALID_DETECTOR (
     // =====================================================
     // Parameters
     // =====================================================
-    localparam VALID_8B      = 8'b11110000;
+    localparam VALID_8B      = 8'b00001111;
     localparam VALID_PATTERN = {VALID_8B, VALID_8B, VALID_8B, VALID_8B};
 
     localparam MAX_ITERATIONS  = 128;
@@ -91,7 +91,7 @@ module VALID_DETECTOR (
             consec_count      <= 8'b0;
             error_count       <= 12'b0;
             iteration_counter <= 8'b0;
-            detection_result  <= 1'b1;
+            detection_result  <= 1'b0;
         end 
         else if (i_enable_detector) begin
             case (mode_select)
@@ -99,16 +99,20 @@ module VALID_DETECTOR (
                     iteration_counter <= iteration_counter + 1;
                     error_count       <= error_count + mismatch_count;
 
+                    if (iteration_counter == MAX_ITERATIONS - 1) begin
+                        
                     if (error_count > i_max_error_threshold) begin
-                        detection_result <= 1'b0;
-                    end else begin
                         detection_result <= 1'b1;
+                    end else begin
+                        detection_result <= 1'b0;
                     end
 
-                    if (iteration_counter == MAX_ITERATIONS - 1) begin
                         iteration_counter <= 0;
                         error_count       <= 0;
                     end
+                    else begin
+                        detection_result <= 1'b0 ; 
+                    end 
                 end
                 
                 CONSEC_16: begin
@@ -130,7 +134,7 @@ module VALID_DETECTOR (
                     consec_count      <= 8'b0;
                     error_count       <= 12'b0;
                     iteration_counter <= 8'b0;
-                    detection_result  <= 1'b1;
+                    detection_result  <= 1'b0;
                 end
                 
                 default: begin

@@ -1,5 +1,7 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
+add wave -noupdate /MB_RX_TOP_TB/dut/pll_clk
+add wave -noupdate /MB_RX_TOP_TB/dut/MB_clk
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/track_pattern_pass
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/track
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_p_pattern_pass
@@ -7,16 +9,15 @@ add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_p
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_n_pattern_pass
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_n
 add wave -noupdate -group clk_detector /MB_RX_TOP_TB/dut/clk_detector_en
-add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/ser_valid_en
-add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/SER_out
-add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/enable_des_valid_frame_w
-add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/valid_par_data_w
-add wave -noupdate -group VALID_Deserializer /MB_RX_TOP_TB/dut/de_ser_done
+add wave -noupdate -expand -group VALID_Deserializer /MB_RX_TOP_TB/dut/ser_valid_en
+add wave -noupdate -expand -group VALID_Deserializer /MB_RX_TOP_TB/dut/SER_out
+add wave -noupdate -expand -group VALID_Deserializer /MB_RX_TOP_TB/dut/enable_des_valid_frame_w
+add wave -noupdate -expand -group VALID_Deserializer /MB_RX_TOP_TB/dut/valid_par_data_w
+add wave -noupdate -expand -group VALID_Deserializer /MB_RX_TOP_TB/dut/de_ser_done
 add wave -noupdate -expand -group Data_Deserializer -radix binary /MB_RX_TOP_TB/dut/ser_data_in
 add wave -noupdate -expand -group Data_Deserializer /MB_RX_TOP_TB/dut/ser_data_en
 add wave -noupdate -expand -group Data_Deserializer /MB_RX_TOP_TB/dut/data_deser_enable
-add wave -noupdate -expand -group Data_Deserializer -radix decimal {/MB_RX_TOP_TB/dut/deser_data_w[0]}
-add wave -noupdate -expand -group Data_Deserializer -radix decimal -childformat {{{/MB_RX_TOP_TB/dut/deser_data_w[0]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[1]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[2]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[3]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[4]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[5]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[6]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[7]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[8]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[9]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[10]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[11]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[12]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[13]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[14]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[15]} -radix hexadecimal}} -expand -subitemconfig {{/MB_RX_TOP_TB/dut/deser_data_w[0]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[1]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[2]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[3]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[4]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[5]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[6]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[7]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[8]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[9]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[10]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[11]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[12]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[13]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[14]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[15]} {-height 15 -radix hexadecimal}} /MB_RX_TOP_TB/dut/deser_data_w
+add wave -noupdate -expand -group Data_Deserializer -radix hexadecimal -childformat {{{/MB_RX_TOP_TB/dut/deser_data_w[0]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[1]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[2]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[3]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[4]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[5]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[6]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[7]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[8]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[9]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[10]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[11]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[12]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[13]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[14]} -radix hexadecimal} {{/MB_RX_TOP_TB/dut/deser_data_w[15]} -radix hexadecimal}} -expand -subitemconfig {{/MB_RX_TOP_TB/dut/deser_data_w[0]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[1]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[2]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[3]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[4]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[5]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[6]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[7]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[8]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[9]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[10]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[11]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[12]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[13]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[14]} {-height 15 -radix hexadecimal} {/MB_RX_TOP_TB/dut/deser_data_w[15]} {-height 15 -radix hexadecimal}} /MB_RX_TOP_TB/dut/deser_data_w
 add wave -noupdate -expand -group Data_Deserializer /MB_RX_TOP_TB/dut/de_ser_done_data_0
 add wave -noupdate -expand -group Data_Deserializer /MB_RX_TOP_TB/dut/de_ser_done_data_15
 add wave -noupdate -expand -group Data_Deserializer /MB_RX_TOP_TB/dut/de_ser_done_data_14
@@ -66,17 +67,15 @@ add wave -noupdate -expand -group Demapper /MB_RX_TOP_TB/dut/i_width_deg_demap
 add wave -noupdate -expand -group Demapper /MB_RX_TOP_TB/dut/rx_data_valid
 add wave -noupdate -expand -group Demapper /MB_RX_TOP_TB/dut/o_out_data
 add wave -noupdate -expand -group Demapper /MB_RX_TOP_TB/dut/pl_valid
-add wave -noupdate /MB_RX_TOP_TB/dut/pll_clk
 add wave -noupdate -color Magenta /MB_RX_TOP_TB/dut/i_rst_n
-add wave -noupdate /MB_RX_TOP_TB/dut/MB_clk
 add wave -noupdate /MB_RX_TOP_TB/dut/N_BYTES
 add wave -noupdate /MB_RX_TOP_TB/dut/i_enable_buffer
 add wave -noupdate /MB_RX_TOP_TB/dut/DATA_WIDTH
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {130708626 ps} 0}
+WaveRestoreCursors {{Cursor 1} {103917356 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 262
-configure wave -valuecolwidth 408
+configure wave -valuecolwidth 255
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
 configure wave -snapdistance 10
@@ -89,4 +88,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {129124852 ps} {129992796 ps}
+WaveRestoreZoom {103506324 ps} {104192084 ps}

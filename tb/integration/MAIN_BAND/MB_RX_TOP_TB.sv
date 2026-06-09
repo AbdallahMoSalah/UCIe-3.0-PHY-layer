@@ -5,7 +5,7 @@
 //   Tests all major scenarios in the MB_RX_TOP design:
 //   1. CLK Repair Pattern Detection (CLK_PATTERN_DETECTOR_RX)
 //   2. Valid Pattern Reception (MB_DES_VALID + VALID_DETECTOR)
-//      - 11110000 repeated 4 times = 32'hF0F0F0F0
+//      - 11110000 repeated 4 times = 32'h0F0F0F0F
 //   3. Training Modes via LFSR_RX + PATTERN_COMPARATOR:
 //      - PATTERN_LFSR (3'b010): LFSR pattern on lanes, goes to comparator
 //      - PER_LANE_IDE (3'b011): Lane-ID tokens, goes to comparator
@@ -39,12 +39,10 @@ module MB_RX_TOP_TB;
     logic                  pll_clk;
     logic                  i_rst_n;
 
-    // Valid lane serial input
-    logic                  ser_valid_en;
+    // Valid lane serial input (no enable needed – mb_des_valid is free-running)
     logic                  SER_out;
 
-    // 16 data lanes serial input
-    logic                  ser_data_en;
+    // 16 data lanes serial input (no enable needed – mb_deserializer is free-running)
     logic [15:0]           ser_data_in;
 
     // CLK Pattern Detector
@@ -108,9 +106,7 @@ module MB_RX_TOP_TB;
         .MB_clk                      (MB_clk),
         .pll_clk                     (pll_clk),
         .i_rst_n                     (i_rst_n),
-        .ser_valid_en                (ser_valid_en),
         .SER_out                     (SER_out),
-        .ser_data_en                 (ser_data_en),
         .ser_data_in                 (ser_data_in),
         .clk_detector_en             (clk_detector_en),
         .clk_p                       (clk_p),
@@ -253,19 +249,15 @@ module MB_RX_TOP_TB;
     task automatic send_valid_frame(input logic [31:0] valid_word);
         integer b;
         begin
-            ser_valid_en = 1'b1;
+            // Drive bits LSB-first with setup time before each pll_clk edge.
+            // No external enable needed – mb_des_valid auto-aligns on rising edge.
             for (b = 0; b < 32; b++) begin
-                // Place bit before the next edge (setup of 0.2ns before the edge)
                 #(PLL_HALF - 0.2);
                 SER_out = valid_word[b];  // LSB first
-                // Small hold then align to next edge
                 #0.2;
-                // Now the edge fires and DUT captures - we loop to next bit
             end
-            // After last bit, hold for one more half-period then de-assert
             #(PLL_HALF);
-            ser_valid_en = 1'b0;
-            SER_out      = 1'b0;
+            SER_out = 1'b0;
         end
     endtask
 
@@ -279,7 +271,7 @@ module MB_RX_TOP_TB;
     task automatic send_data_frame(input logic [31:0] data_words [0:15]);
         integer b, lane;
         begin
-            ser_data_en = 1'b1;
+            // Drive bits LSB-first. No external enable needed – mb_deserializer is free-running.
             for (b = 0; b < 32; b++) begin
                 #(PLL_HALF - 0.2);
                 for (lane = 0; lane < 16; lane++)
@@ -287,8 +279,7 @@ module MB_RX_TOP_TB;
                 #0.2;
             end
             #(PLL_HALF);
-            ser_data_en  = 1'b0;
-            ser_data_in  = 16'd0;
+            ser_data_in = 16'd0;
         end
     endtask
 
@@ -303,8 +294,8 @@ module MB_RX_TOP_TB;
     );
         integer b, lane;
         begin
-            ser_valid_en = 1'b1;
-            ser_data_en  = 1'b1;
+            // Send valid and all 16 data lanes simultaneously.
+            // No external enables needed – both deserializers are free-running.
             for (b = 0; b < 32; b++) begin
                 #(PLL_HALF - 0.2);
                 SER_out = valid_word[b];
@@ -313,10 +304,8 @@ module MB_RX_TOP_TB;
                 #0.2;
             end
             #(PLL_HALF);
-            ser_valid_en = 1'b0;
-            ser_data_en  = 1'b0;
-            SER_out      = 1'b0;
-            ser_data_in  = 16'd0;
+            SER_out     = 1'b0;
+            ser_data_in = 16'd0;
         end
     endtask
 
@@ -392,9 +381,7 @@ module MB_RX_TOP_TB;
     // =========================================================================
     task automatic apply_defaults();
         begin
-            ser_valid_en                 = 1'b0;
             SER_out                      = 1'b0;
-            ser_data_en                  = 1'b0;
             ser_data_in                  = 16'd0;
             clk_detector_en              = 1'b0;
             clk_p                        = 1'b0;
@@ -461,19 +448,20 @@ module MB_RX_TOP_TB;
         // ==================================================================
         // TEST 2: Valid Pattern Reception (CONSEC_16 mode)
         // ------------------------------------------------------------------
-        // Send valid pattern = 11110000 × 4 = 32'hF0F0F0F0 on SER_out
+        // Send valid pattern = 11110000 × 4 = 32'h0F0F0F0F on SER_out
         // for 16 consecutive times so VALID_DETECTOR can confirm detection.
         // ==================================================================
         $display("\n--- TEST 2: Valid Pattern Reception (CONSEC_16 mode) ---");
-        i_enable_detector = 1'b1;
+        
         i_enable_cons     = 1'b1;
         i_enable_128      = 1'b0;
 
-        repeat (20) begin
+        repeat (16) begin
             // Align to beginning of a pll_clk cycle
             @(posedge pll_clk);
-            // Send 32-bit valid pattern (11110000 × 4 times = 32'hF0F0F0F0) serially
-            send_valid_frame(32'hF0F0F0F0);
+            // Send 32-bit valid pattern (11110000 × 4 times = 32'h0F0F0F0F) serially
+            i_enable_detector = 1'b1;
+            send_valid_frame(32'h0F0F0F0F);
             // Wait for CDC to MB_clk domain (3 MB_clk cycles for sync chain)
             wait_for_valid_done(8);
             repeat (2) @(posedge MB_clk);
@@ -531,7 +519,7 @@ module MB_RX_TOP_TB;
                         // Simple incrementing data per lane (mismatches the LFSR seeds)
                         for (lane = 0; lane < 16; lane++) tx_data[lane] = lane * 32'h01010101 + frame_idx;
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -596,7 +584,7 @@ module MB_RX_TOP_TB;
                 begin
                     repeat (135) begin
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -676,7 +664,7 @@ module MB_RX_TOP_TB;
                 // Thread 1: send the frame
                 begin
                     @(posedge pll_clk);
-                    send_full_frame(32'hF0F0F0F0, tx_data);
+                    send_full_frame(32'h0F0F0F0F, tx_data);
                 end
                 // Thread 2: assert rx_data_valid when data lanes are ready
                 begin
@@ -764,7 +752,7 @@ module MB_RX_TOP_TB;
                 // Thread 1: send 2 frames
                 begin
                     @(posedge pll_clk);
-                    send_full_frame(32'hF0F0F0F0, tx_data_1);
+                    send_full_frame(32'h0F0F0F0F, tx_data_1);
                     wait_for_data_done(20);
                     @(posedge MB_clk);
                     rx_data_valid = 1'b1;
@@ -774,7 +762,7 @@ module MB_RX_TOP_TB;
                     repeat (2) @(posedge MB_clk);
 
                     @(posedge pll_clk);
-                    send_full_frame(32'hF0F0F0F0, tx_data_2);
+                    send_full_frame(32'h0F0F0F0F, tx_data_2);
                     wait_for_data_done(20);
                     @(posedge MB_clk);
                     rx_data_valid = 1'b1;
@@ -870,7 +858,7 @@ module MB_RX_TOP_TB;
                 begin
                     for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data[frame_idx]);
+                        send_full_frame(32'h0F0F0F0F, tx_data[frame_idx]);
                         wait_for_data_done(20);
                         @(posedge MB_clk);
                         rx_data_valid = 1'b1;
@@ -994,7 +982,7 @@ module MB_RX_TOP_TB;
                         end
 
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -1110,7 +1098,7 @@ module MB_RX_TOP_TB;
                         end
 
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -1219,7 +1207,7 @@ module MB_RX_TOP_TB;
                         end
 
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -1296,7 +1284,7 @@ module MB_RX_TOP_TB;
                 // Thread 1: send 2 frames (x8 needs 2 cycles for 512 bits)
                 begin
                     @(posedge pll_clk);
-                    send_full_frame(32'hF0F0F0F0, tx_data_1);
+                    send_full_frame(32'h0F0F0F0F, tx_data_1);
                     wait_for_data_done(20);
                     @(posedge MB_clk);
                     rx_data_valid = 1'b1;
@@ -1306,7 +1294,7 @@ module MB_RX_TOP_TB;
                     repeat (2) @(posedge MB_clk);
 
                     @(posedge pll_clk);
-                    send_full_frame(32'hF0F0F0F0, tx_data_2);
+                    send_full_frame(32'h0F0F0F0F, tx_data_2);
                     wait_for_data_done(20);
                     @(posedge MB_clk);
                     rx_data_valid = 1'b1;
@@ -1401,7 +1389,7 @@ module MB_RX_TOP_TB;
                 begin
                     for (frame_idx = 0; frame_idx < 4; frame_idx++) begin
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data[frame_idx]);
+                        send_full_frame(32'h0F0F0F0F, tx_data[frame_idx]);
                         wait_for_data_done(20);
                         @(posedge MB_clk);
                         rx_data_valid = 1'b1;
@@ -1518,7 +1506,7 @@ module MB_RX_TOP_TB;
                             end
                         end
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end
@@ -1615,7 +1603,7 @@ module MB_RX_TOP_TB;
                             end
                         end
                         @(posedge pll_clk);
-                        send_full_frame(32'hF0F0F0F0, tx_data);
+                        send_full_frame(32'h0F0F0F0F, tx_data);
                         wait_for_data_done(8);
                         repeat (2) @(posedge MB_clk);
                     end

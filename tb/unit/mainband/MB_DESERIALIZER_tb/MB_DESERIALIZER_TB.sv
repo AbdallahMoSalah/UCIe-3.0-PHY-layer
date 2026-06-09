@@ -31,9 +31,9 @@ MB_DESERIALIZER #(
     .MB_clk                (MB_clk),
     .pll_clk               (pll_clk),
     .i_rst_n               (i_rst_n),
-    .ser_data_en           (ser_data_en),
     .ser_data_in           (ser_data_in),
     .enable_des_valid_frame(enable_des_valid_frame),
+    .valid_ser_in          (ser_data_en),
     .par_data_out          (par_data_out),
     .de_ser_done           (de_ser_done)
 );
@@ -73,6 +73,8 @@ task send_serial_word;
             #0.1; // Small delay to drive after edge
         end
         
+        @(negedge pll_clk);
+        #0.1;
         ser_data_en = 1'b0;
         ser_data_in = 1'b0;
     end

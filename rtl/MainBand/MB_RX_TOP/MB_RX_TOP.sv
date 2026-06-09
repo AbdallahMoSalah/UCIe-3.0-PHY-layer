@@ -19,17 +19,17 @@ module MB_RX_TOP #(
     input  logic                   i_rst_n,         // Active-low asynchronous reset
 
     /*-------------------------------------------------------------------------
-     * Serial VALID Inputs (from analog/pad)
+     * Serial VALID Input (from analog/pad)
+     * No external enable needed – mb_des_valid auto-detects frame start
      *------------------------------------------------------------------------*/
-    input  logic                   ser_valid_en,    // Enable signal for valid lane deserializer
-    input  logic                   SER_out,    // Valid Lane Serial Input
-    
+    input  logic                   SER_out,         // Valid Lane Serial Input (free-running)
+
     /*-------------------------------------------------------------------------
      * Serial Data Inputs (from analog/pad)
+     * No external enable needed – mb_deserializer is free-running
      *------------------------------------------------------------------------*/
-    input  logic                   ser_data_en,     // Enable signal for data lanes deserializers from LTSM
     input  logic [15:0]            ser_data_in,     // 16 Data Lanes Serial Inputs
-    
+
     /*-------------------------------------------------------------------------
      * Clock Pattern Detector Inputs
      *------------------------------------------------------------------------*/
@@ -111,19 +111,21 @@ module MB_RX_TOP #(
     // =========================================================================
     // Internal Wires Declaration
     // =========================================================================
-    logic                    enable_des_valid_frame_w; // From Valid_Deserializer 
-    logic [DATA_WIDTH-1:0]   valid_par_data_w;        //  output 32_bit of Valid_Deserializer 
-    
-    logic [DATA_WIDTH-1:0]   deser_data_w [0:15];    // 32_bit output from 16_LANE 
-    logic [DATA_WIDTH-1:0]   lfsr_data_w  [0:15];   //  output_16_lane_32_bit_from_active_data_for_training_or_active_mode
-    logic [DATA_WIDTH-1:0]   lfsr_gen_w   [0:15];  //   outputs_for_compare
+    logic                    enable_des_valid_frame_w; // From Valid_Deserializer – 1 when F0F0F0F0/0F0F0F0F seen
+    logic [DATA_WIDTH-1:0]   valid_par_data_w;         // 32-bit output of Valid_Deserializer
+
+    logic [DATA_WIDTH-1:0]   deser_data_w [0:15];     // 32-bit output from 16 data lanes
+    logic [DATA_WIDTH-1:0]   lfsr_data_w  [0:15];     // output from LFSR_RX (descrambled/training)
+    logic [DATA_WIDTH-1:0]   lfsr_gen_w   [0:15];     // LFSR locally generated patterns (for compare)
     logic                    pattern_comp_en_w;
-    
-    logic [DATA_WIDTH-1:0]   comp_data_w  [0:15];  // py_pass_data_from_pattern_comparator_at_active_mode_to_demapper
 
-    // Gated enables to fix CDC delay & training desync issues
-    wire                     data_deser_enable = enable_des_valid_frame_w || de_ser_done;
+    logic [DATA_WIDTH-1:0]   comp_data_w  [0:15];     // pass-through data from pattern comparator
 
+    // -------------------------------------------------------------------------
+    // LFSR-buffer gating: only latch LFSR output when a new data word arrives.
+    // In training states (010/011) we gate on de_ser_done (valid-lane pulse).
+    // In all other states we let i_enable_buffer pass through unmodified.
+    // -------------------------------------------------------------------------
     reg [2:0] i_state_delayed;
     always @(posedge MB_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
@@ -133,14 +135,22 @@ module MB_RX_TOP #(
         end
     end
 
-    wire                     gated_enable_buffer = i_enable_buffer && ( (i_state_delayed == 3'b010 || i_state_delayed == 3'b011) ? de_ser_done : 1'b1 );
+    wire gated_enable_buffer = i_enable_buffer && (
+        (i_state_delayed == 3'b010 || i_state_delayed == 3'b011) ? de_ser_done : 1'b1
+    );
 
     // =========================================================================
     // Block 1: Valid Lane Deserializer (MB_DES_VALID)
     // -------------------------------------------------------------------------
-    // Converts the serial valid stream into a parallel frame using PLL_CLK,
-    // and crosses domains to output synchronized data into MB_clk domain.
-    // Signals other deserializers via enable_des_valid_frame when data is ready.
+    // Edge-detection DDR deserializer. No external enable needed.
+    // Detects the rising edge of the valid serial stream to align the frame
+    // boundary, then counts 16 PLL cycles to capture a 32-bit word.
+    //
+    // KEY OUTPUTS:
+    //   enable_des_valid_frame_w — MB_clk domain flag (non-sticky).
+    //                              1 when the last received frame == 0x0F0F0F0F.
+    //                              Delivered to all 16 data DESERs as output gate.
+    //   de_ser_done              — MB_clk 1-cycle pulse per received frame.
     // =========================================================================
     MB_DESERIALIZER_VALID #(
         .DATA_WIDTH(DATA_WIDTH)
@@ -148,7 +158,6 @@ module MB_RX_TOP #(
         .MB_clk(MB_clk),
         .pll_clk(pll_clk),
         .i_rst_n(i_rst_n),
-        .ser_valid_en(ser_valid_en),
         .ser_data_in(SER_out),
         .enable_des_valid_frame(enable_des_valid_frame_w),
         .par_data_out(valid_par_data_w),
@@ -158,120 +167,155 @@ module MB_RX_TOP #(
     // =========================================================================
     // Block 2: Data Lanes Deserializers (MB_DeSerializer)
     // -------------------------------------------------------------------------
-    // Converts serial data to parallel for all 16 lanes using PLL_CLK.
-    // Relies on the enable_des_valid_frame synchronization pulse to output valid
-    // data onto the MB_clk domain.
+    // Free-running DDR deserializer × 16. No external enable needed.
+    // All instances share pll_clk + i_rst_n so their 16-cycle counters stay
+    // frame-aligned with the valid deserializer.
+    //
+    // Output (par_data_out / de_ser_done) is gated by enable_des_valid_frame_w:
+    // data only passes downstream once the valid pattern is confirmed.
     // =========================================================================
     // Lane 0
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_0 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[0]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[0]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[0]), .de_ser_done(de_ser_done_data_0)
     );
 
     // Lane 1
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_1 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[1]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[1]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[1]), .de_ser_done(de_ser_done_data_1)
     );
 
     // Lane 2
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_2 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[2]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[2]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[2]), .de_ser_done(de_ser_done_data_2)
     );
 
     // Lane 3
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_3 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[3]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[3]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[3]), .de_ser_done(de_ser_done_data_3)
     );
 
     // Lane 4
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_4 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[4]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[4]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[4]), .de_ser_done(de_ser_done_data_4)
     );
 
     // Lane 5
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_5 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[5]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[5]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[5]), .de_ser_done(de_ser_done_data_5)
     );
 
     // Lane 6
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_6 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[6]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[6]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[6]), .de_ser_done(de_ser_done_data_6)
     );
 
     // Lane 7
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_7 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[7]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[7]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[7]), .de_ser_done(de_ser_done_data_7)
     );
 
     // Lane 8
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_8 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[8]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[8]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[8]), .de_ser_done(de_ser_done_data_8)
     );
 
     // Lane 9
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_9 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[9]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[9]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[9]), .de_ser_done(de_ser_done_data_9)
     );
 
     // Lane 10
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_10 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[10]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[10]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[10]), .de_ser_done(de_ser_done_data_10)
     );
 
     // Lane 11
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_11 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[11]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[11]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[11]), .de_ser_done(de_ser_done_data_11)
     );
 
     // Lane 12
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_12 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[12]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[12]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[12]), .de_ser_done(de_ser_done_data_12)
     );
 
     // Lane 13
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_13 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[13]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[13]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[13]), .de_ser_done(de_ser_done_data_13)
     );
 
     // Lane 14
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_14 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[14]), .enable_des_valid_frame(data_deser_enable), 
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[14]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
         .par_data_out(deser_data_w[14]), .de_ser_done(de_ser_done_data_14)
     );
 
     // Lane 15
     MB_DESERIALIZER #(.DATA_WIDTH(DATA_WIDTH)) u_MB_DeSerializer_15 (
-        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n), .ser_data_en(ser_data_en), 
-        .ser_data_in(ser_data_in[15]), .enable_des_valid_frame(data_deser_enable), 
-        .par_data_out(deser_data_w[15]), .de_ser_done( de_ser_done_data_15)
+        .MB_clk(MB_clk), .pll_clk(pll_clk), .i_rst_n(i_rst_n),
+        .ser_data_in(ser_data_in[15]),
+        .enable_des_valid_frame(enable_des_valid_frame_w),
+        .valid_ser_in(SER_out),
+        .par_data_out(deser_data_w[15]), .de_ser_done(de_ser_done_data_15)
     );
 
     // =========================================================================
@@ -284,7 +328,7 @@ module MB_RX_TOP #(
     VALID_DETECTOR u_VALID_RX (
         .i_clk(MB_clk),
         .i_rst_n(i_rst_n),
-        .RVLD_L(valid_par_data_w), // Valid output from valid deserializer
+        .RVLD_L(valid_par_data_w),
         .i_max_error_threshold(i_max_error_threshold_valid),
         .i_enable_cons(i_enable_cons),
         .i_enable_128(i_enable_128),
@@ -318,22 +362,13 @@ module MB_RX_TOP #(
 
     // =========================================================================
     // Block 5: Pattern Comparator (MB_Pattern_comparator)
-    // -------------------------------------------------------------------------
-    // Compares locally generated LFSR patterns with the received incoming data 
-    // to track link errors. 
-    // 
-    // CRITICAL DETAIL:
-    // Notice that `i_active_state_entered` is tied to the `i_active` port!
-    // As per the requirement, when the LFSR enters the active state (normal op), 
-    // this module entirely bypasses the 16 lanes data (from LFSR_RX to Demapper) 
-    // untouched instead of comparing patterns.
     // =========================================================================
     PATTERN_COMPARATOR #(
         .WIDTH(DATA_WIDTH)
     ) u_MB_Pattern_comparator (
         .i_clk(MB_clk),
         .i_rst_n(i_rst_n),
-        .i_active(i_active_state_entered), // Bypass active when LFSR is in active state!
+        .i_active(i_active_state_entered),
         .i_width_deg_comp(i_width_deg_comp),
         .i_type_of_com(i_type_of_com),
         .i_enable_pattern_com(pattern_comp_en_w),
@@ -398,10 +433,6 @@ module MB_RX_TOP #(
 
     // =========================================================================
     // Block 6: Demapper (DEMAPPER)
-    // -------------------------------------------------------------------------
-    // Accumulates incoming lane data over several clock cycles into a fully 
-    // parallel Flit data structure. The logic automatically handles varying 
-    // lane degradation widths (x16, x8, x4).
     // =========================================================================
     Demapper #(
         .N_BYTES(N_BYTES),
@@ -435,9 +466,6 @@ module MB_RX_TOP #(
 
     // =========================================================================
     // Block 7: Clock Pattern Detector RX (CLK_PATTERN_DETECTOR_RX)
-    // -------------------------------------------------------------------------
-    // Analyzes differential and tracking clock patterns directly to ensure signal 
-    // integrity. Returns flag errors for individual clocks (clk_p, clk_n) and track.
     // =========================================================================
     CLK_PATTERN_DETECTOR_RX u_CLK_PATTERN_DETECTOR_RX (
         .i_clk(MB_clk),
