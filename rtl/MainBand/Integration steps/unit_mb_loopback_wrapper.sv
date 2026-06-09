@@ -93,6 +93,7 @@ module unit_mb_loopback_wrapper #(
     output logic                    o_pcmp_agg_error,
     output logic                    o_vcmp_done,
     output logic                    o_vcmp_pass,
+    output logic                    o_valid_frame_error,
     output logic                    o_clk_p_pass,
     output logic                    o_clk_n_pass,
     output logic                    o_track_pass
@@ -161,14 +162,15 @@ module unit_mb_loopback_wrapper #(
         .i_mb_clk             (lclk),
         .i_period             (u_tx_top.pll_period),   // forwarded UI period (ps)
 
-        .i_TD_P               (TD_P),
-        .i_TVLD_P             (TVLD_P),
-        .i_TCKP_P             (TCKP_P),
-        .i_TCKN_P             (TCKN_P),
-        .i_TTRK_P             (TTRK_P),
+        .i_RD_P               (TD_P),
+        .i_RVLD_P             (TVLD_P),
+        .i_RCKP_P             (TCKP_P),
+        .i_RCKN_P             (TCKN_P),
+        .i_RTRK_P             (TTRK_P),
 
-        .i_width_deg          (i_width_deg),
-        .i_rx_mode            (i_rx_mode),
+        .i_width_deg_rx       (i_width_deg),
+        .i_state              (i_lfsr_state),
+        .demapper_en          (i_lfsr_state == 3'b100),
 
         .i_pcmp_enable        (i_pcmp_enable),
         .i_pcmp_mode          (i_pcmp_mode),
@@ -189,13 +191,6 @@ module unit_mb_loopback_wrapper #(
         .o_out_data           (o_out_data),
         .o_pl_valid           (o_pl_valid),
 
-        .o_par_data           (o_par_data),
-        .o_data_valid         (o_data_valid),
-        .o_valid_frame_pulse  (o_valid_frame_pulse),
-        .o_rx_lane            (o_rx_lane),
-        .o_rx_en              (o_rx_en),
-        .o_pattern_comp_en    (o_pattern_comp_en),
-
         .o_pcmp_done          (o_pcmp_done),
         .o_pcmp_per_lane_pass (o_pcmp_per_lane_pass),
         .o_pcmp_agg_err_cnt   (o_pcmp_agg_err_cnt),
@@ -203,10 +198,18 @@ module unit_mb_loopback_wrapper #(
 
         .o_vcmp_done          (o_vcmp_done),
         .o_vcmp_pass          (o_vcmp_pass),
+        .o_valid_frame_error  (o_valid_frame_error),
 
         .o_clk_p_pass         (o_clk_p_pass),
         .o_clk_n_pass         (o_clk_n_pass),
         .o_track_pass         (o_track_pass)
     );
+
+    assign o_par_data          = u_rx_top.o_par_data;
+    assign o_data_valid        = u_rx_top.o_data_valid;
+    assign o_valid_frame_pulse = u_rx_top.o_valid_frame_pulse;
+    assign o_rx_lane           = u_rx_top.o_rx_lane;
+    assign o_rx_en             = u_rx_top.o_rx_en;
+    assign o_pattern_comp_en   = u_rx_top.o_pattern_comp_en;
 
 endmodule

@@ -43,7 +43,8 @@ module unit_mb_die #(
     input  logic                    lp_valid,
     output logic                    pl_trdy,
     input  logic                    i_mapper_en,
-    input  logic [2:0]              i_width_deg,
+    input  logic [2:0]              i_width_deg_tx,
+    input  logic [2:0]              i_width_deg_rx,
     input  logic [2:0]              i_lfsr_state,
     input  logic                    i_reversal_en,
     input  logic                    i_valid_pattern_en,
@@ -54,7 +55,8 @@ module unit_mb_die #(
     input  logic                    i_clk_embedded_en,
 
     // ------------------------------------------------ RX control
-    input  logic [1:0]              i_rx_mode,
+    input  logic [2:0]              i_state,
+    input  logic                    demapper_en,
     input  logic                    i_pcmp_enable,
     input  logic                    i_pcmp_mode,
     input  logic [NUM_LANES-1:0]    i_pcmp_lane_mask,
@@ -93,18 +95,13 @@ module unit_mb_die #(
     // ------------------------------------------------ RX results + observability
     output logic [8*N_BYTES-1:0]    o_out_data,
     output logic                    o_pl_valid,
-    output logic [DATA_WIDTH-1:0]   o_par_data   [0:NUM_LANES-1],
-    output logic                    o_data_valid,
-    output logic                    o_valid_frame_pulse,
-    output logic [DATA_WIDTH-1:0]   o_rx_lane    [0:NUM_LANES-1],
-    output logic                    o_rx_en,
-    output logic                    o_pattern_comp_en,
     output logic                    o_pcmp_done,
     output logic [NUM_LANES-1:0]    o_pcmp_per_lane_pass,
     output logic [15:0]             o_pcmp_agg_err_cnt,
     output logic                    o_pcmp_agg_error,
     output logic                    o_vcmp_done,
     output logic                    o_vcmp_pass,
+    output logic                    o_valid_frame_error,
     output logic                    o_clk_p_pass,
     output logic                    o_clk_n_pass,
     output logic                    o_track_pass
@@ -127,7 +124,7 @@ module unit_mb_die #(
         .lp_valid           (lp_valid),
         .pl_trdy            (pl_trdy),
         .i_mapper_en        (i_mapper_en),
-        .i_width_deg        (i_width_deg),
+        .i_width_deg        (i_width_deg_tx),
         .i_lfsr_state       (i_lfsr_state),
         .i_reversal_en      (i_reversal_en),
         .i_valid_pattern_en (i_valid_pattern_en),
@@ -171,14 +168,15 @@ module unit_mb_die #(
         .i_mb_clk             (lclk),
         .i_period             (u_tx_top.pll_period),
 
-        .i_TD_P               (i_RD_P),
-        .i_TVLD_P             (i_RVLD_P),
-        .i_TCKP_P             (i_RCKP_P),
-        .i_TCKN_P             (i_RCKN_P),
-        .i_TTRK_P             (i_RTRK_P),
+        .i_RD_P               (i_RD_P),
+        .i_RVLD_P             (i_RVLD_P),
+        .i_RCKP_P             (i_RCKP_P),
+        .i_RCKN_P             (i_RCKN_P),
+        .i_RTRK_P             (i_RTRK_P),
 
-        .i_width_deg          (i_width_deg),
-        .i_rx_mode            (i_rx_mode),
+        .i_width_deg_rx       (i_width_deg_rx),
+        .i_state              (i_state),
+        .demapper_en          (demapper_en),
 
         .i_pcmp_enable        (i_pcmp_enable),
         .i_pcmp_mode          (i_pcmp_mode),
@@ -199,13 +197,6 @@ module unit_mb_die #(
         .o_out_data           (o_out_data),
         .o_pl_valid           (o_pl_valid),
 
-        .o_par_data           (o_par_data),
-        .o_data_valid         (o_data_valid),
-        .o_valid_frame_pulse  (o_valid_frame_pulse),
-        .o_rx_lane            (o_rx_lane),
-        .o_rx_en              (o_rx_en),
-        .o_pattern_comp_en    (o_pattern_comp_en),
-
         .o_pcmp_done          (o_pcmp_done),
         .o_pcmp_per_lane_pass (o_pcmp_per_lane_pass),
         .o_pcmp_agg_err_cnt   (o_pcmp_agg_err_cnt),
@@ -213,6 +204,7 @@ module unit_mb_die #(
 
         .o_vcmp_done          (o_vcmp_done),
         .o_vcmp_pass          (o_vcmp_pass),
+        .o_valid_frame_error  (o_valid_frame_error),
 
         .o_clk_p_pass         (o_clk_p_pass),
         .o_clk_n_pass         (o_clk_n_pass),

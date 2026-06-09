@@ -57,16 +57,16 @@ module unit_mb_rx_top #(
     input  real                     i_period,         // UI/PLL period in ps (quarter-UI sampling delay)
 
     // ----------------------------------------------------- serial phy inputs
-    input  logic [NUM_LANES-1:0]    i_TD_P,           // serialized data lanes
-    input  logic                    i_TVLD_P,         // serialized valid lane
-    input  logic                    i_TCKP_P,         // differential clock +
-    input  logic                    i_TCKN_P,         // differential clock -
-    input  logic                    i_TTRK_P,         // clock tracking
+    input  logic [NUM_LANES-1:0]    i_RD_P,           // serialized data lanes
+    input  logic                    i_RVLD_P,         // serialized valid lane
+    input  logic                    i_RCKP_P,         // differential clock +
+    input  logic                    i_RCKN_P,         // differential clock -
+    input  logic                    i_RTRK_P,         // clock tracking
 
     // ----------------------------------------- datapath / lfsr_rx control
-    input  logic [2:0]              i_width_deg,      // lane-width degrade code
-    input  logic [1:0]              i_rx_mode,        // 0=DATA(descramble) 1=PATTERN_LFSR 2=PER_LANE_ID
-
+    input  logic [2:0]              i_width_deg_rx,      // lane-width degrade code
+    input  logic [2:0]              i_state,        
+    input  logic                    demapper_en,      // demapper enable (from data control)
     // --------------------------------------------- pattern comparator control
     input  logic                    i_pcmp_enable,
     input  logic                    i_pcmp_mode,            // 0 per-lane, 1 aggregate
@@ -89,14 +89,7 @@ module unit_mb_rx_top #(
     // ----------------------------------------------- recovered protocol bus
     output logic [8*N_BYTES-1:0]    o_out_data,
     output logic                    o_pl_valid,
-
-    // ----------------------------------------------- observability
-    output logic [DATA_WIDTH-1:0]   o_par_data [0:NUM_LANES-1],  // after deser (scrambled)
-    output logic                    o_data_valid,
-    output logic                    o_valid_frame_pulse,
-    output logic [DATA_WIDTH-1:0]   o_rx_lane  [0:NUM_LANES-1],  // after descramble
-    output logic                    o_rx_en,                     // RX back-end armed
-    output logic                    o_pattern_comp_en,           // lfsr_rx: training pattern valid
+    
 
     // ----------------------------------------------- pattern comparator results
     output logic                    o_pcmp_done,
@@ -107,6 +100,7 @@ module unit_mb_rx_top #(
     // ----------------------------------------------- valid comparator results
     output logic                    o_vcmp_done,
     output logic                    o_vcmp_pass,
+    output logic                    o_valid_frame_error,
 
     // ----------------------------------------------- clk detector results
     output logic                    o_clk_p_pass,
@@ -126,12 +120,24 @@ module unit_mb_rx_top #(
     //    a mid-test PLL speed change is tracked automatically.
     // =========================================================================
     logic sample_clk;
-    always @(i_TCKP_P)
-        sample_clk <= #(i_period/4000.0) i_TCKP_P;
+    assign #(i_period/4000.0) sample_clk = i_RCKP_P;
 
     // =========================================================================
     // 1. Valid-lane deserializer + frame detector (sample_clk domain)
     // =========================================================================
+
+
+    logic                    o_pattern_comp_en;           // lfsr_rx: training pattern valid
+
+
+    logic [DATA_WIDTH-1:0]  o_par_data [0:NUM_LANES-1];
+    logic                   o_data_valid;
+    logic                   o_valid_frame_pulse;
+    logic [DATA_WIDTH-1:0]  o_rx_lane [0:NUM_LANES-1];
+    logic                   o_rx_en;
+    assign o_rx_en = o_data_valid;
+
+    logic i_valid_pulse;
     wire [DATA_WIDTH-1:0] valid_shift_reg;
     wire                  valid_count_16;
     wire [DATA_WIDTH-1:0] valid_frame_data;
@@ -141,23 +147,25 @@ module unit_mb_rx_top #(
         .DATA_WIDTH (DATA_WIDTH)
     ) u_valid_des (
         .pll_clk     (sample_clk),
+        .mb_clk      (i_mb_clk),
         .i_rst_n     (i_rst_n),
-        .ser_data_in (i_TVLD_P),
+        .ser_data_in (i_RVLD_P),
         .o_shift_reg (valid_shift_reg),
-        .o_count_16  (valid_count_16)
+        .o_count_16  (valid_count_16),
+        
+        .i_valid_pulse(i_valid_pulse),
+        .o_valid_frame_data (valid_frame_data),
+        .o_valid_frame_vld (valid_frame_vld)
     );
 
     unit_valid_frame_detector_s3 #(
         .DATA_WIDTH    (DATA_WIDTH),
         .VALID_PATTERN (VALID_PATTERN)
     ) u_frame_det (
-        .i_rst_n             (i_rst_n),
-        .i_clk               (sample_clk),
         .i_shift_reg         (valid_shift_reg),
         .i_count_16          (valid_count_16),
         .o_valid_frame_pulse (o_valid_frame_pulse),
-        .o_valid_frame_data  (valid_frame_data),
-        .o_valid_frame_vld   (valid_frame_vld)
+        .o_valid_pulse(i_valid_pulse)
     );
 
     // =========================================================================
@@ -174,7 +182,7 @@ module unit_mb_rx_top #(
                 .mb_clk              (i_mb_clk),
                 .pll_clk             (sample_clk),
                 .i_rst_n             (i_rst_n),
-                .ser_data_in         (i_TD_P[gi]),
+                .ser_data_in         (i_RD_P[gi]),
                 .i_valid_frame_pulse (o_valid_frame_pulse),
                 .o_par_data          (o_par_data[gi]),
                 .o_data_valid        (data_valid_lane[gi])
@@ -185,85 +193,24 @@ module unit_mb_rx_top #(
     assign o_data_valid = data_valid_lane[0];
 
     // =========================================================================
-    // 3. RX back-end alignment : arm on first recovered word, delay the data so
-    //    lfsr_rx's first (seed) descramble lands on W0.
-    // =========================================================================
-    logic rx_en;
-    always @(posedge i_mb_clk or negedge i_rst_n) begin
-        if (!i_rst_n)          rx_en <= 1'b0;
-        else if (o_data_valid) rx_en <= 1'b1;
-    end
-    assign o_rx_en = rx_en;
-
-    logic [DATA_WIDTH-1:0] rx_pipe [0:RX_ALIGN_DELAY-1][0:NUM_LANES-1];
-    integer di, li;
-    always @(posedge i_mb_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
-            for (di = 0; di < RX_ALIGN_DELAY; di = di + 1)
-                for (li = 0; li < NUM_LANES; li = li + 1)
-                    rx_pipe[di][li] <= {DATA_WIDTH{1'b0}};
-        end else begin
-            for (li = 0; li < NUM_LANES; li = li + 1)
-                rx_pipe[0][li] <= o_par_data[li];
-            for (di = 1; di < RX_ALIGN_DELAY; di = di + 1)
-                for (li = 0; li < NUM_LANES; li = li + 1)
-                    rx_pipe[di][li] <= rx_pipe[di-1][li];
-        end
-    end
-
-    logic [DATA_WIDTH-1:0] rx_in [0:NUM_LANES-1];
-    always @(*)
-        for (li = 0; li < NUM_LANES; li = li + 1)
-            rx_in[li] = rx_pipe[RX_ALIGN_DELAY-1][li];
-
-    localparam logic [2:0] LFSR_IDLE    = 3'b000;
-    localparam logic [2:0] LFSR_PATTERN = 3'b010;
-    localparam logic [2:0] LFSR_PERLANE = 3'b011;
-    localparam logic [2:0] LFSR_DATA    = 3'b100;
-    localparam logic [1:0] RXMODE_DATA    = 2'd0;
-    localparam logic [1:0] RXMODE_PATTERN = 2'd1;
-    localparam logic [1:0] RXMODE_PERLANE = 2'd2;
-
-    // Derive the lfsr_rx control from the selected RX mode. The same arm point
-    // (rx_en) and RX_ALIGN_DELAY pipeline are reused for every mode: only the
-    // requested lfsr state and the descramble/buffer enables differ.
-    //   DATA    : DATA_TRANSFER, descramble on, buffer off
-    //   PATTERN : PATTERN_LFSR,  descramble off, buffer on (generate + capture)
-    //   PERLANE : PER_LANE_IDE,  descramble off, buffer on
-    logic [2:0] rx_state;
-    logic       rx_descramble_en;
-    logic       rx_enable_buffer;
-    always @(*) begin
-        rx_state         = LFSR_IDLE;
-        rx_descramble_en = 1'b0;
-        rx_enable_buffer = 1'b0;
-        if (rx_en) begin
-            case (i_rx_mode)
-                RXMODE_PATTERN: begin rx_state = LFSR_PATTERN; rx_enable_buffer = 1'b1; end
-                RXMODE_PERLANE: begin rx_state = LFSR_PERLANE; rx_enable_buffer = 1'b1; end
-                default:        begin rx_state = LFSR_DATA;    rx_descramble_en = 1'b1; end
-            endcase
-        end
-    end
-
-    // =========================================================================
     // 4. LFSR_RX : descramble + locally-generated reference (o_final_gene)
     // =========================================================================
     wire [DATA_WIDTH-1:0] lfsr_final_gene [0:NUM_LANES-1];
+    logic i_data_valid;
 
     unit_lfsr_rx #(
         .WIDTH (DATA_WIDTH)
     ) u_lfsr_rx (
         .i_clk            (i_mb_clk),
         .i_rst_n          (i_rst_n),
-        .i_state          (rx_state),
-        .i_width_deg_lfsr (i_width_deg),
-        .i_descramble_en  (rx_descramble_en),
-        .i_enable_buffer  (rx_enable_buffer),
-        .i_data_in        (rx_in),
+        .i_state          (i_state),
+        .i_width_deg_lfsr (i_width_deg_rx),
+        .i_enable_buffer  (o_data_valid),
+        .i_data_in        (o_par_data),
         .o_Data_by        (o_rx_lane),
         .o_final_gene     (lfsr_final_gene),
-        .pattern_comp_en  (o_pattern_comp_en)
+        .pattern_comp_en  (o_pattern_comp_en),
+        .o_data_valid     (i_data_valid)
     );
 
     // =========================================================================
@@ -280,9 +227,9 @@ module unit_mb_rx_top #(
         .i_lane_4 (o_rx_lane[4]),  .i_lane_5 (o_rx_lane[5]),  .i_lane_6 (o_rx_lane[6]),  .i_lane_7 (o_rx_lane[7]),
         .i_lane_8 (o_rx_lane[8]),  .i_lane_9 (o_rx_lane[9]),  .i_lane_10(o_rx_lane[10]), .i_lane_11(o_rx_lane[11]),
         .i_lane_12(o_rx_lane[12]), .i_lane_13(o_rx_lane[13]), .i_lane_14(o_rx_lane[14]), .i_lane_15(o_rx_lane[15]),
-        .demapper_en       (1'b1),
-        .rx_data_valid     (rx_en),
-        .i_width_deg_demap (i_width_deg),
+        .demapper_en       (demapper_en),
+        .rx_data_valid     (i_data_valid),
+        .i_width_deg_demap (i_width_deg_rx),
         .pl_valid          (o_pl_valid),
         .o_out_data        (o_out_data)
     );
@@ -306,6 +253,7 @@ module unit_mb_rx_top #(
         .i_clear_error                  (i_pcmp_clear),
         .i_local_pattern                (lfsr_final_gene),
         .i_rx_pattern                   (o_rx_lane),
+        .i_pcmp_enable                  (o_pattern_comp_en),
         .o_done                         (o_pcmp_done),
         .o_per_lane_pass                (o_pcmp_per_lane_pass),
         .o_aggregate_error_counter      (o_pcmp_agg_err_cnt),
@@ -319,7 +267,7 @@ module unit_mb_rx_top #(
         .WIDTH      (DATA_WIDTH),
         .VALID_BYTE (VALID_PATTERN[7:0])
     ) u_valid_cmp (
-        .i_clk                 (sample_clk),
+        .i_clk                 (i_mb_clk),
         .i_rst_n               (i_rst_n),
         .i_enable              (i_vcmp_enable),
         .i_mode                (i_vcmp_mode),
@@ -328,7 +276,8 @@ module unit_mb_rx_top #(
         .i_valid_frame_data    (valid_frame_data),
         .i_valid_frame_vld     (valid_frame_vld),
         .o_done                (o_vcmp_done),
-        .o_pass                (o_vcmp_pass)
+        .o_pass                (o_vcmp_pass),
+        .o_valid_frame_error   (o_valid_frame_error)
     );
 
     // =========================================================================
@@ -338,9 +287,9 @@ module unit_mb_rx_top #(
         .i_clk              (i_pll_clk),
         .i_rst_n            (i_rst_n),
         .clk_detector_en    (i_clk_detector_en),
-        .clk_p              (i_TCKP_P),
-        .clk_n              (i_TCKN_P),
-        .track              (i_TTRK_P),
+        .clk_p              (i_RCKP_P),
+        .clk_n              (i_RCKN_P),
+        .track              (i_RTRK_P),
         .clk_p_pattern_pass (o_clk_p_pass),
         .clk_n_pattern_pass (o_clk_n_pass),
         .track_pattern_pass (o_track_pass)

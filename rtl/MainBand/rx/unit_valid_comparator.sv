@@ -46,7 +46,8 @@ module unit_valid_comparator #(
 
     // ---------------- Results ----------------
     output logic              o_done,                   // test complete, result valid
-    output logic              o_pass                    // 1 = Valid Lane PASS
+    output logic              o_pass,                   // 1 = Valid Lane PASS
+    output logic              o_valid_frame_error       // 1 = Valid Frame Error (when not enabled)
 );
     // -------------------------------------------------------------------------
     // Derived sizes
@@ -98,6 +99,7 @@ module unit_valid_comparator #(
             consecutive_ctr <= 5'd0;
             o_done          <= 1'b0;
             o_pass          <= 1'b0;
+            o_valid_frame_error <= 1'b0;
         end else if (i_clear_error) begin
             state           <= S_IDLE;
             iter_ctr        <= 16'd0;
@@ -105,11 +107,16 @@ module unit_valid_comparator #(
             consecutive_ctr <= 5'd0;
             o_done          <= 1'b0;
             o_pass          <= 1'b0;
+            o_valid_frame_error <= 1'b0;
         end else begin
+            // Default value to ensure pulse behavior
+            o_valid_frame_error <= 1'b0;
+
             case (state)
                 // ---------------------------------------------------------
                 S_IDLE: begin
                     o_done <= 1'b0;
+                    o_pass <= 1'b0;
                     if (i_enable) begin
                         // Start a fresh test: clear all accumulators / result.
                         iter_ctr        <= 16'd0;
@@ -117,6 +124,10 @@ module unit_valid_comparator #(
                         consecutive_ctr <= 5'd0;
                         o_pass          <= 1'b0;
                         state           <= S_COMPARE;
+                    end else if (i_valid_frame_vld) begin
+                        if (i_valid_frame_data != EXP_WORD && i_valid_frame_data != {WIDTH{1'b0}}) begin
+                            o_valid_frame_error <= 1'b1;
+                        end
                     end
                 end
 

@@ -69,6 +69,7 @@ module unit_mb_train_loopback_tb;
     logic [NUM_LANES-1:0]  o_pcmp_per_lane_pass;
     logic [15:0]           o_pcmp_agg_err_cnt;
     logic                  o_vcmp_done, o_vcmp_pass;
+    logic                  o_valid_frame_error;
     logic                  o_clk_p_pass, o_clk_n_pass, o_track_pass;
 
     // ---------------------------------------------------------------- DUT
@@ -138,6 +139,7 @@ module unit_mb_train_loopback_tb;
         .o_pcmp_agg_error     (o_pcmp_agg_error),
         .o_vcmp_done          (o_vcmp_done),
         .o_vcmp_pass          (o_vcmp_pass),
+        .o_valid_frame_error  (o_valid_frame_error),
         .o_clk_p_pass         (o_clk_p_pass),
         .o_clk_n_pass         (o_clk_n_pass),
         .o_track_pass         (o_track_pass)
