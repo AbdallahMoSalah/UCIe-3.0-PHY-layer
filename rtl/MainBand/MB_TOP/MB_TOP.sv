@@ -107,7 +107,23 @@ module MB_TOP #(
     output logic                    clk_n_pattern_pass,
     output logic                    track_pattern_pass,
     output logic                    pl_valid,
-    output logic [8*N_BYTES-1:0]    o_out_data
+    output logic [8*N_BYTES-1:0]    o_out_data,
+    output logic                    de_ser_done_data_0,
+    output logic                    de_ser_done_data_1,
+    output logic                    de_ser_done_data_2,
+    output logic                    de_ser_done_data_3,
+    output logic                    de_ser_done_data_4,
+    output logic                    de_ser_done_data_5,
+    output logic                    de_ser_done_data_6,
+    output logic                    de_ser_done_data_7,
+    output logic                    de_ser_done_data_8,
+    output logic                    de_ser_done_data_9,
+    output logic                    de_ser_done_data_10,
+    output logic                    de_ser_done_data_11,
+    output logic                    de_ser_done_data_12,
+    output logic                    de_ser_done_data_13,
+    output logic                    de_ser_done_data_14,
+    output logic                    de_ser_done_data_15
 );
 
     // ─────────────────────────────────────────────────────────────────────
@@ -127,31 +143,46 @@ module MB_TOP #(
         .N_BYTES    (N_BYTES)
     ) u_tx (
         .i_rst_n                (i_rst_n),
+
+        //pll
+        .i_pll_en               (i_pll_en),
+        .i_pll_speed_sel        (i_pll_speed_sel),
         .o_pll_clk              (o_pll_clk),
         .period                 (w_period),
+
+        //Mapper
         .i_raw_data             (i_raw_data),
         .i_mapper_en            (i_mapper_en),
         .i_width_deg            (i_width_deg),
         .i_lp_irdy              (i_lp_irdy),
         .i_lp_valid             (i_lp_valid),
+        .o_mapper_ready         (o_mapper_ready),
+
+        //lfsr
         .i_lfsr_state           (i_ltsm_state),
         .i_reversal_en          (i_reversal_en),
         .i_active_state_entered (i_active_state_entered),
+        .o_lfsr_tx_done         (o_lfsr_tx_done),
+
+        //valid
         .i_valid_pattern_en     (i_valid_pattern_en),
+        .o_valid_done           (o_valid_done),
+
+        //serial output 
         .o_tx_data              (w_tx_data),
         .o_tx_valid             (w_tx_valid),
-        .i_pll_en               (i_pll_en),
-        .i_pll_speed_sel        (i_pll_speed_sel),
+
+        //clk pattern
         .i_clk_pattern_en       (i_clk_pattern_en),
         .i_clk_embedded_en      (i_clk_embedded_en),
-        .o_mb_clk               (o_mb_clk),
         .o_clk_p                (w_clk_p),
         .o_clk_n                (w_clk_n),
         .o_clk_track            (w_clk_track),
         .o_clk_done             (o_clk_done),
-        .o_mapper_ready         (o_mapper_ready),
-        .o_lfsr_tx_done         (o_lfsr_tx_done),
-        .o_valid_done           (o_valid_done)
+
+        //clk div
+        .o_mb_clk               (o_mb_clk),
+
     );
 
     // ─────────────────────────────────────────────────────────────────────
@@ -162,7 +193,7 @@ module MB_TOP #(
         .N_BYTES    (N_BYTES)
     ) u_rx (
         .MB_clk                          (o_mb_clk),
-        .pll_clk                         (o_pll_clk),
+        .pll_clk                         (o_pll_clk), //elmafrod o_clk_p
         .i_rst_n                         (i_rst_n),
 
         // Serial inputs from TX
