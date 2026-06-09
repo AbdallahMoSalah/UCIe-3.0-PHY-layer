@@ -46,7 +46,6 @@ module unit_lfsr_rx #(
     /*---------------------------------------------------------------------
      * HM Interface
      *--------------------------------------------------------------------*/
-    input  logic              i_descramble_en, // Enable descrambling
     input  logic              i_enable_buffer,                // Gate from buffer FOR TRAINING MODE(PATTERN LFSR & PER_LANE_ID)
 
     /*---------------------------------------------------------------------
@@ -67,7 +66,8 @@ module unit_lfsr_rx #(
     /*---------------------------------------------------------------------
      * Comparator enable
      *--------------------------------------------------------------------*/
-    output logic               pattern_comp_en
+    output logic               pattern_comp_en,
+    output logic               o_data_valid
 );
 
     /*=====================================================================
@@ -144,9 +144,6 @@ module unit_lfsr_rx #(
      * when the link degrades.
      */
     logic [22:0] rx_lfsr_lane [0:7];
-
-    /* One-cycle pipeline buffer for the datapath outputs */
-    logic [WIDTH-1:0] temp_Data_by [0:15];
 
     /*=====================================================================
      * Leap-by-32 of the spec scrambler G(X)=X^23+X^21+X^16+X^8+X^5+X^2+1.
@@ -253,14 +250,14 @@ module unit_lfsr_rx #(
                  * PATTERN_LFSR: stay until LTSM returns to idle (2'b00)
                  *---------------------------------------------------------*/
                 PATTERN_LFSR: begin
-                    current_state <= (i_state == IDLE) ? IDLE : PATTERN_LFSR;
+                    current_state <= (i_state_changed) ? IDLE : PATTERN_LFSR;
                 end
 
                 /*----------------------------------------------------------
                  * PER_LANE_IDE: stay until LTSM returns to idle (2'b00)
                  *---------------------------------------------------------*/
                 PER_LANE_IDE: begin
-                    current_state <= (i_state == IDLE) ? IDLE : PER_LANE_IDE;
+                    current_state <= (i_state_changed) ? IDLE : PER_LANE_IDE;
                 end
 
                 /*----------------------------------------------------------
@@ -286,14 +283,15 @@ module unit_lfsr_rx #(
              * Reset: zero all pipeline logicisters and reload LFSR seeds
              *------------------------------------------------------------*/
             for (i = 0; i < 16; i = i + 1) begin
-                temp_Data_by[i]  <= {WIDTH{1'b0}};
+                o_Data_by[i]     <= {WIDTH{1'b0}};
                 o_final_gene[i]  <= {WIDTH{1'b0}};
             end
 
             for (i = 0; i < 8; i = i + 1)
                 rx_lfsr_lane[i] <= SEED[i];
 
-            pattern_comp_en <= 0;
+            pattern_comp_en <= 1'b0;
+            o_data_valid <= 1'b0;    
 
         end else begin
 
@@ -304,8 +302,11 @@ module unit_lfsr_rx #(
                  *---------------------------------------------------------*/
                 IDLE: begin
                     pattern_comp_en <= 1'b0; // editted by momen
+                    o_data_valid    <= 1'b0;
                     for (i = 0; i < 16; i = i + 1)
-                        temp_Data_by[i] <= {WIDTH{1'b0}};
+                        o_Data_by[i] <= {WIDTH{1'b0}};
+                    for (i = 0; i < 8; i = i + 1)
+                        rx_lfsr_lane[i] <= SEED[i];
                 end
 
                 /*----------------------------------------------------------
@@ -313,7 +314,7 @@ module unit_lfsr_rx #(
                  *---------------------------------------------------------*/
                 CLEAR_LFSR: begin
                     for (i = 0; i < 16; i = i + 1)
-                        temp_Data_by[i] <= {WIDTH{1'b0}};
+                        o_Data_by[i] <= {WIDTH{1'b0}};
 
                     for (i = 0; i < 8; i = i + 1)
                         rx_lfsr_lane[i] <= SEED[i];
@@ -332,10 +333,11 @@ module unit_lfsr_rx #(
                             rx_lfsr_lane[i] <= nextstate32(rx_lfsr_lane[i]);
 
                         pattern_comp_en <= 1'b1;
+                        o_data_valid    <= 1'b0;
 
                         /* Latch incoming raw data through the pipeline */
                         for (i = 0; i < 16; i = i + 1)
-                            temp_Data_by[i] <= i_data_in[i];
+                            o_Data_by[i] <= i_data_in[i];
 
                         /*
                          * Build reference words.
@@ -374,9 +376,10 @@ module unit_lfsr_rx #(
                 PER_LANE_IDE: begin
                     if (i_enable_buffer) begin
                         pattern_comp_en <= 1'b1;
+                        o_data_valid    <= 1'b0;
 
                         for (i = 0; i < 16; i = i + 1)
-                            temp_Data_by[i] <= i_data_in[i];
+                            o_Data_by[i] <= i_data_in[i];
 
                         case (i_width_deg_lfsr)
                             DEGRADE_LANES_0_TO_7: begin
@@ -408,70 +411,46 @@ module unit_lfsr_rx #(
                  *               with incoming data to descramble.
                  *---------------------------------------------------------*/
                 DATA_TRANSFER: begin
-                    /* Always advance the LFSRs logicardless of descramble flag */
-                    for (i = 0; i < 8; i = i + 1)
-                        rx_lfsr_lane[i] <= nextstate32(rx_lfsr_lane[i]);
+                    if (i_enable_buffer) begin
+                        /* Advance all 8 LFSR states by 32 (one 32-bit word) */
+                        for (i = 0; i < 8; i = i + 1)
+                            rx_lfsr_lane[i] <= nextstate32(rx_lfsr_lane[i]);
 
-                    if (i_descramble_en) begin
                         pattern_comp_en <= 1'b0;
+                        o_data_valid    <= 1'b1;
 
                         case (i_width_deg_lfsr)
                             DEGRADE_LANES_0_TO_7: begin
                                 for (i = 0; i < 8; i = i + 1)
-                                    temp_Data_by[i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
+                                    o_Data_by[i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
                             end
                             DEGRADE_LANES_8_TO_15: begin
                                 for (i = 0; i < 8; i = i + 1)
-                                    temp_Data_by[i + 8] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i + 8];
+                                    o_Data_by[i + 8] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i + 8];
                             end
                             DEGRADE_LANES_0_TO_3: begin
                                 for (i = 0; i < 4; i = i + 1)
-                                    temp_Data_by[i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
+                                    o_Data_by[i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
                             end
                             DEGRADE_LANES_4_TO_7: begin
                                 // data arrives on physical lanes 4-7; descramble
                                 // those (was reading i_data_in[i] = empty lanes 0-3).
                                 for (i = 0; i < 4; i = i + 1)
-                                    temp_Data_by[4 + i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[4 + i];
+                                    o_Data_by[4 + i] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[4 + i];
                             end
                             DEGRADE_LANES_0_TO_15: begin
                                 for (i = 0; i < 8; i = i + 1) begin
-                                    temp_Data_by[i]     <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
-                                    temp_Data_by[i + 8] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i + 8];
+                                    o_Data_by[i]     <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i];
+                                    o_Data_by[i + 8] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i + 8];
                                 end
                             end
                         endcase
+                    end else begin
+                        o_data_valid    <= 1'b0;
                     end
                 end
 
             endcase
-        end
-    end
-
-    /*=====================================================================
-     * Output Pipeline – logicister temp_Data_by → o_Data_by
-     *
-     * Two output paths:
-     *   1. Descrambled path : valid when descrambling is active AND the
-     *                         FSM is in the DATA_TRANSFER (Active) state.
-     *   2. Raw bypass path  : valid when the buffer is enabled (training
-     *                         phases that need to observe raw lane data).
-     *====================================================================*/
-    always @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
-            for (i = 0; i < 16; i = i + 1)
-                o_Data_by[i] <= {WIDTH{1'b0}};
-        end else begin
-            if (i_descramble_en && (current_state == DATA_TRANSFER)) begin
-                /* Output the descrambled words computed this cycle */
-                for (i = 0; i < 16; i = i + 1)
-                    o_Data_by[i] <= temp_Data_by[i];
-            end else if (i_enable_buffer) begin
-                /* Pass raw deserialiser data straight through */
-                for (i = 0; i < 16; i = i + 1)
-                    o_Data_by[i] <= i_data_in[i];
-            end
-            /* Otherwise hold the last value (no explicit else needed) */
         end
     end
 

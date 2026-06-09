@@ -216,7 +216,7 @@ module unit_lfsr_tx #(
                 // PATTERN_LFSR: transmit 128 LFSR frames, then return to IDLE
                 // ------------------------------------------------------------------
                 PATTERN_LFSR: begin
-                    if (counter_lfsr == COUNT_LFSR) begin       // counter_lfsr == 128
+                    if (i_state_changed) begin
                         current_state <= IDLE;
                     end
                     // else stay in PATTERN_LFSR
@@ -226,7 +226,7 @@ module unit_lfsr_tx #(
                 // PER_LANE_IDE: transmit 64 lane-ID frames, then return to IDLE
                 // ------------------------------------------------------------------
                 PER_LANE_IDE: begin
-                    if (counter_per_lane == COUNT_PER_LANE) begin  // counter_per_lane == 64
+                    if (i_state_changed) begin
                         current_state <= IDLE;
                     end
                     // else stay in PER_LANE_IDE
@@ -309,7 +309,7 @@ module unit_lfsr_tx #(
 
                     if (counter_lfsr == COUNT_LFSR) begin
                         // Phase complete
-                        counter_lfsr   <= 0;
+                        counter_lfsr   <= COUNT_LFSR;
                         o_ser_en_lfsr  <= 0;
                         o_Lfsr_tx_done <= 1;
                     end else begin
@@ -380,10 +380,12 @@ module unit_lfsr_tx #(
                 // ==============================================================
                 PER_LANE_IDE: begin
                     if (counter_per_lane == COUNT_PER_LANE) begin
-                        counter_per_lane <= 0;
+                        // Phase complete
+                        counter_per_lane <= COUNT_PER_LANE;
                         o_ser_en_lfsr    <= 0;
                         o_Lfsr_tx_done   <= 1;
                     end else begin
+                        // Drive the appropriate lane ID data
                         o_ser_en_lfsr    <= 1;
                         o_Lfsr_tx_done   <= 0;
                         counter_per_lane <= counter_per_lane + 1;
