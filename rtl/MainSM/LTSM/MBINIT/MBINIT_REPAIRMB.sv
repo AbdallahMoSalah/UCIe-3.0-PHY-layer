@@ -189,21 +189,8 @@ import UCIe_pkg::*;
         if (p_w <= target_w) return p_map;
         
         case (target_w)
-            8: begin
-                if (p_map == 3'b011) return 3'b001; // Degrade x16 to lower x8
-                else return p_map;
-            end
-            4: begin
-                if (p_map == 3'b011 || p_map == 3'b001) begin
-                    return 3'b100; // Degrade to lower x4
-                end
-                else if (p_map == 3'b010) begin
-                    return 3'b101; // Degrade to upper x4
-                end
-                else begin
-                    return 3'b000;
-                end
-            end
+            16, 8:   return 3'b011; // Open RX to all 16 lanes to capture any x8/x16 Tx
+            4:       return 3'b001; // Open RX to lower 8 lanes to capture any x4 Tx (lower or upper x4)
             default: return p_map;
         endcase
     endfunction
@@ -325,17 +312,21 @@ import UCIe_pkg::*;
         endcase
     end
 
-    logic [2:0] expected_partner_lane_map;
+    logic partner_map_valid;
     always_comb begin
-        if (retry_done) begin
-            automatic int partner_w;
-            partner_w = get_width(partner_lane_map);
-            expected_partner_lane_map = degrade_map_to_width(prev_partner_lane_map, partner_w, local_lower_x4_pass, local_upper_x4_pass);
-        end
-        else begin
-            expected_partner_lane_map = prev_partner_lane_map;
-        end
+        partner_map_valid = 1'b0;
+        case (partner_lane_map)
+            3'b011: partner_map_valid = 1'b1;
+            3'b001: partner_map_valid = 1'b1;
+            3'b010: partner_map_valid = 1'b1;
+            3'b100: partner_map_valid = 1'b1;
+            3'b101: partner_map_valid = 1'b1;
+            default: partner_map_valid = 1'b0;
+        endcase
     end
+
+    logic partner_width_correct;
+    assign partner_width_correct = (get_width(partner_lane_map) == get_width(prev_lane_map));
 
     logic retry_rx_pass;
     assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
@@ -343,7 +334,7 @@ import UCIe_pkg::*;
     assign degrade_not_possible = (local_lane_map == 3'b000) ||
                                   (resolved_rx_lane_map == 3'b000) ||
                                   (retry_done && !retry_rx_pass) ||
-                                  (retry_done && (partner_lane_map != expected_partner_lane_map));
+                                  (retry_done && (!partner_width_correct || !partner_map_valid));
 
     ////////////////////////////////////////////////////////
     // RETRY & TIMER CONTROLS
@@ -714,8 +705,8 @@ import UCIe_pkg::*;
     `ifdef SIMULATION
         always @(posedge clk) begin
             if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
-                $display("DUT DEBUG: current_state=S4, retry_done=%b, local_lane_map=%b, resolved_rx_lane_map=%b, retry_rx_pass=%b, partner_lane_map=%b, expected_partner_lane_map=%b, mb_rx_perlane_result=%h, partner_mask=%h, degrade_not_possible=%b",
-                    retry_done, local_lane_map, resolved_rx_lane_map, retry_rx_pass, partner_lane_map, expected_partner_lane_map, mb_rx_perlane_result, partner_mask, degrade_not_possible);
+                $display("DUT DEBUG: current_state=S4, retry_done=%b, local_lane_map=%b, resolved_rx_lane_map=%b, retry_rx_pass=%b, partner_lane_map=%b, prev_lane_map=%b, mb_rx_perlane_result=%h, partner_mask=%h, degrade_not_possible=%b",
+                    retry_done, local_lane_map, resolved_rx_lane_map, retry_rx_pass, partner_lane_map, prev_lane_map, mb_rx_perlane_result, partner_mask, degrade_not_possible);
             end
         end
 
