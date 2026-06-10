@@ -1472,6 +1472,99 @@ module MBINIT_SideBand_tb;
         join_any
         disable fork;
 
+        // ---------------------------------------------------------------------
+        // SCENARIO 10: ASYMMETRIC REPAIR DEGRADATION WITH MISMATCHED TARGET WIDTHS (Master Tx wants x8, Partner Tx wants x4 -> Align to x4)
+        // ---------------------------------------------------------------------
+        $display("\n==================================================================");
+        $display("T=%0t | [TEST - SCENARIO 10] Starting Asymmetric Initial Capacities over SideBand...", $time);
+        $display("==================================================================\n");
+        reset_system();
+        block_sideband = 1'b0;
+
+        // Both support x8 mode capability to allow x4 degradation
+        m_reg_phy_x8_mode_ctrl = 1'b1;
+        p_reg_phy_x8_mode_ctrl = 1'b1;
+
+        // Master target width is x8 (4'h1), Partner target width is x4 (4'h0)
+        m_reg_Target_Link_Width_ctrl = 4'h1; // x8
+        p_reg_Target_Link_Width_ctrl = 4'h1; // x8
+
+        // Master Rx passes lower 8 lanes, Partner Rx passes lower 4 lanes
+        m_d2c_perlane_pass = 16'h00FF; // lower x8
+        p_d2c_perlane_pass = 16'h000F; // lanes 0-3 / x4
+
+        $display("T=%0t | [TEST - SCENARIO 10] Enabling MBINIT with mismatched widths (x8 vs x4)...", $time);
+        @(posedge clk_100);
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        // Wait until they enter point test S2 of REPAIRMB for the first time
+        wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+
+        fork
+            begin
+                // Wait for retry point test S2
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state != u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
+                $display("T=%0t | [TEST - SCENARIO 10] Retry detected! Setting passing lanes for retry point test...", $time);
+                m_d2c_perlane_pass = 16'hFFFF;
+                p_d2c_perlane_pass = 16'hFFFF;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCENARIO 10] Training errored out before retry!", $time);
+                $finish;
+            end
+            begin
+                #5_000_000;
+                $error("T=%0t | [TIMEOUT - SCENARIO 10] Retry not detected in time!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wait for successful completion
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("\n==================================================================");
+                $display("T=%0t | [SUCCESS - SCENARIO 10] Asymmetric initial capacity training completed successfully!", $time);
+                $display("            Module final Tx mask = %b, Rx mask = %b (Expected: Tx = 100 - x4, Rx = 100 - x4)", u_mbinit_0.mbinit_tx_data_lane_mask, u_mbinit_0.mbinit_rx_data_lane_mask);
+                $display("            Partner final Tx mask = %b, Rx mask = %b (Expected: Tx = 100 - x4, Rx = 100 - x4)", u_mbinit_1.mbinit_tx_data_lane_mask, u_mbinit_1.mbinit_rx_data_lane_mask);
+                $display("T=%0t | [SUCCESS - SCENARIO 10] Negotiated Width: m=%0h, p=%0h (Expected: 0)", $time, m_reg_Link_Width_enable_status, p_reg_Link_Width_enable_status);
+
+                if (u_mbinit_0.mbinit_tx_data_lane_mask !== 3'b100 || u_mbinit_0.mbinit_rx_data_lane_mask !== 3'b100) begin
+                    $error("T=%0t | [FAILURE - SCENARIO 10] Expected Master Tx/Rx masks to be 3'b100 (x4)!", $time);
+                    $finish;
+                end
+                if (u_mbinit_1.mbinit_tx_data_lane_mask !== 3'b100 || u_mbinit_1.mbinit_rx_data_lane_mask !== 3'b100) begin
+                    $error("T=%0t | [FAILURE - SCENARIO 10] Expected Partner Tx/Rx masks to be 3'b100 (x4)!", $time);
+                    $finish;
+                end
+                if (m_reg_Link_Width_enable_status !== 4'h0 || p_reg_Link_Width_enable_status !== 4'h0) begin
+                    $error("T=%0t | [ERROR] Negotiated Link Width mismatch (Expected x4 = 4'h0)!", $time);
+                    $finish;
+                end
+                $display("==================================================================\n");
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCENARIO 10] Training errored out after retry!", $time);
+                $finish;
+            end
+            begin
+                #8_500_000;
+                $error("T=%0t | [TIMEOUT - SCENARIO 10] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_reg_phy_x8_mode_ctrl = 1'b0;
+        p_reg_phy_x8_mode_ctrl = 1'b0;
+        repeat(5) @(posedge clk_100);
 
         $display("\n==================================================================");
         $display("T=%0t | [ALL INTEGRATION SCENARIOS PASSED SUCCESSFULLY]", $time);
