@@ -197,7 +197,11 @@ import UCIe_pkg::*;
 
     always_comb begin
         if (partner_lane_map == 3'b011) begin
-            resolved_rx_lane_map = local_lane_map;
+            case (get_width(local_lane_map))
+                8:       resolved_rx_lane_map = 3'b001; // Partner degrades to default lower x8
+                4:       resolved_rx_lane_map = 3'b100; // Partner degrades to default lower x4
+                default: resolved_rx_lane_map = 3'b011;
+            endcase
         end
         else begin
             automatic int local_w, partner_w, min_w;
@@ -312,6 +316,18 @@ import UCIe_pkg::*;
         endcase
     end
 
+    logic [15:0] local_mask;
+    always_comb begin
+        case (local_lane_map)
+            3'b011:  local_mask = 16'hFFFF;
+            3'b001:  local_mask = 16'h00FF;
+            3'b010:  local_mask = 16'hFF00;
+            3'b100:  local_mask = 16'h000F;
+            3'b101:  local_mask = 16'h00F0;
+            default: local_mask = 16'h0000;
+        endcase
+    end
+
     logic partner_map_valid;
     always_comb begin
         partner_map_valid = 1'b0;
@@ -329,7 +345,7 @@ import UCIe_pkg::*;
     assign partner_width_correct = (get_width(partner_lane_map) == get_width(prev_lane_map));
 
     logic retry_rx_pass;
-    assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
+    assign retry_rx_pass = ((mb_rx_perlane_result & local_mask) == local_mask);
 
     assign degrade_not_possible = (local_lane_map == 3'b000) ||
                                   (resolved_rx_lane_map == 3'b000) ||
