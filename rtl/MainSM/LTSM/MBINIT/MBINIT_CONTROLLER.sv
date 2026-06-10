@@ -163,8 +163,7 @@ typedef enum logic [3:0] {
     CTRL_REPAIRVAL,
     CTRL_REVERSALMB,
     CTRL_REPAIRMB,
-    CTRL_DONE,
-    CTRL_ERROR
+    CTRL_DONE
 } ctrl_state_e;
 
 ctrl_state_e current_state, next_state;
@@ -187,9 +186,6 @@ always_comb begin
 
     if(!mbinit_enable)begin
         next_state = CTRL_IDLE;
-    end
-    else if (global_error && !mbinit_done) begin
-        next_state = CTRL_ERROR;
     end else begin
         case (current_state)
 
@@ -199,52 +195,36 @@ always_comb begin
             end
 
             CTRL_PARAM: begin
-                if (param_error)
-                    next_state = CTRL_ERROR;
-                else if (param_done)
+                if (param_done)
                     next_state = CTRL_CAL;
             end
 
             CTRL_CAL: begin
-                if (cal_error)
-                    next_state = CTRL_ERROR;
-                else if (cal_done)
+                if (cal_done)
                     next_state = CTRL_REPAIRCLK;
             end
 
             CTRL_REPAIRCLK: begin
-                if (repairclk_error)
-                    next_state = CTRL_ERROR;
-                else if (repairclk_done)
+                if (repairclk_done)
                     next_state = CTRL_REPAIRVAL;
             end
 
             CTRL_REPAIRVAL: begin
-                if (repairval_error)
-                    next_state = CTRL_ERROR;
-                else if (repairval_done)
+                if (repairval_done)
                     next_state = CTRL_REVERSALMB;
             end
 
             CTRL_REVERSALMB: begin
-                if (reversalmb_error)
-                    next_state = CTRL_ERROR;
-                else if (reversalmb_done)
+                if (reversalmb_done)
                     next_state = CTRL_REPAIRMB;
             end
 
             CTRL_REPAIRMB: begin
-                if (repairmb_error)
-                    next_state = CTRL_ERROR;
-                else if (repairmb_done)
+                if (repairmb_done)
                     next_state = CTRL_DONE;
             end
 
             CTRL_DONE: begin 
-                // stay in this state until mbinit_enable deasserts
-            end
- 
-            CTRL_ERROR: begin 
                 // stay in this state until mbinit_enable deasserts
             end
 
@@ -547,7 +527,7 @@ end
 // DONE / ERROR
 // =============================================================================
 assign mbinit_done   = (current_state == CTRL_DONE);
-assign mbinit_error  = (current_state == CTRL_ERROR);
+assign mbinit_error  = (param_error || cal_error || repairclk_error || repairval_error || reversalmb_error || repairmb_error || global_error); // global_error will be checked at top LTSM level
 
 // =============================================================================
 // STATE MAPPING FOR state_n ERROR LOG
@@ -555,13 +535,13 @@ assign mbinit_error  = (current_state == CTRL_ERROR);
 always_comb begin
     mbinit_state_n = LOG_RESET;
     case (current_state)
-        CTRL_PARAM:      mbinit_state_n = LOG_MBINIT_PARAM;
-        CTRL_CAL:        mbinit_state_n = LOG_MBINIT_CAL;
-        CTRL_REPAIRCLK:  mbinit_state_n = LOG_MBINIT_REPAIRCLK;
-        CTRL_REPAIRVAL:  mbinit_state_n = LOG_MBINIT_REPAIRVAL;
-        CTRL_REVERSALMB: mbinit_state_n = LOG_MBINIT_REVERSALMB;
-        CTRL_REPAIRMB:   mbinit_state_n = LOG_MBINIT_REPAIRMB;
-        default:         mbinit_state_n = LOG_RESET;
+        CTRL_PARAM:                 mbinit_state_n = LOG_MBINIT_PARAM;
+        CTRL_CAL:                   mbinit_state_n = LOG_MBINIT_CAL;
+        CTRL_REPAIRCLK:             mbinit_state_n = LOG_MBINIT_REPAIRCLK;
+        CTRL_REPAIRVAL:             mbinit_state_n = LOG_MBINIT_REPAIRVAL;
+        CTRL_REVERSALMB:            mbinit_state_n = LOG_MBINIT_REVERSALMB;
+        CTRL_REPAIRMB, CTRL_DONE:   mbinit_state_n = LOG_MBINIT_REPAIRMB;
+        default:                    mbinit_state_n = LOG_RESET;
     endcase
 end
 
@@ -590,7 +570,7 @@ end
 
     property p_param_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_PARAM && param_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_PARAM && param_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_param_error_leads_to_error: assert property(p_param_error_leads_to_error);
 
@@ -602,7 +582,7 @@ end
 
     property p_cal_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_CAL && cal_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_CAL && cal_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_cal_error_leads_to_error: assert property(p_cal_error_leads_to_error);
 
@@ -614,7 +594,7 @@ end
 
     property p_repairclk_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_REPAIRCLK && repairclk_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_REPAIRCLK && repairclk_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_repairclk_error_leads_to_error: assert property(p_repairclk_error_leads_to_error);
 
@@ -626,7 +606,7 @@ end
 
     property p_repairval_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_REPAIRVAL && repairval_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_REPAIRVAL && repairval_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_repairval_error_leads_to_error: assert property(p_repairval_error_leads_to_error);
 
@@ -638,7 +618,7 @@ end
 
     property p_reversalmb_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_REVERSALMB && reversalmb_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_REVERSALMB && reversalmb_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_reversalmb_error_leads_to_error: assert property(p_reversalmb_error_leads_to_error);
 
@@ -650,7 +630,7 @@ end
 
     property p_repairmb_error_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == CTRL_REPAIRMB && repairmb_error) |=> (current_state == CTRL_ERROR);
+        (current_state == CTRL_REPAIRMB && repairmb_error) |=> (mbinit_error == 1'b1);
     endproperty
     assert_repairmb_error_leads_to_error: assert property(p_repairmb_error_leads_to_error);
 
@@ -663,7 +643,7 @@ end
     cover_state_reversalmb: cover property (@(posedge clk) disable iff (!rst_n) current_state == CTRL_REVERSALMB);
     cover_state_repairmb:   cover property (@(posedge clk) disable iff (!rst_n) current_state == CTRL_REPAIRMB);
     cover_state_done:       cover property (@(posedge clk) disable iff (!rst_n) current_state == CTRL_DONE);
-    cover_state_error:      cover property (@(posedge clk) disable iff (!rst_n) current_state == CTRL_ERROR);
+    cover_state_error:      cover property (@(posedge clk) disable iff (!rst_n) mbinit_error == 1'b1);
 `endif
 
 endmodule
