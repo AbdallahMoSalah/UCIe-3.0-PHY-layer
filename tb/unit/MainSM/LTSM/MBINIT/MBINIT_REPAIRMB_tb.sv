@@ -711,7 +711,7 @@ module MBINIT_REPAIRMB_tb;
         if (master.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Master Tx mask should be 3'b011!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Tx mask should be 3'b001!");
-        if (partner.mbinit_rx_data_lane_mask_r != 3'b011) $error("ERROR: Partner Rx mask should be 3'b011!");
+        if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001!");
 
         // Drive S2 Run 2 for both Master and Partner:
         m_d2c_perlane_pass = 16'hFFFF;
@@ -763,7 +763,7 @@ module MBINIT_REPAIRMB_tb;
         $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
 
         if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001!");
-        if (master.mbinit_rx_data_lane_mask_r != 3'b011) $error("ERROR: Master Rx mask should be 3'b011!");
+        if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Partner Tx mask should be 3'b011!");
         if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001!");
 
@@ -959,8 +959,66 @@ module MBINIT_REPAIRMB_tb;
         expect_error = 1'b0;
         repeat(5) @(posedge clk);
 
+        // --------------------------------------------------------
+        // SCN 19: Asymmetric Initial Capacities (Master Tx wants x8, Partner Tx wants x4)
+        // --------------------------------------------------------
+        $display("\n[SCN 19] Asymmetric Initial Capacities (Master Tx wants x8, Partner Tx wants x4) -> Must align to x4");
+        reset_system();
+        m_use_x8_mode = 1'b1;
+        p_use_x8_mode = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        // S2 Run 1:
+        // Master Rx has errors on lanes 8-15 -> m_d2c_perlane_pass = 16'h00FF (Master Tx wants lower x8)
+        m_d2c_perlane_pass = 16'h00FF;
+        // Partner Rx has errors on lanes 4-15 -> p_d2c_perlane_pass = 16'h000F (Partner Tx wants lanes 0-3 / x4)
+        p_d2c_perlane_pass = 16'h000F;
+
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Since they have mismatched widths (x8 vs x4), Master Tx will degrade to match Partner Rx (x4), triggering retry on both sides!
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! Aligning widths to x4.");
+        $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
+        $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
+
+        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001 (x8)!");
+        if (master.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Master Rx mask should be 3'b100 (x4)!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Tx mask should be 3'b100 (x4)!");
+        if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001 (x8)!");
+
+        // Drive S2 Run 2 (retry): both pass at the common x4 width
+        m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFFF;
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Both sides finish training successfully
+        wait (m_done && p_done);
+        $display("  -> Asymmetric initial capacity training completed successfully! Final Master Tx mask = %b, Partner Tx mask = %b", 
+                 master.mbinit_tx_data_lane_mask_r, partner.mbinit_tx_data_lane_mask_r);
+        if (master.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Master final Tx map is not 3'b100!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner final Tx map is not 3'b100!");
+
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        repeat(5) @(posedge clk);
+
         $display("\n==========================================================");
-        $display("   ALL 18 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
+        $display("   ALL 19 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
         $display("==========================================================");
         $finish;
     end

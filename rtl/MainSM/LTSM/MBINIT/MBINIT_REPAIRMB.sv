@@ -97,7 +97,6 @@ import UCIe_pkg::*;
         MB_S5_FINALIZE_RSP_SEND,
         MB_S5_FINALIZE_RSP_WAIT,
 
-        MB_S6_ALIGN_CHECK,
         MB_S7_REPAIR_ERROR,
         MB_S8_REPAIR_DONE
     } state_e;
@@ -122,8 +121,6 @@ import UCIe_pkg::*;
     logic        width_changed_r;
     logic        retry_done;
     logic        retry_start;
-    logic        local_needs_retry_r;
-    logic        partner_needs_retry_r;
 
     logic        s1_req_rcvd;
     logic        s1_rsp_rcvd;
@@ -185,19 +182,6 @@ import UCIe_pkg::*;
         endcase
     endfunction
 
-    logic [2:0] aligned_tx;
-    logic [2:0] aligned_rx;
-
-    always_comb begin
-        int tx_w, rx_w, min_w;
-        tx_w = get_width(mbinit_tx_data_lane_mask_r);
-        rx_w = get_width(mbinit_rx_data_lane_mask_r);
-        min_w = (tx_w < rx_w) ? tx_w : rx_w;
-
-        aligned_tx = degrade_map_to_width(mbinit_tx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
-        aligned_rx = degrade_map_to_width(mbinit_rx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
-    end
-
     always_comb begin
         mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
         mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
@@ -205,23 +189,16 @@ import UCIe_pkg::*;
             mbinit_rx_data_lane_mask = 3'b011;
             mbinit_tx_data_lane_mask = 3'b011;
         end
+        else if (current_state == MB_S7_REPAIR_ERROR) begin
+            mbinit_rx_data_lane_mask = 3'b000;
+            mbinit_tx_data_lane_mask = 3'b000;
+        end
         else begin
             if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
                 mbinit_tx_data_lane_mask = local_lane_map;
             end
             if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask = sb_repairmb_rx_MsgInfo[2:0];
-            end
-
-            if (current_state == MB_S6_ALIGN_CHECK) begin
-                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                    mbinit_rx_data_lane_mask = 3'b000;
-                    mbinit_tx_data_lane_mask = 3'b000;
-                end
-                else begin
-                    mbinit_rx_data_lane_mask = aligned_rx;
-                    mbinit_tx_data_lane_mask = aligned_tx;
-                end
+                mbinit_rx_data_lane_mask = (sb_repairmb_rx_MsgInfo[2:0] == 3'b011) ? local_lane_map : sb_repairmb_rx_MsgInfo[2:0];
             end
         end
     end
@@ -235,23 +212,16 @@ import UCIe_pkg::*;
             mbinit_rx_data_lane_mask_r <= 3'b011;
             mbinit_tx_data_lane_mask_r <= 3'b011;
         end
+        else if (current_state == MB_S7_REPAIR_ERROR) begin
+            mbinit_rx_data_lane_mask_r <= 3'b000;
+            mbinit_tx_data_lane_mask_r <= 3'b000;
+        end
         else begin
             if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
                 mbinit_tx_data_lane_mask_r <= local_lane_map;
             end
             if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask_r <= sb_repairmb_rx_MsgInfo[2:0];
-            end
-
-            if (current_state == MB_S6_ALIGN_CHECK) begin
-                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                    mbinit_rx_data_lane_mask_r <= 3'b000;
-                    mbinit_tx_data_lane_mask_r <= 3'b000;
-                end
-                else begin
-                    mbinit_rx_data_lane_mask_r <= aligned_rx;
-                    mbinit_tx_data_lane_mask_r <= aligned_tx;
-                end
+                mbinit_rx_data_lane_mask_r <= (sb_repairmb_rx_MsgInfo[2:0] == 3'b011) ? local_lane_map : sb_repairmb_rx_MsgInfo[2:0];
             end
         end
     end
@@ -431,7 +401,7 @@ import UCIe_pkg::*;
                         end
                     end
                     MBINIT_REPAIRMB_end_req: begin
-                        if (current_state > MB_S3_DEGRADE_RSP_SEND && (s3_rsp_rcvd || (retry_done && !local_needs_retry_r))) begin
+                        if (current_state > MB_S3_DEGRADE_RSP_SEND && s3_rsp_rcvd) begin
                             s5_req_rcvd <= 1'b1;
                         end
                     end
@@ -456,22 +426,14 @@ import UCIe_pkg::*;
         if (!rst_n) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
-            local_needs_retry_r    <= 1'b0;
-            partner_needs_retry_r  <= 1'b0;
         end
         else if (current_state == MB_S0_IDLE) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
-            local_needs_retry_r    <= 1'b0;
-            partner_needs_retry_r  <= 1'b0;
         end
         else if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd) begin
             degrade_not_possible_r <= degrade_not_possible;
             width_changed_r        <= (local_lane_map != prev_lane_map);
-            if (!retry_done) begin
-                local_needs_retry_r    <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
-                partner_needs_retry_r  <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
-            end
         end
     end
 
@@ -488,19 +450,7 @@ import UCIe_pkg::*;
     end
 
     logic d2c_pt_complete;
-    always_comb begin
-        if (!retry_done) begin
-            d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
-        end
-        else begin
-            case ({local_needs_retry_r, partner_needs_retry_r})
-                2'b11:   d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
-                2'b10:   d2c_pt_complete = local_test_d2c_done;
-                2'b01:   d2c_pt_complete = partner_test_d2c_done;
-                default: d2c_pt_complete = 1'b1;
-            endcase
-        end
-    end
+    assign d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
 
     ////////////////////////////////////////////////////////
     // STATE REGISTER
@@ -552,20 +502,14 @@ import UCIe_pkg::*;
                 // ── S2 Point Test ──
                 MB_S2_D2C_POINT_TEST: begin
                     if (d2c_pt_complete) begin
-                        if (retry_done && !local_needs_retry_r && partner_needs_retry_r)
-                            next_state = MB_S3_DEGRADE_REQ_WAIT;
-                        else
-                            next_state = MB_S3_DEGRADE_REQ_SEND;
+                        next_state = MB_S3_DEGRADE_REQ_SEND;
                     end
                 end
 
                 // ── S3 Degrade REQ ──
                 MB_S3_DEGRADE_REQ_SEND: begin
                     if (sb_ltsm_rdy) begin
-                        if (retry_done && !partner_needs_retry_r)
-                            next_state = MB_S3_DEGRADE_RSP_WAIT;
-                        else
-                            next_state = MB_S3_DEGRADE_REQ_WAIT;
+                        next_state = MB_S3_DEGRADE_REQ_WAIT;
                     end
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
@@ -576,10 +520,7 @@ import UCIe_pkg::*;
                 // ── S3 Degrade RSP ──
                 MB_S3_DEGRADE_RSP_SEND: begin
                     if (sb_ltsm_rdy) begin
-                        if (retry_done && !local_needs_retry_r)
-                            next_state = MB_S5_FINALIZE_REQ_SEND;
-                        else
-                            next_state = MB_S3_DEGRADE_RSP_WAIT;
+                        next_state = MB_S3_DEGRADE_RSP_WAIT;
                     end
                 end
                 MB_S3_DEGRADE_RSP_WAIT: begin
@@ -619,20 +560,7 @@ import UCIe_pkg::*;
                     if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
                 end
                 MB_S5_FINALIZE_RSP_WAIT: begin
-                    if (s5_rsp_rcvd)    next_state = MB_S6_ALIGN_CHECK;
-                end
-
-                MB_S6_ALIGN_CHECK: begin
-                    `ifdef SIMULATION
-                        $display("DUT DEBUG: MB_S6_ALIGN_CHECK: aligned_tx=%b, aligned_rx=%b, mbinit_tx_data_lane_mask_r=%b, mbinit_rx_data_lane_mask_r=%b, local_lower_x4_pass=%b, local_upper_x4_pass=%b",
-                            aligned_tx, aligned_rx, mbinit_tx_data_lane_mask_r, mbinit_rx_data_lane_mask_r, local_lower_x4_pass, local_upper_x4_pass);
-                    `endif
-                    if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                        next_state = MB_S7_REPAIR_ERROR;
-                    end
-                    else begin
-                        next_state = MB_S8_REPAIR_DONE;
-                    end
+                    if (s5_rsp_rcvd)    next_state = MB_S8_REPAIR_DONE;
                 end
 
                 MB_S7_REPAIR_ERROR: begin
@@ -713,14 +641,8 @@ import UCIe_pkg::*;
         local_tx_pt_en   = 1'b0;
         partner_tx_pt_en = 1'b0;
         if (current_state == MB_S2_D2C_POINT_TEST) begin
-            if (!retry_done) begin
-                local_tx_pt_en   = 1'b1;
-                partner_tx_pt_en = 1'b1;
-            end
-            else begin
-                local_tx_pt_en   = local_needs_retry_r;
-                partner_tx_pt_en = partner_needs_retry_r;
-            end
+            local_tx_pt_en   = 1'b1;
+            partner_tx_pt_en = 1'b1;
         end
     end
 
