@@ -304,12 +304,9 @@ module LFSR_TX #(
                     counter_per_lane <= 0;
                     o_valid_frame_en   <= 0;
 
-                    if (i_reversal_en) begin
-                        lane_reversal_enabled <= 1;
-                        o_Lfsr_tx_done        <= 1;
-                    end else begin
-                        o_Lfsr_tx_done <= 0;
-                    end
+                    
+                    lane_reversal_enabled <= i_reversal_en;
+                   
                 end
 
                 // ==============================================================
