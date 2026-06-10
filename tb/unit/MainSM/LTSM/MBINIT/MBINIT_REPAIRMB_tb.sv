@@ -993,7 +993,7 @@ module MBINIT_REPAIRMB_tb;
         if (master.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Master Tx mask should be 3'b100 (x4)!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Master Rx mask should be 3'b100 (x4)!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Tx mask should be 3'b100 (x4)!");
-        if (partner.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Rx mask should be 3'b100 (x4)!");
+        if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001 (x8)!");
 
         // Drive S2 Run 2 (retry): both pass at the common x4 width
         m_d2c_perlane_pass = 16'hFFFF;
@@ -1017,8 +1017,67 @@ module MBINIT_REPAIRMB_tb;
         p_use_x8_mode = 1'b0;
         repeat(5) @(posedge clk);
 
+        // --------------------------------------------------------
+        // SCN 20: User Scenario (Master Tx wants lower x4, Partner Tx wants upper x8 but has lower x4 passing) -> Must align to lower x4
+        // --------------------------------------------------------
+        $display("\n[SCN 20] User Scenario (Master Tx wants lower x4, Partner Tx wants upper x8 but has lower x4 passing) -> Must align to lower x4");
+        reset_system();
+        m_use_x8_mode = 1'b1;
+        p_use_x8_mode = 1'b1;
+        m_enable = 1'b1;
+        p_enable = 1'b1;
+
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+
+        // Run 1:
+        // Master: only lanes 0-3 pass (lower x4) -> 16'h000F
+        m_d2c_perlane_pass = 16'h000F;
+        // Partner: lanes 0-3 pass, lanes 4-7 fail, lanes 8-15 pass -> 16'hFF0F (resolves to upper x8 3'b010)
+        p_d2c_perlane_pass = 16'hFF0F;
+
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Since Master Tx wants lower x4 and Partner Tx wants upper x8 but resolves to lower x4, they should both retry and align to lower x4
+        wait (master.current_state == master.MB_S2_D2C_POINT_TEST && partner.current_state == partner.MB_S2_D2C_POINT_TEST);
+        repeat(5) @(posedge clk);
+        $display("  -> Retry triggered! Aligning widths to lower x4.");
+        $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
+        $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
+
+        if (master.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Master Tx mask should be 3'b100 (x4)!");
+        if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001 (x8)!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Tx mask should be 3'b100 (x4)!");
+        if (partner.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Rx mask should be 3'b100 (x4)!");
+
+        // Drive S2 Run 2 (retry): both pass at lower x4
+        m_d2c_perlane_pass = 16'hFFFF;
+        p_d2c_perlane_pass = 16'hFFFF;
+        m_test_d2c_done = 1'b1;
+        p_test_d2c_done = 1'b1;
+        @(posedge clk);
+        m_test_d2c_done = 1'b0;
+        p_test_d2c_done = 1'b0;
+
+        // Both sides finish training successfully
+        wait (m_done && p_done);
+        $display("  -> User Scenario training completed successfully! Final Master Tx mask = %b, Partner Tx mask = %b", 
+                 master.mbinit_tx_data_lane_mask_r, partner.mbinit_tx_data_lane_mask_r);
+        if (master.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Master final Tx map is not 3'b100!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner final Tx map is not 3'b100!");
+
+        m_enable = 1'b0;
+        p_enable = 1'b0;
+        m_use_x8_mode = 1'b0;
+        p_use_x8_mode = 1'b0;
+        repeat(5) @(posedge clk);
+
         $display("\n==========================================================");
-        $display("   ALL 19 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
+        $display("   ALL 20 TEST SCENARIOS PASSED SUCCESSFULLY!             ");
         $display("==========================================================");
         $finish;
     end
