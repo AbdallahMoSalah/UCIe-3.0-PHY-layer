@@ -708,7 +708,7 @@ module MBINIT_REPAIRMB_tb;
         $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
         $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
 
-        if (master.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Master Tx mask should be 3'b011!");
+        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Tx mask should be 3'b001!");
         if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001!");
@@ -764,7 +764,7 @@ module MBINIT_REPAIRMB_tb;
 
         if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Master Rx mask should be 3'b001!");
-        if (partner.mbinit_tx_data_lane_mask_r != 3'b011) $error("ERROR: Partner Tx mask should be 3'b011!");
+        if (partner.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Tx mask should be 3'b001!");
         if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001!");
 
         // Drive S2 Run 2 for both Master and Partner:
@@ -990,10 +990,10 @@ module MBINIT_REPAIRMB_tb;
         $display("     Master Tx mask = %b, Rx mask = %b", master.mbinit_tx_data_lane_mask_r, master.mbinit_rx_data_lane_mask_r);
         $display("     Partner Tx mask = %b, Rx mask = %b", partner.mbinit_tx_data_lane_mask_r, partner.mbinit_rx_data_lane_mask_r);
 
-        if (master.mbinit_tx_data_lane_mask_r != 3'b001) $error("ERROR: Master Tx mask should be 3'b001 (x8)!");
+        if (master.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Master Tx mask should be 3'b100 (x4)!");
         if (master.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Master Rx mask should be 3'b100 (x4)!");
         if (partner.mbinit_tx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Tx mask should be 3'b100 (x4)!");
-        if (partner.mbinit_rx_data_lane_mask_r != 3'b001) $error("ERROR: Partner Rx mask should be 3'b001 (x8)!");
+        if (partner.mbinit_rx_data_lane_mask_r != 3'b100) $error("ERROR: Partner Rx mask should be 3'b100 (x4)!");
 
         // Drive S2 Run 2 (retry): both pass at the common x4 width
         m_d2c_perlane_pass = 16'hFFFF;

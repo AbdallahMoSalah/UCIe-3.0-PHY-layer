@@ -139,6 +139,7 @@ import UCIe_pkg::*;
 
     logic [2:0] mbinit_rx_data_lane_mask_r;
     logic [2:0] mbinit_tx_data_lane_mask_r;
+    logic [2:0] resolved_rx_lane_map;
 
     logic        local_lower_x4_pass;
     logic        local_upper_x4_pass;
@@ -182,6 +183,45 @@ import UCIe_pkg::*;
         endcase
     endfunction
 
+    function automatic logic [2:0] resolve_partner_rx_map(logic [2:0] p_map, int target_w);
+        int p_w;
+        p_w = get_width(p_map);
+        if (p_w <= target_w) return p_map;
+        
+        case (target_w)
+            8: begin
+                if (p_map == 3'b011) return 3'b001; // Degrade x16 to lower x8
+                else return p_map;
+            end
+            4: begin
+                if (p_map == 3'b011 || p_map == 3'b001) begin
+                    return 3'b100; // Degrade to lower x4
+                end
+                else if (p_map == 3'b010) begin
+                    return 3'b101; // Degrade to upper x4
+                end
+                else begin
+                    return 3'b000;
+                end
+            end
+            default: return p_map;
+        endcase
+    endfunction
+
+    always_comb begin
+        if (partner_lane_map == 3'b011) begin
+            resolved_rx_lane_map = local_lane_map;
+        end
+        else begin
+            automatic int local_w, partner_w, min_w;
+            local_w   = get_width(raw_local_map);
+            partner_w = get_width(partner_lane_map);
+            min_w     = (local_w < partner_w) ? local_w : partner_w;
+
+            resolved_rx_lane_map = resolve_partner_rx_map(partner_lane_map, min_w);
+        end
+    end
+
     always_comb begin
         mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_r;
         mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_r;
@@ -194,11 +234,9 @@ import UCIe_pkg::*;
             mbinit_tx_data_lane_mask = 3'b000;
         end
         else begin
-            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+            if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
                 mbinit_tx_data_lane_mask = local_lane_map;
-            end
-            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask = (sb_repairmb_rx_MsgInfo[2:0] == 3'b011) ? local_lane_map : sb_repairmb_rx_MsgInfo[2:0];
+                mbinit_rx_data_lane_mask = resolved_rx_lane_map;
             end
         end
     end
@@ -217,11 +255,9 @@ import UCIe_pkg::*;
             mbinit_tx_data_lane_mask_r <= 3'b000;
         end
         else begin
-            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+            if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
                 mbinit_tx_data_lane_mask_r <= local_lane_map;
-            end
-            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask_r <= (sb_repairmb_rx_MsgInfo[2:0] == 3'b011) ? local_lane_map : sb_repairmb_rx_MsgInfo[2:0];
+                mbinit_rx_data_lane_mask_r <= resolved_rx_lane_map;
             end
         end
     end
@@ -260,7 +296,7 @@ import UCIe_pkg::*;
             local_lane_map = prev_lane_map;
         end
         else begin
-            if (current_state >= MB_S3_DEGRADE_RSP_WAIT) begin
+            if (s3_req_rcvd) begin
                 automatic int local_w, partner_w, min_w;
                 local_w   = get_width(raw_local_map);
                 partner_w = get_width(partner_lane_map);
@@ -305,7 +341,7 @@ import UCIe_pkg::*;
     assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
 
     assign degrade_not_possible = (local_lane_map == 3'b000) ||
-                                  (partner_lane_map == 3'b000) ||
+                                  (resolved_rx_lane_map == 3'b000) ||
                                   (retry_done && !retry_rx_pass) ||
                                   (retry_done && (partner_lane_map != expected_partner_lane_map));
 
@@ -313,7 +349,7 @@ import UCIe_pkg::*;
     // RETRY & TIMER CONTROLS
     ////////////////////////////////////////////////////////
 
-    assign retry_start = (current_state == MB_S4_DEGRADE_VERIFICATION) && 
+    assign retry_start = (current_state == MB_S3_DEGRADE_RSP_WAIT) && s3_rsp_rcvd && 
                          (width_changed_r || (partner_lane_map != 3'b011)) && 
                          !degrade_not_possible_r && !retry_done;
 
@@ -369,6 +405,7 @@ import UCIe_pkg::*;
             s5_req_rcvd          <= 1'b0;
             s5_rsp_rcvd          <= 1'b0;
             mb_rx_perlane_result <= 16'h0;
+            prev_partner_lane_map <= partner_lane_map;
         end
         else begin
             // Latch per-lane status when the local point test completes
@@ -431,7 +468,7 @@ import UCIe_pkg::*;
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
         end
-        else if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd) begin
+        else if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
             degrade_not_possible_r <= degrade_not_possible;
             width_changed_r        <= (local_lane_map != prev_lane_map);
         end
@@ -514,7 +551,17 @@ import UCIe_pkg::*;
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
                     if (s3_req_rcvd)
+                        next_state = MB_S4_DEGRADE_VERIFICATION;
+                end
+
+                // ── S4 Verification ──
+                MB_S4_DEGRADE_VERIFICATION: begin
+                    if (degrade_not_possible) begin
+                        next_state = MB_S7_REPAIR_ERROR;
+                    end
+                    else begin
                         next_state = MB_S3_DEGRADE_RSP_SEND;
+                    end
                 end
 
                 // ── S3 Degrade RSP ──
@@ -524,25 +571,19 @@ import UCIe_pkg::*;
                     end
                 end
                 MB_S3_DEGRADE_RSP_WAIT: begin
-                    if (s3_rsp_rcvd)    next_state = MB_S4_DEGRADE_VERIFICATION;
-                end
-
-                // ── S4 Verification ──
-                MB_S4_DEGRADE_VERIFICATION: begin
-                    if (degrade_not_possible_r) begin
-                        next_state = MB_S7_REPAIR_ERROR;
-                    end
-                    else if (!retry_done) begin
-                        if (width_changed_r || (partner_lane_map != 3'b011))
-                            next_state = MB_S2_D2C_POINT_TEST; // Retry
-                        else
+                    if (s3_rsp_rcvd) begin
+                        if (degrade_not_possible_r) begin
+                            next_state = MB_S7_REPAIR_ERROR;
+                        end
+                        else if (!retry_done) begin
+                            if (width_changed_r || (partner_lane_map != 3'b011))
+                                next_state = MB_S2_D2C_POINT_TEST; // Retry
+                            else
+                                next_state = MB_S5_FINALIZE_REQ_SEND;
+                        end
+                        else begin // retry_done == 1
                             next_state = MB_S5_FINALIZE_REQ_SEND;
-                    end
-                    else begin // retry_done == 1
-                        if (width_changed_r)
-                            next_state = MB_S7_REPAIR_ERROR; // Double fail
-                        else
-                            next_state = MB_S5_FINALIZE_REQ_SEND;
+                        end
                     end
                 end
 
@@ -673,8 +714,8 @@ import UCIe_pkg::*;
     `ifdef SIMULATION
         always @(posedge clk) begin
             if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
-                $display("DUT DEBUG: current_state=S4, width_changed_r=%b, degrade_not_possible_r=%b, retry_start=%b, retry_done=%b, prev_lane_map=%b, local_lane_map=%b",
-                    width_changed_r, degrade_not_possible_r, retry_start, retry_done, prev_lane_map, local_lane_map);
+                $display("DUT DEBUG: current_state=S4, retry_done=%b, local_lane_map=%b, resolved_rx_lane_map=%b, retry_rx_pass=%b, partner_lane_map=%b, expected_partner_lane_map=%b, mb_rx_perlane_result=%h, partner_mask=%h, degrade_not_possible=%b",
+                    retry_done, local_lane_map, resolved_rx_lane_map, retry_rx_pass, partner_lane_map, expected_partner_lane_map, mb_rx_perlane_result, partner_mask, degrade_not_possible);
             end
         end
 
@@ -745,10 +786,9 @@ import UCIe_pkg::*;
 
         // 9. Error Check: Error states raise error flag
         property p_error_condition_raises_error;
-            @(posedge clk) disable iff (!rst_n)
-            (global_error && mb_repairmb_enable) ||
-            (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible_r) ||
-            (current_state == MB_S4_DEGRADE_VERIFICATION && width_changed_r && retry_done)
+            @(posedge clk) disable iff (!rst_n || !mb_repairmb_enable)
+            (global_error) ||
+            (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible)
             |-> ##[1:5] (current_state == MB_S7_REPAIR_ERROR && mb_repairmb_error == 1'b1);
         endproperty
         assert_error_condition_raises_error: assert property(p_error_condition_raises_error);
