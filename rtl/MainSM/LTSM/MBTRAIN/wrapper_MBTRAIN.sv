@@ -273,6 +273,7 @@ module wrapper_MBTRAIN #(
     logic [VAL_PI_W-1:0]    best_val_pi_code    [0:15];
     logic [DATA_PI_W-1:0]   best_data_pi_code   [0:15];
 
+
     // ================================================================================================
     // 3. Input-only preparation logic
     // ================================================================================================
@@ -306,13 +307,20 @@ module wrapper_MBTRAIN #(
     assign ss_active[SS_REPAIR]         = local_repair_en         | partner_repair_en;
 
     logic trainerror_detected;
-    logic local_dtc1_loopback_req , partner_dtc1_loopback_req , dtc1_loopback_req;
-    logic local_linkinit_route_req;
-    logic local_speedidle_route_req;
-    logic local_repair_route_req;
-    logic local_phyretrain_route_req;
-    logic local_repair_txselfcal_req;
-    logic repair_update_lane_mask;
+    logic local_dtc1_loopback_req , partner_dtc1_loopback_req;
+    logic local_linkinit_route_req    ;
+    logic local_speedidle_route_req   ;
+    logic local_repair_route_req      ;
+    logic local_phyretrain_route_req  ;
+    logic local_repair_txselfcal_req  ;
+    logic partner_repair_txselfcal_req;
+    logic repair_update_lane_mask     ;
+
+    logic partner_linkinit_route_req   ;
+    logic partner_speedidle_route_req  ;
+    logic partner_repair_route_req     ;
+    logic partner_phyretrain_route_req ;
+
     // Retention register: captures VALVREF's update_lane_mask decision at the
     // moment VALVREF completes (both Local and Partner done). This sticky value
     // is forwarded to wrapper_REPAIR which runs much later in the sequence.
@@ -325,9 +333,7 @@ module wrapper_MBTRAIN #(
     assign sweep_active_lanes = active_rx_lanes;
 
     always_ff @(posedge lclk or negedge rst_n) begin : UPDATE_LANE_MASK_RETAIN
-        if (!rst_n)
-            update_lane_mask_r <= 1'b0;
-        else if (!is_ltsm_out_of_reset)
+        if (!rst_n || !is_ltsm_out_of_reset)
             update_lane_mask_r <= 1'b0;
         else if (local_valvref_done && partner_valvref_done)
             update_lane_mask_r <= ss_update_lane_mask[SS_VALVREF];
@@ -335,8 +341,6 @@ module wrapper_MBTRAIN #(
     // repair_update_lane_mask is no longer a live OR of all substates;
     // it is the retained VALVREF decision passed to wrapper_REPAIR.
     assign repair_update_lane_mask = update_lane_mask_r;
-
-    assign dtc1_loopback_req = local_dtc1_loopback_req & partner_dtc1_loopback_req;
 
     // ================================================================================================
     // 4. Common-file instantiations
@@ -397,7 +401,8 @@ module wrapper_MBTRAIN #(
         .local_rxdeskew_done          (local_rxdeskew_done),
         .partner_rxdeskew_en          (partner_rxdeskew_en),
         .partner_rxdeskew_done        (partner_rxdeskew_done),
-        .local_dtc1_loopback_req      (dtc1_loopback_req),
+        .local_dtc1_loopback_req      (local_dtc1_loopback_req),
+        .partner_dtc1_loopback_req    (partner_dtc1_loopback_req),
         .local_dtc2_en                (local_dtc2_en),
         .local_dtc2_done              (local_dtc2_done),
         .partner_dtc2_en              (partner_dtc2_en),
@@ -406,15 +411,24 @@ module wrapper_MBTRAIN #(
         .local_linkspeed_done         (local_linkspeed_done),
         .partner_linkspeed_en         (partner_linkspeed_en),
         .partner_linkspeed_done       (partner_linkspeed_done),
-        .local_linkinit_route_req     (local_linkinit_route_req),
-        .local_speedidle_route_req    (local_speedidle_route_req),
-        .local_repair_route_req       (local_repair_route_req),
-        .local_phyretrain_route_req   (local_phyretrain_route_req),
+
+
+        // LINKSPEED routing outputs (fed back to ctrl)
+        .local_linkinit_route_req     (local_linkinit_route_req    ),
+        .local_speedidle_route_req    (local_speedidle_route_req   ),
+        .local_repair_route_req       (local_repair_route_req      ),
+        .local_phyretrain_route_req   (local_phyretrain_route_req  ),
+        .partner_linkinit_route_req   (partner_linkinit_route_req  ),
+        .partner_speedidle_route_req  (partner_speedidle_route_req ),
+        .partner_repair_route_req     (partner_repair_route_req    ),
+        .partner_phyretrain_route_req (partner_phyretrain_route_req),
+
         .local_repair_en              (local_repair_en),
         .local_repair_done            (local_repair_done),
         .partner_repair_en            (partner_repair_en),
         .partner_repair_done          (partner_repair_done),
-        .local_repair_txselfcal_req   (local_repair_txselfcal_req)
+        .local_repair_txselfcal_req   (local_repair_txselfcal_req),
+        .partner_repair_txselfcal_req (partner_repair_txselfcal_req)
     );
 
     // Bug fix: use the REGISTERED speed value, not the combinational output port.
@@ -894,17 +908,19 @@ module wrapper_MBTRAIN #(
         .is_continuous_clk_mode       (is_continuous_clk_mode),
         .local_linkspeed_en           (local_linkspeed_en),
         .local_linkspeed_done         (local_linkspeed_done),
-        .local_linkinit_req           (local_linkinit_route_req),
-        .local_speedidle_req          (local_speedidle_route_req),
-        .local_repair_req             (local_repair_route_req),
+        .local_linkinit_req           (local_linkinit_route_req  ),
+        .local_speedidle_req          (local_speedidle_route_req ),
+        .local_repair_req             (local_repair_route_req    ),
         .local_phyretrain_req         (local_phyretrain_route_req),
         .local_trainerror_req         (ss_local_trainerror_req[SS_LINKSPEED]),
         .partner_linkspeed_en         (partner_linkspeed_en),
         .partner_linkspeed_done       (partner_linkspeed_done),
-        .partner_linkinit_req         (),
-        .partner_speedidle_req        (),
-        .partner_repair_req           (),
-        .partner_phyretrain_req       (),
+
+        .partner_linkinit_req         (partner_linkinit_route_req  ),
+        .partner_speedidle_req        (partner_speedidle_route_req ),
+        .partner_repair_req           (partner_repair_route_req    ),
+        .partner_phyretrain_req       (partner_phyretrain_route_req),
+
         .partner_trainerror_req       (ss_partner_trainerror_req[SS_LINKSPEED]),
         .timeout_timer_en             (ss_timeout_timer_en[SS_LINKSPEED]),
         .active_rx_lanes              (active_rx_lanes),
@@ -946,6 +962,7 @@ module wrapper_MBTRAIN #(
         .local_repair_en              (local_repair_en),
         .local_repair_done            (local_repair_done),
         .local_txselfcal_req          (local_repair_txselfcal_req),
+        .partner_txselfcal_req        (partner_repair_txselfcal_req), // I didn't handle This port yet. we have to handle `partner_repair_txselfcal_req`
         .local_trainerror_req         (ss_local_trainerror_req[SS_REPAIR]),
         .partner_repair_en            (partner_repair_en),
         .partner_repair_done          (partner_repair_done),

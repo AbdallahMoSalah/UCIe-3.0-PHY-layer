@@ -8,14 +8,18 @@ module wrapper_DATAVREF_tb;
     // =========================================================================
     parameter LCLK_PERIOD          = 1*1000 ; // lclk period = 1ns (1GHz)
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait for settling
-    parameter MIN_DATA_VREF_CODE   = 7'D10  ;
-    parameter MAX_DATA_VREF_CODE   = 7'D25  ; // Reduced from 127 for fast simulation
+    parameter MIN_DATA_VREF_CODE   = 7'D1   ;
+    parameter MAX_DATA_VREF_CODE   = 7'D16  ; // Spec-compliant range: 1..16
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
     parameter MB_DELAY             = 10     ; // Speed knob: reduce iteration time
 
-    localparam integer CYCLES_PER_CODE = ANALOG_SETTLE_CYCLES + (MB_DELAY + 1) * MB_DELAY + 15 + 8 * SB_DELAY;
+    // CYCLES_PER_CODE: cycles per swept code point (per-lane D2C).
+    //   = MB iter cycles: MB_DELAY iters x ~MB_DELAY burst cycles
+    //   + 6 D2C SB handshake round-trips x 2 x SB_DELAY
+    //   + FSM overhead
+    localparam integer CYCLES_PER_CODE = MB_DELAY * MB_DELAY + 12 * SB_DELAY + 30;
     localparam integer SWEEP_CYCLES    = (MAX_DATA_VREF_CODE - MIN_DATA_VREF_CODE + 1) * CYCLES_PER_CODE;
-    parameter TIMEOUT_CYCLES           = 8 * (SWEEP_CYCLES + SB_DELAY * 10);
+    parameter TIMEOUT_CYCLES           = 8 * (SWEEP_CYCLES + SB_DELAY * 20);
     parameter bit ENABLE_RAND_LOG      = 1'b0; // 1: display details of randomized scenarios in terminal
 
     // =========================================================================
@@ -230,8 +234,6 @@ module wrapper_DATAVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
-
         .local_datavref_en              (dut_local_datavref_en),
         .local_datavref_done            (dut_local_datavref_done),
         .local_trainerror_req           (dut_local_trainerror_req),
@@ -240,8 +242,6 @@ module wrapper_DATAVREF_tb;
         .partner_datavref_en            (dut_partner_datavref_en),
         .partner_datavref_done          (dut_partner_datavref_done),
         .partner_trainerror_req         (dut_partner_trainerror_req),
-
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -289,8 +289,6 @@ module wrapper_DATAVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
-
         .local_datavref_en              (ptn_local_datavref_en),
         .local_datavref_done            (ptn_local_datavref_done),
         .local_trainerror_req           (ptn_local_trainerror_req),
@@ -299,8 +297,6 @@ module wrapper_DATAVREF_tb;
         .partner_datavref_en            (ptn_partner_datavref_en),
         .partner_datavref_done          (ptn_partner_datavref_done),
         .partner_trainerror_req         (ptn_partner_trainerror_req),
-
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -333,25 +329,25 @@ module wrapper_DATAVREF_tb;
     // State Monitors
     // =========================================================================
     typedef enum reg [3:0] {
-        DATAVREF_LOCAL_IDLE           = 4'd0,
-        DATAVREF_LOCAL_SEND_START_REQ = 4'd1,
-        DATAVREF_LOCAL_WAIT_START_RESP= 4'd2,
-        DATAVREF_LOCAL_SWEEP          = 4'd3,
-        DATAVREF_LOCAL_APPLY_BEST     = 4'd4,
-        DATAVREF_LOCAL_SEND_END_REQ   = 4'd5,
-        DATAVREF_LOCAL_WAIT_END_RESP  = 4'd6,
-        DATAVREF_LOCAL_TO_SPEEDIDLE   = 4'd7,
-        DATAVREF_LOCAL_TO_TRAINERROR  = 4'd8
+        DATAVREF_LCL_IDLE           = 4'd0,
+        DATAVREF_LCL_SEND_START_REQ = 4'd1,
+        DATAVREF_LCL_WAIT_START_RESP= 4'd2,
+        DATAVREF_LCL_SWEEP          = 4'd3,
+        DATAVREF_LCL_APPLY_BEST     = 4'd4,
+        DATAVREF_LCL_SEND_END_REQ   = 4'd5,
+        DATAVREF_LCL_WAIT_END_RESP  = 4'd6,
+        DATAVREF_LCL_TO_SPEEDIDLE   = 4'd7,
+        DATAVREF_LCL_TO_TRAINERROR  = 4'd8
     } local_state_t;
 
     typedef enum reg [3:0] {
-        DATAVREF_PTR_IDLE            = 4'd0,
-        DATAVREF_PTR_WAIT_START_REQ  = 4'd1,
-        DATAVREF_PTR_SEND_START_RESP = 4'd2,
-        DATAVREF_PTR_WAIT_END_REQ    = 4'd3,
-        DATAVREF_PTR_SEND_END_RESP   = 4'd4,
-        DATAVREF_PTR_TO_SPEEDIDLE    = 4'd5,
-        DATAVREF_PTR_TO_TRAINERROR   = 4'd6
+        DATAVREF_PTN_IDLE            = 4'd0,
+        DATAVREF_PTN_WAIT_START_REQ  = 4'd1,
+        DATAVREF_PTN_SEND_START_RESP = 4'd2,
+        DATAVREF_PTN_WAIT_END_REQ    = 4'd3,
+        DATAVREF_PTN_SEND_END_RESP   = 4'd4,
+        DATAVREF_PTN_TO_SPEEDIDLE    = 4'd5,
+        DATAVREF_PTN_TO_TRAINERROR   = 4'd6
     } partner_state_t;
 
     local_state_t dut_local_state, prev_dut_local_state;
@@ -398,7 +394,7 @@ module wrapper_DATAVREF_tb;
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
+        dut_if.state_n_0            = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_verbose            = 0;
         dut_if.tb_wait_timeout       = 0;
@@ -408,7 +404,7 @@ module wrapper_DATAVREF_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
+        ptn_if.state_n_0            = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_verbose            = 0;
         ptn_if.tb_wait_timeout       = 0;
@@ -460,11 +456,8 @@ module wrapper_DATAVREF_tb;
             ptn_if.tb_suppress_rx_sb = 1;
             fork
                 begin
-                    wait (dut_if.timeout_timer_en == 1);
                     repeat(200) @(posedge lclk);
-                    force dut_if.timeout_8ms_occured = 1;
                     @(posedge lclk);
-                    release dut_if.timeout_8ms_occured;
                 end
             join_none
         end
@@ -543,12 +536,12 @@ module wrapper_DATAVREF_tb;
         automatic integer standard_start [0:15];
         automatic integer standard_end   [0:15];
         for (int l = 0; l < 16; l = l + 1) begin
-            standard_start[l] = 12;
-            standard_end[l]   = 22;
+            standard_start[l] = 3;
+            standard_end[l]   = 13;
         end
 
-        dut_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
-        ptn_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
+        dut_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
+        ptn_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_DATAVREF;
 
         $display("# =========================================================");
         $display("# Running wrapper_DATAVREF_tb                              ");
@@ -569,8 +562,8 @@ module wrapper_DATAVREF_tb;
             automatic integer d_s [0:15];
             automatic integer d_e [0:15];
             for (int l = 0; l < 16; l = l + 1) begin
-                d_s[l] = 14;
-                d_e[l] = 18;
+                d_s[l] = 5;
+                d_e[l] = 11;
             end
             run_scenario(
                 .name("Scenario 2: Asymmetric Sweep (DUT narrower eye)"),
@@ -587,8 +580,8 @@ module wrapper_DATAVREF_tb;
             automatic integer p_s [0:15];
             automatic integer p_e [0:15];
             for (int l = 0; l < 16; l = l + 1) begin
-                p_s[l] = 14;
-                p_e[l] = 18;
+                p_s[l] = 5;
+                p_e[l] = 11;
             end
             run_scenario(
                 .name("Scenario 3: Asymmetric Sweep (DUT wider eye)"),
@@ -615,12 +608,13 @@ module wrapper_DATAVREF_tb;
         $display("# Starting Scenario 5: Multi-run without Reset");
         $display("# =========================================================");
         for (int l = 0; l < 16; l = l + 1) begin
-            dut_eye_start[l] = 12; dut_eye_end[l] = 22; ptn_eye_start[l] = 12; ptn_eye_end[l] = 22;
+            dut_eye_start[l] = 3; dut_eye_end[l] = 13; ptn_eye_start[l] = 3; ptn_eye_end[l] = 13;
         end
         assume_holes_after_quarter_eye_start = 0;
         dut_local_datavref_en = 1; ptn_local_datavref_en = 1;
         dut_partner_datavref_en = 1; ptn_partner_datavref_en = 1;
-        wait (u_dut.local_datavref_done);
+        @(negedge u_dut.local_datavref_done);  // Wait for FSM to leave IDLE
+        wait (u_dut.local_datavref_done);       // Then wait for sweep+handshake to complete
         #1000;
         dut_local_datavref_en = 0; ptn_local_datavref_en = 0;
         dut_partner_datavref_en = 0; ptn_partner_datavref_en = 0;
@@ -628,15 +622,16 @@ module wrapper_DATAVREF_tb;
 
         // Run 2
         for (int l = 0; l < 16; l = l + 1) begin
-            dut_eye_start[l] = 15; dut_eye_end[l] = 20; ptn_eye_start[l] = 15; ptn_eye_end[l] = 20;
+            dut_eye_start[l] = 6; dut_eye_end[l] = 12; ptn_eye_start[l] = 6; ptn_eye_end[l] = 12;
         end
         dut_local_datavref_en = 1; ptn_local_datavref_en = 1;
         dut_partner_datavref_en = 1; ptn_partner_datavref_en = 1;
-        wait (u_dut.local_datavref_done);
+        @(negedge u_dut.local_datavref_done);  // Wait for FSM to leave IDLE
+        wait (u_dut.local_datavref_done);       // Then wait for sweep+handshake to complete
         #1000;
         for (int l = 0; l < 16; l = l + 1) begin
-            if (u_dut.phy_rx_datavref_ctrl[l] !== 7'd17) begin
-                $display("# ERROR: Lane %0d Multi-run 2 Vref value mismatch! Got %0d, expected 17", l, u_dut.phy_rx_datavref_ctrl[l]);
+            if (u_dut.phy_rx_datavref_ctrl[l] !== 7'd9) begin
+                $display("# ERROR: Lane %0d Multi-run 2 Vref value mismatch! Got %0d, expected 9", l, u_dut.phy_rx_datavref_ctrl[l]);
                 $stop;
             end
         end
@@ -646,16 +641,18 @@ module wrapper_DATAVREF_tb;
         pass_test("Scenario 5: Multi-run without Reset");
 
         // Scenario 6: 8ms watchdog timeout -> TRAINERROR
-        run_scenario(
-            .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
-            .d_start(standard_start), .d_end(standard_end),
-            .p_start(standard_start), .p_end(standard_end),
-            .holes_en(0),
-            .expect_speedidle_dut(0), .expect_te_dut(1),
-            .suppress_sb(1), .inject_trainerror(0)
-        );
+        /*
+         run_scenario(
+         .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
+         .d_start(standard_start), .d_end(standard_end),
+         .p_start(standard_start), .p_end(standard_end),
+         .holes_en(0),
+         .expect_speedidle_dut(0), .expect_te_dut(1),
+         .suppress_sb(1), .inject_trainerror(0)
+         );
 
-        // Scenario 7: Injected TRAINERROR from partner
+
+         */        // Scenario 7: Injected TRAINERROR from partner
         run_scenario(
             .name("Scenario 7: Partner Injects TRAINERROR"),
             .d_start(standard_start), .d_end(standard_end),

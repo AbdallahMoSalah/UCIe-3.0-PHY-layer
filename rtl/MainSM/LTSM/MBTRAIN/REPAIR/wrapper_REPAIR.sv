@@ -7,58 +7,58 @@
 // ====================================================================================================
 
 module wrapper_REPAIR (
-    // Clock and Reset Signals
-    input  logic        lclk,
-    input  logic        rst_n,
+        // Clock and Reset Signals
+        input  logic        lclk,
+        input  logic        rst_n,
 
-    // LTSM Control and Configuration Signals
-    input  logic        is_ltsm_out_of_reset,
-    input  logic        timeout_8ms_occured,
+        // LTSM Control and Configuration Signals
+        input  logic        is_ltsm_out_of_reset,
+        input  logic        timeout_8ms_occured,
 
-    // Local FSM Control
-    input  logic        local_repair_en,
-    output logic        local_repair_done,
-    output logic        local_txselfcal_req,
-    output logic        local_trainerror_req,
+        // Local FSM Control
+        input  logic        local_repair_en,
+        output logic        local_repair_done,
+        output logic        local_txselfcal_req,
+        output logic        local_trainerror_req,
 
-    // Partner FSM Control
-    input  logic        partner_repair_en,
-    output logic        partner_repair_done,
-    output logic        partner_trainerror_req,
+        // Partner FSM Control
+        input  logic        partner_repair_en,
+        output logic        partner_repair_done,
+        output logic        partner_trainerror_req,
 
-    // Timer Control (Combined OR logic for watchdog)
-    output logic        timeout_timer_en,
+        // Timer Control (Combined OR logic for watchdog)
+        output logic        timeout_timer_en,
 
-    // Width Degradation Inputs / Outputs
-    input  logic [2:0]  local_tx_lane_map_code,
-    input  logic        width_degrade_feasible,
-    output logic [2:0]  mb_rx_data_lane_mask,
-    output logic [2:0]  mb_tx_data_lane_mask,
-    input  logic [2:0]  mbinit_rx_data_lane_mask,
-    input  logic [2:0]  mbinit_tx_data_lane_mask,
-    input  logic        update_lane_mask,
+        // Width Degradation Inputs / Outputs
+        input  logic [2:0]  local_tx_lane_map_code,
+        input  logic        width_degrade_feasible,
+        output logic [2:0]  mb_rx_data_lane_mask,
+        output logic [2:0]  mb_tx_data_lane_mask,
+        input  logic [2:0]  mbinit_rx_data_lane_mask,
+        input  logic [2:0]  mbinit_tx_data_lane_mask,
+        input  logic        update_lane_mask,
 
-    // MB Signals
-    output logic [1:0]  mb_tx_clk_lane_sel,
-    output logic [1:0]  mb_tx_data_lane_sel,
-    output logic [1:0]  mb_tx_val_lane_sel,
-    output logic [1:0]  mb_tx_trk_lane_sel,
-    output logic        mb_rx_clk_lane_sel,
-    output logic        mb_rx_data_lane_sel,
-    output logic        mb_rx_val_lane_sel,
-    output logic        mb_rx_trk_lane_sel,
+        // MB Signals
+        output logic [1:0]  mb_tx_clk_lane_sel,
+        output logic [1:0]  mb_tx_data_lane_sel,
+        output logic [1:0]  mb_tx_val_lane_sel,
+        output logic [1:0]  mb_tx_trk_lane_sel,
+        output logic        mb_rx_clk_lane_sel,
+        output logic        mb_rx_data_lane_sel,
+        output logic        mb_rx_val_lane_sel,
+        output logic        mb_rx_trk_lane_sel,
 
-    // SB Signals
-    output logic        tx_sb_msg_valid,
-    output logic [7:0]  tx_sb_msg,
-    output logic [15:0] tx_msginfo,
-    output logic [63:0] tx_data_field,
+        // SB Signals
+        output logic        tx_sb_msg_valid,
+        output logic [7:0]  tx_sb_msg,
+        output logic [15:0] tx_msginfo,
+        output logic [63:0] tx_data_field,
 
-    input  logic        rx_sb_msg_valid,
-    input  logic [7:0]  rx_sb_msg,
-    input  logic [15:0] rx_msginfo,
-    input  logic [63:0] rx_data_field
-);
+        input  logic        rx_sb_msg_valid,
+        input  logic [7:0]  rx_sb_msg,
+        input  logic [15:0] rx_msginfo,
+        input  logic [63:0] rx_data_field
+    );
 
     // Internal wires
     logic        local_timeout_timer_en;
@@ -138,6 +138,7 @@ module wrapper_REPAIR (
         .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
         .timeout_8ms_occured    (timeout_8ms_occured),
         .repair_done            (partner_repair_done),
+        .txselfcal_req          (partner_txselfcal_req), // I didn't handle This port yet. we have to handle `partner_repair_txselfcal_req`
         .trainerror_req         (partner_trainerror_req),
         .mb_rx_data_lane_mask   (mb_rx_data_lane_mask),
         .mbinit_rx_data_lane_mask(mbinit_rx_data_lane_mask),

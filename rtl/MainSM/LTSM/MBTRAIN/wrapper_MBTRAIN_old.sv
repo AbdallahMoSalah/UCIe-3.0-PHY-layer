@@ -26,7 +26,7 @@
 //    |   13.   MBTRAIN.REPAIR           | unit_REPAIR                                        |
 //    |   --             ---             | unit_MBTRAIN_ctrl                                  |
 //    '----------------------------------'----------------------------------------------------'
-module wrapper_MBTRAIN #(
+module wrapper_MBTRAIN_old #(
         // Sweep-range parameters – synthesis defaults are full-range spec values.
         // Override to smaller values in simulation to keep run-time manageable.
         parameter integer MAX_VAL_VREF_CODE  = 127 , // unit_VALVREF / unit_VALTRAINVREF upper bound

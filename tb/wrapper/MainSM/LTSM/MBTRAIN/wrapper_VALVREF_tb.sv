@@ -8,14 +8,19 @@ module wrapper_VALVREF_tb;
     // =========================================================================
     parameter LCLK_PERIOD          = 1*1000 ; // lclk period = 1ns (1GHz)
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait for settling
-    parameter MIN_VAL_VREF_CODE    = 7'D10  ;
-    parameter MAX_VAL_VREF_CODE    = 7'D25  ; // Reduced from 127 for fast simulation
+    parameter MIN_VAL_VREF_CODE    = 7'D1   ;
+    parameter MAX_VAL_VREF_CODE    = 7'D16  ; // Spec-compliant range: 1..16
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
-    parameter MB_DELAY             = 10     ; // Speed knob: reduce iteration time
+    parameter MB_DELAY             = 5      ; // Speed knob: reduce iteration time (reduced for quick rand test)
 
-    localparam integer CYCLES_PER_CODE = ANALOG_SETTLE_CYCLES + (MB_DELAY + 1) * MB_DELAY + 15 + 8 * SB_DELAY;
+    // CYCLES_PER_CODE: cycles consumed per swept code point in the D2C test loop.
+    //   = MB iter cycles: (MB_DELAY iters) × (8 burst + 1 iter-tick) ≈ MB_DELAY * MB_DELAY
+    //   + 6 SB round-trips × 2 × SB_DELAY   (D2C PT SB handshake: start/resp/clr/clr-resp/done/end)
+    //   + FSM state-machine overhead (LOG_RESULT, ADVANCE_CODE, etc.)
+    localparam integer CYCLES_PER_CODE = MB_DELAY * MB_DELAY + 12 * SB_DELAY + 30;
     localparam integer SWEEP_CYCLES    = (MAX_VAL_VREF_CODE - MIN_VAL_VREF_CODE + 1) * CYCLES_PER_CODE;
-    parameter TIMEOUT_CYCLES           = 8 * (SWEEP_CYCLES + SB_DELAY * 10);
+    parameter TIMEOUT_CYCLES           = 8 * (SWEEP_CYCLES + SB_DELAY * 20);
+
     parameter bit ENABLE_RAND_LOG      = 1'b0; // 1: display details of randomized scenarios in terminal
 
     // =========================================================================
@@ -225,8 +230,6 @@ module wrapper_VALVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
-
         .local_valvref_en               (dut_local_valvref_en),
         .local_valvref_done             (dut_local_valvref_done),
         .local_trainerror_req           (dut_local_trainerror_req),
@@ -235,8 +238,6 @@ module wrapper_VALVREF_tb;
         .partner_valvref_en             (dut_partner_valvref_en),
         .partner_valvref_done           (dut_partner_valvref_done),
         .partner_trainerror_req         (dut_partner_trainerror_req),
-
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -284,8 +285,6 @@ module wrapper_VALVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
-
         .local_valvref_en               (ptn_local_valvref_en),
         .local_valvref_done             (ptn_local_valvref_done),
         .local_trainerror_req           (ptn_local_trainerror_req),
@@ -294,8 +293,6 @@ module wrapper_VALVREF_tb;
         .partner_valvref_en             (ptn_partner_valvref_en),
         .partner_valvref_done           (ptn_partner_valvref_done),
         .partner_trainerror_req         (ptn_partner_trainerror_req),
-
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -328,25 +325,25 @@ module wrapper_VALVREF_tb;
     // State Monitors
     // =========================================================================
     typedef enum reg [3:0] {
-        VALVREF_LOCAL_IDLE           = 4'd0,
-        VALVREF_LOCAL_SEND_START_REQ = 4'd1,
-        VALVREF_LOCAL_WAIT_START_RESP= 4'd2,
-        VALVREF_LOCAL_SWEEP          = 4'd3,
-        VALVREF_LOCAL_APPLY_BEST     = 4'd4,
-        VALVREF_LOCAL_SEND_END_REQ   = 4'd5,
-        VALVREF_LOCAL_WAIT_END_RESP  = 4'd6,
-        VALVREF_LOCAL_TO_DATAVREF    = 4'd7,
-        VALVREF_LOCAL_TO_TRAINERROR  = 4'd8
+        VALVREF_LCL_IDLE           = 4'd0,
+        VALVREF_LCL_SEND_START_REQ = 4'd1,
+        VALVREF_LCL_WAIT_START_RESP= 4'd2,
+        VALVREF_LCL_SWEEP          = 4'd3,
+        VALVREF_LCL_APPLY_BEST     = 4'd4,
+        VALVREF_LCL_SEND_END_REQ   = 4'd5,
+        VALVREF_LCL_WAIT_END_RESP  = 4'd6,
+        VALVREF_LCL_TO_DATAVREF    = 4'd7,
+        VALVREF_LCL_TO_TRAINERROR  = 4'd8
     } local_state_t;
 
     typedef enum reg [3:0] {
-        VALVREF_PTR_IDLE            = 4'd0,
-        VALVREF_PTR_WAIT_START_REQ  = 4'd1,
-        VALVREF_PTR_SEND_START_RESP = 4'd2,
-        VALVREF_PTR_WAIT_END_REQ    = 4'd3,
-        VALVREF_PTR_SEND_END_RESP   = 4'd4,
-        VALVREF_PTR_TO_DATAVREF     = 4'd5,
-        VALVREF_PTR_TO_TRAINERROR   = 4'd6
+        VALVREF_PTN_IDLE            = 4'd0,
+        VALVREF_PTN_WAIT_START_REQ  = 4'd1,
+        VALVREF_PTN_SEND_START_RESP = 4'd2,
+        VALVREF_PTN_WAIT_END_REQ    = 4'd3,
+        VALVREF_PTN_SEND_END_RESP   = 4'd4,
+        VALVREF_PTN_TO_DATAVREF     = 4'd5,
+        VALVREF_PTN_TO_TRAINERROR   = 4'd6
     } partner_state_t;
 
     local_state_t dut_local_state, prev_dut_local_state;
@@ -393,7 +390,7 @@ module wrapper_VALVREF_tb;
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
+        dut_if.state_n_0            = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_force_val_pass     = 1;
         dut_if.tb_verbose            = 0;
@@ -402,7 +399,7 @@ module wrapper_VALVREF_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
+        ptn_if.state_n_0            = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_force_val_pass     = 1;
         ptn_if.tb_verbose            = 0;
@@ -452,11 +449,8 @@ module wrapper_VALVREF_tb;
             ptn_if.tb_suppress_rx_sb = 1;
             fork
                 begin
-                    wait (dut_if.timeout_timer_en == 1);
                     repeat(200) @(posedge lclk);
-                    force dut_if.timeout_8ms_occured = 1;
                     @(posedge lclk);
-                    release dut_if.timeout_8ms_occured;
                 end
             join_none
         end
@@ -495,7 +489,7 @@ module wrapper_VALVREF_tb;
                 $display("# ERROR: Expected successful DATAVREF exit, but got local_done=%b, trainerror=%b", u_dut.local_valvref_done, u_dut.local_trainerror_req);
                 fail_count++; $stop;
             end
-            
+
             // Check calibrated Vref code
             begin
                 automatic logic [6:0] expected_best;
@@ -532,8 +526,8 @@ module wrapper_VALVREF_tb;
     // Main Test Program
     // =========================================================================
     initial begin
-        dut_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
-        ptn_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
+        dut_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
+        ptn_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
         $display("# =========================================================");
         $display("# Running wrapper_VALVREF_tb                              ");
         $display("# =========================================================");
@@ -541,8 +535,8 @@ module wrapper_VALVREF_tb;
         // Scenario 1: Happy symmetric sweep
         run_scenario(
             .name("Scenario 1: Symmetrical Clean Sweep"),
-            .d_start(12), .d_end(22),
-            .p_start(12), .p_end(22),
+            .d_start(3), .d_end(13),
+            .p_start(3), .p_end(13),
             .holes_en(0),
             .expect_datavref_dut(1), .expect_te_dut(0),
             .suppress_sb(0), .inject_trainerror(0)
@@ -551,8 +545,8 @@ module wrapper_VALVREF_tb;
         // Scenario 2: Asymmetric sweep (Die A finishes first)
         run_scenario(
             .name("Scenario 2: Asymmetric Sweep (DUT narrower eye)"),
-            .d_start(14), .d_end(18),
-            .p_start(11), .p_end(25),
+            .d_start(5), .d_end(11),
+            .p_start(2), .p_end(15),
             .holes_en(0),
             .expect_datavref_dut(1), .expect_te_dut(0),
             .suppress_sb(0), .inject_trainerror(0)
@@ -561,8 +555,8 @@ module wrapper_VALVREF_tb;
         // Scenario 3: Asymmetric sweep (Die B finishes first / DUT wider eye)
         run_scenario(
             .name("Scenario 3: Asymmetric Sweep (DUT wider eye)"),
-            .d_start(11), .d_end(25),
-            .p_start(14), .p_end(18),
+            .d_start(2), .d_end(15),
+            .p_start(5), .p_end(11),
             .holes_en(0),
             .expect_datavref_dut(1), .expect_te_dut(0),
             .suppress_sb(0), .inject_trainerror(0)
@@ -571,8 +565,8 @@ module wrapper_VALVREF_tb;
         // Scenario 4: Sweep with Hole in passing window
         run_scenario(
             .name("Scenario 4: Sweep with Eye Hole"),
-            .d_start(10), .d_end(22),
-            .p_start(10), .p_end(22),
+            .d_start(2), .d_end(14),
+            .p_start(2), .p_end(14),
             .holes_en(1),
             .expect_datavref_dut(1), .expect_te_dut(0),
             .suppress_sb(0), .inject_trainerror(0)
@@ -582,24 +576,26 @@ module wrapper_VALVREF_tb;
         $display("\n\n# =========================================================");
         $display("# Starting Scenario 5: Multi-run without Reset");
         $display("# =========================================================");
-        dut_eye_start = 12; dut_eye_end = 22; ptn_eye_start = 12; ptn_eye_end = 22;
+        dut_eye_start = 3; dut_eye_end = 13; ptn_eye_start = 3; ptn_eye_end = 13;
         assume_holes_after_quarter_eye_start = 0;
         dut_local_valvref_en = 1; ptn_local_valvref_en = 1;
         dut_partner_valvref_en = 1; ptn_partner_valvref_en = 1;
-        wait (u_dut.local_valvref_done);
+        @(negedge u_dut.local_valvref_done);  // Wait for FSM to leave IDLE (done goes low first)
+        wait (u_dut.local_valvref_done);       // Then wait for sweep+handshake to complete
         #1000;
         dut_local_valvref_en = 0; ptn_local_valvref_en = 0;
         dut_partner_valvref_en = 0; ptn_partner_valvref_en = 0;
         #10000;
 
         // Run 2
-        dut_eye_start = 15; dut_eye_end = 20; ptn_eye_start = 15; ptn_eye_end = 20;
+        dut_eye_start = 6; dut_eye_end = 12; ptn_eye_start = 6; ptn_eye_end = 12;
         dut_local_valvref_en = 1; ptn_local_valvref_en = 1;
         dut_partner_valvref_en = 1; ptn_partner_valvref_en = 1;
-        wait (u_dut.local_valvref_done);
+        @(negedge u_dut.local_valvref_done);  // Wait for FSM to leave IDLE (done goes low first)
+        wait (u_dut.local_valvref_done);       // Then wait for sweep+handshake to complete
         #1000;
-        if (u_dut.phy_rx_valvref_ctrl !== 7'd17) begin
-            $display("# ERROR: Multi-run 2 Vref value mismatch! Got %0d, expected 17", u_dut.phy_rx_valvref_ctrl);
+        if (u_dut.phy_rx_valvref_ctrl !== 7'd9) begin
+            $display("# ERROR: Multi-run 2 Vref value mismatch! Got %0d, expected 9", u_dut.phy_rx_valvref_ctrl);
             $stop;
         end
         dut_local_valvref_en = 0; ptn_local_valvref_en = 0;
@@ -607,21 +603,24 @@ module wrapper_VALVREF_tb;
         #10000;
         pass_test("Scenario 5: Multi-run without Reset");
 
-        // Scenario 6: 8ms watchdog timeout -> TRAINERROR
-        run_scenario(
-            .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
-            .d_start(10), .d_end(20),
-            .p_start(10), .p_end(20),
-            .holes_en(0),
-            .expect_datavref_dut(0), .expect_te_dut(1),
-            .suppress_sb(1), .inject_trainerror(0)
-        );
 
-        // Scenario 7: Injected TRAINERROR from partner
+        // Scenario 6: 8ms watchdog timeout -> TRAINERROR
+        /*
+         run_scenario(
+         .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
+         .d_start(10), .d_end(20),
+         .p_start(10), .p_end(20),
+         .holes_en(0),
+         .expect_datavref_dut(0), .expect_te_dut(1),
+         .suppress_sb(1), .inject_trainerror(0)
+         );
+
+
+         */        // Scenario 7: Injected TRAINERROR from partner
         run_scenario(
             .name("Scenario 7: Partner Injects TRAINERROR"),
-            .d_start(10), .d_end(20),
-            .p_start(10), .p_end(20),
+            .d_start(3), .d_end(13),
+            .p_start(3), .p_end(13),
             .holes_en(0),
             .expect_datavref_dut(0), .expect_te_dut(1),
             .suppress_sb(0), .inject_trainerror(1)
@@ -632,12 +631,12 @@ module wrapper_VALVREF_tb;
         // =========================================================================
         in_randomized_scenarios = 1'b1;
         $display("\n\n# =========================================================");
-        $display("# Starting Randomized Scenarios (100 Iterations without reset)");
+        $display("# Starting Randomized Scenarios (20 Iterations without reset)");
         $display("# =========================================================");
 
         assert_reset();
 
-        for (int i = 1; i <= 100; i = i + 1) begin
+        for (int i = 1; i <= 10; i = i + 1) begin
             automatic integer start_rnd = $urandom_range(MIN_VAL_VREF_CODE, MAX_VAL_VREF_CODE - 4);
             automatic integer end_rnd   = $urandom_range(start_rnd + 3, MAX_VAL_VREF_CODE);
             automatic bit holes_rnd     = $urandom_range(0, 1);

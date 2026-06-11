@@ -101,11 +101,12 @@ module unit_MBTRAIN_ctrl (
         input  logic        partner_datatrainvref_done,
 
         // Sub-state Handshakes: RXDESKEW
-        output logic        local_rxdeskew_en,
-        input  logic        local_rxdeskew_done,
-        output logic        partner_rxdeskew_en,
-        input  logic        partner_rxdeskew_done,
-        input  logic        local_dtc1_loopback_req,        // From RXDESKEW to loop back to DTC1
+        output logic        local_rxdeskew_en        ,
+        input  logic        local_rxdeskew_done      ,
+        output logic        partner_rxdeskew_en      ,
+        input  logic        partner_rxdeskew_done    ,
+        input  logic        local_dtc1_loopback_req  , // From RXDESKEW to loop back to DTC1
+        input  logic        partner_dtc1_loopback_req, // From RXDESKEW to loop back to DTC1
 
         // Sub-state Handshakes: DATATRAINCENTER2
         output logic        local_dtc2_en,
@@ -119,17 +120,22 @@ module unit_MBTRAIN_ctrl (
         output logic        partner_linkspeed_en,
         input  logic        partner_linkspeed_done,
         // LINKSPEED routing outputs (fed back to ctrl)
-        input  logic        local_linkinit_route_req,
-        input  logic        local_speedidle_route_req,
-        input  logic        local_repair_route_req,
-        input  logic        local_phyretrain_route_req,
+        input  logic        local_linkinit_route_req    ,
+        input  logic        local_speedidle_route_req   ,
+        input  logic        local_repair_route_req      ,
+        input  logic        local_phyretrain_route_req  ,
+        input  logic        partner_linkinit_route_req  ,
+        input  logic        partner_speedidle_route_req ,
+        input  logic        partner_repair_route_req    ,
+        input  logic        partner_phyretrain_route_req,
 
         // Sub-state Handshakes: REPAIR
         output logic        local_repair_en,
         input  logic        local_repair_done,
         output logic        partner_repair_en,
         input  logic        partner_repair_done,
-        input  logic        local_repair_txselfcal_req       // From REPAIR to loop back to TXSELFCAL
+        input  logic        local_repair_txselfcal_req,      // From REPAIR to loop back to TXSELFCAL
+        input  logic        partner_repair_txselfcal_req       // From REPAIR to loop back to TXSELFCAL
     );
 
     import ltsm_state_n_pkg::*;
@@ -141,7 +147,7 @@ module unit_MBTRAIN_ctrl (
         DATAVREF           = 4'd2,
         SPEEDIDLE          = 4'd3,
         TXSELFCAL          = 4'd4,
-        RXSELFCAL          = 4'd5,
+        RXCLKCAL           = 4'd5,
         VALTRAINCENTER     = 4'd6,
         VALTRAINVREF       = 4'd7,
         DATATRAINCENTER1   = 4'd8,
@@ -156,6 +162,18 @@ module unit_MBTRAIN_ctrl (
 
     // Registered Routing Requests
     logic reg_linkinit_req, reg_phyretrain_req, reg_repair_req, reg_speedidle_req;
+
+    logic lcl_ptn_linkinit_route_req    ;
+    logic lcl_ptn_speedidle_route_req   ;
+    logic lcl_ptn_repair_route_req      ;
+    logic lcl_ptn_phyretrain_route_req  ;
+    logic lcl_ptn_repair_txselfcal_req  ;
+
+    assign lcl_ptn_linkinit_route_req   = local_linkinit_route_req   & partner_linkinit_route_req  ;
+    assign lcl_ptn_speedidle_route_req  = local_speedidle_route_req  & partner_speedidle_route_req ;
+    assign lcl_ptn_repair_route_req     = local_repair_route_req     & partner_repair_route_req    ;
+    assign lcl_ptn_phyretrain_route_req = local_phyretrain_route_req & partner_phyretrain_route_req;
+    assign lcl_ptn_repair_txselfcal_req = local_repair_txselfcal_req & partner_repair_txselfcal_req;
 
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
@@ -177,10 +195,10 @@ module unit_MBTRAIN_ctrl (
             reg_speedidle_req  <= 1'b0;
         end
         else if (current_state == LINKSPEED && local_linkspeed_done && partner_linkspeed_done) begin
-            reg_linkinit_req   <= local_linkinit_route_req;
-            reg_phyretrain_req <= local_phyretrain_route_req;
-            reg_repair_req     <= local_repair_route_req;
-            reg_speedidle_req  <= local_speedidle_route_req;
+            reg_linkinit_req   <= lcl_ptn_linkinit_route_req  ;
+            reg_phyretrain_req <= lcl_ptn_phyretrain_route_req;
+            reg_repair_req     <= lcl_ptn_repair_route_req    ;
+            reg_speedidle_req  <= lcl_ptn_speedidle_route_req ;
         end
     end
 
@@ -244,7 +262,7 @@ module unit_MBTRAIN_ctrl (
                 MBTRAIN_IDLE: begin
                     if (mbtrain_en) begin
                         // Entry priority from external requests
-                        if      (mbtrain_txselfcal_req)  next_state = TXSELFCAL;
+                        if      (mbtrain_txselfcal_req) next_state = TXSELFCAL;
                         else if (mbtrain_speedidle_req) next_state = SPEEDIDLE;
                         else if (mbtrain_repair_req)    next_state = REPAIR;
                         else                            next_state = VALVREF;
@@ -272,10 +290,10 @@ module unit_MBTRAIN_ctrl (
                 TXSELFCAL: begin
                     local_txselfcal_en   = 1'b1;
                     partner_txselfcal_en = 1'b1;
-                    if (local_txselfcal_done && partner_txselfcal_done) next_state = RXSELFCAL;
+                    if (local_txselfcal_done && partner_txselfcal_done) next_state = RXCLKCAL;
                 end
 
-                RXSELFCAL: begin
+                RXCLKCAL: begin
                     local_rxclkcal_en   = 1'b1;
                     partner_rxclkcal_en = 1'b1;
                     if (local_rxclkcal_done && partner_rxclkcal_done) next_state = VALTRAINCENTER;
@@ -311,7 +329,7 @@ module unit_MBTRAIN_ctrl (
                     // Transition Logic:
                     // 1. Arc loop back to DTC1 takes precedence.
                     // 2. Normal completion moves to DTC2.
-                    if (local_dtc1_loopback_req) begin
+                    if (local_dtc1_loopback_req & partner_dtc1_loopback_req) begin
                         next_state = DATATRAINCENTER1;
                     end
                     else if (local_rxdeskew_done && partner_rxdeskew_done) begin
@@ -330,13 +348,13 @@ module unit_MBTRAIN_ctrl (
                     partner_linkspeed_en = 1'b1;
                     if (local_linkspeed_done && partner_linkspeed_done) begin
                         // Routing decisions from LINKSPEED (next state only)
-                        if (local_linkinit_route_req || local_phyretrain_route_req) begin
+                        if (lcl_ptn_linkinit_route_req || lcl_ptn_phyretrain_route_req) begin
                             next_state = MBTRAIN_DONE;
                         end
-                        else if (local_speedidle_route_req) begin
+                        else if (lcl_ptn_speedidle_route_req) begin
                             next_state = SPEEDIDLE;
                         end
-                        else if (local_repair_route_req) begin
+                        else if (lcl_ptn_repair_route_req) begin
                             next_state = REPAIR;
                         end
                         else begin
@@ -351,7 +369,7 @@ module unit_MBTRAIN_ctrl (
                     partner_repair_en = 1'b1;
                     if (local_repair_done && partner_repair_done) begin
                         // Per Spec, REPAIR exits back to TXSELFCAL or SPEEDIDLE
-                        if (local_repair_txselfcal_req) next_state = TXSELFCAL;
+                        if (lcl_ptn_repair_txselfcal_req) next_state = TXSELFCAL;
                         else                            next_state = SPEEDIDLE;
                     end
                 end
@@ -366,24 +384,32 @@ module unit_MBTRAIN_ctrl (
         end
     end
 
-    always_comb begin
-        case (current_state)
-            MBTRAIN_IDLE    : current_mbtrain_substate = LOG_NOP                     ;
-            VALVREF         : current_mbtrain_substate = LOG_MBTRAIN_VALVREF         ;
-            DATAVREF        : current_mbtrain_substate = LOG_MBTRAIN_DATAVREF        ;
-            SPEEDIDLE       : current_mbtrain_substate = LOG_MBTRAIN_SPEEDIDLE       ;
-            TXSELFCAL       : current_mbtrain_substate = LOG_MBTRAIN_TXSELFCAL       ;
-            RXSELFCAL       : current_mbtrain_substate = LOG_MBTRAIN_RXSELFCAL       ;
-            VALTRAINCENTER  : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINCENTER  ;
-            VALTRAINVREF    : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINVREF    ;
-            DATATRAINCENTER1: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER1;
-            DATATRAINVREF   : current_mbtrain_substate = LOG_MBTRAIN_DATATRAINVREF   ;
-            RXDESKEW        : current_mbtrain_substate = LOG_MBTRAIN_RXDESKEW        ;
-            DATATRAINCENTER2: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER2;
-            LINKSPEED       : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ;
-            REPAIR          : current_mbtrain_substate = LOG_MBTRAIN_REPAIR          ;
-            MBTRAIN_DONE    : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ;
-            default         : current_mbtrain_substate = LOG_NOP                     ;
-        endcase
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (~rst_n) begin
+            current_mbtrain_substate <= LOG_NOP;
+        end
+        else if (~is_ltsm_out_of_reset) begin
+            current_mbtrain_substate <= LOG_NOP;
+        end
+        else if (!trainerror_detected & mbtrain_en) begin
+            case (current_state)
+                MBTRAIN_IDLE    : current_mbtrain_substate <= LOG_NOP                     ;
+                VALVREF         : current_mbtrain_substate <= LOG_MBTRAIN_VALVREF         ;
+                DATAVREF        : current_mbtrain_substate <= LOG_MBTRAIN_DATAVREF        ;
+                SPEEDIDLE       : current_mbtrain_substate <= LOG_MBTRAIN_SPEEDIDLE       ;
+                TXSELFCAL       : current_mbtrain_substate <= LOG_MBTRAIN_TXSELFCAL       ;
+                RXCLKCAL        : current_mbtrain_substate <= LOG_MBTRAIN_RXCLKCAL        ;
+                VALTRAINCENTER  : current_mbtrain_substate <= LOG_MBTRAIN_VALTRAINCENTER  ;
+                VALTRAINVREF    : current_mbtrain_substate <= LOG_MBTRAIN_VALTRAINVREF    ;
+                DATATRAINCENTER1: current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINCENTER1;
+                DATATRAINVREF   : current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINVREF   ;
+                RXDESKEW        : current_mbtrain_substate <= LOG_MBTRAIN_RXDESKEW        ;
+                DATATRAINCENTER2: current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINCENTER2;
+                LINKSPEED       : current_mbtrain_substate <= LOG_MBTRAIN_LINKSPEED       ;
+                REPAIR          : current_mbtrain_substate <= LOG_MBTRAIN_REPAIR          ;
+                MBTRAIN_DONE    : current_mbtrain_substate <= current_mbtrain_substate    ; // We want to keep this state refer to the last applied substate before MBTRAIN exit.
+                default         : ;
+            endcase
+        end
     end
 endmodule

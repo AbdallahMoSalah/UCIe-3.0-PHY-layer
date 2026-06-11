@@ -121,7 +121,8 @@ module unit_D2C_sweep #(
         // If We test the Valid Lane: --> Use best_code[0] only.
         // If We test the Data Lanes: --> Use best_code for all lanes.
         output wire [$clog2(MAX_CODE+1)-1:0] best_code [0:15],  // Per-lane best midpoint (combinational)
-        output wire [$clog2(MAX_CODE+1)-1:0] min_eye_width      // Narrowest best-window across active lanes (combinational)
+        output wire [$clog2(MAX_CODE+1)-1:0] min_eye_width,     // Narrowest best-window across active lanes (combinational)
+        output logic local_pt_en_dbg
     );
     import ltsm_state_n_pkg::*;
     // =========================================================================
@@ -145,6 +146,7 @@ module unit_D2C_sweep #(
 
     reg   [2:0]  current_state, next_state;
     logic        local_pt_en              ; // Assert to trigger TX/RX D2C point test (combinational)
+    assign local_pt_en_dbg = local_pt_en;
     logic [15:0] active_lanes_with_val    ; // To handle when we want to test the Valid Lane.
     logic [15:0] d2c_perlane_pass_with_val; // To handle when we want to test the Valid Lane.
     assign active_lanes_with_val     = (d2c_pattern_setup == 3'b010)? 16'd1 : active_lanes;
