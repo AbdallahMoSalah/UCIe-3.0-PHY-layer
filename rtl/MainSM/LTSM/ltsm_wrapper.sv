@@ -161,11 +161,15 @@ module ltsm_wrapper
     input  RDI_state    rdi_state,
 
     // =========================================================================
-    // Exposed Handshakes for Unimplemented States (PHYRETRAIN, L1, L2, TRAINERROR)
+    // PHYRETRAIN register inputs and resolved-encoding output (§4.5.3.7)
     // =========================================================================
-    output logic        phyretrain_en,
-    input  logic        phyretrain_done,
+    input  logic [63:0] rt_test_ctrl,           // Runtime Link Test Control (0x1100)
+    input  logic        rt_link_busy_status,    // Runtime Link Test Status  (0x1108)[0]
+    output logic [2:0]  phyretrain_resolved_enc,// resolved encoding → MBTRAIN entry
 
+    // =========================================================================
+    // Exposed Handshakes for Unimplemented States (L1, L2, TRAINERROR)
+    // =========================================================================
     output logic        l1_en,
     input  logic        l1_done,
 
@@ -301,6 +305,16 @@ module ltsm_wrapper
     // Submodule Error Log state_n values
     state_n_e    mbinit_state_n;
 
+    // PHYRETRAIN enable/done/error (previously stub ports, now internal wires)
+    logic        phyretrain_en;
+    logic        phyretrain_done;
+    logic        phyretrain_error;
+
+    // PHYRETRAIN sideband TX wires → ltsm_controller mux
+    logic        phyretrain_tx_valid;
+    msg_no_e     phyretrain_tx_msg_id;
+    logic [15:0] phyretrain_tx_MsgInfo;
+
     // Watchdog/Settle timer feedback routing
 
     // =========================================================================
@@ -345,6 +359,11 @@ module ltsm_wrapper
 
         .phyretrain_en(phyretrain_en),
         .phyretrain_done(phyretrain_done),
+        .phyretrain_error(phyretrain_error),
+        .phyretrain_tx_valid(phyretrain_tx_valid),
+        .phyretrain_tx_msg_id(phyretrain_tx_msg_id),
+        .phyretrain_tx_MsgInfo(phyretrain_tx_MsgInfo),
+        .phyretrain_tx_data_Field(64'h0),
 
         .l1_en(l1_en),
         .l1_done(l1_done),
@@ -644,6 +663,29 @@ module ltsm_wrapper
         .Start_UCIe_Link_Training(phy_start_ucie_link_training_ctrl_out),
         .active_error(active_error),
         .next_ltsm_state(active_next_ltsm_state)
+    );
+
+    // =========================================================================
+    // PHYRETRAIN state module (§4.5.3.7)
+    // =========================================================================
+    PHYRETRAIN u_phyretrain (
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .phyretrain_enable    (phyretrain_en),
+        .phyretrain_done      (phyretrain_done),
+        .phyretrain_error     (phyretrain_error),
+        .rt_test_ctrl              (rt_test_ctrl),
+        .rt_link_busy_status       (rt_link_busy_status),
+        .mbinit_tx_data_lane_mask  (mbinit_tx_data_lane_mask),
+        .global_error              (timer_timeout_expired),
+        .resolved_retrain_enc (phyretrain_resolved_enc),
+        .tx_sb_msg_valid      (phyretrain_tx_valid),
+        .tx_sb_msg            (phyretrain_tx_msg_id),
+        .tx_msginfo           (phyretrain_tx_MsgInfo),
+        .ltsm_rdy             (sb_ltsm_rdy),
+        .rx_sb_msg_valid      (sb_rx_valid),
+        .rx_sb_msg            (sb_rx_msg_id),
+        .rx_msginfo           (sb_rx_MsgInfo)
     );
 
 endmodule

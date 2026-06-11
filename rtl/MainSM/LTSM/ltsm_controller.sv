@@ -55,6 +55,7 @@ module ltsm_controller
 
     output logic            phyretrain_en,
     input  logic            phyretrain_done,
+    input  logic            phyretrain_error,
 
     output logic            l1_en,
     input  logic            l1_done,
@@ -95,6 +96,11 @@ module ltsm_controller
     input  msg_no_e         mbtrain_tx_msg_id,
     input  logic [15:0]     mbtrain_tx_MsgInfo,
     input  logic [63:0]     mbtrain_tx_data_Field,
+
+    input  logic            phyretrain_tx_valid,
+    input  msg_no_e         phyretrain_tx_msg_id,
+    input  logic [15:0]     phyretrain_tx_MsgInfo,
+    input  logic [63:0]     phyretrain_tx_data_Field,
 
     // =========================================================================
     // Mainband Training MUX Outputs
@@ -271,7 +277,8 @@ module ltsm_controller
                 end
 
                 CTRL_PHYRETRAIN: begin
-                    if (phyretrain_done) next_state = CTRL_MBTRAIN;
+                    if      (phyretrain_error) next_state = CTRL_TRAINERROR;
+                    else if (phyretrain_done)  next_state = CTRL_MBTRAIN;
                 end
 
                 CTRL_L1: begin
@@ -413,6 +420,12 @@ module ltsm_controller
                 sb_tx_msg_id     = mbtrain_tx_msg_id;
                 sb_tx_MsgInfo    = mbtrain_tx_MsgInfo;
                 sb_tx_data_Field = mbtrain_tx_data_Field;
+            end
+            CTRL_PHYRETRAIN: begin
+                sb_tx_valid      = phyretrain_tx_valid;
+                sb_tx_msg_id     = phyretrain_tx_msg_id;
+                sb_tx_MsgInfo    = phyretrain_tx_MsgInfo;
+                sb_tx_data_Field = phyretrain_tx_data_Field;
             end
             default: ;
         endcase
