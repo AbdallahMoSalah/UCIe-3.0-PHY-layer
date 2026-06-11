@@ -300,7 +300,7 @@ module ltsm_tb_attachments #(
 
         .local_sweep_en       (intf.sweep_en),
         .partner_sweep_en     (intf.partner_sweep_en),
-        .state_n              (intf.state_n[0]),
+        .state_n              (intf.state_n_0),
 
         .local_test_d2c_done  (intf.local_test_d2c_done),
         .partner_test_d2c_done(intf.partner_test_d2c_done),

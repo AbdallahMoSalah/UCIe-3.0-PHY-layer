@@ -32,7 +32,6 @@ module wrapper_VALVREF #(
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
         input  logic        is_ltsm_out_of_reset,           // 0: Soft reset active; 1: Normal operation
-        input  logic        timeout_8ms_occured,            // 0: No timeout; 1: 8ms watchdog timeout occurred
 
         // Local FSM Control:
         input  logic        local_valvref_en,               // 0: Disable; 1: Enable Local VALVREF sequence
@@ -44,9 +43,6 @@ module wrapper_VALVREF #(
         input  logic        partner_valvref_en,             // 0: Disable; 1: Enable Partner VALVREF sequence
         output logic        partner_valvref_done,           // 0: In progress; 1: Sub-state completed
         output logic        partner_trainerror_req,         // 0: Normal; 1: Request TRAINERROR entry
-
-        // Timer Control (Combined OR logic for watchdog):
-        output logic        timeout_timer_en,               // 0: Disable 8ms timer; 1: Enable (OR'ed)
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -93,8 +89,6 @@ module wrapper_VALVREF #(
     // =========================================================================
     // Internal Intermediate Wires
     // =========================================================================
-    wire        local_timeout_timer_en_wire  ;
-    wire        partner_timeout_timer_en_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -142,12 +136,9 @@ module wrapper_VALVREF #(
         // LTSM Control Signals
         .valvref_en             (local_valvref_en             ),
         .is_ltsm_out_of_reset   (is_ltsm_out_of_reset         ),
-        .timeout_8ms_occured    (timeout_8ms_occured          ),
         .valvref_done           (local_valvref_done           ),
         .trainerror_req         (local_trainerror_req         ),
         .update_lane_mask       (local_update_lane_mask       ),
-        // Timer Control Signals
-        .timeout_timer_en       (local_timeout_timer_en_wire  ),
         // PHY Vref Control
         .phy_rx_valvref_ctrl    (phy_rx_valvref_ctrl          ),
         // MB Lane Control Outputs
@@ -186,11 +177,8 @@ module wrapper_VALVREF #(
         // LTSM Control Signals
         .valvref_en             (partner_valvref_en            ),
         .is_ltsm_out_of_reset   (is_ltsm_out_of_reset          ),
-        .timeout_8ms_occured    (timeout_8ms_occured           ),
         .valvref_done           (partner_valvref_done          ),
         .trainerror_req         (partner_trainerror_req        ),
-        // Timer Control Signals
-        .timeout_timer_en       (partner_timeout_timer_en_wire ),
         // MB Lane Control Outputs
         .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel    ),
         .mb_tx_data_lane_sel    (partner_mb_tx_data_lane_sel   ),
@@ -216,9 +204,6 @@ module wrapper_VALVREF #(
     // =========================================================================
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
-
-    // Timeout timer enable OR logic:
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority; partner drives only when local is silent.

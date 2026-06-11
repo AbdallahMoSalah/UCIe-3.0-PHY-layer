@@ -47,8 +47,8 @@
 // Spec Reference: UCIe 3.0 §4.5.3.4.1 MBTRAIN.VALVREF
 
 module unit_VALVREF_local #(
-        parameter int unsigned MAX_VAL_VREF_CODE = 7'd127, // Maximum Vref code
-        parameter int unsigned MIN_VAL_VREF_CODE = 7'd10   // Minimum Vref code
+        parameter int unsigned MAX_VAL_VREF_CODE = 16, // Maximum Vref code
+        parameter int unsigned MIN_VAL_VREF_CODE = 1   // Minimum Vref code
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -61,15 +61,9 @@ module unit_VALVREF_local #(
         //=====================================//
         input  logic        valvref_en          , // 0: Disable (→ IDLE). 1: Enable/start VALVREF sequence.
         input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
         output logic        valvref_done        , // 1: Sub-state completed (held until valvref_en = 0).
         output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
         output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // PHY Vref Control:                   //
@@ -134,15 +128,15 @@ module unit_VALVREF_local #(
     // SWEEP state:  assert sweep_en, wait for sweep_done from unit_D2C_sweep.
     // =========================================================================
     localparam [3:0]
-    VALVREF_LOCAL_IDLE           = 4'd0,  // Wait for valvref_en.
-    VALVREF_LOCAL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.VALVREF start req} for 1 cycle.
-    VALVREF_LOCAL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.VALVREF start resp}.
-    VALVREF_LOCAL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done.
-    VALVREF_LOCAL_APPLY_BEST     = 4'd4,  // 1-cycle: register best_code[0] → already done in seq.
-    VALVREF_LOCAL_SEND_END_REQ   = 4'd5,  // TX {MBTRAIN.VALVREF end req} for 1 cycle.
-    VALVREF_LOCAL_WAIT_END_RESP  = 4'd6,  // Wait for {MBTRAIN.VALVREF end resp}.
-    VALVREF_LOCAL_TO_DATAVREF    = 4'd7,  // Terminal: valvref_done=1; wait for en deassert.
-    VALVREF_LOCAL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
+    VALVREF_LCL_IDLE           = 4'd0,  // Wait for valvref_en.
+    VALVREF_LCL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.VALVREF start req} for 1 cycle.
+    VALVREF_LCL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.VALVREF start resp}.
+    VALVREF_LCL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done.
+    VALVREF_LCL_APPLY_BEST     = 4'd4,  // 1-cycle: register best_code[0] → already done in seq.
+    VALVREF_LCL_SEND_END_REQ   = 4'd5,  // TX {MBTRAIN.VALVREF end req} for 1 cycle.
+    VALVREF_LCL_WAIT_END_RESP  = 4'd6,  // Wait for {MBTRAIN.VALVREF end resp}.
+    VALVREF_LCL_TO_DATAVREF    = 4'd7,  // Terminal: valvref_done=1; wait for en deassert.
+    VALVREF_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
 
     // =========================================================================
     // FSM Registers
@@ -151,16 +145,16 @@ module unit_VALVREF_local #(
 
     // =========================================================================
     // Registered best Vref code (Valid Lane = lane 0).
-    // Captured when sweep_done is observed in VALVREF_LOCAL_SWEEP.
+    // Captured when sweep_done is observed in VALVREF_LCL_SWEEP.
     // Drives phy_rx_valvref_ctrl after sweep completes.
     // =========================================================================
     reg [VW-1:0] best_code_r;
 
     // =========================================================================
-    // sweep_en: asserted combinationally whenever FSM is in VALVREF_LOCAL_SWEEP.
+    // sweep_en: asserted combinationally whenever FSM is in VALVREF_LCL_SWEEP.
     // Deasserting it causes unit_D2C_sweep to return to IDLE.
     // =========================================================================
-    assign sweep_en = (current_state == VALVREF_LOCAL_SWEEP);
+    assign sweep_en = (current_state == VALVREF_LCL_SWEEP);
 
     // =========================================================================
     // Sequential FSM: state register
@@ -168,10 +162,10 @@ module unit_VALVREF_local #(
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
-            current_state <= VALVREF_LOCAL_IDLE;
+            current_state <= VALVREF_LCL_IDLE;
         end
         else if (!is_ltsm_out_of_reset) begin
-            current_state <= VALVREF_LOCAL_IDLE;
+            current_state <= VALVREF_LCL_IDLE;
         end
         else begin
             current_state <= next_state;
@@ -180,20 +174,25 @@ module unit_VALVREF_local #(
 
     // =========================================================================
     // Combinational Next-State Logic
-    // Priority: TRAINERROR override > normal FSM
+    // Priority: TRAINERROR override > valvref_en deassertion > normal FSM
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state; // Default: hold
 
         // ------------------------------------------------------------------
         // HIGHEST PRIORITY: TRAINERROR conditions.
-        // Two sources:
-        //   1. 8ms residency timeout.
-        //   2. Partner sent {TRAINERROR entry req}.
+        // Source: Partner sent {TRAINERROR entry req}.
         // ------------------------------------------------------------------
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = VALVREF_LOCAL_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = VALVREF_LCL_TO_TRAINERROR;
+        end
+        // ------------------------------------------------------------------
+        // SECOND PRIORITY: valvref_en deassertion.
+        // If the controller disables this substate, return to IDLE immediately.
+        // (Applies to all non-terminal states).
+        // ------------------------------------------------------------------
+        else if (!valvref_en) begin
+            next_state = VALVREF_LCL_IDLE;
         end
         // ------------------------------------------------------------------
         // NORMAL FSM TRANSITIONS
@@ -204,25 +203,25 @@ module unit_VALVREF_local #(
                 // ---------------------------------------------------------
                 // IDLE: Wait for valvref_en from MBTRAIN_ctrl_local.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_IDLE: begin
-                    next_state = valvref_en ? VALVREF_LOCAL_SEND_START_REQ : VALVREF_LOCAL_IDLE;
+                VALVREF_LCL_IDLE: begin
+                    next_state = valvref_en ? VALVREF_LCL_SEND_START_REQ : VALVREF_LCL_IDLE;
                 end
 
                 // ---------------------------------------------------------
                 // SEND_START_REQ: tx_sb_msg_valid=1 for this 1 cycle.
                 // Unconditionally → WAIT_START_RESP.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_SEND_START_REQ: begin
-                    next_state = VALVREF_LOCAL_WAIT_START_RESP;
+                VALVREF_LCL_SEND_START_REQ: begin
+                    next_state = VALVREF_LCL_WAIT_START_RESP;
                 end
 
                 // ---------------------------------------------------------
                 // WAIT_START_RESP: Poll for {MBTRAIN.VALVREF start resp}
                 // from the partner's PARTNER FSM.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_WAIT_START_RESP: begin
+                VALVREF_LCL_WAIT_START_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_VALVREF_start_resp) begin
-                        next_state = VALVREF_LOCAL_SWEEP;
+                        next_state = VALVREF_LCL_SWEEP;
                     end
                 end
 
@@ -231,8 +230,8 @@ module unit_VALVREF_local #(
                 // The external unit_D2C_sweep runs through MIN→MAX Vref codes.
                 // Wait here until sweep_done is asserted.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_SWEEP: begin
-                    next_state = sweep_done ? VALVREF_LOCAL_APPLY_BEST : VALVREF_LOCAL_SWEEP;
+                VALVREF_LCL_SWEEP: begin
+                    next_state = sweep_done ? VALVREF_LCL_APPLY_BEST : VALVREF_LCL_SWEEP;
                 end
 
                 // ---------------------------------------------------------
@@ -242,25 +241,25 @@ module unit_VALVREF_local #(
                 // registered value to be stable before we send {end req}.
                 // → Unconditionally → SEND_END_REQ.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_APPLY_BEST: begin
-                    next_state = VALVREF_LOCAL_SEND_END_REQ;
+                VALVREF_LCL_APPLY_BEST: begin
+                    next_state = VALVREF_LCL_SEND_END_REQ;
                 end
 
                 // ---------------------------------------------------------
                 // SEND_END_REQ: tx_sb_msg_valid=1 for this 1 cycle.
                 // Unconditionally → WAIT_END_RESP.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_SEND_END_REQ: begin
-                    next_state = VALVREF_LOCAL_WAIT_END_RESP;
+                VALVREF_LCL_SEND_END_REQ: begin
+                    next_state = VALVREF_LCL_WAIT_END_RESP;
                 end
 
                 // ---------------------------------------------------------
                 // WAIT_END_RESP: Poll for {MBTRAIN.VALVREF end resp}
                 // from the partner's PARTNER FSM.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_WAIT_END_RESP: begin
+                VALVREF_LCL_WAIT_END_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_VALVREF_end_resp) begin
-                        next_state = VALVREF_LOCAL_TO_DATAVREF;
+                        next_state = VALVREF_LCL_TO_DATAVREF;
                     end
                 end
 
@@ -268,20 +267,20 @@ module unit_VALVREF_local #(
                 // TO_DATAVREF (Terminal): valvref_done=1.
                 // Hold until MBTRAIN_ctrl_local deasserts valvref_en.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_TO_DATAVREF: begin
-                    next_state = valvref_en ? VALVREF_LOCAL_TO_DATAVREF : VALVREF_LOCAL_IDLE;
+                VALVREF_LCL_TO_DATAVREF: begin
+                    next_state = valvref_en ? VALVREF_LCL_TO_DATAVREF : VALVREF_LCL_IDLE;
                 end
 
                 // ---------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // Hold until MBTRAIN_ctrl_local deasserts valvref_en.
                 // ---------------------------------------------------------
-                VALVREF_LOCAL_TO_TRAINERROR: begin
-                    next_state = valvref_en ? VALVREF_LOCAL_TO_TRAINERROR : VALVREF_LOCAL_IDLE;
+                VALVREF_LCL_TO_TRAINERROR: begin
+                    next_state = valvref_en ? VALVREF_LCL_TO_TRAINERROR : VALVREF_LCL_IDLE;
                 end
 
                 default: begin
-                    next_state = VALVREF_LOCAL_IDLE;
+                    next_state = VALVREF_LCL_IDLE;
                 end
             endcase
         end
@@ -303,7 +302,7 @@ module unit_VALVREF_local #(
         end
         else begin
             // Capture best_code for the Valid Lane (lane index 0) when sweep finishes.
-            if (current_state == VALVREF_LOCAL_SWEEP && sweep_done) begin
+            if (current_state == VALVREF_LCL_SWEEP && sweep_done) begin
                 best_code_r <= best_code[0][VW-1:0];
             end
         end
@@ -317,7 +316,6 @@ module unit_VALVREF_local #(
         valvref_done     = 1'b0;
         trainerror_req   = 1'b0;
         update_lane_mask = 1'b0;
-        timeout_timer_en = 1'b1; // Watchdog ON by default
 
         tx_sb_msg_valid  = 1'b0;
         tx_sb_msg        = NOTHING;
@@ -343,10 +341,9 @@ module unit_VALVREF_local #(
         case (current_state)
 
             // ---------------------------------------------------------
-            // IDLE: Watchdog off.
+            // IDLE: RX disabled in IDLE.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            VALVREF_LCL_IDLE: begin
                 mb_rx_clk_lane_sel  = 1'b0; // All RX disabled in IDLE
                 mb_rx_val_lane_sel  = 1'b0;
             end
@@ -356,7 +353,7 @@ module unit_VALVREF_local #(
             // Also pulse update_lane_mask so the controller captures
             // the current negotiated lane mask for this session.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_SEND_START_REQ: begin
+            VALVREF_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid  = 1'b1;
                 tx_sb_msg        = MBTRAIN_VALVREF_start_req;
                 tx_msginfo       = 16'h0;
@@ -367,7 +364,7 @@ module unit_VALVREF_local #(
             // ---------------------------------------------------------
             // WAIT_START_RESP: No TX. MB at default posture.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_WAIT_START_RESP: begin
+            VALVREF_LCL_WAIT_START_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
@@ -375,7 +372,7 @@ module unit_VALVREF_local #(
             // SWEEP: sweep_en is driven combinationally above.
             // MB: Partner's TX drives VALTRAIN pattern. Our RX samples it.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_SWEEP: begin
+            VALVREF_LCL_SWEEP: begin
                 // sweep_en asserted via assign above.
                 // MB lanes stay at default: RX valid enabled, all TX held low.
             end
@@ -383,14 +380,14 @@ module unit_VALVREF_local #(
             // ---------------------------------------------------------
             // APPLY_BEST (1-cycle pipeline): No outputs change.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_APPLY_BEST: begin
+            VALVREF_LCL_APPLY_BEST: begin
                 // Nothing to set here. Sequential block already latched best_code_r.
             end
 
             // ---------------------------------------------------------
             // SEND_END_REQ: Transmit {MBTRAIN.VALVREF end req}.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_SEND_END_REQ: begin
+            VALVREF_LCL_SEND_END_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_VALVREF_end_req;
                 tx_msginfo      = 16'h0;
@@ -400,25 +397,23 @@ module unit_VALVREF_local #(
             // ---------------------------------------------------------
             // WAIT_END_RESP: No TX. MB at default posture.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_WAIT_END_RESP: begin
+            VALVREF_LCL_WAIT_END_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
             // ---------------------------------------------------------
-            // TO_DATAVREF (Terminal): Assert valvref_done; disable watchdog.
+            // TO_DATAVREF (Terminal): Assert valvref_done.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_TO_DATAVREF: begin
+            VALVREF_LCL_TO_DATAVREF: begin
                 valvref_done     = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             // ---------------------------------------------------------
             // TO_TRAINERROR (Terminal): Assert trainerror_req+valvref_done.
             // ---------------------------------------------------------
-            VALVREF_LOCAL_TO_TRAINERROR: begin
+            VALVREF_LCL_TO_TRAINERROR: begin
                 valvref_done     = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin
@@ -430,7 +425,7 @@ module unit_VALVREF_local #(
     // =========================================================================
     // PHY Vref Control: drive phy_rx_valvref_ctrl combinationally.
     //
-    // During VALVREF_LOCAL_SWEEP (sweep_en = 1):
+    // During VALVREF_LCL_SWEEP (sweep_en = 1):
     //   Drive swept_code so the PHY tests each Vref setting.
     //   unit_D2C_sweep steps swept_code from MIN_VAL_VREF_CODE to MAX_VAL_VREF_CODE.
     //
@@ -439,7 +434,7 @@ module unit_VALVREF_local #(
     //   Held permanently until is_ltsm_out_of_reset = 0 clears it.
     // =========================================================================
     assign phy_rx_valvref_ctrl =
-        (current_state == VALVREF_LOCAL_SWEEP) ?
+        (current_state == VALVREF_LCL_SWEEP) ?
         swept_code[VW-1:0] :
         best_code_r;
 

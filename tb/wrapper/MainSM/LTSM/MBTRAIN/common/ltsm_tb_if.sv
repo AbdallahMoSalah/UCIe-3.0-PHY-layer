@@ -30,7 +30,10 @@ interface ltsm_tb_if #(
 
 
     // State log signal (dynamic state_n)
-    state_n_e state_n [4];
+    state_n_e state_n_0;
+    state_n_e state_n_1;
+    state_n_e state_n_2;
+    state_n_e state_n_3;
 
     // =========================================================================
     // Sideband Interface (DUT <-> Partner)
@@ -185,6 +188,7 @@ interface ltsm_tb_if #(
     logic [3:0]  rf_ctrl_target_link_width;
     logic [15:0] linkspeed_success_lanes;
     logic        param_UCIe_S_x8;
+    logic        is_x16_module;
     logic [2:0]  degraded_lane_map_code;    // Degraded lane map code output from unit_negotiated_lanes
     logic        degrade_feasible;          // 1: degradation configuration is feasible
     logic        txselfcal_req;

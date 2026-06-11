@@ -51,14 +51,8 @@ module unit_VALVREF_partner (
         //=====================================//
         input  logic        valvref_en          , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
         input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
         output logic        valvref_done        , // 1: Sub-state completed; held until valvref_en = 0.
         output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -140,7 +134,7 @@ module unit_VALVREF_partner (
     // Combinational Next-State Logic
     //
     // Priority:
-    //   1. HIGHEST: TRAINERROR conditions (timeout or {TRAINERROR entry req}).
+    //   1. HIGHEST: TRAINERROR conditions (Partner sent {TRAINERROR entry req}).
     //   2. SECOND:  valvref_en deasserted → return to IDLE (from non-terminal states).
     //   3. NORMAL:  per-state FSM transitions.
     // =========================================================================
@@ -150,8 +144,7 @@ module unit_VALVREF_partner (
         // ------------------------------------------------------------------
         // HIGHEST PRIORITY: TRAINERROR override.
         // ------------------------------------------------------------------
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
             next_state = VALVREF_PTR_TO_TRAINERROR;
         end
         // ------------------------------------------------------------------
@@ -250,7 +243,6 @@ module unit_VALVREF_partner (
         // --- Defaults: safe inactive values ---
         valvref_done     = 1'b0;
         trainerror_req   = 1'b0;
-        timeout_timer_en = 1'b1; // Watchdog ON by default
         partner_sweep_en = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -275,10 +267,9 @@ module unit_VALVREF_partner (
         case (current_state)
 
             // ---------------------------------------------------------
-            // IDLE: All outputs at minimum activity. Watchdog off.
+            // IDLE: All outputs at minimum activity.
             // ---------------------------------------------------------
             VALVREF_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_tx_val_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
@@ -287,7 +278,7 @@ module unit_VALVREF_partner (
             end
 
             // ---------------------------------------------------------
-            // WAIT_START_REQ: No SB output. Watchdog active. MB at default.
+            // WAIT_START_REQ: No SB output. MB at default.
             // ---------------------------------------------------------
             VALVREF_PTR_WAIT_START_REQ: begin
                 tx_sb_msg_valid = 1'b0;
@@ -326,11 +317,10 @@ module unit_VALVREF_partner (
             end
 
             // ---------------------------------------------------------
-            // TO_DATAVREF (Terminal): Assert valvref_done; disable watchdog.
+            // TO_DATAVREF (Terminal): Assert valvref_done.
             // ---------------------------------------------------------
             VALVREF_PTR_TO_DATAVREF: begin
                 valvref_done     = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             // ---------------------------------------------------------
@@ -339,7 +329,6 @@ module unit_VALVREF_partner (
             VALVREF_PTR_TO_TRAINERROR: begin
                 valvref_done     = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin
