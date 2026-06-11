@@ -17,19 +17,19 @@ module Demapper_tb;
     logic i_clk;
     logic i_rst_n;
     
-    // Mapper Inputs
+    // unit_mapper Inputs
     logic [8*N_BYTES-1:0] i_in_data;
     logic                 mapper_en;
     logic [2:0]           i_width_deg;
     logic                 lp_irdy;
     logic                 lp_valid;
     
-    // Mapper Outputs / Demapper Inputs
+    // unit_mapper Outputs / unit_demapper Inputs
     wire [WIDTH-1:0] m_lane [0:15];
     wire             out_scramble_en;
     wire             mapper_ready;
     
-    // Demapper Outputs
+    // unit_demapper Outputs
     wire                 pl_valid;
     wire [8*N_BYTES-1:0] o_out_data;
     
@@ -45,7 +45,7 @@ module Demapper_tb;
     //============================================================
     // Instantiations
     //============================================================
-    Mapper #(
+    unit_mapper #(
         .WIDTH(WIDTH),
         .NUM_LANES(16),
         .N_BYTES(N_BYTES)
@@ -77,7 +77,7 @@ module Demapper_tb;
         .mapper_ready(mapper_ready)
     );
 
-    Demapper #(
+    unit_demapper #(
         .N_BYTES(N_BYTES),
         .WIDTH(WIDTH)
     ) demapper_inst (
@@ -119,12 +119,10 @@ module Demapper_tb;
     begin
         $display("Testing Mode %b (%0d cycles)", mode, num_cycles);
         
-        // The Mapper and Demapper effectively reverse the byte order
-        // (i_in_data[7:0] becomes o_out_data[511:504]).
-        // So we compute the expected result by reversing the bytes of test_data.
-        for (i = 0; i < N_BYTES; i = i + 1) begin
-            expected_data[(N_BYTES-1-i)*8 +: 8] = test_data[i*8 +: 8];
-        end
+        // unit_demapper is now a faithful inverse of unit_mapper: the recovered
+        // flit equals the original (i_in_data[7:0] -> o_out_data[7:0]). So the
+        // expected result is simply test_data unchanged.
+        expected_data = test_data;
 
         i_width_deg = mode;
         i_in_data   = test_data;

@@ -1,5 +1,5 @@
 # DUT
-rtl/MainBand/unsued/lfsr_serial.sv
+rtl/MainBand/tx/unused/unit_lfsr_serial.sv
 
 # Testbench
-rtl/MainBand/unsued/lfsr_serial_tb.sv
+rtl/MainBand/tx/unused/unit_lfsr_serial_tb.sv

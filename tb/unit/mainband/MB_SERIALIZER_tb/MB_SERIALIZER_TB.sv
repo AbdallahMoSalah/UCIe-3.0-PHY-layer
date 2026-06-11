@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module MB_SERIALIZER_TB;
+module unit_mb_serializer_tb;
 
 parameter DATA_WIDTH = 32;
 
@@ -16,7 +16,7 @@ integer i;
 reg [DATA_WIDTH-1:0] expected_data;
 
 // DUT
-MB_SERIALIZER #(
+unit_mb_serializer #(
     .DATA_WIDTH(DATA_WIDTH)
 ) DUT (
     .mb_clk(i_clk),

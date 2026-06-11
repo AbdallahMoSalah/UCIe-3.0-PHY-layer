@@ -1,5 +1,9 @@
+# Clock & PLL
+rtl/common/ClkDiv.sv
+rtl/MainBand/tx/unit_mb_pll.sv
+
 # DUT
-rtl/MainBand/unsued/mb_serializer.sv
+rtl/MainBand/tx/unit_mb_serializer.sv
 
 # Testbench
-rtl/MainBand/unsued/MB_SERIALIZER_TB.sv
+rtl/MainBand/tx/unused/unit_mb_serializer_tb.sv

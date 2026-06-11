@@ -14,7 +14,7 @@ module MB_PLL_tb;
     // =========================
     // Instantiate DUT
     // =========================
-    MB_PLL dut (
+    unit_mb_pll dut (
         .en(en),
         .speed_sel(speed_sel),
         .clk(clk),

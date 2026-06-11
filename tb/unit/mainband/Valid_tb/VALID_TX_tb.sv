@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module VALID_TX_tb;
+module unit_valid_tx_tb;
 
     // ============================================================
     // DUT Signals
@@ -17,7 +17,7 @@ module VALID_TX_tb;
     // ============================================================
     // Instantiate DUT
     // ============================================================
-    VALID_TX DUT (
+    unit_valid_tx DUT (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
         .valid_pattern_en(valid_pattern_en),

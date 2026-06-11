@@ -3,89 +3,76 @@
 module MB_PATTERN_COMPARATOR_TB;
 
     parameter WIDTH = 32;
+    parameter NUM_LANES = 16;
 
     // Inputs
     reg        i_clk;
     reg        i_rst_n;
-    reg        i_active;
-    reg [1:0]  i_type_of_com;
-    reg        i_enable_pattern_com;
-    reg [15:0] i_max_error_threshold_per_lane_ID;
-    reg [15:0] i_max_error_threshold_aggergate;
+    reg        i_enable;
+    reg        i_comparison_mode;
+    reg [NUM_LANES-1:0] i_lane_mask;
+    reg [15:0] i_max_error_threshold_per_lane;
+    reg [15:0] i_max_error_threshold_aggregate;
+    reg [15:0] i_iteration_count;
+    reg        i_pattern_mode;
+    reg        i_clear_error;
+    reg        i_pcmp_enable;
 
-    // Generators and Data
-    reg [WIDTH-1:0] local_gen [0:15];
-    reg [WIDTH-1:0] rcv_data  [0:15];
+    // Patterns
+    reg [WIDTH-1:0] local_gen [0:NUM_LANES-1];
+    reg [WIDTH-1:0] rcv_data  [0:NUM_LANES-1];
 
     // Outputs
-    wire [15:0] o_per_lane_error;
-    wire [31:0] o_error_counter;
-    wire        o_error_done;
-    
-    // Bypassed Outputs
-    wire [WIDTH-1:0] o_data [0:15];
+    wire       o_done;
+    wire [NUM_LANES-1:0] o_per_lane_pass;
+    wire [15:0] o_aggregate_error_counter;
+    wire        o_aggregate_error;
 
     integer i, iter;
     integer seed = 32'hDEADBEEF;
 
     // Instantiate DUT
-    PATTERN_COMPARATOR #(
+    unit_mb_pattern_comparator #(
+        .NUM_LANES(NUM_LANES),
         .WIDTH(WIDTH)
     ) DUT (
         .i_clk(i_clk),
         .i_rst_n(i_rst_n),
-        .i_active(i_active),
-        .i_type_of_com(i_type_of_com),
-        .i_enable_pattern_com(i_enable_pattern_com),
-        .i_max_error_threshold_per_lane_ID(i_max_error_threshold_per_lane_ID),
-        .i_max_error_threshold_aggergate(i_max_error_threshold_aggergate),
-
-        .i_local_gen_0(local_gen[0]),   .i_local_gen_1(local_gen[1]),
-        .i_local_gen_2(local_gen[2]),   .i_local_gen_3(local_gen[3]),
-        .i_local_gen_4(local_gen[4]),   .i_local_gen_5(local_gen[5]),
-        .i_local_gen_6(local_gen[6]),   .i_local_gen_7(local_gen[7]),
-        .i_local_gen_8(local_gen[8]),   .i_local_gen_9(local_gen[9]),
-        .i_local_gen_10(local_gen[10]), .i_local_gen_11(local_gen[11]),
-        .i_local_gen_12(local_gen[12]), .i_local_gen_13(local_gen[13]),
-        .i_local_gen_14(local_gen[14]), .i_local_gen_15(local_gen[15]),
-
-        .i_data_0(rcv_data[0]),   .i_data_1(rcv_data[1]),
-        .i_data_2(rcv_data[2]),   .i_data_3(rcv_data[3]),
-        .i_data_4(rcv_data[4]),   .i_data_5(rcv_data[5]),
-        .i_data_6(rcv_data[6]),   .i_data_7(rcv_data[7]),
-        .i_data_8(rcv_data[8]),   .i_data_9(rcv_data[9]),
-        .i_data_10(rcv_data[10]), .i_data_11(rcv_data[11]),
-        .i_data_12(rcv_data[12]), .i_data_13(rcv_data[13]),
-        .i_data_14(rcv_data[14]), .i_data_15(rcv_data[15]),
-
-        .o_per_lane_error(o_per_lane_error),
-        .o_error_counter(o_error_counter),
-        .o_error_done(o_error_done),
-        
-        .o_data_0(o_data[0]),   .o_data_1(o_data[1]),
-        .o_data_2(o_data[2]),   .o_data_3(o_data[3]),
-        .o_data_4(o_data[4]),   .o_data_5(o_data[5]),
-        .o_data_6(o_data[6]),   .o_data_7(o_data[7]),
-        .o_data_8(o_data[8]),   .o_data_9(o_data[9]),
-        .o_data_10(o_data[10]), .o_data_11(o_data[11]),
-        .o_data_12(o_data[12]), .o_data_13(o_data[13]),
-        .o_data_14(o_data[14]), .o_data_15(o_data[15])
+        .i_enable(i_enable),
+        .i_comparison_mode(i_comparison_mode),
+        .i_lane_mask(i_lane_mask),
+        .i_max_error_threshold_per_lane(i_max_error_threshold_per_lane),
+        .i_max_error_threshold_aggregate(i_max_error_threshold_aggregate),
+        .i_iteration_count(i_iteration_count),
+        .i_pattern_mode(i_pattern_mode),
+        .i_clear_error(i_clear_error),
+        .i_local_pattern(local_gen),
+        .i_rx_pattern(rcv_data),
+        .i_pcmp_enable(i_pcmp_enable),
+        .o_done(o_done),
+        .o_per_lane_pass(o_per_lane_pass),
+        .o_aggregate_error_counter(o_aggregate_error_counter),
+        .o_aggregate_error(o_aggregate_error)
     );
 
     // Clock gen
     always #5 i_clk = ~i_clk; // 100 MHz
 
     initial begin
-        // Initialize
+        // Initialize inputs
         i_clk = 0;
         i_rst_n = 0;
-        i_active = 0;
-        i_type_of_com = 2'b01; // LFSR mode
-        i_enable_pattern_com = 0;
-        i_max_error_threshold_per_lane_ID = 16'd10; // Disable lane if > 10 errors
-        i_max_error_threshold_aggergate = 16'd50;
+        i_enable = 0;
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_max_error_threshold_per_lane = 16'd10;
+        i_max_error_threshold_aggregate = 16'd50;
+        i_iteration_count = 16'd128;
+        i_pattern_mode = 0;
+        i_clear_error = 0;
+        i_pcmp_enable = 1;
 
-        for (i = 0; i < 16; i = i + 1) begin
+        for (i = 0; i < NUM_LANES; i = i + 1) begin
             local_gen[i] = 0;
             rcv_data[i]  = 0;
         end
@@ -95,120 +82,420 @@ module MB_PATTERN_COMPARATOR_TB;
         i_rst_n = 1;
         #10;
 
-        // ==========================================
-        // TEST 1: PERFECT MATCH TEST
-        // ==========================================
-        $display("[%0t] ==== STARTING TEST 1: No Errors ====", $time);
-        @(posedge i_clk);
-        i_enable_pattern_com = 1;
+        // =====================================================================
+        // TEST 1: LFSR MODE, PERFECT MATCH (NO ERRORS)
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 1: LFSR mode, No Errors ====", $time);
+        i_pattern_mode = 0;
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_iteration_count = 16'd128;
+        i_max_error_threshold_per_lane = 16'd10;
 
-        // Drive random data for 128 cycles, cleanly matching
+        @(posedge i_clk);
+        i_enable = 1;
+
+        // Drive matching random data
         for (iter = 0; iter < 128; iter = iter + 1) begin
             @(posedge i_clk);
-            for (i = 0; i < 16; i = i + 1) begin
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
                 local_gen[i] = $random(seed);
-                rcv_data[i]  = local_gen[i]; // Perfect match
+                rcv_data[i]  = local_gen[i];
             end
         end
 
-        // Wait for completion
-        wait(o_error_done);
+        wait(o_done);
         @(posedge i_clk);
-        i_enable_pattern_com = 0;
-        
-        $display("[%0t] Test 1 Done. Total Errors: %0d", $time, o_error_counter);
-        if (o_error_counter !== 0 || o_per_lane_error !== 0)
+        i_enable = 0;
+        #10;
+
+        $display("TEST 1: o_per_lane_pass = %b (Expected: all 1s)", o_per_lane_pass);
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
             $display("-> FAILED Test 1!");
-        else
+            $stop;
+        end else begin
             $display("-> PASSED Test 1!");
+        end
 
         #50;
 
-        // ==========================================
-        // TEST 2: ERROR INJECTION TEST
-        // ==========================================
-        $display("[%0t] ==== STARTING TEST 2: Error Injection ====", $time);
-        @(posedge i_clk);
-        i_enable_pattern_com = 1;
+        // =====================================================================
+        // TEST 2: LFSR MODE, ERROR INJECTION WITH THRESHOLD
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 2: LFSR mode, Error Injection ====", $time);
+        i_pattern_mode = 0;
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_iteration_count = 16'd128;
+        i_max_error_threshold_per_lane = 16'd10;
 
-        // Run 128 iterations
-        // We will inject exactly:
-        // - 5 errors in lane 3 (should not exceed threshold 10, won't disable)
-        // - 20 errors in lane 7 (exceeds threshold 10, will disable lane / flag error)
+        @(posedge i_clk);
+        i_enable = 1;
+
         for (iter = 0; iter < 128; iter = iter + 1) begin
             @(posedge i_clk);
-            for (i = 0; i < 16; i = i + 1) begin
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
                 local_gen[i] = $random(seed);
-                
-                // Default match
-                rcv_data[i] = local_gen[i]; 
+                rcv_data[i]  = local_gen[i];
 
-                // Inject 1 bit error in lane 3 for first 5 iterations
+                // Inject 5 errors on Lane 3 (errors <= threshold 10 => should PASS)
                 if (i == 3 && iter < 5) begin
-                    rcv_data[i][0] = ~local_gen[i][0]; // flip bit 0
-                end
-                
-                // Inject 2 bit errors in lane 7 for first 10 iterations (20 errors total)
-                if (i == 7 && iter < 10) begin
                     rcv_data[i][0] = ~local_gen[i][0];
-                    rcv_data[i][1] = ~local_gen[i][1];
+                end
+
+                // Inject 15 errors on Lane 7 (errors > threshold 10 => should FAIL)
+                if (i == 7 && iter < 15) begin
+                    rcv_data[i][0] = ~local_gen[i][0];
                 end
             end
         end
 
-        wait(o_error_done);
+        wait(o_done);
         @(posedge i_clk);
-        i_enable_pattern_com = 0;
+        i_enable = 0;
+        #10;
 
-        $display("[%0t] Test 2 Done. Total Errors: %0d", $time, o_error_counter);
-        $display("Lane Flags: %b", o_per_lane_error);
-
-        // Verify counts
-        // Aggregate = 5 + 20 = 25
-        if (o_error_counter === 25 && o_per_lane_error[7] === 1'b1 && o_per_lane_error[3] === 1'b0) begin
-             $display("-> PASSED Test 2!");
+        $display("TEST 2: o_per_lane_pass = %b (Expected: o_per_lane_pass[7] = 0, o_per_lane_pass[3] = 1)", o_per_lane_pass);
+        if (o_per_lane_pass[7] !== 1'b0 || o_per_lane_pass[3] !== 1'b1) begin
+            $display("-> FAILED Test 2!");
+            $stop;
         end else begin
-             $display("-> FAILED Test 2! (Expected Aggregate=25, Lane 7 flaged)");
+            $display("-> PASSED Test 2!");
         end
 
         #50;
-        
-        // ==========================================
-        // TEST 3: ACTIVE MODE BYPASS
-        // ==========================================
-        $display("[%0t] ==== STARTING TEST 3: Active Mode Bypass ====", $time);
+
+        // =====================================================================
+        // TEST 3: LFSR MODE WITH MASK
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 3: LFSR mode, Lane 7 Masked ====", $time);
+        i_pattern_mode = 0;
+        i_comparison_mode = 0;
+        i_lane_mask = 16'b0000_0000_1000_0000; // Mask lane 7
+        i_iteration_count = 16'd128;
+        i_max_error_threshold_per_lane = 16'd10;
+
         @(posedge i_clk);
-        i_active = 1;
-        i_enable_pattern_com = 1; // It should NOT compare even if enable is high!
-        
-        // Inject new data to bypass
-        for (i = 0; i < 16; i = i + 1) begin
-            rcv_data[i] = $random(seed);
-            local_gen[i] = ~rcv_data[i]; // Make gen mismatch totally to ensure comparison is OFF
-        end
-        
-        // Let it propagate
-        @(posedge i_clk);
-        @(posedge i_clk);
-        
-        // Verify bypassed data matches rcv_data exactly
-        begin : check_bypass
-            reg bypass_passed;
-            bypass_passed = 1;
-            for (i = 0; i < 16; i = i + 1) begin
-                if (o_data[i] !== rcv_data[i]) begin
-                    $display("-> FAILED Test 3 on Lane %0d! Expected %h, got %h", i, rcv_data[i], o_data[i]);
-                    bypass_passed = 0;
+        i_enable = 1;
+
+        for (iter = 0; iter < 128; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = $random(seed);
+                rcv_data[i]  = local_gen[i];
+
+                // Inject 15 errors on Lane 7 (since masked, should PASS)
+                if (i == 7 && iter < 15) begin
+                    rcv_data[i][0] = ~local_gen[i][0];
                 end
             end
-            if (bypass_passed)
-                $display("-> PASSED Test 3! (Active mode bypass verified, comparison disabled)");
         end
-        
-        i_active = 0;
-        #100;
-        
-        $display("\n[%0t] ==== ALL TESTS COMPLETED ====", $time);
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        $display("TEST 3: o_per_lane_pass = %b (Expected: o_per_lane_pass[7] = 1)", o_per_lane_pass);
+        if (o_per_lane_pass[7] !== 1'b1) begin
+            $display("-> FAILED Test 3!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 3!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 4: PER-LANE ID PATTERN MODE, PERFECT MATCH (16 CONSECUTIVE MATCHES)
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 4: Per-Lane ID Pattern mode, No Errors ====", $time);
+        i_pattern_mode = 1; // Per-lane ID mode
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_iteration_count = 16'd10; // Only run 10 cycles (20 iterations)
+
+        @(posedge i_clk);
+        i_enable = 1;
+
+        // Drive matching lane ID patterns
+        for (iter = 0; iter < 10; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = {16'b1010_00000000_1010 + i[15:0], 16'b1010_00000000_1010 + i[15:0]};
+                rcv_data[i]  = local_gen[i];
+            end
+            if (iter == 8) begin
+                // At cycle 8 (8 cycles * 2 iterations/cycle = 16 iterations), all lanes should transition to pass
+                #1;
+                $display("Cycle 8: o_per_lane_pass = %b (Expected: all 1s)", o_per_lane_pass);
+                if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+                    $display("-> FAILED Test 4 midcheck!");
+                    $stop;
+                end
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        $display("TEST 4: Final o_per_lane_pass = %b", o_per_lane_pass);
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 4!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 4!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 5: PER-LANE ID PATTERN MODE, WITH MISMATCH (CONSECUTIVE RESET)
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 5: Per-Lane ID Pattern mode, With Mismatch ====", $time);
+        i_pattern_mode = 1;
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_iteration_count = 16'd20; // 40 iterations
+
+        @(posedge i_clk);
+        i_enable = 1;
+
+        for (iter = 0; iter < 20; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = {16'b1010_00000000_1010 + i[15:0], 16'b1010_00000000_1010 + i[15:0]};
+                rcv_data[i]  = local_gen[i];
+
+                // Inject error on Lane 2 at iteration 10 (cycle 5, upper 16 bits)
+                if (i == 2 && iter == 5) begin
+                    rcv_data[i][31:16] = ~local_gen[i][31:16];
+                end
+            end
+
+            // Check after cycle 8 (iteration 16)
+            if (iter == 8) begin
+                #1;
+                // Lane 2 should be 0 because the mismatch at cycle 5 reset its counter
+                $display("Cycle 8 check: o_per_lane_pass[2] = %b (Expected: 0)", o_per_lane_pass[2]);
+                if (o_per_lane_pass[2] !== 1'b0) begin
+                    $display("-> FAILED Test 5 midcheck!");
+                    $stop;
+                end
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        $display("TEST 5: Final o_per_lane_pass = %b (Expected: all 1s since Lane 2 eventually had 16 consecutive matches after cycle 5)", o_per_lane_pass);
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 5!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 5!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 6: PER-LANE ID PATTERN MODE, LANE 4 MASKED
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 6: Per-Lane ID Pattern mode, Lane 4 Masked ====", $time);
+        i_pattern_mode = 1;
+        i_comparison_mode = 0;
+        i_lane_mask = 16'b0000_0000_0001_0000; // Mask lane 4
+        i_iteration_count = 16'd5; // Run 5 cycles (10 iterations)
+
+        @(posedge i_clk);
+        i_enable = 1;
+
+        for (iter = 0; iter < 5; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = {16'b1010_00000000_1010 + i[15:0], 16'b1010_00000000_1010 + i[15:0]};
+                rcv_data[i]  = local_gen[i];
+            end
+            // Check even at cycle 2: masked lane 4 should be 1 (PASS) immediately
+            #1;
+            if (o_per_lane_pass[4] !== 1'b1) begin
+                $display("-> FAILED Test 6 midcheck: o_per_lane_pass[4] = %b", o_per_lane_pass[4]);
+                $stop;
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+        $display("-> PASSED Test 6!");
+
+        #50;
+
+        // =====================================================================
+        // TEST 7: CLEAR ERROR INPUT
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 7: Clear Error Test ====", $time);
+        i_pattern_mode = 0; // LFSR mode
+        i_comparison_mode = 0;
+        i_lane_mask = 0;
+        i_iteration_count = 16'd30;
+        i_max_error_threshold_per_lane = 16'd5;
+
+        @(posedge i_clk);
+        i_enable = 1;
+
+        for (iter = 0; iter < 10; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = $random(seed);
+                rcv_data[i]  = local_gen[i];
+                // Inject errors to exceed threshold
+                if (i == 5 && iter < 8) begin
+                    rcv_data[i][0] = ~local_gen[i][0];
+                end
+            end
+        end
+
+        // Lane 5 should be 0 (FAIL)
+        #1;
+        $display("Before Clear: o_per_lane_pass[5] = %b", o_per_lane_pass[5]);
+        if (o_per_lane_pass[5] !== 1'b0) begin
+            $display("-> FAILED Test 7 (failed to flag error before clear)!");
+            $stop;
+        end
+
+        // Assert clear error
+        @(posedge i_clk);
+        i_clear_error = 1;
+        @(posedge i_clk);
+        i_clear_error = 0;
+        #1;
+
+        $display("After Clear: o_per_lane_pass[5] = %b (Expected: 1)", o_per_lane_pass[5]);
+        if (o_per_lane_pass[5] !== 1'b1) begin
+            $display("-> FAILED Test 7 (clear failed)!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 7!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 8: AGGREGATE COMPARISON MODE
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 8: Aggregate comparison mode ====", $time);
+        i_pattern_mode = 0;
+        i_comparison_mode = 1; // Aggregate mode
+        i_lane_mask = 0;
+        i_iteration_count = 16'd10;
+        i_max_error_threshold_aggregate = 16'd5;
+
+        @(posedge i_clk);
+        i_enable = 1;
+
+        for (iter = 0; iter < 10; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = $random(seed);
+                rcv_data[i]  = local_gen[i];
+            end
+
+            // Cycle 2: Inject errors at same UI (bit 5) in all lanes
+            if (iter == 2) begin
+                for (i = 0; i < NUM_LANES; i = i + 1) begin
+                    rcv_data[i][5] = ~local_gen[i][5];
+                end
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        $display("TEST 8: o_aggregate_error_counter = %d (Expected: 1 error UI)", o_aggregate_error_counter);
+        if (o_aggregate_error_counter !== 16'd1) begin
+            $display("-> FAILED Test 8!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 8!");
+        end
+
+        #50;
+
+        // =====================================================================
+        // TEST 9: i_pcmp_enable GATING TEST
+        // =====================================================================
+        $display("[%0t] ==== STARTING TEST 9: i_pcmp_enable Gating Test ====", $time);
+        i_pattern_mode = 0; // LFSR mode
+        i_comparison_mode = 0; // Per-lane mode
+        i_lane_mask = 0;
+        i_iteration_count = 16'd5;
+        i_max_error_threshold_per_lane = 16'd0; // Any error will fail lane immediately
+
+        @(posedge i_clk);
+        i_pcmp_enable = 0; // Disable comparison
+        i_enable = 1;
+
+        // Drive mismatches, but since i_pcmp_enable=0, no error should be detected
+        // and iter_ctr should not increment (it should stay 0).
+        for (iter = 0; iter < 10; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = 32'hAAAA_AAAA;
+                rcv_data[i]  = 32'hBBBB_BBBB; // Mismatch on all lanes
+            end
+        end
+
+        // Wait a few cycles, verify that iter_ctr (or o_done) is still 0, and o_per_lane_pass has no errors.
+        #1;
+        if (o_done) begin
+            $display("-> FAILED Test 9: o_done went high when comparator was disabled!");
+            $stop;
+        end
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 9: errors detected while comparator was disabled!");
+            $stop;
+        end
+
+        // Now enable i_pcmp_enable and drive matching data
+        @(posedge i_clk);
+        i_pcmp_enable = 1;
+        for (i = 0; i < NUM_LANES; i = i + 1) begin
+            local_gen[i] = 32'h1234_5678;
+            rcv_data[i]  = 32'h1234_5678;
+        end
+
+        // Drive matching random data for the actual comparison
+        for (iter = 0; iter < 5; iter = iter + 1) begin
+            @(posedge i_clk);
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                local_gen[i] = $random(seed);
+                rcv_data[i]  = local_gen[i]; // No errors now
+            end
+        end
+
+        wait(o_done);
+        @(posedge i_clk);
+        i_enable = 0;
+        #10;
+
+        if (o_per_lane_pass !== {NUM_LANES{1'b1}}) begin
+            $display("-> FAILED Test 9: failed on matching iterations!");
+            $stop;
+        end else begin
+            $display("-> PASSED Test 9!");
+        end
+
+        #50;
+
+        $display("\n[%0t] ==== ALL TESTS PASSED SUCCESSFULLY ====", $time);
         $stop;
     end
 

@@ -1,8 +1,30 @@
 `timescale 1ns/1ps
-import UCIe_pkg::*;
-import ltsm_state_n_pkg::*;
+
+/* verilator lint_off DECLFILENAME */
+interface ucie_mb_cap_if;
+    logic        use_x8_mode;
+    logic [3:0]  negotiated_speed;
+    logic        negotiated_pmo;
+    logic        negotiated_l2spd;
+    logic        negotiated_pspt;
+    logic        negotiated_tarr;
+    logic        negotiated_so;
+    logic        negotiated_mtp;
+
+    logic        local_is_x8;
+    logic [3:0]  local_max_speed;
+    logic        local_sbfe;
+    logic        local_tarr;
+    logic        local_l2spd;
+    logic        local_pspt;
+    logic        local_so;
+    logic        local_pmo;
+    logic        local_mtp;
+endinterface
 
 module MBINIT_WRAPPER_tb;
+    import UCIe_pkg::*;
+    import ltsm_state_n_pkg::*;
 
     //////////////////////////////////////////////////
     // CLOCK / RESET
@@ -123,7 +145,7 @@ module MBINIT_WRAPPER_tb;
     //////////////////////////////////////////////////
     // MODULE INSTANCE
     //////////////////////////////////////////////////
-    MBINIT #(.CLK_FRQ_HZ(100000)) \module (
+    MBINIT \module (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -131,9 +153,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_done(m_done),
         .mbinit_error(m_error),
         .mbinit_state_n(m_mbinit_state_n),
-        .timer_enable(m_timer_enable),
-        .timer_rst_n(m_timer_rst_n),
-        .timer_timeout_expired(m_timer_timeout_expired),
+        .global_error(m_timer_timeout_expired),
         
         .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
@@ -141,16 +161,11 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_module.local_is_x8),
-        .local_max_speed(cap_if_module.local_max_speed),
-        .local_sbfe(cap_if_module.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_module.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_module.local_l2spd),
         .reg_PSPT_support_local_cap(cap_if_module.local_pspt),
-        .local_so(cap_if_module.local_so),
         .reg_PMO_support_local_cap(cap_if_module.local_pmo),
-        .reg_Max_Link_Width_cap(3'b011),
         .reg_Max_Link_Speed_cap(4'b0011),
-        .local_mtp(cap_if_module.local_mtp),
 
         .reg_Supported_TX_Vswing(5'b00111),
         .reg_so(cap_if_module.local_so),
@@ -186,6 +201,10 @@ module MBINIT_WRAPPER_tb;
         .d2c_data_pattern_sel(d2c_if_module.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_module.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_module.d2c_compare_setup),
+        .d2c_clk_sampling(),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(d2c_if_module.mb_rx_perlane_pass),
         .local_test_d2c_done(d2c_if_module.local_test_d2c_done),
         .partner_test_d2c_done(d2c_if_module.partner_test_d2c_done),
@@ -193,8 +212,8 @@ module MBINIT_WRAPPER_tb;
         // Mainband
         .sb_rx_valid(p_tx_valid),
         .sb_rx_msg_id(p_tx_msg_id),
-        .sb_rx_MsgInfo(p_tx_MsgInfo),
-        .sb_rx_data_Field(p_tx_data),
+        .sb_rx_MsgInfo(p_tx_MsgInfo[2:0]),
+        .sb_rx_data_Field(p_tx_data[15:0]),
         
         .sb_tx_valid(m_tx_valid),
         .sb_tx_msg_id(m_tx_msg_id),
@@ -227,7 +246,7 @@ module MBINIT_WRAPPER_tb;
     //////////////////////////////////////////////////
     // PARTNER INSTANCE
     //////////////////////////////////////////////////
-    MBINIT #(.CLK_FRQ_HZ(100000)) partner (
+    MBINIT partner (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -235,9 +254,7 @@ module MBINIT_WRAPPER_tb;
         .mbinit_done(p_done),
         .mbinit_error(p_error),
         .mbinit_state_n(p_mbinit_state_n),
-        .timer_enable(p_timer_enable),
-        .timer_rst_n(p_timer_rst_n),
-        .timer_timeout_expired(p_timer_timeout_expired),
+        .global_error(p_timer_timeout_expired),
         
         .sb_ltsm_rdy(1'b1),
         .SPMW(1'b0),
@@ -245,16 +262,11 @@ module MBINIT_WRAPPER_tb;
         // Capability interface (Discrete Normal Ports)
         // Local Inputs (from registers)
         .reg_phy_x8_mode_ctrl(cap_if_partner.local_is_x8),
-        .local_max_speed(cap_if_partner.local_max_speed),
-        .local_sbfe(cap_if_partner.local_sbfe),
         .reg_TARR_support_local_cap(cap_if_partner.local_tarr),
         .reg_L2SPD_support_local_cap(cap_if_partner.local_l2spd),
         .reg_PSPT_support_local_cap(cap_if_partner.local_pspt),
-        .local_so(cap_if_partner.local_so),
         .reg_PMO_support_local_cap(cap_if_partner.local_pmo),
-        .reg_Max_Link_Width_cap(3'b011),
         .reg_Max_Link_Speed_cap(4'b0011),
-        .local_mtp(cap_if_partner.local_mtp),
 
         .reg_Supported_TX_Vswing(5'b00111),
         .reg_so(cap_if_partner.local_so),
@@ -290,6 +302,10 @@ module MBINIT_WRAPPER_tb;
         .d2c_data_pattern_sel(d2c_if_partner.d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_if_partner.d2c_pattern_mode),
         .d2c_compare_setup(d2c_if_partner.d2c_compare_setup),
+        .d2c_clk_sampling(),
+        .d2c_burst_count(),
+        .d2c_idle_count(),
+        .d2c_iter_count(),
         .d2c_perlane_pass(d2c_if_partner.mb_rx_perlane_pass),
         .local_test_d2c_done(d2c_if_partner.local_test_d2c_done),
         .partner_test_d2c_done(d2c_if_partner.partner_test_d2c_done),
@@ -297,8 +313,8 @@ module MBINIT_WRAPPER_tb;
         // Mainband
         .sb_rx_valid(m_tx_valid),
         .sb_rx_msg_id(m_tx_msg_id),
-        .sb_rx_MsgInfo(m_tx_MsgInfo),
-        .sb_rx_data_Field(m_tx_data),
+        .sb_rx_MsgInfo(m_tx_MsgInfo[2:0]),
+        .sb_rx_data_Field(m_tx_data[15:0]),
         
         .sb_tx_valid(p_tx_valid),
         .sb_tx_msg_id(p_tx_msg_id),
@@ -327,6 +343,45 @@ module MBINIT_WRAPPER_tb;
         .repairclk_rckp_pass(p_repairclk_rckp_pass),
         .repairval_RVLD_L_pass(p_repairval_RVLD_L_pass)
     );
+
+    //////////////////////////////////////////////////
+    // LOCAL WATCHDOG TIMER CONTROL DRIVERS
+    //////////////////////////////////////////////////
+    always_comb begin
+        m_timer_enable = m_enable && !m_done && !m_error;
+    end
+
+    state_n_e m_mbinit_state_n_prev;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m_timer_rst_n         <= 1'b0;
+            m_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            m_timer_rst_n         <= 1'b1;
+            m_mbinit_state_n_prev <= m_mbinit_state_n;
+            if (m_mbinit_state_n != m_mbinit_state_n_prev) begin
+                m_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
+
+    always_comb begin
+        p_timer_enable = p_enable && !p_done && !p_error;
+    end
+
+    state_n_e p_mbinit_state_n_prev;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            p_timer_rst_n         <= 1'b0;
+            p_mbinit_state_n_prev <= LOG_RESET;
+        end else begin
+            p_timer_rst_n         <= 1'b1;
+            p_mbinit_state_n_prev <= p_mbinit_state_n;
+            if (p_mbinit_state_n != p_mbinit_state_n_prev) begin
+                p_timer_rst_n     <= 1'b0;
+            end
+        end
+    end
 
     //////////////////////////////////////////////////
     // EXTERNAL WATCHDOG TIMER INSTANTIATIONS

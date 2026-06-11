@@ -1,10 +1,10 @@
 # Serializer
-rtl/MainBand/unsued/mb_serializer.sv
+rtl/MainBand/tx/unit_mb_serializer.sv
 
 # Deserializers & Detector (Original)
-rtl/MainBand/unsued/Valid_Deserializer.sv
-rtl/MainBand/unsued/Valid_Frame_Detector.sv
-rtl/MainBand/unsued/Data_Deserializer.sv
+rtl/MainBand/rx/unused/unit_valid_deserializer.sv
+rtl/MainBand/rx/unused/unit_valid_frame_detector.sv
+rtl/MainBand/rx/unused/unit_data_deserializer.sv
 
 # Testbench
-rtl/MainBand/unsued/RX_Deser_TB.sv
+rtl/MainBand/rx/unused/unit_rx_deser_tb.sv

@@ -11,10 +11,8 @@ externalizes the watchdog timer, implements ltsm_rdy handshaking,
 and utilizes sticky flags to latch partner messages.
 */
 
-import UCIe_pkg::*;
-
 module MBINIT_REPAIRMB
-#( parameter int CLK_FRQ_HZ = 800000000 )
+import UCIe_pkg::*;
 (
     input  logic clk, rst_n,
 
@@ -28,8 +26,7 @@ module MBINIT_REPAIRMB
     // RX Sideband Interface
     input  logic            sb_repairmb_rx_valid,
     input  msg_no_e         sb_repairmb_rx_msg_id,
-    input  logic    [15:0]  sb_repairmb_rx_MsgInfo,
-    input  logic    [63:0]  sb_repairmb_rx_data_Field,
+    input  logic    [2:0]   sb_repairmb_rx_MsgInfo,
 
     // TX Sideband Interface
     output logic            sb_repairmb_tx_valid,
@@ -100,7 +97,6 @@ module MBINIT_REPAIRMB
         MB_S5_FINALIZE_RSP_SEND,
         MB_S5_FINALIZE_RSP_WAIT,
 
-        MB_S6_ALIGN_CHECK,
         MB_S7_REPAIR_ERROR,
         MB_S8_REPAIR_DONE
     } state_e;
@@ -125,8 +121,6 @@ module MBINIT_REPAIRMB
     logic        width_changed_r;
     logic        retry_done;
     logic        retry_start;
-    logic        local_needs_retry_r;
-    logic        partner_needs_retry_r;
 
     logic        s1_req_rcvd;
     logic        s1_rsp_rcvd;
@@ -145,6 +139,7 @@ module MBINIT_REPAIRMB
 
     logic [2:0] mbinit_rx_data_lane_mask_r;
     logic [2:0] mbinit_tx_data_lane_mask_r;
+    logic [2:0] resolved_rx_lane_map;
 
     logic        local_lower_x4_pass;
     logic        local_upper_x4_pass;
@@ -188,17 +183,34 @@ module MBINIT_REPAIRMB
         endcase
     endfunction
 
-    logic [2:0] aligned_tx;
-    logic [2:0] aligned_rx;
+    function automatic logic [2:0] resolve_partner_rx_map(logic [2:0] p_map, int target_w);
+        int p_w;
+        p_w = get_width(p_map);
+        if (p_w <= target_w) return p_map;
+        
+        case (target_w)
+            16, 8:   return 3'b011; // Open RX to all 16 lanes to capture any x8/x16 Tx
+            4:       return 3'b001; // Open RX to lower 8 lanes to capture any x4 Tx (lower or upper x4)
+            default: return p_map;
+        endcase
+    endfunction
 
     always_comb begin
-        int tx_w, rx_w, min_w;
-        tx_w = get_width(mbinit_tx_data_lane_mask_r);
-        rx_w = get_width(mbinit_rx_data_lane_mask_r);
-        min_w = (tx_w < rx_w) ? tx_w : rx_w;
+        if (partner_lane_map == 3'b011) begin
+            case (get_width(local_lane_map))
+                8:       resolved_rx_lane_map = 3'b001; // Partner degrades to default lower x8
+                4:       resolved_rx_lane_map = 3'b100; // Partner degrades to default lower x4
+                default: resolved_rx_lane_map = 3'b011;
+            endcase
+        end
+        else begin
+            automatic int local_w, partner_w, min_w;
+            local_w   = get_width(raw_local_map);
+            partner_w = get_width(partner_lane_map);
+            min_w     = (local_w < partner_w) ? local_w : partner_w;
 
-        aligned_tx = degrade_map_to_width(mbinit_tx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
-        aligned_rx = degrade_map_to_width(mbinit_rx_data_lane_mask_r, min_w, local_lower_x4_pass, local_upper_x4_pass);
+            resolved_rx_lane_map = resolve_partner_rx_map(partner_lane_map, min_w);
+        end
     end
 
     always_comb begin
@@ -208,23 +220,14 @@ module MBINIT_REPAIRMB
             mbinit_rx_data_lane_mask = 3'b011;
             mbinit_tx_data_lane_mask = 3'b011;
         end
+        else if (current_state == MB_S7_REPAIR_ERROR) begin
+            mbinit_rx_data_lane_mask = 3'b000;
+            mbinit_tx_data_lane_mask = 3'b000;
+        end
         else begin
-            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+            if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
                 mbinit_tx_data_lane_mask = local_lane_map;
-            end
-            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask = sb_repairmb_rx_MsgInfo[2:0];
-            end
-
-            if (current_state == MB_S6_ALIGN_CHECK) begin
-                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                    mbinit_rx_data_lane_mask = 3'b000;
-                    mbinit_tx_data_lane_mask = 3'b000;
-                end
-                else begin
-                    mbinit_rx_data_lane_mask = aligned_rx;
-                    mbinit_tx_data_lane_mask = aligned_tx;
-                end
+                mbinit_rx_data_lane_mask = resolved_rx_lane_map;
             end
         end
     end
@@ -238,23 +241,14 @@ module MBINIT_REPAIRMB
             mbinit_rx_data_lane_mask_r <= 3'b011;
             mbinit_tx_data_lane_mask_r <= 3'b011;
         end
+        else if (current_state == MB_S7_REPAIR_ERROR) begin
+            mbinit_rx_data_lane_mask_r <= 3'b000;
+            mbinit_tx_data_lane_mask_r <= 3'b000;
+        end
         else begin
-            if (current_state == MB_S3_DEGRADE_REQ_SEND) begin
+            if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
                 mbinit_tx_data_lane_mask_r <= local_lane_map;
-            end
-            if (sb_repairmb_rx_valid && (sb_repairmb_rx_msg_id == MBINIT_REPAIRMB_apply_degrade_req)) begin
-                mbinit_rx_data_lane_mask_r <= sb_repairmb_rx_MsgInfo[2:0];
-            end
-
-            if (current_state == MB_S6_ALIGN_CHECK) begin
-                if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                    mbinit_rx_data_lane_mask_r <= 3'b000;
-                    mbinit_tx_data_lane_mask_r <= 3'b000;
-                end
-                else begin
-                    mbinit_rx_data_lane_mask_r <= aligned_rx;
-                    mbinit_tx_data_lane_mask_r <= aligned_tx;
-                end
+                mbinit_rx_data_lane_mask_r <= resolved_rx_lane_map;
             end
         end
     end
@@ -293,8 +287,8 @@ module MBINIT_REPAIRMB
             local_lane_map = prev_lane_map;
         end
         else begin
-            if (current_state >= MB_S3_DEGRADE_RSP_WAIT) begin
-                int local_w, partner_w, min_w;
+            if (s3_req_rcvd) begin
+                automatic int local_w, partner_w, min_w;
                 local_w   = get_width(raw_local_map);
                 partner_w = get_width(partner_lane_map);
                 min_w     = (local_w < partner_w) ? local_w : partner_w;
@@ -322,31 +316,47 @@ module MBINIT_REPAIRMB
         endcase
     end
 
-    logic [2:0] expected_partner_lane_map;
+    logic [15:0] local_mask;
     always_comb begin
-        if (retry_done) begin
-            int partner_w;
-            partner_w = get_width(partner_lane_map);
-            expected_partner_lane_map = degrade_map_to_width(prev_partner_lane_map, partner_w, local_lower_x4_pass, local_upper_x4_pass);
-        end
-        else begin
-            expected_partner_lane_map = prev_partner_lane_map;
-        end
+        case (local_lane_map)
+            3'b011:  local_mask = 16'hFFFF;
+            3'b001:  local_mask = 16'h00FF;
+            3'b010:  local_mask = 16'hFF00;
+            3'b100:  local_mask = 16'h000F;
+            3'b101:  local_mask = 16'h00F0;
+            default: local_mask = 16'h0000;
+        endcase
     end
 
+    logic partner_map_valid;
+    always_comb begin
+        partner_map_valid = 1'b0;
+        case (partner_lane_map)
+            3'b011: partner_map_valid = 1'b1;
+            3'b001: partner_map_valid = 1'b1;
+            3'b010: partner_map_valid = 1'b1;
+            3'b100: partner_map_valid = 1'b1;
+            3'b101: partner_map_valid = 1'b1;
+            default: partner_map_valid = 1'b0;
+        endcase
+    end
+
+    logic partner_width_correct;
+    assign partner_width_correct = (get_width(partner_lane_map) == get_width(prev_lane_map));
+
     logic retry_rx_pass;
-    assign retry_rx_pass = ((mb_rx_perlane_result & partner_mask) == partner_mask);
+    assign retry_rx_pass = ((mb_rx_perlane_result & local_mask) == local_mask);
 
     assign degrade_not_possible = (local_lane_map == 3'b000) ||
-                                  (partner_lane_map == 3'b000) ||
+                                  (resolved_rx_lane_map == 3'b000) ||
                                   (retry_done && !retry_rx_pass) ||
-                                  (retry_done && (partner_lane_map != expected_partner_lane_map));
+                                  (retry_done && (!partner_width_correct || !partner_map_valid));
 
     ////////////////////////////////////////////////////////
     // RETRY & TIMER CONTROLS
     ////////////////////////////////////////////////////////
 
-    assign retry_start = (current_state == MB_S4_DEGRADE_VERIFICATION) && 
+    assign retry_start = (current_state == MB_S3_DEGRADE_RSP_WAIT) && s3_rsp_rcvd && 
                          (width_changed_r || (partner_lane_map != 3'b011)) && 
                          !degrade_not_possible_r && !retry_done;
 
@@ -402,6 +412,7 @@ module MBINIT_REPAIRMB
             s5_req_rcvd          <= 1'b0;
             s5_rsp_rcvd          <= 1'b0;
             mb_rx_perlane_result <= 16'h0;
+            prev_partner_lane_map <= partner_lane_map;
         end
         else begin
             // Latch per-lane status when the local point test completes
@@ -434,7 +445,7 @@ module MBINIT_REPAIRMB
                         end
                     end
                     MBINIT_REPAIRMB_end_req: begin
-                        if (current_state > MB_S3_DEGRADE_RSP_SEND && (s3_rsp_rcvd || (retry_done && !local_needs_retry_r))) begin
+                        if (current_state > MB_S3_DEGRADE_RSP_SEND && s3_rsp_rcvd) begin
                             s5_req_rcvd <= 1'b1;
                         end
                     end
@@ -459,22 +470,14 @@ module MBINIT_REPAIRMB
         if (!rst_n) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
-            local_needs_retry_r    <= 1'b0;
-            partner_needs_retry_r  <= 1'b0;
         end
         else if (current_state == MB_S0_IDLE) begin
             degrade_not_possible_r <= 1'b0;
             width_changed_r        <= 1'b0;
-            local_needs_retry_r    <= 1'b0;
-            partner_needs_retry_r  <= 1'b0;
         end
-        else if (current_state == MB_S3_DEGRADE_RSP_WAIT && s3_rsp_rcvd) begin
+        else if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
             degrade_not_possible_r <= degrade_not_possible;
             width_changed_r        <= (local_lane_map != prev_lane_map);
-            if (!retry_done) begin
-                local_needs_retry_r    <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
-                partner_needs_retry_r  <= (local_lane_map != 3'b011) || (partner_lane_map != 3'b011);
-            end
         end
     end
 
@@ -491,19 +494,7 @@ module MBINIT_REPAIRMB
     end
 
     logic d2c_pt_complete;
-    always_comb begin
-        if (!retry_done) begin
-            d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
-        end
-        else begin
-            case ({local_needs_retry_r, partner_needs_retry_r})
-                2'b11:   d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
-                2'b10:   d2c_pt_complete = local_test_d2c_done;
-                2'b01:   d2c_pt_complete = partner_test_d2c_done;
-                default: d2c_pt_complete = 1'b1;
-            endcase
-        end
-    end
+    assign d2c_pt_complete = local_test_d2c_done && partner_test_d2c_done;
 
     ////////////////////////////////////////////////////////
     // STATE REGISTER
@@ -555,56 +546,51 @@ module MBINIT_REPAIRMB
                 // ── S2 Point Test ──
                 MB_S2_D2C_POINT_TEST: begin
                     if (d2c_pt_complete) begin
-                        if (retry_done && !local_needs_retry_r && partner_needs_retry_r)
-                            next_state = MB_S3_DEGRADE_REQ_WAIT;
-                        else
-                            next_state = MB_S3_DEGRADE_REQ_SEND;
+                        next_state = MB_S3_DEGRADE_REQ_SEND;
                     end
                 end
 
                 // ── S3 Degrade REQ ──
                 MB_S3_DEGRADE_REQ_SEND: begin
                     if (sb_ltsm_rdy) begin
-                        if (retry_done && !partner_needs_retry_r)
-                            next_state = MB_S3_DEGRADE_RSP_WAIT;
-                        else
-                            next_state = MB_S3_DEGRADE_REQ_WAIT;
+                        next_state = MB_S3_DEGRADE_REQ_WAIT;
                     end
                 end
                 MB_S3_DEGRADE_REQ_WAIT: begin
                     if (s3_req_rcvd)
+                        next_state = MB_S4_DEGRADE_VERIFICATION;
+                end
+
+                // ── S4 Verification ──
+                MB_S4_DEGRADE_VERIFICATION: begin
+                    if (degrade_not_possible) begin
+                        next_state = MB_S7_REPAIR_ERROR;
+                    end
+                    else begin
                         next_state = MB_S3_DEGRADE_RSP_SEND;
+                    end
                 end
 
                 // ── S3 Degrade RSP ──
                 MB_S3_DEGRADE_RSP_SEND: begin
                     if (sb_ltsm_rdy) begin
-                        if (retry_done && !local_needs_retry_r)
-                            next_state = MB_S5_FINALIZE_REQ_SEND;
-                        else
-                            next_state = MB_S3_DEGRADE_RSP_WAIT;
+                        next_state = MB_S3_DEGRADE_RSP_WAIT;
                     end
                 end
                 MB_S3_DEGRADE_RSP_WAIT: begin
-                    if (s3_rsp_rcvd)    next_state = MB_S4_DEGRADE_VERIFICATION;
-                end
-
-                // ── S4 Verification ──
-                MB_S4_DEGRADE_VERIFICATION: begin
-                    if (degrade_not_possible_r) begin
-                        next_state = MB_S7_REPAIR_ERROR;
-                    end
-                    else if (!retry_done) begin
-                        if (width_changed_r || (partner_lane_map != 3'b011))
-                            next_state = MB_S2_D2C_POINT_TEST; // Retry
-                        else
+                    if (s3_rsp_rcvd) begin
+                        if (degrade_not_possible_r) begin
+                            next_state = MB_S7_REPAIR_ERROR;
+                        end
+                        else if (!retry_done) begin
+                            if (width_changed_r || (partner_lane_map != 3'b011))
+                                next_state = MB_S2_D2C_POINT_TEST; // Retry
+                            else
+                                next_state = MB_S5_FINALIZE_REQ_SEND;
+                        end
+                        else begin // retry_done == 1
                             next_state = MB_S5_FINALIZE_REQ_SEND;
-                    end
-                    else begin // retry_done == 1
-                        if (width_changed_r)
-                            next_state = MB_S7_REPAIR_ERROR; // Double fail
-                        else
-                            next_state = MB_S5_FINALIZE_REQ_SEND;
+                        end
                     end
                 end
 
@@ -622,20 +608,7 @@ module MBINIT_REPAIRMB
                     if (sb_ltsm_rdy)       next_state = MB_S5_FINALIZE_RSP_WAIT;
                 end
                 MB_S5_FINALIZE_RSP_WAIT: begin
-                    if (s5_rsp_rcvd)    next_state = MB_S6_ALIGN_CHECK;
-                end
-
-                MB_S6_ALIGN_CHECK: begin
-                    `ifdef SIMULATION
-                        $display("DUT DEBUG: MB_S6_ALIGN_CHECK: aligned_tx=%b, aligned_rx=%b, mbinit_tx_data_lane_mask_r=%b, mbinit_rx_data_lane_mask_r=%b, local_lower_x4_pass=%b, local_upper_x4_pass=%b",
-                            aligned_tx, aligned_rx, mbinit_tx_data_lane_mask_r, mbinit_rx_data_lane_mask_r, local_lower_x4_pass, local_upper_x4_pass);
-                    `endif
-                    if (aligned_tx == 3'b000 || aligned_rx == 3'b000) begin
-                        next_state = MB_S7_REPAIR_ERROR;
-                    end
-                    else begin
-                        next_state = MB_S8_REPAIR_DONE;
-                    end
+                    if (s5_rsp_rcvd)    next_state = MB_S8_REPAIR_DONE;
                 end
 
                 MB_S7_REPAIR_ERROR: begin
@@ -716,14 +689,8 @@ module MBINIT_REPAIRMB
         local_tx_pt_en   = 1'b0;
         partner_tx_pt_en = 1'b0;
         if (current_state == MB_S2_D2C_POINT_TEST) begin
-            if (!retry_done) begin
-                local_tx_pt_en   = 1'b1;
-                partner_tx_pt_en = 1'b1;
-            end
-            else begin
-                local_tx_pt_en   = local_needs_retry_r;
-                partner_tx_pt_en = partner_needs_retry_r;
-            end
+            local_tx_pt_en   = 1'b1;
+            partner_tx_pt_en = 1'b1;
         end
     end
 
@@ -754,8 +721,8 @@ module MBINIT_REPAIRMB
     `ifdef SIMULATION
         always @(posedge clk) begin
             if (current_state == MB_S4_DEGRADE_VERIFICATION) begin
-                $display("DUT DEBUG: current_state=S4, width_changed_r=%b, degrade_not_possible_r=%b, retry_start=%b, retry_done=%b, prev_lane_map=%b, local_lane_map=%b",
-                    width_changed_r, degrade_not_possible_r, retry_start, retry_done, prev_lane_map, local_lane_map);
+                $display("DUT DEBUG: current_state=S4, retry_done=%b, local_lane_map=%b, resolved_rx_lane_map=%b, retry_rx_pass=%b, partner_lane_map=%b, prev_lane_map=%b, mb_rx_perlane_result=%h, partner_mask=%h, degrade_not_possible=%b",
+                    retry_done, local_lane_map, resolved_rx_lane_map, retry_rx_pass, partner_lane_map, prev_lane_map, mb_rx_perlane_result, partner_mask, degrade_not_possible);
             end
         end
 
@@ -826,10 +793,9 @@ module MBINIT_REPAIRMB
 
         // 9. Error Check: Error states raise error flag
         property p_error_condition_raises_error;
-            @(posedge clk) disable iff (!rst_n)
-            (global_error && mb_repairmb_enable) ||
-            (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible_r) ||
-            (current_state == MB_S4_DEGRADE_VERIFICATION && width_changed_r && retry_done)
+            @(posedge clk) disable iff (!rst_n || !mb_repairmb_enable)
+            (global_error) ||
+            (current_state == MB_S4_DEGRADE_VERIFICATION && degrade_not_possible)
             |-> ##[1:5] (current_state == MB_S7_REPAIR_ERROR && mb_repairmb_error == 1'b1);
         endproperty
         assert_error_condition_raises_error: assert property(p_error_condition_raises_error);

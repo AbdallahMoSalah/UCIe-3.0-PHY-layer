@@ -38,8 +38,7 @@ module SBINIT_tb;
     logic       sb_det_pattern_req;
     logic [2:0] req_iter_count;
     logic       ltsm_rdy;
-    logic       sbinit_timer_enable;
-    logic       sbinit_timeout_expired;
+    logic       global_error;
 
     int errors;
     int checks;
@@ -78,7 +77,7 @@ module SBINIT_tb;
         iter_done              = 0;
         sb_det_pattern_rcvd    = 0;
         ltsm_rdy               = 0;
-        sbinit_timeout_expired = 0;
+        global_error           = 0;
         repeat (5) @(posedge clk);
         rst_n = 1;
         repeat (5) @(posedge clk);
@@ -158,7 +157,6 @@ module SBINIT_tb;
         // S1: Pattern detection with 1ms/1ms duty cycle
         wait (sb_det_pattern_req);
         check(sbinit_pattern_mode, "S1: pattern_mode high");
-        check(sbinit_timer_enable, "S1: timer enabled");
         repeat (MS_CYCLES + 5) @(posedge clk);
         sb_det_pattern_rcvd <= 1'b1; @(posedge clk);
         sb_det_pattern_rcvd <= 1'b0;
@@ -184,7 +182,6 @@ module SBINIT_tb;
 
         wait (sbinit_done);
         check(!sbinit_error,        "DONE: no error");
-        check(!sbinit_timer_enable, "DONE: timer disabled");
         sbinit_enable = 0;
         repeat (10) @(posedge clk);
 
@@ -555,12 +552,10 @@ module SBINIT_tb;
         sbinit_enable = 1;
         wait (sb_det_pattern_req);
         repeat (10) @(posedge clk);
-        check(sbinit_timer_enable, "Timer enabled in S1");
-        sbinit_timeout_expired <= 1'b1;
+        global_error <= 1'b1;
         wait (sbinit_error);
         check(!sbinit_done,         "Timeout: done=0");
-        check(!sbinit_timer_enable, "Timeout: timer disabled");
-        sbinit_timeout_expired <= 1'b0;
+        global_error <= 1'b0;
         sbinit_enable = 0;
         repeat (10) @(posedge clk);
 
@@ -572,10 +567,10 @@ module SBINIT_tb;
         sbinit_enable = 1;
         run_to_S3();
         repeat (10) @(posedge clk);
-        sbinit_timeout_expired <= 1'b1;
+        global_error <= 1'b1;
         wait (sbinit_error);
         check(!sbinit_done, "Timeout in S3: done=0");
-        sbinit_timeout_expired <= 1'b0;
+        global_error <= 1'b0;
         sbinit_enable = 0;
         repeat (10) @(posedge clk);
 
@@ -588,10 +583,10 @@ module SBINIT_tb;
         run_to_S4();
         accept_tx(SBINIT_done_req);
         repeat (10) @(posedge clk);
-        sbinit_timeout_expired <= 1'b1;
+        global_error <= 1'b1;
         wait (sbinit_error);
         check(!sbinit_done, "Timeout in REQ_WAIT: done=0");
-        sbinit_timeout_expired <= 1'b0;
+        global_error <= 1'b0;
         sbinit_enable = 0;
         repeat (10) @(posedge clk);
 
@@ -606,10 +601,10 @@ module SBINIT_tb;
         send_msg(SBINIT_done_req);
         accept_tx(SBINIT_done_resp);
         repeat (10) @(posedge clk);
-        sbinit_timeout_expired <= 1'b1;
+        global_error <= 1'b1;
         wait (sbinit_error);
         check(!sbinit_done, "Timeout in RSP_WAIT: done=0");
-        sbinit_timeout_expired <= 1'b0;
+        global_error <= 1'b0;
         sbinit_enable = 0;
         repeat (10) @(posedge clk);
 
@@ -631,7 +626,6 @@ module SBINIT_tb;
         check(!sbinit_pattern_mode, "IDLE: pattern_mode low");
         check(!sbinit_done,         "IDLE: done low");
         check(!sbinit_error,        "IDLE: error low");
-        check(!sbinit_timer_enable, "IDLE: timer disabled");
         repeat (10) @(posedge clk);
 
         // ---- SCN 23: Disable during REQ_SEND ----

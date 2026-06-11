@@ -30,7 +30,8 @@ module ltsm_controller
 
     output LTSM_state_e     current_ltsm_state,
     output state_n_e        current_ltsm_state_n,
-    output logic [3:0]      state_status,
+    output logic            link_training_retraining,
+    output logic            link_status,
 
     // Submodule enables / handshakes
     output logic            reset_en,
@@ -54,6 +55,7 @@ module ltsm_controller
 
     output logic            phyretrain_en,
     input  logic            phyretrain_done,
+    input  logic            phyretrain_error,
 
     output logic            l1_en,
     input  logic            l1_done,
@@ -94,6 +96,11 @@ module ltsm_controller
     input  msg_no_e         mbtrain_tx_msg_id,
     input  logic [15:0]     mbtrain_tx_MsgInfo,
     input  logic [63:0]     mbtrain_tx_data_Field,
+
+    input  logic            phyretrain_tx_valid,
+    input  msg_no_e         phyretrain_tx_msg_id,
+    input  logic [15:0]     phyretrain_tx_MsgInfo,
+    input  logic [63:0]     phyretrain_tx_data_Field,
 
     // =========================================================================
     // Mainband Training MUX Outputs
@@ -270,7 +277,8 @@ module ltsm_controller
                 end
 
                 CTRL_PHYRETRAIN: begin
-                    if (phyretrain_done) next_state = CTRL_MBTRAIN;
+                    if      (phyretrain_error) next_state = CTRL_TRAINERROR;
+                    else if (phyretrain_done)  next_state = CTRL_MBTRAIN;
                 end
 
                 CTRL_L1: begin
@@ -341,21 +349,47 @@ module ltsm_controller
         endcase
     end
 
-    assign state_status = 4'(current_ltsm_state);
-
     // =============================================================================
     // SHARED WATCHDOG TIMER CONTROL
     // =============================================================================
-    assign timeout_timer_en = (current_state != CTRL_ACTIVE) && (current_state != CTRL_RESET);
+    assign timeout_timer_en = (current_ltsm_state == SBINIT) ||
+                              (current_ltsm_state == MBINIT) ||
+                              (current_ltsm_state == MBTRAIN) ||
+                              (current_ltsm_state == LINKINIT) ||
+                              (current_ltsm_state == PHYRETRAIN);
 
+    // =============================================================================
+    // LINK TRAINING / RETRAINING STATUS (to Register File)
+    // =============================================================================
+    assign link_training_retraining = (current_ltsm_state == SBINIT) ||
+                                      (current_ltsm_state == MBINIT) ||
+                                      (current_ltsm_state == MBTRAIN) ||
+                                      (current_ltsm_state == LINKINIT) ||
+                                      (current_ltsm_state == PHYRETRAIN);
+
+    // =============================================================================
+    // LINK STATUS (to Register File)
+    // =============================================================================
+    assign link_status = (current_ltsm_state == ACTIVE) ||
+                         (current_ltsm_state == PHYRETRAIN) ||
+                         (current_ltsm_state == L1) ||
+                         (current_ltsm_state == L2);
+
+    state_n_e current_log_state;
+    logic [4:0] current_log_state_d;
     logic timer_rst_n_reg;
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            timer_rst_n_reg <= 1'b0;
-        else if (next_state != current_state)
-            timer_rst_n_reg <= 1'b0; // reset active-low watchdog on transition
-        else
-            timer_rst_n_reg <= 1'b1;
+        if (!rst_n) begin
+            current_log_state_d <= LOG_RESET;
+            timer_rst_n_reg     <= 1'b0;
+        end else begin
+            current_log_state_d <= current_log_state;
+            if (current_log_state != current_log_state_d) begin
+                timer_rst_n_reg <= 1'b0;
+            end else begin
+                timer_rst_n_reg <= 1'b1;
+            end
+        end
     end
     assign timer_rst_n = timer_rst_n_reg;
 
@@ -386,6 +420,12 @@ module ltsm_controller
                 sb_tx_msg_id     = mbtrain_tx_msg_id;
                 sb_tx_MsgInfo    = mbtrain_tx_MsgInfo;
                 sb_tx_data_Field = mbtrain_tx_data_Field;
+            end
+            CTRL_PHYRETRAIN: begin
+                sb_tx_valid      = phyretrain_tx_valid;
+                sb_tx_msg_id     = phyretrain_tx_msg_id;
+                sb_tx_MsgInfo    = phyretrain_tx_MsgInfo;
+                sb_tx_data_Field = phyretrain_tx_data_Field;
             end
             default: ;
         endcase
@@ -554,7 +594,6 @@ module ltsm_controller
     // =============================================================================
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
     // =============================================================================
-    state_n_e current_log_state;
     always_comb begin
         case (current_state)
             CTRL_RESET:      current_log_state = LOG_RESET;

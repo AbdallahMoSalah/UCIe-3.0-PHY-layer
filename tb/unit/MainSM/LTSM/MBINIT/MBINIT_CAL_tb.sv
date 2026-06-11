@@ -90,8 +90,6 @@ MBINIT_CAL DUT_A (
 
     .sb_cal_rx_valid(A_rx_valid),
     .sb_cal_rx_msg_id(A_rx_msg_id),
-    .sb_cal_rx_MsgInfo(A_rx_msginfo),
-    .sb_cal_rx_data_Field(A_rx_data),
 
     .sb_cal_tx_valid(A_tx_valid),
     .sb_cal_tx_msg_id(A_tx_msg_id),
@@ -117,8 +115,6 @@ MBINIT_CAL DUT_B (
 
     .sb_cal_rx_valid(B_rx_valid),
     .sb_cal_rx_msg_id(B_rx_msg_id),
-    .sb_cal_rx_MsgInfo(B_rx_msginfo),
-    .sb_cal_rx_data_Field(B_rx_data),
 
     .sb_cal_tx_valid(B_tx_valid),
     .sb_cal_tx_msg_id(B_tx_msg_id),

@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module MB_DESERIALIZER_TB;
+module unit_mb_deserializer_tb;
 
 /* -------------------------------------------------- */
 /* Parameters                                         */
@@ -25,7 +25,7 @@ wire                   de_ser_done;
 /* -------------------------------------------------- */
 /* DUT Instantiation                                  */
 /* -------------------------------------------------- */
-MB_DESERIALIZER #(
+unit_mb_deserializer #(
     .DATA_WIDTH(DATA_WIDTH)
 ) DUT (
     .MB_clk                (MB_clk),
@@ -150,7 +150,7 @@ initial begin
     test_vectors[1] = 32'hDEADBEEF; // Pattern 2
 
     $display("============================================");
-    $display("  MB_DESERIALIZER Testbench");
+    $display("  unit_mb_deserializer Testbench");
     $display("  pll_clk = %0d MHz | MB_clk = %0.1f MHz",
              1000/PLL_PERIOD, 1000.0/MB_PERIOD);
     $display("  DATA_WIDTH = %0d", DATA_WIDTH);

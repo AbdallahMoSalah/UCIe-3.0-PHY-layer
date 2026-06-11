@@ -34,7 +34,7 @@ module LFSR_TX_tb;
   logic               o_valid_frame_en;
 
   // DUT Instance
-  LFSR_TX #(.WIDTH(WIDTH)) dut (
+  unit_lfsr_tx #(.WIDTH(WIDTH)) dut (
     .i_clk                  (i_clk),
     .i_rst_n                (i_rst_n),
     .i_state                (i_state),

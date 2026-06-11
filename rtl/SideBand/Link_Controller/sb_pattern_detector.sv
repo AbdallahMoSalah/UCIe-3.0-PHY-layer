@@ -16,7 +16,7 @@ module sb_pattern_detector
     // to LTSM
     output logic                     det_pat_rcvd,
 
-    // to demapper
+    // to unit_demapper
     output logic [DATA_WIDTH-1:0]    msg_rcvd,
     output logic                     msg_vld_rcvd
 );

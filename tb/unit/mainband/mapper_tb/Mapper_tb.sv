@@ -27,7 +27,7 @@ module Mapper_tb;
     always #5 clk = ~clk;
 
     // DUT Instantiation
-    Mappe #(
+    unit_mapper #(
         .WIDTH(32),
         .NUM_LANES(16),
         .N_BYTES(64)

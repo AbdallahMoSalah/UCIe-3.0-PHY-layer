@@ -35,9 +35,8 @@ module SBINIT
     // ---- SB FIFO handshake ----
     input  logic    ltsm_rdy,             // 1 = SB FIFO accepted our tx
 
-    // ---- Timer (8 ms watchdog) ----
-    output logic    sbinit_timer_enable,
-    input  logic    sbinit_timeout_expired
+    // ---- Timer / Global Error ----
+    input  logic    global_error
 );
 
     // ---------------- States (4 sub-states for Step 8 handshake) ----------------
@@ -56,10 +55,9 @@ module SBINIT
 
     sb_state_e current_state, next_state;
 
-    // ---------------- Outer watchdog wiring ----------------
+    // ---------------- Outer watchdog/global error wiring ----------------
     logic sbinit_timeout_error;
-    assign sbinit_timeout_error = sbinit_timeout_expired && !sbinit_done;
-    assign sbinit_timer_enable  = sbinit_enable && !sbinit_done && !sbinit_error;
+    assign sbinit_timeout_error = global_error && !sbinit_done;
 
     // ---------------- 1 ms toggle for pattern duty cycle (Step 5) ----------------
     localparam int MS_CYCLES = CLK_FRQ_HZ / 1000;

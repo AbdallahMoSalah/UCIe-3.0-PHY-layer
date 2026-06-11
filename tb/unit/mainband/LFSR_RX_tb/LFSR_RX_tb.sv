@@ -23,7 +23,6 @@ module LFSR_RX_tb;
     logic              i_rst_n;
     logic [2:0]        i_state;
     logic [2:0]        i_width_deg_lfsr;
-    logic              i_active_state_entered;   // added – missing from old TB
     logic              i_descramble_en;            // corrected spelling to match DUT
     logic              i_enable_buffer;
     logic [WIDTH-1:0]  i_data_in [0:15];          // packed array – matches DUT port
@@ -38,12 +37,11 @@ module LFSR_RX_tb;
     always #(CLK_PERIOD/2) i_clk = ~i_clk;
 
     // ---------- DUT instantiation ----------
-    LFSR_RX #(.WIDTH(WIDTH)) dut (
+    unit_lfsr_rx #(.WIDTH(WIDTH)) dut (
         .i_clk                  (i_clk),
         .i_rst_n                (i_rst_n),
         .i_state                (i_state),
         .i_width_deg_lfsr       (i_width_deg_lfsr),
-        .i_active_state_entered (i_active_state_entered),
         .i_descramble_en         (i_descramble_en),
         .i_enable_buffer        (i_enable_buffer),
         .i_data_in              (i_data_in),
@@ -66,7 +64,6 @@ module LFSR_RX_tb;
         i_rst_n                = 0;
         i_state                = IDLE;
         i_width_deg_lfsr       = DEGRADE_LANES_0_TO_15;
-        i_active_state_entered = 0;
         i_descramble_en         = 0;
         i_enable_buffer        = 1;
 
@@ -129,19 +126,14 @@ module LFSR_RX_tb;
         i_state = IDLE;
         inc_lanes(2);
 
-        // --- PATTERN_LFSR with descramble enabled (40 cycles) ---
+        // --- DATA_TRANSFER with descramble enabled (40 cycles) ---
+        // Entered purely via the i_state edge (LFSR_TX-style control).
         repeat(6) @(posedge i_clk);
-        i_state = DATA_TRANSFER; i_descramble_en = 1; i_active_state_entered = 1;
+        i_state = DATA_TRANSFER; i_descramble_en = 1;
         inc_lanes(40);
 
-        // --- DATA_TRANSFER with active_state_entered pulse ---
-        /*repeat(4) @(posedge i_clk);
-        i_state                = DATA_TRANSFER;
-        i_descramble_en         = 1;
-        i_active_state_entered = 1;
-        @(posedge i_clk);
-        i_active_state_entered = 0;
-        inc_lanes(20);*/
+        // --- Exit DATA_TRANSFER back to IDLE ---
+        i_state = IDLE; i_descramble_en = 0;
 
         repeat(8) @(posedge i_clk);
         $stop;

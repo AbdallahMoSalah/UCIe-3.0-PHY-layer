@@ -1,0 +1,687 @@
+// =============================================================================
+// Testbench : unit_lfsr_cmp_tb
+// Purpose   : Comprehensive verification of parallel leap-by-32 scrambler (LFSR_TX)
+//             compared against the bit-serial reference (lfsr_serial).
+//             Covers all states, degradation modes, and lane reversal options.
+// =============================================================================
+
+`timescale 1ns/1ps
+
+module unit_lfsr_cmp_tb;
+
+    // =========================================================================
+    // Parameters / encodings
+    // =========================================================================
+    localparam CLK_PERIOD = 2;
+    localparam MAX_WIN    = 130;  // max consecutive 32-bit windows to compare
+
+    // FSM States
+    localparam [2:0] IDLE          = 3'b000;
+    localparam [2:0] CLEAR_LFSR    = 3'b001;
+    localparam [2:0] PATTERN_LFSR  = 3'b010;
+    localparam [2:0] PER_LANE_IDE  = 3'b011;
+    localparam [2:0] DATA_TRANSFER = 3'b100;
+
+    // Lane group width / degradation modes
+    localparam [2:0] NONE_DEGRADE           = 3'b000;
+    localparam [2:0] DEGRADE_LANES_0_TO_7   = 3'b001;
+    localparam [2:0] DEGRADE_LANES_8_TO_15  = 3'b010;
+    localparam [2:0] DEGRADE_LANES_0_TO_15  = 3'b011;
+    localparam [2:0] DEGRADE_LANES_0_TO_3   = 3'b100;
+    localparam [2:0] DEGRADE_LANES_4_TO_7   = 3'b101;
+
+    // Lane ID constants: format = 1010_<8-bit lane index>_1010
+    localparam [15:0] LANE_ID [0:15] = '{
+        16'b1010_00000000_1010, // Lane  0
+        16'b1010_00000001_1010, // Lane  1
+        16'b1010_00000010_1010, // Lane  2
+        16'b1010_00000011_1010, // Lane  3
+        16'b1010_00000100_1010, // Lane  4
+        16'b1010_00000101_1010, // Lane  5
+        16'b1010_00000110_1010, // Lane  6
+        16'b1010_00000111_1010, // Lane  7
+        16'b1010_00001000_1010, // Lane  8
+        16'b1010_00001001_1010, // Lane  9
+        16'b1010_00001010_1010, // Lane 10
+        16'b1010_00001011_1010, // Lane 11
+        16'b1010_00001100_1010, // Lane 12
+        16'b1010_00001101_1010, // Lane 13
+        16'b1010_00001110_1010, // Lane 14
+        16'b1010_00001111_1010  // Lane 15
+    };
+
+    // =========================================================================
+    // Shared clock / reset
+    // =========================================================================
+    logic clk;
+    logic rst_n;
+
+    // -------------------------------------------------------------------------
+    // Serial Reference array (8 instances for logical lanes 0-7)
+    // -------------------------------------------------------------------------
+    logic        s_shift_en   [0:7];
+    logic        s_seed_load  [0:7];
+    logic        s_mode       [0:7];
+    logic        s_data_in    [0:7];
+    logic [3:0]  s_lane_num   [0:7];
+    logic        s_data_out   [0:7];
+    logic [31:0] s_agg_word   [0:7];
+    logic        s_agg_valid  [0:7];
+
+    generate
+        genvar li;
+        for (li = 0; li < 8; li = li + 1) begin : gen_serial_refs
+            unit_lfsr_serial DUT_S (
+                .clk       (clk),
+                .rst_n     (rst_n),
+                .shift_en  (s_shift_en[li]),
+                .seed_load (s_seed_load[li]),
+                .lane_num  (s_lane_num[li]),
+                .mode      (s_mode[li]),
+                .data_in   (s_data_in[li]),
+                .data_out  (s_data_out[li]),
+                .agg_word  (s_agg_word[li]),
+                .agg_valid (s_agg_valid[li])
+            );
+        end
+    endgenerate
+
+    // -------------------------------------------------------------------------
+    // Parallel DUT (LFSR_TX)
+    // -------------------------------------------------------------------------
+    logic [2:0]  p_state;
+    logic        p_scramble_en;
+    logic [2:0]  p_width_deg;
+    logic        p_reversal_en;
+    logic [31:0] p_lane_in  [0:15];
+    logic [31:0] p_lane_out [0:15];
+    logic        p_ser_en;
+    logic        p_tx_done;
+
+    unit_lfsr_tx DUT_P (
+        .i_clk                  (clk),
+        .i_rst_n                (rst_n),
+        .i_state                (p_state),
+        .i_scramble_en          (p_scramble_en),
+        .i_width_deg_lfsr       (p_width_deg),
+        .i_reversal_en          (p_reversal_en),
+        .i_lane                 (p_lane_in),
+        .o_lane                 (p_lane_out),
+        .o_ser_en_lfsr          (p_ser_en),
+        .o_Lfsr_tx_done         (p_tx_done)
+    );
+
+    // =========================================================================
+    // Clock generator
+    // =========================================================================
+    initial begin
+        clk = 0;
+        forever #(CLK_PERIOD/2) clk = ~clk;
+    end
+
+    // =========================================================================
+    // Captures / comparison storage
+    // =========================================================================
+    logic [31:0] ref_words[0:7][0:MAX_WIN-1];
+    int test_errors = 0;
+
+    // Helper functions for mapping checks
+    function automatic int get_logical_lane(
+        input logic [2:0] width_deg,
+        input int physical_lane,
+        input logic reversal_enabled
+    );
+        logic active;
+        active = 0;
+        case (width_deg)
+            DEGRADE_LANES_0_TO_7:   active = (physical_lane >= 0 && physical_lane <= 7);
+            DEGRADE_LANES_8_TO_15:  active = (physical_lane >= 8 && physical_lane <= 15);
+            DEGRADE_LANES_0_TO_3:   active = (physical_lane >= 0 && physical_lane <= 3);
+            DEGRADE_LANES_4_TO_7:   active = (physical_lane >= 4 && physical_lane <= 7);
+            DEGRADE_LANES_0_TO_15:  active = (physical_lane >= 0 && physical_lane <= 15);
+            default: active = 0;
+        endcase
+
+        if (!active) return -1;
+
+        if (reversal_enabled) begin
+            if (width_deg == DEGRADE_LANES_0_TO_3 || width_deg == DEGRADE_LANES_4_TO_7)
+                return 3 - (physical_lane % 4);
+            else
+                return 7 - (physical_lane % 8);
+        end else begin
+            if (width_deg == DEGRADE_LANES_0_TO_3 || width_deg == DEGRADE_LANES_4_TO_7)
+                return physical_lane % 4;
+            else
+                return physical_lane % 8;
+        end
+    endfunction
+
+    // Mapped input/ID index (0 to 15)
+    function automatic int get_input_or_id_lane(
+        input logic [2:0] width_deg,
+        input int physical_lane,
+        input logic reversal_enabled
+    );
+        if (reversal_enabled) begin
+            if (width_deg == DEGRADE_LANES_0_TO_3 || width_deg == DEGRADE_LANES_4_TO_7)
+                return 7 - physical_lane;
+            else
+                return 15 - physical_lane;
+        end else begin
+            return physical_lane;
+        end
+    endfunction
+
+    // =========================================================================
+    // Tasks
+    // =========================================================================
+    
+    // Task: Generate Serial Reference Words for comparison
+    task automatic generate_serial_reference_words(
+        input int num_windows,
+        input logic mode, // 0 = scramble, 1 = pattern-gen
+        input logic [31:0] input_data[0:7][0:MAX_WIN-1] // only used when mode=0
+    );
+        int bit_idx;
+        int win_idx;
+        
+        @(negedge clk);
+        for (int li = 0; li < 8; li = li + 1) begin
+            s_lane_num[li]  = li;
+            s_mode[li]      = mode;
+            s_seed_load[li] = 1'b1;
+            s_shift_en[li]  = 1'b0;
+            s_data_in[li]   = 1'b0;
+        end
+        @(negedge clk);
+        for (int li = 0; li < 8; li = li + 1) begin
+            s_seed_load[li] = 1'b0;
+            s_shift_en[li]  = 1'b1;
+        end
+
+        for (win_idx = 0; win_idx < num_windows; win_idx = win_idx + 1) begin
+            for (bit_idx = 0; bit_idx < 32; bit_idx = bit_idx + 1) begin
+                for (int li = 0; li < 8; li = li + 1) begin
+                    if (mode == 1'b0) begin
+                        s_data_in[li] = input_data[li][win_idx][bit_idx];
+                    end else begin
+                        s_data_in[li] = 1'b0;
+                    end
+                end
+                
+                @(negedge clk);
+                
+                if (bit_idx == 31) begin
+                    for (int li = 0; li < 8; li = li + 1) begin
+                        if (!s_agg_valid[li]) begin
+                            $display("[ERROR] Serial agg_valid[%0d] not asserted at window %0d", li, win_idx);
+                            test_errors++;
+                        end
+                        ref_words[li][win_idx] = s_agg_word[li];
+                    end
+                end
+            end
+        end
+        
+        for (int li = 0; li < 8; li = li + 1) begin
+            s_shift_en[li] = 1'b0;
+        end
+    endtask
+
+    // Task: Reset both DUTs to initial state
+    task automatic reset_duts();
+        rst_n            = 1'b0;
+        p_state          = IDLE;
+        p_scramble_en    = 1'b0;
+        p_width_deg      = NONE_DEGRADE;
+        p_reversal_en    = 1'b0;
+        for (int k = 0; k < 16; k = k + 1) p_lane_in[k] = 32'b0;
+        
+        for (int li = 0; li < 8; li = li + 1) begin
+            s_shift_en[li]   = 1'b0;
+            s_seed_load[li]  = 1'b0;
+            s_lane_num[li]   = li;
+            s_mode[li]       = 1'b0;
+            s_data_in[li]    = 1'b0;
+        end
+        
+        repeat (4) @(posedge clk);
+        rst_n = 1'b1;
+        @(posedge clk);
+    endtask
+
+    // =========================================================================
+    // Stimulus and Verification Sequence
+    // =========================================================================
+    initial begin
+        // Explicitly automatic variables to prevent static initialization issues
+        automatic logic [2:0] widths [5] = '{
+            DEGRADE_LANES_0_TO_7,
+            DEGRADE_LANES_8_TO_15,
+            DEGRADE_LANES_0_TO_3,
+            DEGRADE_LANES_4_TO_7,
+            DEGRADE_LANES_0_TO_15
+        };
+        automatic logic rev_opts [2] = '{1'b0, 1'b1};
+        automatic logic [2:0] w_deg;
+        automatic logic rev;
+        automatic int log_lane;
+        automatic int id_lane_idx;
+        automatic logic [31:0] expected_id;
+        automatic int found_pl;
+        automatic int in_l_idx;
+        
+        // Random input data matrix
+        automatic logic [31:0] test_input_data [0:15][0:MAX_WIN-1];
+        automatic logic [31:0] serial_ref_input [0:7][0:MAX_WIN-1];
+
+        $display("\n===========================================================");
+        $display("   STARTING EXTENDED LFSR TESTBENCH VERIFICATION");
+        $display("===========================================================");
+
+        // ---------------------------------------------------------------------
+        // Test Case 1: Reset & Idle Verification
+        // ---------------------------------------------------------------------
+        $display("\n[TC1] Verifying Reset & Idle State...");
+        reset_duts();
+        
+        // Check outputs are 0 immediately after reset/idle
+        if (p_ser_en !== 1'b0 || p_tx_done !== 1'b0) begin
+            $display("[ERROR] Post-reset status outputs are not zero: ser_en=%b, tx_done=%b",
+                     p_ser_en, p_tx_done);
+            test_errors++;
+        end
+        for (int k = 0; k < 16; k = k + 1) begin
+            if (p_lane_out[k] !== 32'b0) begin
+                $display("[ERROR] Post-reset o_lane[%0d] is not zero: 0x%08h", k, p_lane_out[k]);
+                test_errors++;
+            end
+        end
+        $display("[TC1] Done.");
+
+        // ---------------------------------------------------------------------
+        // Test Case 2: Pattern LFSR Mode (All Degradation Widths, No Reversal)
+        // ---------------------------------------------------------------------
+        $display("\n[TC2] Verifying Pattern LFSR Mode (All Widths, No Reversal)...");
+        begin
+            // Pre-generate 128 pattern-gen serial reference windows
+            generate_serial_reference_words(128, 1'b1, '{default: '0});
+
+            for (int idx = 0; idx < 5; idx = idx + 1) begin
+                w_deg = widths[idx];
+                $display("  Testing degradation width mode: 3'b%03b...", w_deg);
+                
+                reset_duts();
+                @(negedge clk);
+                p_width_deg   = w_deg;
+                p_reversal_en = 1'b0;
+                p_state       = PATTERN_LFSR;
+                
+                // Wait 1 cycle for FSM transition
+                @(negedge clk);
+                
+                // Track outputs cycle-by-cycle for 128 cycles
+                for (int cycle = 0; cycle < 128; cycle = cycle + 1) begin
+                    @(negedge clk);
+                    
+                    // Verify output validation signals
+                    if (p_ser_en !== 1'b1) begin
+                        $display("[ERROR] Outputs not valid during PATTERN_LFSR at cycle %0d: ser_en=%b",
+                                 cycle, p_ser_en);
+                        test_errors++;
+                    end
+                    
+                    // Compare all 16 physical lanes
+                    for (int pl = 0; pl < 16; pl = pl + 1) begin
+                        log_lane = get_logical_lane(w_deg, pl, 1'b0);
+                        if (log_lane >= 0) begin
+                            // Active lane: must match serial reference for that logical lane
+                            if (p_lane_out[pl] !== ref_words[log_lane][cycle]) begin
+                                $display("[ERROR] Mismatch at active physical lane %0d (logical %0d), cycle %0d: Expected 0x%08h, Got 0x%08h",
+                                         pl, log_lane, cycle, ref_words[log_lane][cycle], p_lane_out[pl]);
+                                test_errors++;
+                            end
+                        end else begin
+                            // Inactive lane: must be 0
+                            if (p_lane_out[pl] !== 32'b0) begin
+                                $display("[ERROR] Inactive physical lane %0d is not zero: Got 0x%08h", pl, p_lane_out[pl]);
+                                test_errors++;
+                            end
+                        end
+                    end
+                end
+                
+                // Verify transition back to IDLE and tx_done pulse
+                @(negedge clk);
+                if (p_tx_done !== 1'b1) begin
+                    $display("[ERROR] o_Lfsr_tx_done did not pulse high at the end of phase for mode 3'b%03b", w_deg);
+                    test_errors++;
+                end
+                p_state = IDLE;
+                @(negedge clk);
+                if (p_tx_done !== 1'b0) begin
+                    $display("[ERROR] o_Lfsr_tx_done did not return to low in IDLE");
+                    test_errors++;
+                end
+            end
+        end
+        $display("[TC2] Done.");
+
+        // ---------------------------------------------------------------------
+        // Test Case 3: Pattern LFSR Mode with Lane Reversal
+        // ---------------------------------------------------------------------
+        $display("\n[TC3] Verifying Pattern LFSR Mode with Lane Reversal...");
+        begin
+            for (int idx = 0; idx < 5; idx = idx + 1) begin
+                w_deg = widths[idx];
+                $display("  Testing reversal for width mode: 3'b%03b...", w_deg);
+                
+                reset_duts();
+
+                // Set lane reversal in IDLE state first so it gets latched
+                @(negedge clk);
+                p_reversal_en = 1'b1;
+                p_width_deg   = w_deg;
+
+                // In IDLE the reversal flag is latched internally only; tx_done
+                // must stay low (it pulses solely at end of an LFSR/IDE phase).
+                @(negedge clk);
+                if (p_tx_done !== 1'b0) begin
+                    $display("[ERROR] o_Lfsr_tx_done must stay low in IDLE when i_reversal_en is set");
+                    test_errors++;
+                end
+
+                p_state       = PATTERN_LFSR;
+                
+                // Wait 1 cycle for FSM transition
+                @(negedge clk);
+                
+                for (int cycle = 0; cycle < 128; cycle = cycle + 1) begin
+                    @(negedge clk);
+                    
+                    for (int pl = 0; pl < 16; pl = pl + 1) begin
+                        log_lane = get_logical_lane(w_deg, pl, 1'b1);
+                        if (log_lane >= 0) begin
+                            if (p_lane_out[pl] !== ref_words[log_lane][cycle]) begin
+                                $display("[ERROR] Reversal Mismatch at active physical lane %0d (logical %0d), cycle %0d: Expected 0x%08h, Got 0x%08h",
+                                         pl, log_lane, cycle, ref_words[log_lane][cycle], p_lane_out[pl]);
+                                test_errors++;
+                            end
+                        end else begin
+                            if (p_lane_out[pl] !== 32'b0) begin
+                                $display("[ERROR] Inactive physical lane %0d is not zero during reversal: Got 0x%08h", pl, p_lane_out[pl]);
+                                test_errors++;
+                            end
+                        end
+                    end
+                end
+                
+                // End phase
+                @(negedge clk);
+                p_state = IDLE;
+                @(negedge clk);
+            end
+        end
+        $display("[TC3] Done.");
+
+        // ---------------------------------------------------------------------
+        // Test Case 4: Per-Lane IDE Mode (All Degradation Widths, Reversal/No Reversal)
+        // ---------------------------------------------------------------------
+        $display("\n[TC4] Verifying Per-Lane IDE Mode...");
+        begin
+            for (int w_idx = 0; w_idx < 5; w_idx = w_idx + 1) begin
+                for (int r_idx = 0; r_idx < 2; r_idx = r_idx + 1) begin
+                    w_deg = widths[w_idx];
+                    rev = rev_opts[r_idx];
+                    
+                    $display("  Testing PER_LANE_IDE for width 3'b%03b, reversal=%b...", w_deg, rev);
+                    
+                    reset_duts();
+                    @(negedge clk);
+                    p_reversal_en = rev;
+                    p_width_deg   = w_deg;
+                    @(negedge clk);
+                    p_state       = PER_LANE_IDE;
+                    
+                    // Wait 1 cycle for FSM transition
+                    @(negedge clk);
+                    
+                    // Verify for 64 cycles
+                    for (int cycle = 0; cycle < 64; cycle = cycle + 1) begin
+                        @(negedge clk);
+                        
+                        if (p_ser_en !== 1'b1) begin
+                            $display("[ERROR] Outputs not valid during PER_LANE_IDE at cycle %0d", cycle);
+                            test_errors++;
+                        end
+                        
+                        for (int pl = 0; pl < 16; pl = pl + 1) begin
+                            log_lane = get_logical_lane(w_deg, pl, rev);
+                            if (log_lane >= 0) begin
+                                id_lane_idx = get_input_or_id_lane(w_deg, pl, rev);
+                                expected_id = {LANE_ID[id_lane_idx], LANE_ID[id_lane_idx]};
+                                
+                                if (p_lane_out[pl] !== expected_id) begin
+                                    $display("[ERROR] IDE Mismatch at physical lane %0d, cycle %0d: Expected 0x%08h, Got 0x%08h",
+                                             pl, cycle, expected_id, p_lane_out[pl]);
+                                    test_errors++;
+                                end
+                            end else begin
+                                if (p_lane_out[pl] !== 32'b0) begin
+                                    $display("[ERROR] Inactive physical lane %0d not zero: Got 0x%08h", pl, p_lane_out[pl]);
+                                    test_errors++;
+                                end
+                            end
+                        end
+                    end
+                    
+                    // Verify done pulse
+                    @(negedge clk);
+                    if (p_tx_done !== 1'b1) begin
+                        $display("[ERROR] o_Lfsr_tx_done did not pulse at end of PER_LANE_IDE");
+                        test_errors++;
+                    end
+                    p_state = IDLE;
+                    @(negedge clk);
+                end
+            end
+        end
+        $display("[TC4] Done.");
+
+        // ---------------------------------------------------------------------
+        // Test Case 5: Clear LFSR State
+        // ---------------------------------------------------------------------
+        $display("\n[TC5] Verifying Clear LFSR State...");
+        begin
+            reset_duts();
+            @(negedge clk);
+            p_width_deg = DEGRADE_LANES_0_TO_15;
+            p_state     = PATTERN_LFSR;
+            
+            // Wait 1 cycle for FSM transition
+            @(negedge clk);
+            
+            // Wait for PATTERN_LFSR to run to completion (128 cycles)
+            for (int cycle = 0; cycle < 128; cycle = cycle + 1) begin
+                @(negedge clk);
+            end
+            
+            // Now FSM is in IDLE, but LFSR registers are advanced.
+            // Transition to CLEAR_LFSR
+            @(negedge clk);
+            p_state = CLEAR_LFSR;
+            
+            // CLEAR_LFSR state lasts only 1 cycle and returns to IDLE.
+            @(negedge clk);
+            p_state = IDLE;
+            @(negedge clk);
+            
+            // Transition back to PATTERN_LFSR and verify outputs match starting from seed again!
+            p_state = PATTERN_LFSR;
+            @(negedge clk); // Wait 1 cycle for FSM transition
+            
+            for (int cycle = 0; cycle < 10; cycle = cycle + 1) begin
+                @(negedge clk);
+                for (int pl = 0; pl < 16; pl = pl + 1) begin
+                    log_lane = get_logical_lane(DEGRADE_LANES_0_TO_15, pl, 1'b0);
+                    if (log_lane >= 0) begin
+                        if (p_lane_out[pl] !== ref_words[log_lane][cycle]) begin
+                            $display("[ERROR] Mismatch after CLEAR_LFSR at lane %0d, cycle %0d: Expected 0x%08h, Got 0x%08h",
+                                     pl, cycle, ref_words[log_lane][cycle], p_lane_out[pl]);
+                            test_errors++;
+                        end
+                    end
+                end
+            end
+            
+            p_state = IDLE;
+            @(negedge clk);
+        end
+        $display("[TC5] Done.");
+
+        // ---------------------------------------------------------------------
+        // Test Case 6: Data Transfer Mode (Scrambling vs Non-Scrambling)
+        // ---------------------------------------------------------------------
+        $display("\n[TC6] Verifying Data Transfer Mode (Scrambling & Reversal)...");
+        begin
+            // Initialize random data (duplicate for 8-15 to match logical-to-physical mapping)
+            for (int w = 0; w < 32; w = w + 1) begin
+                for (int l = 0; l < 8; l = l + 1) begin
+                    test_input_data[l][w]   = $urandom();
+                    test_input_data[8+l][w] = test_input_data[l][w];
+                end
+            end
+
+            for (int w_idx = 0; w_idx < 5; w_idx = w_idx + 1) begin
+                for (int r_idx = 0; r_idx < 2; r_idx = r_idx + 1) begin
+                    w_deg = widths[w_idx];
+                    rev = rev_opts[r_idx];
+                    
+                    $display("  Testing DATA_TRANSFER scrambling for width 3'b%03b, reversal=%b...", w_deg, rev);
+                    
+                    reset_duts();
+                    
+                    // Align the serial reference inputs to what logical lanes should see.
+                    // The serial reference models need to be fed the exact bits mapped to their logical lanes.
+                    // Specifically, logical lane `log_l` maps to physical input lane index derived from reversal and width.
+                    // We can map input_data for each serial reference:
+                    for (int log_l = 0; log_l < 8; log_l = log_l + 1) begin
+                        // For a given logical lane, which physical lane mapped to it?
+                        // Let's search all physical lanes for one that maps to log_l
+                        found_pl = -1;
+                        for (int pl = 0; pl < 16; pl = pl + 1) begin
+                            if (get_logical_lane(w_deg, pl, rev) == log_l) begin
+                                found_pl = pl;
+                                break;
+                            end
+                        end
+                        
+                        if (found_pl >= 0) begin
+                            in_l_idx = get_input_or_id_lane(w_deg, found_pl, rev);
+                            for (int w = 0; w < 32; w = w + 1) begin
+                                serial_ref_input[log_l][w] = test_input_data[in_l_idx][w];
+                            end
+                        end else begin
+                            for (int w = 0; w < 32; w = w + 1) begin
+                                serial_ref_input[log_l][w] = 32'b0;
+                            end
+                        end
+                    end
+
+                    // Generate serial reference words in scramble mode (mode=0)
+                    generate_serial_reference_words(32, 1'b0, serial_ref_input);
+
+                    // --- PART A: Scrambling Enabled ---
+                    reset_duts();
+                    @(negedge clk);
+                    p_reversal_en    = rev;
+                    p_width_deg      = w_deg;
+                    @(negedge clk);
+                    
+                    // Enter DATA_TRANSFER (state-driven: i_state edge into DATA_TRANSFER)
+                    p_state          = DATA_TRANSFER;
+                    p_scramble_en    = 1'b1;
+
+                    // Wait 1 cycle for FSM transition
+                    @(negedge clk);
+
+                    // Check scrambling output for 32 consecutive windows
+                    for (int cycle = 0; cycle < 32; cycle = cycle + 1) begin
+                        // Apply input data at negedge to be sampled on posedge
+                        for (int l = 0; l < 16; l = l + 1) begin
+                            p_lane_in[l] = test_input_data[l][cycle];
+                        end
+
+                        @(negedge clk);
+
+                        // Verify signals
+                        if (p_ser_en !== 1'b1) begin
+                            $display("[ERROR] Outputs not valid during DATA_TRANSFER scrambling at cycle %0d", cycle);
+                            test_errors++;
+                        end
+                        
+                        for (int pl = 0; pl < 16; pl = pl + 1) begin
+                            log_lane = get_logical_lane(w_deg, pl, rev);
+                            if (log_lane >= 0) begin
+                                in_l_idx = get_input_or_id_lane(w_deg, pl, rev);
+                                // Expected: PRBS32(tx_lfsr[logical_lane]) ^ i_lane[mapped_input_lane]
+                                // Since ref_words is already (PRBS32(seed) ^ input_bits), we can compare directly!
+                                if (p_lane_out[pl] !== ref_words[log_lane][cycle]) begin
+                                    $display("[ERROR] Scramble Mismatch at physical lane %0d, cycle %0d: Expected 0x%08h, Got 0x%08h",
+                                             pl, cycle, ref_words[log_lane][cycle], p_lane_out[pl]);
+                                    test_errors++;
+                                end
+                            end else begin
+                                if (p_lane_out[pl] !== 32'b0) begin
+                                    $display("[ERROR] Inactive physical lane %0d not zero in DATA_TRANSFER: Got 0x%08h", pl, p_lane_out[pl]);
+                                    test_errors++;
+                                end
+                            end
+                        end
+                    end
+                    
+                    // --- PART B: Scrambling Disabled ---
+                    @(negedge clk);
+                    p_scramble_en = 1'b0;
+                    @(negedge clk);
+                    
+                    if (p_ser_en !== 1'b0) begin
+                        $display("[ERROR] Outputs remained active when p_scramble_en=0 in DATA_TRANSFER");
+                        test_errors++;
+                    end
+                    for (int l = 0; l < 16; l = l + 1) begin
+                        if (p_lane_out[l] !== 32'b0) begin
+                            $display("[ERROR] Output lane[%0d] not zero when p_scramble_en=0: 0x%08h", l, p_lane_out[l]);
+                            test_errors++;
+                        end
+                    end
+
+                    // Exit DATA_TRANSFER (state-driven: i_state edge away from DATA_TRANSFER)
+                    p_state = IDLE;
+                    @(negedge clk);
+                    if (p_tx_done !== 1'b0) begin
+                        $display("[ERROR] tx_done must be low after returning to IDLE: Got %b", p_tx_done);
+                        test_errors++;
+                    end
+                end
+            end
+        end
+        $display("[TC6] Done.");
+
+        // =====================================================================
+        // Final Results Summary
+        // =====================================================================
+        $display("\n===========================================================");
+        if (test_errors == 0) begin
+            $display("  ALL LFSR TEST CASES PASSED SUCCESSFULLY!");
+            $display("  RESULT: PASS");
+        end else begin
+            $display("  LFSR TEST CASES FAILED WITH %0d ERRORS!", test_errors);
+            $display("  RESULT: FAIL");
+        end
+        $display("===========================================================\n");
+        $stop;
+    end
+
+endmodule

@@ -1,8 +1,6 @@
+module MBINIT_WRAPPER
 import UCIe_pkg::*;
 import ltsm_state_n_pkg::*;
-
-module MBINIT_WRAPPER
-#(parameter int CLK_FRQ_HZ = 800000000)
 (
     input  logic clk,
     input  logic rst_n,
@@ -24,16 +22,11 @@ module MBINIT_WRAPPER
     // =========================================================================
     // Local Inputs (from registers)
     input  logic        reg_phy_x8_mode_ctrl,
-    input  logic [3:0]  local_max_speed,
-    input  logic        local_sbfe,
     input  logic        reg_TARR_support_local_cap,
     input  logic        reg_L2SPD_support_local_cap,
     input  logic        reg_PSPT_support_local_cap,
-    input  logic        local_so,
     input  logic        reg_PMO_support_local_cap,
-    input  logic [2:0]  reg_Max_Link_Width_cap,
     input  logic [3:0]  reg_Max_Link_Speed_cap,
-    input  logic        local_mtp,
 
     input  logic [4:0]  reg_Supported_TX_Vswing,
     input  logic        reg_so,
@@ -77,6 +70,10 @@ module MBINIT_WRAPPER
     output logic [1:0]      d2c_data_pattern_sel, // Data pattern used during training: 0h: LFSR, 1: ID, or all 0.
     output logic            d2c_pattern_mode,// 0: Continuous Pattern Mode, 1: Burst Pattern Mode. 
     output logic [1:0]      d2c_compare_setup, // 0: Per-Lane, 1: Aggregate,  2: Valid Lane, 3: Clock Lane Comparison.
+    output logic [1:0]      d2c_clk_sampling,  // Clock Phase control: 0h(Eye Center), 1h(Left edge), 2h(Right edge).
+    output logic [15:0]     d2c_burst_count,   // Burst Count: duration of selected pattern (UI count).
+    output logic [15:0]     d2c_idle_count,    // IDLE Count: duration of low following the burst (UI count).
+    output logic [15:0]     d2c_iter_count,    // Iteration Count: iteration count of bursts followed by idle.
 
     input logic [15:0] d2c_perlane_pass, // The Per-Lane Errors (Each bit represents one pass Data Lane).
 
@@ -89,8 +86,8 @@ module MBINIT_WRAPPER
     // =========================================================================
     input  logic        sb_rx_valid,
     input  msg_no_e     sb_rx_msg_id,
-    input  logic [15:0] sb_rx_MsgInfo,
-    input  logic [63:0] sb_rx_data_Field,
+    input  logic [2:0] sb_rx_MsgInfo,
+    input  logic [15:0] sb_rx_data_Field,
 
     output logic        sb_tx_valid,
     output msg_no_e     sb_tx_msg_id,
@@ -126,11 +123,9 @@ module MBINIT_WRAPPER
     input  logic        repairval_RVLD_L_pass,
 
     // =========================================================================
-    // External Watchdog Timer Interface
+    // External Watchdog Timer / Global Error Interface
     // =========================================================================
-    output logic timer_enable,
-    output logic timer_rst_n,
-    input  logic timer_timeout_expired
+    input  logic global_error
 );
 
     // =========================================================================
@@ -181,6 +176,7 @@ module MBINIT_WRAPPER
     logic [2:0] repairmb_tx_data_lane_mask;
 
     logic [3:0] param_Link_Width_enable_status;
+    logic [3:0] reg_Link_Width_enable_status_reg_val;
     logic       param_Clock_Phase_enable_status;
     logic       param_Clock_mode_enable_status;
     logic       param_TARR_enable_status;
@@ -201,9 +197,7 @@ module MBINIT_WRAPPER
         .mbinit_done(mbinit_done),
         .mbinit_error(mbinit_error),
         .mbinit_state_n(mbinit_state_n),
-        .timer_enable(timer_enable),
-        .timer_rst_n(timer_rst_n),
-        .timer_timeout_expired(timer_timeout_expired),
+        .global_error(global_error),
 
         // Sideband Muxed Outputs
         .sb_tx_valid(sb_tx_valid),
@@ -298,6 +292,7 @@ module MBINIT_WRAPPER
 
         .param_Link_Width_enable_status(param_Link_Width_enable_status),
         .reg_Link_Width_enable_status(reg_Link_Width_enable_status),
+        .reg_Link_Width_enable_status_reg_val(reg_Link_Width_enable_status_reg_val),
 
         .param_Clock_Phase_enable_status(param_Clock_Phase_enable_status),
         .reg_Clock_Phase_enable_status(reg_Clock_Phase_enable_status),
@@ -326,7 +321,7 @@ module MBINIT_WRAPPER
     // =========================================================================
 
     // S1: PARAM
-    MBINIT_PARAM #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_param (
+    MBINIT_PARAM u_param (
         .clk(clk),
         .rst_n(rst_n),
         .mb_param_enable(param_enable),
@@ -335,7 +330,6 @@ module MBINIT_WRAPPER
         
         .sb_param_rx_valid(sb_rx_valid),
         .sb_param_rx_msg_id(sb_rx_msg_id),
-        .sb_param_rx_MsgInfo(sb_rx_MsgInfo),
         .sb_param_rx_data_Field(sb_rx_data_Field),
         
         .sb_param_tx_valid(param_tx_valid),
@@ -354,7 +348,6 @@ module MBINIT_WRAPPER
         .L2SPD_support_local_cap(reg_L2SPD_support_local_cap),
         .PSPT_support_local_cap(reg_PSPT_support_local_cap),
         .PMO_support_local_cap(reg_PMO_support_local_cap),
-        .Max_Link_Width_cap(reg_Max_Link_Width_cap),
         .Max_Link_Speed_cap(reg_Max_Link_Speed_cap),
         
         .TARR_support_local_ctrl(reg_TARR_support_local_ctrl),
@@ -384,7 +377,7 @@ module MBINIT_WRAPPER
 
  
     // S2: CAL
-    MBINIT_CAL #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_cal (
+    MBINIT_CAL u_cal (
         .clk(clk),
         .rst_n(rst_n),
         .mb_cal_enable(cal_enable),
@@ -392,8 +385,6 @@ module MBINIT_WRAPPER
         .mb_cal_error(cal_error),
         .sb_cal_rx_valid(sb_rx_valid),
         .sb_cal_rx_msg_id(sb_rx_msg_id),
-        .sb_cal_rx_MsgInfo(sb_rx_MsgInfo),
-        .sb_cal_rx_data_Field(sb_rx_data_Field),
         .sb_cal_tx_valid(cal_tx_valid),
         .sb_cal_tx_msg_id(cal_tx_msg_id),
         .sb_cal_tx_MsgInfo(cal_tx_MsgInfo),
@@ -403,7 +394,7 @@ module MBINIT_WRAPPER
     );
 
     // S3: REPAIRCLK
-    MBINIT_REPAIRCLK #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_repairclk (
+    MBINIT_REPAIRCLK u_repairclk (
         .clk(clk),
         .rst_n(rst_n),
         .mb_repairclk_enable(repairclk_enable),
@@ -412,7 +403,6 @@ module MBINIT_WRAPPER
         .sb_repairclk_rx_valid(sb_rx_valid),
         .sb_repairclk_rx_msg_id(sb_rx_msg_id),
         .sb_repairclk_rx_MsgInfo(sb_rx_MsgInfo),
-        .sb_repairclk_rx_data_Field(sb_rx_data_Field),
         .sb_repairclk_tx_valid(repairclk_tx_valid),
         .sb_repairclk_tx_msg_id(repairclk_tx_msg_id),
         .sb_repairclk_tx_MsgInfo(repairclk_tx_MsgInfo),
@@ -430,7 +420,7 @@ module MBINIT_WRAPPER
     );
 
     // S4: REPAIRVAL
-    MBINIT_REPAIRVAL #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_repairval (
+    MBINIT_REPAIRVAL u_repairval (
         .clk(clk),
         .rst_n(rst_n),
         .mb_repairval_enable(repairval_enable),
@@ -438,8 +428,7 @@ module MBINIT_WRAPPER
         .mb_repairval_error(repairval_error),
         .sb_repairval_rx_valid(sb_rx_valid),
         .sb_repairval_rx_msg_id(sb_rx_msg_id),
-        .sb_repairval_rx_MsgInfo(sb_rx_MsgInfo),
-        .sb_repairval_rx_data_Field(sb_rx_data_Field),
+        .sb_repairval_rx_MsgInfo(sb_rx_MsgInfo[0]),
         .sb_repairval_tx_valid(repairval_tx_valid),
         .sb_repairval_tx_msg_id(repairval_tx_msg_id),
         .sb_repairval_tx_MsgInfo(repairval_tx_MsgInfo),
@@ -456,7 +445,7 @@ module MBINIT_WRAPPER
     );
 
     // S5: REVERSALMB
-    MBINIT_REVERSALMB #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_reversalmb (
+    MBINIT_REVERSALMB u_reversalmb (
         .clk(clk),
         .rst_n(rst_n),
         .mb_reversal_enable(reversalmb_enable),
@@ -464,13 +453,12 @@ module MBINIT_WRAPPER
         .mb_reversal_error(reversalmb_error),
         .sb_reversal_rx_valid(sb_rx_valid),
         .sb_reversal_rx_msg_id(sb_rx_msg_id),
-        .sb_reversal_rx_MsgInfo(sb_rx_MsgInfo),
         .sb_reversal_rx_data_Field(sb_rx_data_Field),
         .sb_reversal_tx_valid(reversalmb_tx_valid),
         .sb_reversal_tx_msg_id(reversalmb_tx_msg_id),
         .sb_reversal_tx_MsgInfo(reversalmb_tx_MsgInfo),
         .sb_reversal_tx_data_Field(reversalmb_tx_data_Field),
-        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .Link_Width_enable_status(reg_Link_Width_enable_status_reg_val),
         .mb_tx_data_pattern_sel(reversalmb_tx_data_pattern_sel),
         .mb_tx_pattern_setup(reversalmb_tx_pattern_setup),
         .mb_rx_compare_setup(reversalmb_rx_compare_setup),
@@ -485,10 +473,10 @@ module MBINIT_WRAPPER
     );
 
     // S6: REPAIRMB
-    MBINIT_REPAIRMB #(.CLK_FRQ_HZ(CLK_FRQ_HZ)) u_repairmb (
+    MBINIT_REPAIRMB u_repairmb (
         .clk(clk),
         .rst_n(rst_n),
-        .Link_Width_enable_status(reg_Link_Width_enable_status),
+        .Link_Width_enable_status(reg_Link_Width_enable_status_reg_val),
         .SPMW(SPMW),
         .mb_repairmb_enable(repairmb_enable),
         .mb_repairmb_done(repairmb_done),
@@ -496,7 +484,6 @@ module MBINIT_WRAPPER
         .sb_repairmb_rx_valid(sb_rx_valid),
         .sb_repairmb_rx_msg_id(sb_rx_msg_id),
         .sb_repairmb_rx_MsgInfo(sb_rx_MsgInfo),
-        .sb_repairmb_rx_data_Field(sb_rx_data_Field),
         .sb_repairmb_tx_valid(repairmb_tx_valid),
         .sb_repairmb_tx_msg_id(repairmb_tx_msg_id),
         .sb_repairmb_tx_MsgInfo(repairmb_tx_MsgInfo),
@@ -509,6 +496,10 @@ module MBINIT_WRAPPER
         .d2c_data_pattern_sel(d2c_data_pattern_sel),
         .d2c_pattern_mode(d2c_pattern_mode),
         .d2c_compare_setup(d2c_compare_setup),
+        .d2c_clk_sampling(d2c_clk_sampling),
+        .d2c_burst_count(d2c_burst_count),
+        .d2c_idle_count(d2c_idle_count),
+        .d2c_iter_count(d2c_iter_count),
         .d2c_perlane_pass(d2c_perlane_pass),
         .local_test_d2c_done(local_test_d2c_done),
         .partner_test_d2c_done(partner_test_d2c_done),
@@ -543,7 +534,7 @@ module MBINIT_WRAPPER
     // 3. Error Check: Watchdog timeout assertion leading to top error
     property p_wrapper_timeout_leads_to_error;
         @(posedge clk) disable iff (!rst_n)
-        timer_timeout_expired |-> ##[1:5] mbinit_error;
+        global_error |-> ##[1:5] mbinit_error;
     endproperty
     assert_wrapper_timeout_leads_to_error: assert property(p_wrapper_timeout_leads_to_error);
 

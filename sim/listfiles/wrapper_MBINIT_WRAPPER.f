@@ -1,5 +1,5 @@
 rtl/common/UCIe_pkg.sv
-rtl/MainSM/LTSM/Common/TimeOut_counter.sv
+rtl/MainSM/LTSM/Common/timeout_counter.sv
 rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv
 rtl/MainSM/common/LTSM_state_pkg.sv
 rtl/MainSM/LTSM/Common/internal_ltsm_if.sv
@@ -9,7 +9,7 @@ rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRCLK.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRVAL.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REVERSALMB.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRMB.sv
-rtl/MainSM/LTSM/MBINIT/MBINIT_controller.sv
+rtl/MainSM/LTSM/MBINIT/MBINIT_CONTROLLER.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT_WRAPPER.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT.sv
 tb/wrapper/MBINIT_Wrapper/MBINIT_WRAPPER_tb.sv
