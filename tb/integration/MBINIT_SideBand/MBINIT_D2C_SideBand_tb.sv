@@ -2703,8 +2703,8 @@ module MBINIT_D2C_SideBand_tb;
                 wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state != u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
                 wait (u_mbinit_0.u_mbinit_wrapper.u_repairmb.current_state == u_mbinit_0.u_mbinit_wrapper.u_repairmb.MB_S2_D2C_POINT_TEST);
                 $display("T=%0t | [TEST - SCENARIO 27] Retry detected!", $time);
-                m_d2c_perlane_pass = 16'hFFFF;
-                p_d2c_perlane_pass = 16'hFF0F;
+                m_d2c_perlane_pass = 16'h000F;
+                p_d2c_perlane_pass = 16'h00F0;
             end
             begin wait (m_error || p_error); $error("T=%0t | [FAILURE - SCENARIO 27] Error before retry!", $time); $finish; end
             begin #5_000_000; $error("T=%0t | [TIMEOUT - SCENARIO 27]", $time); $finish; end
