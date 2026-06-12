@@ -52,6 +52,12 @@ module unit_mb_die2die_tb;
     // ---------------------------------------------------------- shared control
     logic                  i_rst_n;
     logic                  lp_irdy, lp_valid;
+    logic                  tb_active_test_mode = 0;
+    logic                  tb_lp_valid0_val = 0;
+    logic                  tb_lp_valid1_val = 0;
+    logic                  lp_valid0, lp_valid1;
+    assign lp_valid0 = tb_active_test_mode ? tb_lp_valid0_val : lp_valid;
+    assign lp_valid1 = tb_active_test_mode ? tb_lp_valid1_val : lp_valid;
     logic                  i_mapper_en;
     logic [2:0]            i_width_deg_tx;
     logic [2:0]            i_width_deg_rx;
@@ -145,7 +151,7 @@ module unit_mb_die2die_tb;
         .VALID_PATTERN(32'h0F0F0F0F), .PLL_PERIOD_NS(0.5), .RX_ALIGN_DELAY(2)
     ) die0 (
         .i_rst_n(i_rst_n),
-        .lp_data(lp_data0), .lp_irdy(lp_irdy), .lp_valid(lp_valid), .pl_trdy(pl_trdy0),
+        .lp_data(lp_data0), .lp_irdy(lp_irdy), .lp_valid(lp_valid0), .pl_trdy(pl_trdy0),
         .i_mapper_en(i_mapper_en), .i_width_deg_tx(die0_width_deg_tx), .i_width_deg_rx(die0_width_deg_rx), .i_lfsr_state(i_lfsr_state),
         .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
@@ -176,7 +182,7 @@ module unit_mb_die2die_tb;
         .VALID_PATTERN(32'h0F0F0F0F), .PLL_PERIOD_NS(0.5), .RX_ALIGN_DELAY(2)
     ) die1 (
         .i_rst_n(i_rst_n),
-        .lp_data(lp_data1), .lp_irdy(lp_irdy), .lp_valid(lp_valid), .pl_trdy(pl_trdy1),
+        .lp_data(lp_data1), .lp_irdy(lp_irdy), .lp_valid(lp_valid1), .pl_trdy(pl_trdy1),
         .i_mapper_en(i_mapper_en), .i_width_deg_tx(die1_width_deg_tx), .i_width_deg_rx(die1_width_deg_rx), .i_lfsr_state(i_lfsr_state),
         .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
@@ -853,6 +859,223 @@ module unit_mb_die2die_tb;
         run_flit_pair({16{32'hDEADBEEF}}, {16{32'hCAFEBABE}}, "DEAD/CAFE", step_ok);
         if (!step_ok) begin ok = 0; return; end
         wait_mb(10);
+        @(negedge lclk0);
+        lp_valid = 0;
+
+        // 11. Stall Testing: Send first flit, stall valid for 10 cycles, then send second flit and verify both
+        $display("  [ACTIVE] Stall Test: Sending sf, stalling for 10 cycles, then sending rf...");
+        begin
+            logic [FLITW-1:0] sf0 = {16{32'h5A5A1234}};
+            logic [FLITW-1:0] sf1 = {16{32'hA5A54321}};
+            logic [FLITW-1:0] rf0 = {16{32'h11223344}};
+            logic [FLITW-1:0] rf1 = {16{32'h55667788}};
+            bit got_sf0, got_sf1, got_rf0, got_rf1;
+            int settle_cycles;
+            
+            got_sf0 = 0; got_sf1 = 0; got_rf0 = 0; got_rf1 = 0;
+            settle_cycles = 0;
+            
+            tb_active_test_mode = 1;
+            tb_lp_valid0_val = 0;
+            tb_lp_valid1_val = 0;
+            
+            fork
+                // Thread 1a: Die0 sender logic
+                begin
+                    int tx_t;
+                    // Send sf
+                    @(negedge lclk0);
+                    lp_data0 = sf0; tb_lp_valid0_val = 1;
+                    tx_t = 0;
+                    do begin
+                        @(posedge lclk0);
+                        tx_t++;
+                    end while (!pl_trdy0 && tx_t < 100);
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid0_val = 0;
+                    
+                    // Stall
+                    wait_mb(10);
+                    
+                    // Send rf
+                    @(negedge lclk0);
+                    lp_data0 = rf0; tb_lp_valid0_val = 1;
+                    tx_t = 0;
+                    do begin
+                        @(posedge lclk0);
+                        tx_t++;
+                    end while (!pl_trdy0 && tx_t < 100);
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid0_val = 0;
+                end
+                
+                // Thread 1b: Die1 sender logic
+                begin
+                    int tx_t;
+                    // Send sf
+                    @(negedge lclk0);
+                    lp_data1 = sf1; tb_lp_valid1_val = 1;
+                    tx_t = 0;
+                    do begin
+                        @(posedge lclk0);
+                        tx_t++;
+                    end while (!pl_trdy1 && tx_t < 100);
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid1_val = 0;
+                    
+                    // Stall
+                    wait_mb(10);
+                    
+                    // Send rf
+                    @(negedge lclk0);
+                    lp_data1 = rf1; tb_lp_valid1_val = 1;
+                    tx_t = 0;
+                    do begin
+                        @(posedge lclk0);
+                        tx_t++;
+                    end while (!pl_trdy1 && tx_t < 100);
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid1_val = 0;
+                end
+                
+                // Thread 2: Monitor the outputs in parallel starting from the drive time
+                begin
+                    while (!(got_sf0 && got_sf1 && got_rf0 && got_rf1) && settle_cycles < 1000) begin
+                        @(posedge lclk0);
+                        if (o_pl_valid0) begin
+                            if (o_out_data0 === sf1) got_sf0 = 1;
+                            if (o_out_data0 === rf1) got_rf0 = 1;
+                        end
+                        if (o_pl_valid1) begin
+                            if (o_out_data1 === sf0) got_sf1 = 1;
+                            if (o_out_data1 === rf0) got_rf1 = 1;
+                        end
+                        settle_cycles++;
+                    end
+                end
+            join
+            
+            tb_active_test_mode = 0;
+            
+            step_ok = got_sf0 && got_sf1 && got_rf0 && got_rf1;
+            $display("      Stall test result             : sf_match=%0b/%0b, rf_match=%0b/%0b (settle %0d)",
+                     got_sf0, got_sf1, got_rf0, got_rf1, settle_cycles);
+            if (!step_ok) begin ok = 0; return; end
+            wait_mb(10);
+        end
+
+        // 12. Heavy Load: Send 20 flits back-to-back without stalls and verify all are received correctly
+        $display("  [ACTIVE] Heavy Load Test: Sending 20 back-to-back flits...");
+        begin
+            logic [FLITW-1:0] tx_stream0 [0:19];
+            logic [FLITW-1:0] tx_stream1 [0:19];
+            logic [FLITW-1:0] rx_stream0 [0:19];
+            logic [FLITW-1:0] rx_stream1 [0:19];
+            int read_idx0, read_idx1;
+            
+            for (int k = 0; k < 20; k = k + 1) begin
+                tx_stream0[k] = {16{32'(k + 32'hA000)}};
+                tx_stream1[k] = {16{32'(k + 32'hB000)}};
+                rx_stream0[k] = '0;
+                rx_stream1[k] = '0;
+            end
+            
+            read_idx0 = 0;
+            read_idx1 = 0;
+            t = 0;
+            step_ok = 1;
+            
+            tb_active_test_mode = 1;
+            tb_lp_valid0_val = 0;
+            tb_lp_valid1_val = 0;
+            
+            fork
+                // Thread 1: Die0 writer
+                begin
+                    int w_idx0 = 0;
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid0_val = 1;
+                    lp_data0 = tx_stream0[0];
+                    
+                    while (w_idx0 < 20) begin
+                        @(posedge lclk0);
+                        @(negedge lclk0);
+                        if (pl_trdy0) begin
+                            w_idx0 = w_idx0 + 1;
+                            if (w_idx0 < 20) begin
+                                lp_data0 = tx_stream0[w_idx0];
+                                tb_lp_valid0_val = 1;
+                            end else begin
+                                tb_lp_valid0_val = 0;
+                            end
+                        end
+                    end
+                end
+                
+                // Thread 2: Die1 writer
+                begin
+                    int w_idx1 = 0;
+                    
+                    @(negedge lclk0);
+                    tb_lp_valid1_val = 1;
+                    lp_data1 = tx_stream1[0];
+                    
+                    while (w_idx1 < 20) begin
+                        @(posedge lclk0);
+                        @(negedge lclk0);
+                        if (pl_trdy1) begin
+                            w_idx1 = w_idx1 + 1;
+                            if (w_idx1 < 20) begin
+                                lp_data1 = tx_stream1[w_idx1];
+                                tb_lp_valid1_val = 1;
+                            end else begin
+                                tb_lp_valid1_val = 0;
+                            end
+                        end
+                    end
+                end
+                
+                // Thread 3: Monitor/Receiver
+                begin
+                    while ((read_idx0 < 20 || read_idx1 < 20) && t < 1500) begin
+                        @(posedge lclk0);
+                        if (o_pl_valid0 && read_idx0 < 20) begin
+                            rx_stream0[read_idx0] = o_out_data0;
+                            read_idx0 = read_idx0 + 1;
+                        end
+                        if (o_pl_valid1 && read_idx1 < 20) begin
+                            rx_stream1[read_idx1] = o_out_data1;
+                            read_idx1 = read_idx1 + 1;
+                        end
+                        t++;
+                    end
+                end
+            join
+            
+            tb_active_test_mode = 0;
+            
+            // Verify all received flits match
+            for (int k = 0; k < 20; k = k + 1) begin
+                if (rx_stream0[k] !== tx_stream1[k]) begin
+                    $display("      [FAIL] Heavy Load mismatch on Die0 at index %0d: expected %h, got %h", k, tx_stream1[k], rx_stream0[k]);
+                    step_ok = 0;
+                end
+                if (rx_stream1[k] !== tx_stream0[k]) begin
+                    $display("      [FAIL] Heavy Load mismatch on Die1 at index %0d: expected %h, got %h", k, tx_stream0[k], rx_stream1[k]);
+                    step_ok = 0;
+                end
+            end
+            
+            $display("      Heavy Load result             : %s (settle %0d, reads=%0d/%0d)",
+                     step_ok ? "MATCH" : "MISS", t, read_idx0, read_idx1);
+            if (!step_ok) begin ok = 0; return; end
+            wait_mb(10);
+        end
 
         $display("  [PASS] ACTIVE mode bidirectional exchange verified with zero errors.");
     endtask
