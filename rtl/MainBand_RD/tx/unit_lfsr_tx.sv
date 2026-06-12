@@ -8,7 +8,6 @@ module unit_lfsr_tx #(
     input  logic [2:0]  i_state,                      // Requested state from controller
     input  logic        i_scramble_en,              // 1: scramble data 0: disable serializer // from mapper
     input  logic [2:0]  i_width_deg_lfsr,        // Lane group selection
-    input  logic        i_reversal_en,            // Enable physical lane reversal
 
     // -------------------------------------------------------------------------
     // 16 input data lanes (indexed 0-15)
@@ -90,7 +89,6 @@ module unit_lfsr_tx #(
     logic [2:0] i_state_reg;            // logicistered copy of i_state for edge detection
     logic [7:0] counter_lfsr;           // Counts PATTERN_LFSR cycles  (0-127)
     logic [6:0] counter_per_lane;       // Counts PER_LANE_IDE cycles  (0-63)
-    logic       lane_reversal_enabled;  // Latched reversal flag
 
     // LFSR state logicisters for each of the 8 logical lanes
     logic [22:0] tx_lfsr [0:7];
@@ -262,7 +260,6 @@ module unit_lfsr_tx #(
             counter_per_lane     <= 0;
             o_Lfsr_tx_done       <= 0;
             o_ser_en_lfsr        <= 0;
-            lane_reversal_enabled <= 0;
 
             // Zero all output lanes
             for (i = 0; i < 16; i = i + 1)
@@ -288,7 +285,6 @@ module unit_lfsr_tx #(
                     o_ser_en_lfsr    <= 0;
                     counter_per_lane <= 0;
                     o_Lfsr_tx_done   <= 0;
-                    lane_reversal_enabled <= i_reversal_en;
                 end
 
                 // ==============================================================
@@ -321,54 +317,30 @@ module unit_lfsr_tx #(
                         case (i_width_deg_lfsr)
 
                             DEGRADE_LANES_0_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    // Reversed: physical lane N gets LFSR (7-N)
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[7-i]);
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[i]);
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_8_TO_15: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]);
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[i]);
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[8+i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_0_TO_3: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[3-i]);
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[i]);
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_4_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= prbs32(tx_lfsr[3-i]);
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= prbs32(tx_lfsr[i]);
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[4+i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_0_TO_15: begin
-                                if (lane_reversal_enabled) begin
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= prbs32(tx_lfsr[7-i]);
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]);
-                                end else begin
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= prbs32(tx_lfsr[i]);
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[i]);
-                                end
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[i]   <= prbs32(tx_lfsr[i]);
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[8+i] <= prbs32(tx_lfsr[i]);
                             end
 
                         endcase
@@ -393,53 +365,28 @@ module unit_lfsr_tx #(
                         case (i_width_deg_lfsr)
 
                             DEGRADE_LANES_0_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    // Reversed: physical lane 0 gets ID of logical lane 15, etc.
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {LANE_ID[15-i], LANE_ID[15-i]};
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {LANE_ID[i], LANE_ID[i]};
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[i] <= {LANE_ID[i], LANE_ID[i]};
                             end
 
                             DEGRADE_LANES_8_TO_15: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {LANE_ID[7-i], LANE_ID[7-i]};
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {LANE_ID[8+i], LANE_ID[8+i]};
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[8+i] <= {LANE_ID[8+i], LANE_ID[8+i]};
                             end 
 
                             DEGRADE_LANES_0_TO_3: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {LANE_ID[7-i], LANE_ID[7-i]};
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {LANE_ID[i], LANE_ID[i]};
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[i] <= {LANE_ID[i], LANE_ID[i]};
                             end
 
                             DEGRADE_LANES_4_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {LANE_ID[3-i], LANE_ID[3-i]};
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {LANE_ID[4+i], LANE_ID[4+i]};
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[4+i] <= {LANE_ID[4+i], LANE_ID[4+i]};
                             end
 
-
                             DEGRADE_LANES_0_TO_15: begin
-                                if (lane_reversal_enabled) begin
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= {LANE_ID[15-i], LANE_ID[15-i]};
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {LANE_ID[7-i],  LANE_ID[7-i]};
-                                end else begin
-                                    for (i = 0; i < 16; i = i + 1)
-                                        o_lane[i]   <= {LANE_ID[i], LANE_ID[i]};
-                                end
+                                for (i = 0; i < 16; i = i + 1)
+                                    o_lane[i]   <= {LANE_ID[i], LANE_ID[i]};
                             end
 
                         endcase
@@ -461,54 +408,30 @@ module unit_lfsr_tx #(
                         case (i_width_deg_lfsr)
 
                             DEGRADE_LANES_0_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    // Reversed: output lane N = LFSR(7-N) XOR input lane (15-N)
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[15-i];
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
                             end
 
                             DEGRADE_LANES_8_TO_15: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[7-i];
-                                else
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
                             end
 
                             DEGRADE_LANES_0_TO_3: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[3-i]) ^ i_lane[7-i];
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
                             end
 
                             DEGRADE_LANES_4_TO_7: begin
-                                if (lane_reversal_enabled)
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= prbs32(tx_lfsr[3-i]) ^ i_lane[3-i];
-                                else
-                                    for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= prbs32(tx_lfsr[i]) ^ i_lane[4+i];
+                                for (i = 0; i < 4; i = i + 1)
+                                    o_lane[4+i] <= prbs32(tx_lfsr[i]) ^ i_lane[4+i];
                             end
 
                             DEGRADE_LANES_0_TO_15: begin
-                                if (lane_reversal_enabled) begin
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= prbs32(tx_lfsr[7-i]) ^ i_lane[15-i];
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[7-i];
-                                end else begin
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= prbs32(tx_lfsr[i]) ^ i_lane[i];
-                                    for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
-                                end
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[i]   <= prbs32(tx_lfsr[i]) ^ i_lane[i];
+                                for (i = 0; i < 8; i = i + 1)
+                                    o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
                             end
 
                         endcase
