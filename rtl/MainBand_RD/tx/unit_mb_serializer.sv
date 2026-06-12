@@ -20,6 +20,7 @@ reg [DATA_WIDTH-1:0] load_reg;
 
 // CDC Synchronizer registers for PLL_clk domain
 reg sync3_toggle;
+reg active;
 
 wire rising_ser_en_pll;
 
@@ -63,15 +64,20 @@ always @(posedge PLL_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         data_reg    <= {DATA_WIDTH{1'b0}};
         ser_counter <= 8'd0;
+        active      <= 1'b0;
     end else begin
         if (load_condition) begin
             data_reg    <= {2'b00, load_reg[DATA_WIDTH-1:2]}; // ✅ load direct from in_data and shift
             ser_counter <= 8'd0;          // reset counter
-        end else if (ser_counter < (DATA_WIDTH/2)-1) begin
-            data_reg    <= {2'b00, data_reg[DATA_WIDTH-1:2]}; // ✅ logical shift right 2 bits
-            ser_counter <= ser_counter + 1'b1;
-        end else begin
-            ser_counter <= 8'd0;
+            active      <= 1'b1;          // start serialization
+        end else if (active) begin
+            if (ser_counter < (DATA_WIDTH/2)-1) begin
+                data_reg    <= {2'b00, data_reg[DATA_WIDTH-1:2]}; // ✅ logical shift right 2 bits
+                ser_counter <= ser_counter + 1'b1;
+            end else begin
+                ser_counter <= 8'd0;
+                active      <= 1'b0;      // stop serialization, counter remains at 0 and active remains 0
+            end
         end
     end
    
