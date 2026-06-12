@@ -1088,7 +1088,8 @@ module unit_mb_die2die_tb;
             $display("  [SCENARIO PASS] %-26s expected reached_active=%0b, got %0b", lbl, want_active, got_active);
         end else begin
             scenarios_fail++;
-            $display("  [SCENARIO FAIL] %-26s expected reached_active=%0b, got %0b", lbl, want_active, got_active);
+            $error("  [SCENARIO FAIL] %-26s expected reached_active=%0b, got %0b", lbl, want_active, got_active);
+            $fatal(1, "Aborting simulation due to unexpected failure.");
         end
     endtask
 
@@ -1121,7 +1122,8 @@ module unit_mb_die2die_tb;
             $display("  [SCENARIO PASS] %s matched expectation.", lbl);
         end else begin
             scenarios_fail++;
-            $display("  [SCENARIO FAIL] %s mismatched! Expected %0b, got %0b", lbl, want_active, happy_ok);
+            $error("  [SCENARIO FAIL] %s mismatched! Expected %0b, got %0b", lbl, want_active, happy_ok);
+            $fatal(1, "Aborting simulation due to unexpected failure.");
         end
     endtask
 
@@ -1148,7 +1150,8 @@ module unit_mb_die2die_tb;
                 $display("  [SCENARIO PASS] fulltraining_happy_scenario passed successfully.");
             end else begin
                 scenarios_fail++;
-                $display("  [SCENARIO FAIL] fulltraining_happy_scenario FAILED!");
+                $error("  [SCENARIO FAIL] fulltraining_happy_scenario FAILED!");
+                $fatal(1, "Aborting simulation due to unexpected failure.");
             end
         end
 

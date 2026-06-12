@@ -299,21 +299,21 @@ module unit_lfsr_tx #(
                 // PATTERN_LFSR: advance all LFSRs and output scrambled pattern
                 // ==============================================================
                 PATTERN_LFSR: begin
-                    // Advance every LFSR by 32 steps (one 32-bit word)
-                    for (i = 0; i < 8; i = i + 1)
-                        tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
-
                     if (counter_lfsr == COUNT_LFSR) begin
                         // Phase complete
                         counter_lfsr   <= COUNT_LFSR;
                         o_ser_en_lfsr  <= 0;
                         o_Lfsr_tx_done <= 1;
                     end else begin
+                        // Advance every LFSR by 32 steps (one 32-bit word)
+                        for (i = 0; i < 8; i = i + 1)
+                            tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
+
                         // Drive the appropriate lane group with LFSR data
                         o_ser_en_lfsr  <= 1;
                         o_Lfsr_tx_done <= 0;
                         counter_lfsr   <= counter_lfsr + 1;
-
+                        
                         case (i_width_deg_lfsr)
 
                             DEGRADE_LANES_0_TO_7: begin
