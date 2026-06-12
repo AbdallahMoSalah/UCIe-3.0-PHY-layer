@@ -397,11 +397,11 @@ module unit_lfsr_tx #(
                 // DATA_TRANSFER: continuous data scrambling and forwarding
                 // ==============================================================
                 DATA_TRANSFER: begin
-                    // Advance every LFSR by 32 steps (one 32-bit word)
-                    for (i = 0; i < 8; i = i + 1)
-                        tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
-
                     if (i_scramble_en) begin
+                        // Advance every LFSR by 32 steps (one 32-bit word)
+                        for (i = 0; i < 8; i = i + 1)
+                            tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
+
                         // Scrambling enabled: XOR input data with LFSR stream
                         o_ser_en_lfsr <= 1;
 
