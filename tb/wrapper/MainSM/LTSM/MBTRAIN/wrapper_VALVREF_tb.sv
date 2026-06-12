@@ -223,7 +223,10 @@ module wrapper_VALVREF_tb;
     logic        dut_partner_valvref_en = 0;
     logic        dut_partner_valvref_done;
     logic        dut_partner_trainerror_req;
-
+    
+    assign       dut_partner_valvref_done   = dut_local_valvref_done; 
+    assign       dut_partner_trainerror_req = dut_local_trainerror_req; 
+    
     wrapper_VALVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
@@ -231,14 +234,13 @@ module wrapper_VALVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .valvref_done                   (dut_local_valvref_done),
+        .trainerror_req                 (dut_local_trainerror_req),
+
         .local_valvref_en               (dut_local_valvref_en),
-        .local_valvref_done             (dut_local_valvref_done),
-        .local_trainerror_req           (dut_local_trainerror_req),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .partner_valvref_en             (dut_partner_valvref_en),
-        .partner_valvref_done           (dut_partner_valvref_done),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -278,6 +280,9 @@ module wrapper_VALVREF_tb;
     logic        ptn_partner_valvref_en = 0;
     logic        ptn_partner_valvref_done;
     logic        ptn_partner_trainerror_req;
+    
+    assign       ptn_partner_valvref_done   = ptn_local_valvref_done; 
+    assign       ptn_partner_trainerror_req = ptn_local_trainerror_req; 
 
     wrapper_VALVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
@@ -286,14 +291,13 @@ module wrapper_VALVREF_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .valvref_done                   (ptn_local_valvref_done),
+        .trainerror_req                 (ptn_local_trainerror_req),
+
         .local_valvref_en               (ptn_local_valvref_en),
-        .local_valvref_done             (ptn_local_valvref_done),
-        .local_trainerror_req           (ptn_local_trainerror_req),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .partner_valvref_en             (ptn_partner_valvref_en),
-        .partner_valvref_done           (ptn_partner_valvref_done),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 

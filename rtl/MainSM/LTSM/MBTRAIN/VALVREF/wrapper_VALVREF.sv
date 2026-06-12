@@ -32,17 +32,15 @@ module wrapper_VALVREF #(
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
         input  logic        is_ltsm_out_of_reset,           // 0: Soft reset active; 1: Normal operation
+        output logic        valvref_done,                   // 0: In progress; 1: Sub-state completed
+        output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry
 
         // Local FSM Control:
         input  logic        local_valvref_en,               // 0: Disable; 1: Enable Local VALVREF sequence
-        output logic        local_valvref_done,             // 0: In progress; 1: Sub-state completed
-        output logic        local_trainerror_req,           // 0: Normal; 1: Request TRAINERROR entry
         output logic        local_update_lane_mask,         // Pulse: update negotiated lane mask
 
         // Partner FSM Control:
         input  logic        partner_valvref_en,             // 0: Disable; 1: Enable Partner VALVREF sequence
-        output logic        partner_valvref_done,           // 0: In progress; 1: Sub-state completed
-        output logic        partner_trainerror_req,         // 0: Normal; 1: Request TRAINERROR entry
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -89,12 +87,17 @@ module wrapper_VALVREF #(
     // =========================================================================
     // Internal Intermediate Wires
     // =========================================================================
+    // terminal signals
+    logic        local_valvref_done         ;
+    logic        local_trainerror_req       ;
+    logic        partner_valvref_done       ;
+    logic        partner_trainerror_req     ;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
-    logic [7:0]  local_tx_sb_msg      ;
-    logic [15:0] local_tx_msginfo     ;
-    logic [63:0] local_tx_data_field  ;
+    logic [7:0]  local_tx_sb_msg       ;
+    logic [15:0] local_tx_msginfo      ;
+    logic [63:0] local_tx_data_field   ;
 
     // SB outputs from Partner FSM:
     logic        partner_tx_sb_msg_valid;
@@ -204,6 +207,9 @@ module wrapper_VALVREF #(
     // =========================================================================
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
+    // terminal signals
+    assign valvref_done   = local_valvref_done   & partner_valvref_done  ;
+    assign trainerror_req = local_trainerror_req | partner_trainerror_req;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority; partner drives only when local is silent.
