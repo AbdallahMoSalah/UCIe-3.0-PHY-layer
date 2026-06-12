@@ -205,6 +205,21 @@ module Reg_File (
     output logic [15:0] iterations_out,
     output logic [15:0] current_lane_map_module_0_enable_out,
     
+
+
+
+
+
+
+
+    //Runtime link test
+    output logic rt_link_test_start_ctrl_out,
+    output logic rt_apply_module_0_lane_repair_ctrl_out,
+    output logic inject_stuck_at_fault_ctrl_out,
+    output logic [6:0] module_0_lane_repair_id_ctrl_out,
+
+
+    
     // =======================================================================
     //  Convenience taps
     // =======================================================================
@@ -631,6 +646,16 @@ always_comb begin
     rt_test_ctrl_r[63:36] = 28'b11111111111111111111111111;
     
 end
+logic rt_link_test_start_ctrl_out;
+logic rt_apply_module_0_lane_repair_ctrl_out;
+logic inject_stuck_at_fault_ctrl_out;
+
+logic [6:0] module_0_lane_repair_id_ctrl_out;
+
+assign rt_link_test_start_ctrl_out = rt_test_ctrl_r[6];
+assign rt_apply_module_0_lane_repair_ctrl_out = rt_test_ctrl_r[2];
+assign inject_stuck_at_fault_ctrl_out = rt_test_ctrl_r[7];
+assign module_0_lane_repair_id_ctrl_out = rt_test_ctrl_r[14:8];
 
 // ---------------------------------------------------------------------------
 //  Runtime Link Test Status (1108h) – RO live field --------------------------
@@ -886,6 +911,10 @@ always_ff @(posedge clk or negedge rst_n) begin
             ucie_link_ctrl_ff[11] <= 1'b0;  // Retrain UCIe Link      – auto-cleared
         end
 
+
+        if(rt_link_busy_status_i) begin
+            rt_test_ctrl_ff[6] <= 0;
+        end
         // ═══════════════════════════════════════════════════════════════════
         //  SW write path – MMIO Space (addr[24]=1, RL=0) mapped from byte memory
         // ═══════════════════════════════════════════════════════════════════
