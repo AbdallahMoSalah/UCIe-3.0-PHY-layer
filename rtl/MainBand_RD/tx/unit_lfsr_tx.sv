@@ -1,15 +1,14 @@
 
 
-module LFSR_TX #(
+module unit_lfsr_tx #(
     parameter WIDTH = 32
 )(
     input  logic        i_clk,                        // Clock signal
     input  logic        i_rst_n,                      // Active-low synchronous reset
     input  logic [2:0]  i_state,                      // Requested state from controller
-    input  logic        i_scramble_en, // 1: scramble data, 0: pass pattern only
+    input  logic        i_scramble_en,              // 1: scramble data 0: disable serializer // from mapper
     input  logic [2:0]  i_width_deg_lfsr,        // Lane group selection
     input  logic        i_reversal_en,            // Enable physical lane reversal
-    input  logic        i_active_state_entered,       // Pulse: active (DATA_TRANSFER) state entered
 
     // -------------------------------------------------------------------------
     // 16 input data lanes (indexed 0-15)
@@ -21,8 +20,7 @@ module LFSR_TX #(
     // -------------------------------------------------------------------------
     output logic  [WIDTH-1:0] o_lane [0:15],
     output logic  o_ser_en_lfsr,
-    output logic  o_Lfsr_tx_done,   // Pulses high when current LFSR/ID phase completes
-    output logic  o_valid_frame_en    // High while frames are actively being transmitted
+    output logic  o_Lfsr_tx_done    // Pulses high when current LFSR/ID phase completes
 );
 
     // =========================================================================
@@ -97,87 +95,79 @@ module LFSR_TX #(
     // LFSR state logicisters for each of the 8 logical lanes
     logic [22:0] tx_lfsr [0:7];
 
-    // Upper 9-bit portion of the 32-bit LFSR output (bit 23 through bit 31)
-    logic [8:0]  o_lane_23 [0:7];
-
     // Detect a change on the external state request input
     logic i_state_changed;
     assign i_state_changed = (i_state_reg != i_state) ? 1'b1 : 1'b0;
 
     // =========================================================================
-    // Helper function: compute initial o_lane_23 from a given seed.
-    // Bit positions correspond to the combinational unrolling of the LFSR
-    // feedback polynomial for 9 additional steps beyond bit 22.
+    // Leap-by-32 of the spec scrambler G(X)=X^23+X^21+X^16+X^8+X^5+X^2+1.
+    // Auto-generated from the bit-serial recurrence in lfsr_serial.sv:
+    //   f = s[22]^s[20]^s[15]^s[7]^s[4]^s[1] ; s' = {s[21:0], f}
+    // prbs32(s)[j] = f_j (32 consecutive Data_Out bits, LSB = earliest bit,
+    //   bit-for-bit equal to unit_lfsr_serial agg_word). nextstate32(s) = s after 32 shifts.
     // =========================================================================
-    function [8:0] compute_initial_23;
-        input [22:0] s; // seed
+    function automatic logic [31:0] prbs32(input logic [22:0] s);
         begin
-            compute_initial_23[8] = s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
-            compute_initial_23[7] = s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3]  ^ s[0];
-            compute_initial_23[6] = s[20] ^ s[18] ^ s[13] ^ s[5]  ^ s[2]  ^ s[22] ^ s[20] ^ s[15] ^ s[7] ^ s[4] ^ s[1];
-            compute_initial_23[5] = s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6] ^ s[3] ^ s[0];
-            compute_initial_23[4] = s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0]  ^ s[20] ^ s[18] ^ s[13] ^ s[5] ^ s[2]
-                                  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
-            compute_initial_23[3] = s[17] ^ s[15] ^ s[10] ^ s[0]  ^ s[2]  ^ s[22] ^ s[20] ^ s[15] ^ s[7] ^ s[4] ^ s[1]
-                                  ^ s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6] ^ s[3];
-            compute_initial_23[2] = s[16] ^ s[14] ^ s[9]  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3] ^ s[0]
-                                  ^ s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0]  ^ s[20] ^ s[18] ^ s[13] ^ s[5] ^ s[2]
-                                  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
-            compute_initial_23[1] = s[15] ^ s[13] ^ s[8]  ^ s[0]  ^ s[0]  ^ s[20] ^ s[18] ^ s[13] ^ s[5] ^ s[2]
-                                  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1]  ^ s[17] ^ s[15] ^ s[10] ^ s[2]
-                                  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1]  ^ s[19] ^ s[17] ^ s[12] ^ s[4]
-                                  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3];
-            compute_initial_23[0] = s[14] ^ s[12] ^ s[7]  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1]
-                                  ^ s[19] ^ s[17] ^ s[12] ^ s[4]  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6] ^ s[3] ^ s[0]
-                                  ^ s[16] ^ s[14] ^ s[9]  ^ s[1]  ^ s[21] ^ s[19] ^ s[14] ^ s[6]  ^ s[3] ^ s[0]
-                                  ^ s[18] ^ s[16] ^ s[11] ^ s[3]  ^ s[0]  ^ s[20] ^ s[18] ^ s[13] ^ s[5] ^ s[2]
-                                  ^ s[22] ^ s[20] ^ s[15] ^ s[7]  ^ s[4]  ^ s[1];
+            prbs32[ 0] = s[1] ^ s[4] ^ s[7] ^ s[15] ^ s[20] ^ s[22];
+            prbs32[ 1] = s[0] ^ s[3] ^ s[6] ^ s[14] ^ s[19] ^ s[21];
+            prbs32[ 2] = s[1] ^ s[2] ^ s[4] ^ s[5] ^ s[7] ^ s[13] ^ s[15] ^ s[18] ^ s[22];
+            prbs32[ 3] = s[0] ^ s[1] ^ s[3] ^ s[4] ^ s[6] ^ s[12] ^ s[14] ^ s[17] ^ s[21];
+            prbs32[ 4] = s[0] ^ s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[7] ^ s[11] ^ s[13] ^ s[15] ^ s[16] ^ s[22];
+            prbs32[ 5] = s[0] ^ s[2] ^ s[3] ^ s[6] ^ s[7] ^ s[10] ^ s[12] ^ s[14] ^ s[20] ^ s[21] ^ s[22];
+            prbs32[ 6] = s[2] ^ s[4] ^ s[5] ^ s[6] ^ s[7] ^ s[9] ^ s[11] ^ s[13] ^ s[15] ^ s[19] ^ s[21] ^ s[22];
+            prbs32[ 7] = s[1] ^ s[3] ^ s[4] ^ s[5] ^ s[6] ^ s[8] ^ s[10] ^ s[12] ^ s[14] ^ s[18] ^ s[20] ^ s[21];
+            prbs32[ 8] = s[0] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[7] ^ s[9] ^ s[11] ^ s[13] ^ s[17] ^ s[19] ^ s[20];
+            prbs32[ 9] = s[2] ^ s[3] ^ s[6] ^ s[7] ^ s[8] ^ s[10] ^ s[12] ^ s[15] ^ s[16] ^ s[18] ^ s[19] ^ s[20] ^ s[22];
+            prbs32[10] = s[1] ^ s[2] ^ s[5] ^ s[6] ^ s[7] ^ s[9] ^ s[11] ^ s[14] ^ s[15] ^ s[17] ^ s[18] ^ s[19] ^ s[21];
+            prbs32[11] = s[0] ^ s[1] ^ s[4] ^ s[5] ^ s[6] ^ s[8] ^ s[10] ^ s[13] ^ s[14] ^ s[16] ^ s[17] ^ s[18] ^ s[20];
+            prbs32[12] = s[0] ^ s[1] ^ s[3] ^ s[5] ^ s[9] ^ s[12] ^ s[13] ^ s[16] ^ s[17] ^ s[19] ^ s[20] ^ s[22];
+            prbs32[13] = s[0] ^ s[1] ^ s[2] ^ s[7] ^ s[8] ^ s[11] ^ s[12] ^ s[16] ^ s[18] ^ s[19] ^ s[20] ^ s[21] ^ s[22];
+            prbs32[14] = s[0] ^ s[4] ^ s[6] ^ s[10] ^ s[11] ^ s[17] ^ s[18] ^ s[19] ^ s[21] ^ s[22];
+            prbs32[15] = s[1] ^ s[3] ^ s[4] ^ s[5] ^ s[7] ^ s[9] ^ s[10] ^ s[15] ^ s[16] ^ s[17] ^ s[18] ^ s[21] ^ s[22];
+            prbs32[16] = s[0] ^ s[2] ^ s[3] ^ s[4] ^ s[6] ^ s[8] ^ s[9] ^ s[14] ^ s[15] ^ s[16] ^ s[17] ^ s[20] ^ s[21];
+            prbs32[17] = s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[8] ^ s[13] ^ s[14] ^ s[16] ^ s[19] ^ s[22];
+            prbs32[18] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[7] ^ s[12] ^ s[13] ^ s[15] ^ s[18] ^ s[21];
+            prbs32[19] = s[0] ^ s[1] ^ s[2] ^ s[3] ^ s[6] ^ s[11] ^ s[12] ^ s[14] ^ s[17] ^ s[20];
+            prbs32[20] = s[0] ^ s[2] ^ s[4] ^ s[5] ^ s[7] ^ s[10] ^ s[11] ^ s[13] ^ s[15] ^ s[16] ^ s[19] ^ s[20] ^ s[22];
+            prbs32[21] = s[3] ^ s[6] ^ s[7] ^ s[9] ^ s[10] ^ s[12] ^ s[14] ^ s[18] ^ s[19] ^ s[20] ^ s[21] ^ s[22];
+            prbs32[22] = s[2] ^ s[5] ^ s[6] ^ s[8] ^ s[9] ^ s[11] ^ s[13] ^ s[17] ^ s[18] ^ s[19] ^ s[20] ^ s[21];
+            prbs32[23] = s[1] ^ s[4] ^ s[5] ^ s[7] ^ s[8] ^ s[10] ^ s[12] ^ s[16] ^ s[17] ^ s[18] ^ s[19] ^ s[20];
+            prbs32[24] = s[0] ^ s[3] ^ s[4] ^ s[6] ^ s[7] ^ s[9] ^ s[11] ^ s[15] ^ s[16] ^ s[17] ^ s[18] ^ s[19];
+            prbs32[25] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[6] ^ s[7] ^ s[8] ^ s[10] ^ s[14] ^ s[16] ^ s[17] ^ s[18] ^ s[20] ^ s[22];
+            prbs32[26] = s[0] ^ s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[6] ^ s[7] ^ s[9] ^ s[13] ^ s[15] ^ s[16] ^ s[17] ^ s[19] ^ s[21];
+            prbs32[27] = s[0] ^ s[2] ^ s[3] ^ s[5] ^ s[6] ^ s[7] ^ s[8] ^ s[12] ^ s[14] ^ s[16] ^ s[18] ^ s[22];
+            prbs32[28] = s[2] ^ s[5] ^ s[6] ^ s[11] ^ s[13] ^ s[17] ^ s[20] ^ s[21] ^ s[22];
+            prbs32[29] = s[1] ^ s[4] ^ s[5] ^ s[10] ^ s[12] ^ s[16] ^ s[19] ^ s[20] ^ s[21];
+            prbs32[30] = s[0] ^ s[3] ^ s[4] ^ s[9] ^ s[11] ^ s[15] ^ s[18] ^ s[19] ^ s[20];
+            prbs32[31] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[7] ^ s[8] ^ s[10] ^ s[14] ^ s[15] ^ s[17] ^ s[18] ^ s[19] ^ s[20] ^ s[22];
         end
     endfunction
 
-    // =========================================================================
-    // next_lfsr_state function 
-    // Computes the next 32-bit LFSR output from the current 23-bit state.
-    // Bits [22:0]  → next LFSR logicister value
-    // Bits [31:23] → scrambled output bits for this clock cycle
-    // =========================================================================
-    function [31:0] next_lfsr_state;
-        input [22:0] current_state;
-        logic [31:0] next_state;
+    function automatic logic [22:0] nextstate32(input logic [22:0] s);
         begin
-            next_state[0]  = current_state[1]  ^ current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[7]  ^ current_state[8]  ^ current_state[10] ^ current_state[14] ^ current_state[15] ^ current_state[17] ^ current_state[18] ^ current_state[19] ^ current_state[20] ^ current_state[22];
-            next_state[1]  = current_state[0]  ^ current_state[3]  ^ current_state[4]  ^ current_state[9]  ^ current_state[11] ^ current_state[15] ^ current_state[18] ^ current_state[19] ^ current_state[20];
-            next_state[2]  = current_state[1]  ^ current_state[4]  ^ current_state[5]  ^ current_state[10] ^ current_state[12] ^ current_state[16] ^ current_state[19] ^ current_state[20] ^ current_state[21];
-            next_state[3]  = current_state[2]  ^ current_state[5]  ^ current_state[6]  ^ current_state[11] ^ current_state[13] ^ current_state[17] ^ current_state[20] ^ current_state[21] ^ current_state[22];
-            next_state[4]  = current_state[0]  ^ current_state[2]  ^ current_state[3]  ^ current_state[5]  ^ current_state[6]  ^ current_state[7]  ^ current_state[8]  ^ current_state[12] ^ current_state[14] ^ current_state[16] ^ current_state[18] ^ current_state[22];
-            next_state[5]  = current_state[0]  ^ current_state[1]  ^ current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[5]  ^ current_state[6]  ^ current_state[7]  ^ current_state[9]  ^ current_state[13] ^ current_state[15] ^ current_state[16] ^ current_state[17] ^ current_state[19] ^ current_state[21];
-            next_state[6]  = current_state[1]  ^ current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[5]  ^ current_state[6]  ^ current_state[7]  ^ current_state[8]  ^ current_state[10] ^ current_state[14] ^ current_state[16] ^ current_state[17] ^ current_state[18] ^ current_state[20] ^ current_state[22];
-            next_state[7]  = current_state[0]  ^ current_state[3]  ^ current_state[4]  ^ current_state[6]  ^ current_state[7]  ^ current_state[9]  ^ current_state[11] ^ current_state[15] ^ current_state[16] ^ current_state[17] ^ current_state[18] ^ current_state[19];
-            next_state[8]  = current_state[1]  ^ current_state[4]  ^ current_state[5]  ^ current_state[7]  ^ current_state[8]  ^ current_state[10] ^ current_state[12] ^ current_state[16] ^ current_state[17] ^ current_state[18] ^ current_state[19] ^ current_state[20];
-            next_state[9]  = current_state[2]  ^ current_state[5]  ^ current_state[6]  ^ current_state[8]  ^ current_state[9]  ^ current_state[11] ^ current_state[13] ^ current_state[17] ^ current_state[18] ^ current_state[19] ^ current_state[20] ^ current_state[21];
-            next_state[10] = current_state[3]  ^ current_state[6]  ^ current_state[7]  ^ current_state[9]  ^ current_state[10] ^ current_state[12] ^ current_state[14] ^ current_state[18] ^ current_state[19] ^ current_state[20] ^ current_state[21] ^ current_state[22];
-            next_state[11] = current_state[0]  ^ current_state[2]  ^ current_state[4]  ^ current_state[5]  ^ current_state[7]  ^ current_state[10] ^ current_state[11] ^ current_state[13] ^ current_state[15] ^ current_state[16] ^ current_state[19] ^ current_state[20] ^ current_state[22];
-            next_state[12] = current_state[0]  ^ current_state[1]  ^ current_state[2]  ^ current_state[3]  ^ current_state[6]  ^ current_state[11] ^ current_state[12] ^ current_state[14] ^ current_state[17] ^ current_state[20];
-            next_state[13] = current_state[1]  ^ current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[7]  ^ current_state[12] ^ current_state[13] ^ current_state[15] ^ current_state[18] ^ current_state[21];
-            next_state[14] = current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[5]  ^ current_state[8]  ^ current_state[13] ^ current_state[14] ^ current_state[16] ^ current_state[19] ^ current_state[22];
-            next_state[15] = current_state[0]  ^ current_state[2]  ^ current_state[3]  ^ current_state[4]  ^ current_state[6]  ^ current_state[8]  ^ current_state[9]  ^ current_state[14] ^ current_state[15] ^ current_state[16] ^ current_state[17] ^ current_state[20] ^ current_state[21];
-            next_state[16] = current_state[1]  ^ current_state[3]  ^ current_state[4]  ^ current_state[5]  ^ current_state[7]  ^ current_state[9]  ^ current_state[10] ^ current_state[15] ^ current_state[16] ^ current_state[17] ^ current_state[18] ^ current_state[21] ^ current_state[22];
-            next_state[17] = current_state[0]  ^ current_state[4]  ^ current_state[6]  ^ current_state[10] ^ current_state[11] ^ current_state[17] ^ current_state[18] ^ current_state[19] ^ current_state[21] ^ current_state[22];
-            next_state[18] = current_state[0]  ^ current_state[1]  ^ current_state[2]  ^ current_state[7]  ^ current_state[8]  ^ current_state[11] ^ current_state[12] ^ current_state[16] ^ current_state[18] ^ current_state[19] ^ current_state[20] ^ current_state[21] ^ current_state[22];
-            next_state[19] = current_state[0]  ^ current_state[1]  ^ current_state[3]  ^ current_state[5]  ^ current_state[9]  ^ current_state[12] ^ current_state[13] ^ current_state[16] ^ current_state[17] ^ current_state[19] ^ current_state[20] ^ current_state[22];
-            next_state[20] = current_state[0]  ^ current_state[1]  ^ current_state[4]  ^ current_state[5]  ^ current_state[6]  ^ current_state[8]  ^ current_state[10] ^ current_state[13] ^ current_state[14] ^ current_state[16] ^ current_state[17] ^ current_state[18] ^ current_state[20];
-            next_state[21] = current_state[1]  ^ current_state[2]  ^ current_state[5]  ^ current_state[6]  ^ current_state[7]  ^ current_state[9]  ^ current_state[11] ^ current_state[14] ^ current_state[15] ^ current_state[17] ^ current_state[18] ^ current_state[19] ^ current_state[21];
-            next_state[22] = current_state[2]  ^ current_state[3]  ^ current_state[6]  ^ current_state[7]  ^ current_state[8]  ^ current_state[10] ^ current_state[12] ^ current_state[15] ^ current_state[16] ^ current_state[18] ^ current_state[19] ^ current_state[20] ^ current_state[22];
-            next_state[23] = next_state[0]  ^ next_state[2]  ^ next_state[3]  ^ next_state[4]  ^ next_state[5]  ^ next_state[7]  ^ next_state[9]  ^ next_state[11] ^ next_state[13] ^ next_state[17] ^ next_state[19] ^ next_state[20];
-            next_state[24] = next_state[1]  ^ next_state[3]  ^ next_state[4]  ^ next_state[5]  ^ next_state[6]  ^ next_state[8]  ^ next_state[10] ^ next_state[12] ^ next_state[14] ^ next_state[18] ^ next_state[20] ^ next_state[21];
-            next_state[25] = next_state[2]  ^ next_state[4]  ^ next_state[5]  ^ next_state[6]  ^ next_state[7]  ^ next_state[9]  ^ next_state[11] ^ next_state[13] ^ next_state[15] ^ next_state[19] ^ next_state[21] ^ next_state[22];
-            next_state[26] = next_state[0]  ^ next_state[2]  ^ next_state[3]  ^ next_state[6]  ^ next_state[7]  ^ next_state[10] ^ next_state[12] ^ next_state[14] ^ next_state[20] ^ next_state[21] ^ next_state[22];
-            next_state[27] = next_state[0]  ^ next_state[1]  ^ next_state[2]  ^ next_state[3]  ^ next_state[4]  ^ next_state[5]  ^ next_state[7]  ^ next_state[11] ^ next_state[13] ^ next_state[15] ^ next_state[16] ^ next_state[22];
-            next_state[28] = next_state[0]  ^ next_state[1]  ^ next_state[3]  ^ next_state[4]  ^ next_state[6]  ^ next_state[12] ^ next_state[14] ^ next_state[17] ^ next_state[21];
-            next_state[29] = next_state[1]  ^ next_state[2]  ^ next_state[4]  ^ next_state[5]  ^ next_state[7]  ^ next_state[13] ^ next_state[15] ^ next_state[18] ^ next_state[22];
-            next_state[30] = next_state[0]  ^ next_state[3]  ^ next_state[6]  ^ next_state[14] ^ next_state[19] ^ next_state[21];
-            next_state[31] = next_state[1]  ^ next_state[4]  ^ next_state[7]  ^ next_state[15] ^ next_state[20] ^ next_state[22];
-            next_lfsr_state = next_state;
+            nextstate32[ 0] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[7] ^ s[8] ^ s[10] ^ s[14] ^ s[15] ^ s[17] ^ s[18] ^ s[19] ^ s[20] ^ s[22];
+            nextstate32[ 1] = s[0] ^ s[3] ^ s[4] ^ s[9] ^ s[11] ^ s[15] ^ s[18] ^ s[19] ^ s[20];
+            nextstate32[ 2] = s[1] ^ s[4] ^ s[5] ^ s[10] ^ s[12] ^ s[16] ^ s[19] ^ s[20] ^ s[21];
+            nextstate32[ 3] = s[2] ^ s[5] ^ s[6] ^ s[11] ^ s[13] ^ s[17] ^ s[20] ^ s[21] ^ s[22];
+            nextstate32[ 4] = s[0] ^ s[2] ^ s[3] ^ s[5] ^ s[6] ^ s[7] ^ s[8] ^ s[12] ^ s[14] ^ s[16] ^ s[18] ^ s[22];
+            nextstate32[ 5] = s[0] ^ s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[6] ^ s[7] ^ s[9] ^ s[13] ^ s[15] ^ s[16] ^ s[17] ^ s[19] ^ s[21];
+            nextstate32[ 6] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[6] ^ s[7] ^ s[8] ^ s[10] ^ s[14] ^ s[16] ^ s[17] ^ s[18] ^ s[20] ^ s[22];
+            nextstate32[ 7] = s[0] ^ s[3] ^ s[4] ^ s[6] ^ s[7] ^ s[9] ^ s[11] ^ s[15] ^ s[16] ^ s[17] ^ s[18] ^ s[19];
+            nextstate32[ 8] = s[1] ^ s[4] ^ s[5] ^ s[7] ^ s[8] ^ s[10] ^ s[12] ^ s[16] ^ s[17] ^ s[18] ^ s[19] ^ s[20];
+            nextstate32[ 9] = s[2] ^ s[5] ^ s[6] ^ s[8] ^ s[9] ^ s[11] ^ s[13] ^ s[17] ^ s[18] ^ s[19] ^ s[20] ^ s[21];
+            nextstate32[10] = s[3] ^ s[6] ^ s[7] ^ s[9] ^ s[10] ^ s[12] ^ s[14] ^ s[18] ^ s[19] ^ s[20] ^ s[21] ^ s[22];
+            nextstate32[11] = s[0] ^ s[2] ^ s[4] ^ s[5] ^ s[7] ^ s[10] ^ s[11] ^ s[13] ^ s[15] ^ s[16] ^ s[19] ^ s[20] ^ s[22];
+            nextstate32[12] = s[0] ^ s[1] ^ s[2] ^ s[3] ^ s[6] ^ s[11] ^ s[12] ^ s[14] ^ s[17] ^ s[20];
+            nextstate32[13] = s[1] ^ s[2] ^ s[3] ^ s[4] ^ s[7] ^ s[12] ^ s[13] ^ s[15] ^ s[18] ^ s[21];
+            nextstate32[14] = s[2] ^ s[3] ^ s[4] ^ s[5] ^ s[8] ^ s[13] ^ s[14] ^ s[16] ^ s[19] ^ s[22];
+            nextstate32[15] = s[0] ^ s[2] ^ s[3] ^ s[4] ^ s[6] ^ s[8] ^ s[9] ^ s[14] ^ s[15] ^ s[16] ^ s[17] ^ s[20] ^ s[21];
+            nextstate32[16] = s[1] ^ s[3] ^ s[4] ^ s[5] ^ s[7] ^ s[9] ^ s[10] ^ s[15] ^ s[16] ^ s[17] ^ s[18] ^ s[21] ^ s[22];
+            nextstate32[17] = s[0] ^ s[4] ^ s[6] ^ s[10] ^ s[11] ^ s[17] ^ s[18] ^ s[19] ^ s[21] ^ s[22];
+            nextstate32[18] = s[0] ^ s[1] ^ s[2] ^ s[7] ^ s[8] ^ s[11] ^ s[12] ^ s[16] ^ s[18] ^ s[19] ^ s[20] ^ s[21] ^ s[22];
+            nextstate32[19] = s[0] ^ s[1] ^ s[3] ^ s[5] ^ s[9] ^ s[12] ^ s[13] ^ s[16] ^ s[17] ^ s[19] ^ s[20] ^ s[22];
+            nextstate32[20] = s[0] ^ s[1] ^ s[4] ^ s[5] ^ s[6] ^ s[8] ^ s[10] ^ s[13] ^ s[14] ^ s[16] ^ s[17] ^ s[18] ^ s[20];
+            nextstate32[21] = s[1] ^ s[2] ^ s[5] ^ s[6] ^ s[7] ^ s[9] ^ s[11] ^ s[14] ^ s[15] ^ s[17] ^ s[18] ^ s[19] ^ s[21];
+            nextstate32[22] = s[2] ^ s[3] ^ s[6] ^ s[7] ^ s[8] ^ s[10] ^ s[12] ^ s[15] ^ s[16] ^ s[18] ^ s[19] ^ s[20] ^ s[22];
         end
     endfunction
 
@@ -187,10 +177,9 @@ module LFSR_TX #(
     integer i;
 
     // =========================================================================
-    // FSM — State logicister update
-    // Transitions are driven by i_state changes (edge detection) or by internal
-    // counter completion. The DATA_TRANSFER state is entered/exited via the
-    // i_active_state_entered flag.
+    // FSM — State register update
+    // All transitions are driven by i_state edge detection or internal counter
+    // completion. i_state is the sole external control signal.
     // =========================================================================
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
@@ -202,10 +191,10 @@ module LFSR_TX #(
             case (current_state)
 
                 // ------------------------------------------------------------------
-                // IDLE: wait for external state change or active-state entry
+                // IDLE: wait for i_state change
                 // ------------------------------------------------------------------
                 IDLE: begin
-                    if (i_active_state_entered)
+                    if (i_state_changed && i_state == DATA_TRANSFER)
                         current_state <= DATA_TRANSFER;
                     else if (i_state_changed && i_state == CLEAR_LFSR)
                         current_state <= CLEAR_LFSR;
@@ -221,13 +210,13 @@ module LFSR_TX #(
                 // ------------------------------------------------------------------
                 CLEAR_LFSR: begin
                     current_state <= IDLE;
-                end 
+                end
 
                 // ------------------------------------------------------------------
                 // PATTERN_LFSR: transmit 128 LFSR frames, then return to IDLE
                 // ------------------------------------------------------------------
                 PATTERN_LFSR: begin
-                    if (counter_lfsr == COUNT_LFSR) begin       // counter_lfsr == 128
+                    if (i_state_changed) begin
                         current_state <= IDLE;
                     end
                     // else stay in PATTERN_LFSR
@@ -237,19 +226,18 @@ module LFSR_TX #(
                 // PER_LANE_IDE: transmit 64 lane-ID frames, then return to IDLE
                 // ------------------------------------------------------------------
                 PER_LANE_IDE: begin
-                    if (counter_per_lane == COUNT_PER_LANE) begin  // counter_per_lane == 64
+                    if (i_state_changed) begin
                         current_state <= IDLE;
                     end
                     // else stay in PER_LANE_IDE
                 end
 
                 // ------------------------------------------------------------------
-                // DATA_TRANSFER: stay while i_active_state_entered is asserted
+                // DATA_TRANSFER: stay until i_state changes away
                 // ------------------------------------------------------------------
                 DATA_TRANSFER: begin
-                    if (!i_active_state_entered) begin
+                    if (i_state_changed)
                         current_state <= IDLE;
-                    end
                     // else stay in DATA_TRANSFER
                 end
 
@@ -273,8 +261,7 @@ module LFSR_TX #(
             counter_lfsr         <= 0;
             counter_per_lane     <= 0;
             o_Lfsr_tx_done       <= 0;
-            o_ser_en_lfsr       <= 0;
-            o_valid_frame_en       <= 0;
+            o_ser_en_lfsr        <= 0;
             lane_reversal_enabled <= 0;
 
             // Zero all output lanes
@@ -282,10 +269,8 @@ module LFSR_TX #(
                 o_lane[i] <= 0;
 
             // Restore LFSR logicisters to their seeds
-            for (i = 0; i < 8; i = i + 1) begin
-                tx_lfsr[i]    <= SEED[i];
-                o_lane_23[i]  <= compute_initial_23(SEED[i]);
-            end
+            for (i = 0; i < 8; i = i + 1)
+                tx_lfsr[i] <= SEED[i];
 
         end else begin
 
@@ -300,43 +285,36 @@ module LFSR_TX #(
                 // ==============================================================
                 IDLE: begin
                     counter_lfsr     <= 0;
-                    o_ser_en_lfsr       <= 0;
+                    o_ser_en_lfsr    <= 0;
                     counter_per_lane <= 0;
-                    o_valid_frame_en   <= 0;
-
-                    
+                    o_Lfsr_tx_done   <= 0;
                     lane_reversal_enabled <= i_reversal_en;
-                   
                 end
 
                 // ==============================================================
                 // CLEAR_LFSR: reset all LFSR logicisters and precompute bit-23 values
                 // ==============================================================
                 CLEAR_LFSR: begin
-                    for (i = 0; i < 8; i = i + 1) begin
-                        tx_lfsr[i]   <= SEED[i];
-                        o_lane_23[i] <= compute_initial_23(SEED[i]);
-                    end
+                    for (i = 0; i < 8; i = i + 1)
+                        tx_lfsr[i] <= SEED[i];
                 end
 
                 // ==============================================================
                 // PATTERN_LFSR: advance all LFSRs and output scrambled pattern
                 // ==============================================================
                 PATTERN_LFSR: begin
-                    // Advance every LFSR one step
+                    // Advance every LFSR by 32 steps (one 32-bit word)
                     for (i = 0; i < 8; i = i + 1)
-                        {o_lane_23[i], tx_lfsr[i]} <= next_lfsr_state(tx_lfsr[i]);
+                        tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
 
                     if (counter_lfsr == COUNT_LFSR) begin
                         // Phase complete
-                        counter_lfsr   <= 0;
-                        o_ser_en_lfsr <= 0;
+                        counter_lfsr   <= COUNT_LFSR;
+                        o_ser_en_lfsr  <= 0;
                         o_Lfsr_tx_done <= 1;
-                        o_valid_frame_en <= 0;
                     end else begin
                         // Drive the appropriate lane group with LFSR data
-                        o_ser_en_lfsr <= 1;
-                        o_valid_frame_en <= 1;
+                        o_ser_en_lfsr  <= 1;
                         o_Lfsr_tx_done <= 0;
                         counter_lfsr   <= counter_lfsr + 1;
 
@@ -346,50 +324,50 @@ module LFSR_TX #(
                                 if (lane_reversal_enabled)
                                     // Reversed: physical lane N gets LFSR (7-N)
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[7-i], o_lane_23[7-i]};
+                                        o_lane[i] <= prbs32(tx_lfsr[7-i]);
                                 else
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_8_TO_15: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[7-i], o_lane_23[7-i]};
+                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]);
                                 else
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[8+i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_0_TO_3: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[3-i], o_lane_23[3-i]};
+                                        o_lane[i] <= prbs32(tx_lfsr[3-i]);
                                 else
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_4_TO_7: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {tx_lfsr[3-i], o_lane_23[3-i]};
+                                        o_lane[4+i] <= prbs32(tx_lfsr[3-i]);
                                 else
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[4+i] <= prbs32(tx_lfsr[i]);
                             end
 
                             DEGRADE_LANES_0_TO_15: begin
                                 if (lane_reversal_enabled) begin
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= {tx_lfsr[7-i], o_lane_23[7-i]};
+                                        o_lane[i]   <= prbs32(tx_lfsr[7-i]);
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[7-i], o_lane_23[7-i]};
+                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]);
                                 end else begin
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[i]   <= prbs32(tx_lfsr[i]);
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[i], o_lane_23[i]};
+                                        o_lane[8+i] <= prbs32(tx_lfsr[i]);
                                 end
                             end
 
@@ -402,13 +380,13 @@ module LFSR_TX #(
                 // ==============================================================
                 PER_LANE_IDE: begin
                     if (counter_per_lane == COUNT_PER_LANE) begin
-                        counter_per_lane <= 0;
-                        o_ser_en_lfsr <= 0;
+                        // Phase complete
+                        counter_per_lane <= COUNT_PER_LANE;
+                        o_ser_en_lfsr    <= 0;
                         o_Lfsr_tx_done   <= 1;
-                        o_valid_frame_en   <= 0;
                     end else begin
-                        o_ser_en_lfsr <= 1;
-                        o_valid_frame_en   <= 1;
+                        // Drive the appropriate lane ID data
+                        o_ser_en_lfsr    <= 1;
                         o_Lfsr_tx_done   <= 0;
                         counter_per_lane <= counter_per_lane + 1;
 
@@ -472,13 +450,12 @@ module LFSR_TX #(
                 // DATA_TRANSFER: continuous data scrambling and forwarding
                 // ==============================================================
                 DATA_TRANSFER: begin
-                    // Advance every LFSR one step
+                    // Advance every LFSR by 32 steps (one 32-bit word)
                     for (i = 0; i < 8; i = i + 1)
-                        {o_lane_23[i], tx_lfsr[i]} <= next_lfsr_state(tx_lfsr[i]);
+                        tx_lfsr[i] <= nextstate32(tx_lfsr[i]);
 
                     if (i_scramble_en) begin
                         // Scrambling enabled: XOR input data with LFSR stream
-                        o_valid_frame_en <= 1;
                         o_ser_en_lfsr <= 1;
 
                         case (i_width_deg_lfsr)
@@ -487,50 +464,50 @@ module LFSR_TX #(
                                 if (lane_reversal_enabled)
                                     // Reversed: output lane N = LFSR(7-N) XOR input lane (15-N)
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[7-i], o_lane_23[7-i]} ^ i_lane[15-i];
+                                        o_lane[i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[15-i];
                                 else
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[i];
+                                        o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
                             end
 
                             DEGRADE_LANES_8_TO_15: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[7-i], o_lane_23[7-i]} ^ i_lane[7-i];
+                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[7-i];
                                 else
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[8+i];
+                                        o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
                             end
 
                             DEGRADE_LANES_0_TO_3: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[3-i], o_lane_23[3-i]} ^ i_lane[7-i];
+                                        o_lane[i] <= prbs32(tx_lfsr[3-i]) ^ i_lane[7-i];
                                 else
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[i] <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[i];
+                                        o_lane[i] <= prbs32(tx_lfsr[i]) ^ i_lane[i];
                             end
 
                             DEGRADE_LANES_4_TO_7: begin
                                 if (lane_reversal_enabled)
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {tx_lfsr[3-i], o_lane_23[3-i]} ^ i_lane[3-i];
+                                        o_lane[4+i] <= prbs32(tx_lfsr[3-i]) ^ i_lane[3-i];
                                 else
                                     for (i = 0; i < 4; i = i + 1)
-                                        o_lane[4+i] <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[4+i];
+                                        o_lane[4+i] <= prbs32(tx_lfsr[i]) ^ i_lane[4+i];
                             end
 
                             DEGRADE_LANES_0_TO_15: begin
                                 if (lane_reversal_enabled) begin
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= {tx_lfsr[7-i], o_lane_23[7-i]} ^ i_lane[15-i];
+                                        o_lane[i]   <= prbs32(tx_lfsr[7-i]) ^ i_lane[15-i];
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[7-i], o_lane_23[7-i]} ^ i_lane[7-i];
+                                        o_lane[8+i] <= prbs32(tx_lfsr[7-i]) ^ i_lane[7-i];
                                 end else begin
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[i]   <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[i];
+                                        o_lane[i]   <= prbs32(tx_lfsr[i]) ^ i_lane[i];
                                     for (i = 0; i < 8; i = i + 1)
-                                        o_lane[8+i] <= {tx_lfsr[i], o_lane_23[i]} ^ i_lane[8+i];
+                                        o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
                                 end
                             end
 
@@ -538,7 +515,6 @@ module LFSR_TX #(
 
                     end else begin
                         // Scrambling disabled — no frame output
-                        o_valid_frame_en <= 0;
                         o_ser_en_lfsr <= 0;
                     end
                 end

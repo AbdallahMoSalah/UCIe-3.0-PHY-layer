@@ -11,15 +11,15 @@
 # =============================================================================
 
 # ---- TX datapath (mirrors TX_TOP.f) -----------------------------------------
-rtl/MainBand/tx/unit_mapper.sv
-rtl/MainBand/tx/unit_clkdiv.sv
-rtl/MainBand/tx/unit_clk_gate.sv
-rtl/MainBand/tx/unit_mb_pll.sv
-rtl/MainBand/tx/unit_lfsr_tx.sv
-rtl/MainBand/tx/unit_valid_tx.sv
-rtl/MainBand/tx/unit_mb_serializer.sv
-rtl/MainBand/tx/unit_clk_pattern_gen_tx.sv
-rtl/MainBand/tx/unused/unit_tx_top.sv
+rtl/MainBand_RD/tx/unit_mapper.sv
+rtl/MainBand_RD/tx/unit_clkdiv.sv
+rtl/MainBand_RD/tx/unit_clk_gate.sv
+rtl/MainBand_RD/tx/unit_mb_pll.sv
+rtl/MainBand_RD/tx/unit_lfsr_tx.sv
+rtl/MainBand_RD/tx/unit_valid_tx.sv
+rtl/MainBand_RD/tx/unit_mb_serializer.sv
+rtl/MainBand_RD/tx/unit_clk_pattern_gen_tx.sv
+rtl/MainBand_RD/tx/unused/unit_tx_top.sv
 
 # ---- Common async FIFO (unit_data_deserializer dependency) -------------------
 rtl/common/FIFO/fifo_mem.sv
@@ -32,20 +32,20 @@ rtl/common/FIFO/fifo.sv
 rtl/common/PULSE_GEN.v
 
 # ---- RX deserializer chain (Solution 3) -------------------------------------
-rtl/MainBand/rx/unit_valid_deserializer.sv
-rtl/MainBand/rx/unit_valid_frame_detector.sv
-rtl/MainBand/rx/unit_data_deserializer.sv
+rtl/MainBand_RD/rx/unit_valid_deserializer.sv
+rtl/MainBand_RD/rx/unit_valid_frame_detector.sv
+rtl/MainBand_RD/rx/unit_data_deserializer.sv
 
 # ---- RX descramble + demap + comparators + clk detect -----------------------
-rtl/MainBand/rx/unit_lfsr_rx.sv
-rtl/MainBand/rx/unit_demapper.sv
-rtl/MainBand/rx/unit_mb_pattern_comparator.sv
-rtl/MainBand/rx/unit_valid_comparator.sv
-rtl/MainBand/rx/unit_clk_pattern_detector_rx.sv
+rtl/MainBand_RD/rx/unit_lfsr_rx.sv
+rtl/MainBand_RD/rx/unit_demapper.sv
+rtl/MainBand_RD/rx/unit_mb_pattern_comparator.sv
+rtl/MainBand_RD/rx/unit_valid_comparator.sv
+rtl/MainBand_RD/rx/unit_clk_pattern_detector_rx.sv
 
 # ---- RX top -----------------------------------------------------------------
-rtl/MainBand/rx/unit_mb_rx_top.sv
+rtl/MainBand_RD/rx/unit_mb_rx_top.sv
 
 # ---- Full MB die (TX + RX) + two-die back-to-back testbench ------------------
-"rtl/MainBand/Integration steps/unit_mb_die.sv"
-"rtl/MainBand/Integration steps/unit_mb_die2die_tb.sv"
+"rtl/MainBand_RD/Integration steps/unit_mb_die.sv"
+"rtl/MainBand_RD/Integration steps/unit_mb_die2die_tb.sv"
