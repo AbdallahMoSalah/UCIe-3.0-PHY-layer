@@ -265,19 +265,26 @@ module ltsm_tb_attachments #(
     // =========================================================================
     // 2. Instantiate unit_negotiated_lanes
     // =========================================================================
+    // is_x16_module: internal wire (not exposed via intf, only used here for
+    // driving wrapper_REPAIR directly in unit-level tests where needed).
+    wire is_x16_module_w;
+
     unit_negotiated_lanes u_negotiated_lanes (
-        .mb_rx_data_lane_mask      (intf.mb_rx_data_lane_mask),
-        .mb_tx_data_lane_mask      (intf.mb_tx_data_lane_mask),
-        .active_rx_lanes           (intf.active_rx_lanes),
-        .active_tx_lanes           (intf.active_tx_lanes),
-        .success_tx_lanes          (intf.linkspeed_success_lanes),
-        .rf_cap_SPMW               (intf.rf_cap_SPMW),
-        .rf_ctrl_target_link_width (intf.rf_ctrl_target_link_width),
-        .param_UCIe_S_x8           (intf.param_UCIe_S_x8),
-        .degraded_lane_map_code    (intf.degraded_lane_map_code),
-        .degrade_feasible          (intf.degrade_feasible),
-        .is_x16_module             (intf.is_x16_module)
+        .mb_rx_data_lane_mask       (intf.mb_rx_data_lane_mask),
+        .mb_tx_data_lane_mask       (intf.mb_tx_data_lane_mask),
+        .active_rx_lanes            (intf.active_rx_lanes),
+        .active_tx_lanes            (intf.active_tx_lanes),
+        // Updated port names: success_lanes split into TX bitmask + RX encoding
+        .success_tx_lanes           (intf.linkspeed_success_lanes),
+        // .success_rx_lanes_encoding  (intf.mb_rx_data_lane_mask),  // RX enc = current RX mask
+        .rf_cap_SPMW                (intf.rf_cap_SPMW),
+        .rf_ctrl_target_link_width  (intf.rf_ctrl_target_link_width),
+        .param_UCIe_S_x8            (intf.param_UCIe_S_x8),
+        .degraded_lane_map_code     (intf.degraded_lane_map_code),
+        .degrade_feasible           (intf.degrade_feasible),
+        .is_x16_module              (is_x16_module_w)
     );
+
 
     // =========================================================================
     // 3. Instantiate unit_D2C_sweep

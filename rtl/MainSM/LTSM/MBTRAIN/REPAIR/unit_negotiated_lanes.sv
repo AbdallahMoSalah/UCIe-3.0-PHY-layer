@@ -59,9 +59,8 @@ module unit_negotiated_lanes (
         // Inputs: Shared Lane Map Evaluation                                       //
         // Used by LINKSPEED and REPAIR substates to compute width degradation.     //
         //==========================================================================//
-        input  logic [15:0] success_tx_lanes,             // A 16-bit vector where each bit represents the status of the corresponding physical data lane.
+        input  logic [15:0] success_tx_lanes,          // A 16-bit vector where each bit represents the status of the corresponding physical TX data lane.
 
-        // 1 = Lane passed successfully; 0 = Lane failed or is unused.
         input  logic        rf_cap_SPMW,               // Standard Package Module Width (SPMW) register bit.
         // 1 = Module is limited to x8 width capability; 0 = Module supports full x16 width.
         input  logic [3:0]  rf_ctrl_target_link_width, // Register control specifying the target link width configuration.
@@ -82,7 +81,7 @@ module unit_negotiated_lanes (
         // 3'b101: Logical Lanes 4 to 7 (x4 mid-low active)
         output logic        degrade_feasible,          // 1 = A valid degraded lane map configuration was successfully resolved (code != 3'b000)
         output logic        is_x16_module              // 1 = X16 standard package (all-functional code = 3'b011)
-        // 0 = X8  standard package or forced X8 mode (all-functional code = 3'b001)
+                                                       // 0 = X8  standard package or forced X8 mode (all-functional code = 3'b001)
     );
 
     // 3'b000: None (Degradation not possible/failed)
@@ -132,8 +131,10 @@ module unit_negotiated_lanes (
     // Combinational Lane Map Degradation Evaluation
     // Shared between LINKSPEED and REPAIR substates.
     // =========================================================================
+    wire is_x8_module;
+
     always_comb begin : DEGRADE_EVAL
-        if ((rf_cap_SPMW == 1'b0 && rf_ctrl_target_link_width == 4'h2) && param_UCIe_S_x8 == 1'b0) begin
+        if (is_x16_module) begin
             // x16 standard package module
             if (success_tx_lanes == 16'hFFFF)
                 degraded_lane_map_code = 3'b011; // Logical Lanes 0 to 15
@@ -143,7 +144,7 @@ module unit_negotiated_lanes (
                 degraded_lane_map_code = 3'b010; // Logical Lanes 8 to 15
             else
                 degraded_lane_map_code = 3'b000; // degrade not possible
-        end else if (rf_ctrl_target_link_width == 4'h1) begin
+        end else if (is_x8_module) begin
             // x8 standard package module OR x8 Mode
             if (success_tx_lanes[7:0] == 8'hFF)
                 degraded_lane_map_code = 3'b001; // Logical Lanes 0 to 7
@@ -165,10 +166,8 @@ module unit_negotiated_lanes (
     //     X16 module → full_width_code = 3'b011
     //     X8  module → full_width_code = 3'b001
     assign is_x16_module = (rf_cap_SPMW == 1'b0) && (rf_ctrl_target_link_width == 4'h2) && (param_UCIe_S_x8 == 1'b0);
-
+    assign is_x8_module  = rf_ctrl_target_link_width == 4'h1;
 endmodule
 // =============================================================================
 // END unit_negotiated_lanes
 // =============================================================================
-
-
