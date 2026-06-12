@@ -234,7 +234,6 @@ module unit_tx_top #(
         .i_state                (i_lfsr_state),
         .i_scramble_en          (mapper_scramble_en),
         .i_width_deg_lfsr       (i_width_deg),
-        .i_reversal_en          (i_reversal_en),
 
         .i_lane                 (mapper_lane),
         .o_lane                 (lfsr_lane),
@@ -260,6 +259,7 @@ module unit_tx_top #(
     // =========================================================================
     // 4.  Data-lane serializers  (unsued MB_SERIALIZER, one per lane, 16 total)
     // =========================================================================
+    wire [NUM_LANES-1:0] TD_P_int;
     genvar lane_idx;
     generate
         for (lane_idx = 0; lane_idx < NUM_LANES; lane_idx = lane_idx + 1) begin : gen_data_ser
@@ -271,10 +271,21 @@ module unit_tx_top #(
                 .i_rst_n (i_rst_n),
                 .Ser_en  (lfsr_ser_en),
                 .in_data (lfsr_lane[lane_idx]),
-                .SER_out (TD_P[lane_idx])
+                .SER_out (TD_P_int[lane_idx])
             );
         end
     endgenerate
+
+    // =========================================================================
+    // 4b. TX Reversal module (combines with channel reversal to arrive straight)
+    // =========================================================================
+    unit_mb_tx_reversal #(
+        .NUM_LANES (NUM_LANES)
+    ) u_tx_reversal (
+        .i_reversal_en (i_reversal_en),
+        .i_TD_P        (TD_P_int),
+        .o_TD_P        (TD_P)
+    );
 
     // =========================================================================
     // 5.  Valid-lane serializer  (unsued MB_SERIALIZER, TVLD lane)

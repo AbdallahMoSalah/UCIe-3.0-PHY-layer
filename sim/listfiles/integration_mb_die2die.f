@@ -20,6 +20,7 @@ rtl/MainBand_RD/tx/unit_valid_tx.sv
 rtl/MainBand_RD/tx/unit_mb_serializer.sv
 rtl/MainBand_RD/tx/unit_clk_pattern_gen_tx.sv
 rtl/MainBand_RD/tx/unused/unit_tx_top.sv
+rtl/MainBand_RD/tx/unit_mb_tx_reversal.sv
 
 # ---- Common async FIFO (unit_data_deserializer dependency) -------------------
 rtl/common/FIFO/fifo_mem.sv
