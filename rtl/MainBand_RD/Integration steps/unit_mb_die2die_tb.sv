@@ -105,6 +105,18 @@ module unit_mb_die2die_tb;
     logic                  o_valid_frame_error1;
     logic                  o_clk_p_pass1, o_clk_n_pass1, o_track_pass1;
 
+    logic                  reverse_lanes = 1'b0;
+    logic                  tb_reversal_en = 1'b0;
+    logic [NUM_LANES-1:0]  d1_to_d0_data;
+    logic [NUM_LANES-1:0]  d0_to_d1_data;
+
+    always_comb begin
+        for (int i = 0; i < NUM_LANES; i = i + 1) begin
+            d1_to_d0_data[i] = reverse_lanes ? d1_TD_P[NUM_LANES - 1 - i] : d1_TD_P[i];
+            d0_to_d1_data[i] = reverse_lanes ? d0_TD_P[NUM_LANES - 1 - i] : d0_TD_P[i];
+        end
+    end
+
     // ============================================================== die 0
     unit_mb_die #(
         .DATA_WIDTH(DATA_WIDTH), .NUM_LANES(NUM_LANES), .N_BYTES(N_BYTES),
@@ -124,7 +136,7 @@ module unit_mb_die2die_tb;
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
         .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
         // RX in <- die1 TX
-        .i_RD_P(d1_TD_P), .i_RVLD_P(d1_TVLD_P), .i_RCKP_P(d1_TCKP_P), .i_RCKN_P(d1_TCKN_P), .i_RTRK_P(d1_TTRK_P),
+        .i_RD_P(d1_to_d0_data), .i_RVLD_P(d1_TVLD_P), .i_RCKP_P(d1_TCKP_P), .i_RCKN_P(d1_TCKN_P), .i_RTRK_P(d1_TTRK_P),
         // TX out -> die1 RX
         .o_TD_P(d0_TD_P), .o_TVLD_P(d0_TVLD_P), .o_TCKP_P(d0_TCKP_P), .o_TCKN_P(d0_TCKN_P), .o_TTRK_P(d0_TTRK_P),
         .lclk(lclk0), .o_pll_clk(o_pll_clk0),
@@ -155,7 +167,7 @@ module unit_mb_die2die_tb;
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
         .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
         // RX in <- die0 TX
-        .i_RD_P(d0_TD_P), .i_RVLD_P(d0_TVLD_P), .i_RCKP_P(d0_TCKP_P), .i_RCKN_P(d0_TCKN_P), .i_RTRK_P(d0_TTRK_P),
+        .i_RD_P(d0_to_d1_data), .i_RVLD_P(d0_TVLD_P), .i_RCKP_P(d0_TCKP_P), .i_RCKN_P(d0_TCKN_P), .i_RTRK_P(d0_TTRK_P),
         // TX out -> die0 RX
         .o_TD_P(d1_TD_P), .o_TVLD_P(d1_TVLD_P), .o_TCKP_P(d1_TCKP_P), .o_TCKN_P(d1_TCKN_P), .o_TTRK_P(d1_TTRK_P),
         .lclk(lclk1), .o_pll_clk(o_pll_clk1),
@@ -190,7 +202,7 @@ module unit_mb_die2die_tb;
     task automatic link_reset(input bit embedded_clk);
         @(negedge o_pll_clk0); i_rst_n = 0;
         lp_data0='0; lp_data1='0; lp_irdy=0; lp_valid=0; i_mapper_en=0;
-        i_lfsr_state=LFSR_IDLE; i_reversal_en=0; i_valid_pattern_en=0;
+        i_lfsr_state=LFSR_IDLE; i_reversal_en=tb_reversal_en; i_valid_pattern_en=0;
         i_clk_pattern_en=0; i_clk_detector_en=0; i_clk_embedded_en=embedded_clk;
         i_rx_mode=RXMODE_DATA;
         i_pcmp_enable=0; i_pcmp_mode=0; i_pcmp_pattern_mode=0; i_pcmp_clear=0;
@@ -835,6 +847,8 @@ module unit_mb_die2die_tb;
         i_pll_en = 1; i_pll_speed_sel = 2'b00; lclk_g = 1;
         i_rst_n = 1; i_clk_embedded_en = 0;
         scenarios_pass = 0; scenarios_fail = 0;
+        reverse_lanes = 1'b0;
+        tb_reversal_en = 1'b0;
 
         $display("\n============ MB TWO-DIE (die0 <-> die1) TRAINING SEQUENCE ============");
 
@@ -855,6 +869,41 @@ module unit_mb_die2die_tb;
         expect_active("fault: dead clock d1->d0", FAULT_CLK,   1'b0);
         expect_active("fault: bad valid d1->d0",  FAULT_VALID, 1'b0);
         expect_active("fault: stuck data d1->d0", FAULT_DATA,  1'b0);
+
+        // Scenario 6: Reversal Test - Happy Scenario with reversed lanes but reversal disabled (Should FAIL)
+        begin
+            bit happy_ok;
+            $display("\n[REVERSAL TEST] Running Happy Scenario with REVERSED LANES but reversal_en=0 (EXPECTED TO FAIL)");
+            reverse_lanes = 1'b1;
+            tb_reversal_en = 1'b0;
+            run_fulltraining_happy_scenario(happy_ok);
+            if (!happy_ok) begin
+                scenarios_pass++;
+                $display("  [SCENARIO PASS] happy_scenario_reversed_disabled failed as expected.");
+            end else begin
+                scenarios_fail++;
+                $display("  [SCENARIO FAIL] happy_scenario_reversed_disabled passed unexpectedly!");
+            end
+        end
+
+        // Scenario 7: Reversal Test - Happy Scenario with reversed lanes and reversal enabled (Should PASS)
+        begin
+            bit happy_ok;
+            $display("\n[REVERSAL TEST] Running Happy Scenario with REVERSED LANES and reversal_en=1 (EXPECTED TO PASS)");
+            reverse_lanes = 1'b1;
+            tb_reversal_en = 1'b1;
+            run_fulltraining_happy_scenario(happy_ok);
+            if (happy_ok) begin
+                scenarios_pass++;
+                $display("  [SCENARIO PASS] happy_scenario_reversed_enabled passed successfully.");
+            end else begin
+                scenarios_fail++;
+                $display("  [SCENARIO FAIL] happy_scenario_reversed_enabled FAILED!");
+            end
+            // Reset to default
+            reverse_lanes = 1'b0;
+            tb_reversal_en = 1'b0;
+        end
 
         $display("\n=========================================================");
         $display("  unit_mb_die2die : %0d scenarios passed, %0d failed", scenarios_pass, scenarios_fail);
