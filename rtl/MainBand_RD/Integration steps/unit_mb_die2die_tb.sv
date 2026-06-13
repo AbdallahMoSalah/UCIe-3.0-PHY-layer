@@ -77,6 +77,7 @@ module unit_mb_die2die_tb;
     logic                  i_vcmp_enable, i_vcmp_mode, i_vcmp_clear;
     logic [15:0]           i_vcmp_thr;
     logic                  i_clk_detector_en;
+    logic                  i_deser_en;
 
     // per-die protocol input
     logic [FLITW-1:0]      lp_data0, lp_data1;
@@ -162,7 +163,7 @@ module unit_mb_die2die_tb;
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
         .i_pcmp_clear(i_pcmp_clear),
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
-        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
+        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en), .i_deser_en(i_deser_en),
         // RX in <- die1 TX
         .i_RD_P(d1_to_d0_data), .i_RVLD_P(d1_TVLD_P), .i_RCKP_P(d1_TCKP_P), .i_RCKN_P(d1_TCKN_P), .i_RTRK_P(d1_TTRK_P),
         // TX out -> die1 RX
@@ -193,7 +194,7 @@ module unit_mb_die2die_tb;
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
         .i_pcmp_clear(i_pcmp_clear),
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
-        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
+        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en), .i_deser_en(i_deser_en),
         // RX in <- die0 TX
         .i_RD_P(d0_to_d1_data), .i_RVLD_P(d0_TVLD_P), .i_RCKP_P(d0_TCKP_P), .i_RCKN_P(d0_TCKN_P), .i_RTRK_P(d0_TTRK_P),
         // TX out -> die0 RX
@@ -229,6 +230,7 @@ module unit_mb_die2die_tb;
     // -------------------------------------------------------------------------
     task automatic link_reset(input bit embedded_clk);
         @(negedge o_pll_clk0); i_rst_n = 0;
+        i_deser_en = 0;
         lp_data0='0; lp_data1='0; lp_irdy=0; lp_valid=0; i_mapper_en=0;
         i_lfsr_state=LFSR_IDLE; i_reversal_en=tb_reversal_en; i_valid_pattern_en=0;
         i_clk_pattern_en=0; i_clk_detector_en=0; i_clk_embedded_en=embedded_clk;
@@ -240,6 +242,7 @@ module unit_mb_die2die_tb;
         wait_pll(8);
         @(negedge o_pll_clk0); i_rst_n = 1;
         wait_pll(20); wait_mb(4);
+        @(negedge lclk0); i_deser_en = 1;
     endtask
 
     task automatic rx_reset();
@@ -1134,7 +1137,7 @@ module unit_mb_die2die_tb;
         die1_width_deg_tx = WIDTH_DEG_ALL;
         die1_width_deg_rx = WIDTH_DEG_ALL;
         i_pll_en = 1; i_pll_speed_sel = 2'b00; lclk_g = 1;
-        i_rst_n = 1; i_clk_embedded_en = 0;
+        i_rst_n = 1; i_clk_embedded_en = 0; i_deser_en = 0;
         scenarios_pass = 0; scenarios_fail = 0;
         reverse_lanes = 1'b0;
         tb_reversal_en = 1'b0;

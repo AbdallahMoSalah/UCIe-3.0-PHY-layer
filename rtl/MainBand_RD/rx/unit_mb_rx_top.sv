@@ -85,6 +85,7 @@ module unit_mb_rx_top #(
 
     // ----------------------------------------------- clock detector control
     input  logic                    i_clk_detector_en,
+    input  logic                    i_deser_en,
 
     // ----------------------------------------------- recovered protocol bus
     output logic [8*N_BYTES-1:0]    o_out_data,
@@ -149,6 +150,7 @@ module unit_mb_rx_top #(
         .pll_clk     (sample_clk),
         .mb_clk      (i_mb_clk),
         .i_rst_n     (i_rst_n),
+        .i_en        (i_deser_en),
         .ser_data_in (i_RVLD_P),
         .o_shift_reg (valid_shift_reg),
         .o_count_16  (valid_count_16),
@@ -182,6 +184,7 @@ module unit_mb_rx_top #(
                 .mb_clk              (i_mb_clk),
                 .pll_clk             (sample_clk),
                 .i_rst_n             (i_rst_n),
+                .i_en                (i_deser_en),
                 .ser_data_in         (i_RD_P[gi]),
                 .i_valid_frame_pulse (o_valid_frame_pulse),
                 .o_par_data          (o_par_data[gi]),

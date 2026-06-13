@@ -10,6 +10,7 @@ module unit_valid_deserializer_s3 #(
     input  wire                   pll_clk,
     input  wire                   mb_clk,
     input  wire                   i_rst_n,
+    input  wire                   i_en,
     input  wire                   ser_data_in,
     input  wire                   i_valid_pulse,
 
@@ -38,7 +39,7 @@ wire                  rempty;
 always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         r_data_pos <= 1'b0;
-    end else begin
+    end else if (i_en) begin
         r_data_pos <= ser_data_in;
     end
 end
@@ -49,6 +50,11 @@ always @(negedge pll_clk or negedge i_rst_n) begin
         shift_reg        <= {DATA_WIDTH{1'b0}};
         prev_ser_data_in <= 1'b0;
         o_state          <= 1'b0; // IDLE
+        o_count          <= 4'd0;
+    end else if (!i_en) begin
+        shift_reg        <= {DATA_WIDTH{1'b0}};
+        prev_ser_data_in <= 1'b0;
+        o_state          <= 1'b0;
         o_count          <= 4'd0;
     end else begin
         // Shift register is always free-running
@@ -89,7 +95,7 @@ fifo #(
 ) u_fifo (
     .W_CLK   (~pll_clk),
     .WRST_N  (i_rst_n),
-    .WINC    (i_valid_pulse),
+    .WINC    (i_valid_pulse && i_en),
     .WR_DATA (shift_reg),
     .WFULL   (wfull),
     .WREADY  (wready),
@@ -108,7 +114,7 @@ always @(posedge mb_clk or negedge i_rst_n) begin
         o_valid_frame_vld <= 1'b0;
     end else begin
         o_valid_frame_vld <= 1'b0;
-        if (rvalid) begin
+        if (i_en && rvalid) begin
             o_valid_frame_data   <= fifo_rd_data;
             o_valid_frame_vld <= 1'b1;
         end
