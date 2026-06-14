@@ -76,8 +76,10 @@ module unit_SPEEDIDLE_local (
     assign phy_negotiated_speed = internal_phy_negotiated_speed;
 
     // Check if degrade is impossible (already at min speed 4 GT/s)
-    wire speed_degrade_error = (state_n[1] == LOG_MBTRAIN_LINKSPEED || state_n[1] == LOG_PHYRETRAIN) &&
-        (internal_phy_negotiated_speed == 3'b000);
+    wire speed_degrade_error =
+        (!(state_n_1 == LOG_MBTRAIN_DATAVREF)) &&
+        (!(state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2) &&
+            (!(state_n_1 == LOG_MBTRAIN_LINKSPEED || state_n_1 == LOG_PHYRETRAIN) && (internal_phy_negotiated_speed != 3'b000)));
 
     // FSM State and Registers
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
@@ -109,18 +111,19 @@ module unit_SPEEDIDLE_local (
     always_comb begin : NEXT_STATE_LOGIC
         next_state = current_state;
 
-        // Watchdog timeout or partner error request
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = SPEEDIDLE_LOCAL_TO_TE;
-        end else begin
+        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) || (speed_degrade_error & speedidle_en)) begin
+            next_state = SPEEDIDLE_LCL_TO_TRAINERROR;
+        end
+        else if (~speedidle_en) begin
+            next_state = SPEEDIDLE_LCL_IDLE;
+        end
+        else begin
             case (current_state)
-                SPEEDIDLE_LOCAL_IDLE: begin
-                    if (speedidle_en) begin
-                        if (speed_degrade_error) begin
-                            next_state = SPEEDIDLE_LOCAL_TO_TE;
-                        end else begin
-                            next_state = SPEEDIDLE_LOCAL_CONFIG;
-                        end
+                SPEEDIDLE_LCL_IDLE: begin
+                    if (speed_degrade_error) begin
+                        next_state = SPEEDIDLE_LCL_TO_TRAINERROR;
+                    end else begin
+                        next_state = SPEEDIDLE_LCL_CONFIG;
                     end
                 end
 

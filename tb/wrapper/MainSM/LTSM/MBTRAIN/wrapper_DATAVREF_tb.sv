@@ -89,8 +89,7 @@ module wrapper_DATAVREF_tb;
     // =========================================================================
     // Control / Simulation Configuration Registers
     // =========================================================================
-    logic is_ltsm_out_of_reset = 1;
-    logic timeout_8ms_occured = 0;
+    logic soft_rst_n = 1;
 
     // Eye Simulation parameters (Per-lane)
     integer      dut_eye_start [0:15];
@@ -177,41 +176,49 @@ module wrapper_DATAVREF_tb;
     // =========================================================================
     // Dynamic Vref Sweeping Eye Simulation (Per-lane)
     // =========================================================================
-    always @(posedge lclk) begin
-        if (dut_if.sweep_en) begin
-            automatic logic [6:0] code = dut_if.swept_code;
-            for (int l = 0; l < 16; l = l + 1) begin
-                if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
-                    if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
-                        dut_if.tb_force_perlane_pass[l] <= 1'b0; // Mock fail (hole)
-                    end else begin
-                        dut_if.tb_force_perlane_pass[l] <= 1'b1;
-                    end
-                end else begin
-                    dut_if.tb_force_perlane_pass[l] <= 1'b0;
-                end
-            end
-        end else begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
             dut_if.tb_force_perlane_pass <= 16'hFFFF;
+        end else begin
+            if (dut_if.sweep_en) begin
+                automatic logic [6:0] code = dut_if.swept_code;
+                for (int l = 0; l < 16; l = l + 1) begin
+                    if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
+                        if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
+                            dut_if.tb_force_perlane_pass[l] <= 1'b0; // Mock fail (hole)
+                        end else begin
+                            dut_if.tb_force_perlane_pass[l] <= 1'b1;
+                        end
+                    end else begin
+                        dut_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end
+                end
+            end else begin
+                dut_if.tb_force_perlane_pass <= 16'hFFFF;
+            end
         end
     end
 
-    always @(posedge lclk) begin
-        if (ptn_if.sweep_en) begin
-            automatic logic [6:0] code = ptn_if.swept_code;
-            for (int l = 0; l < 16; l = l + 1) begin
-                if (code >= ptn_eye_start[l] && code <= ptn_eye_end[l]) begin
-                    if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start[l] + (ptn_eye_end[l] - ptn_eye_start[l])/4)) begin
-                        ptn_if.tb_force_perlane_pass[l] <= 1'b0; // Mock fail (hole)
-                    end else begin
-                        ptn_if.tb_force_perlane_pass[l] <= 1'b1;
-                    end
-                end else begin
-                    ptn_if.tb_force_perlane_pass[l] <= 1'b0;
-                end
-            end
-        end else begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
             ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+        end else begin
+            if (ptn_if.sweep_en) begin
+                automatic logic [6:0] code = ptn_if.swept_code;
+                for (int l = 0; l < 16; l = l + 1) begin
+                    if (code >= ptn_eye_start[l] && code <= ptn_eye_end[l]) begin
+                        if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start[l] + (ptn_eye_end[l] - ptn_eye_start[l])/4)) begin
+                            ptn_if.tb_force_perlane_pass[l] <= 1'b0; // Mock fail (hole)
+                        end else begin
+                            ptn_if.tb_force_perlane_pass[l] <= 1'b1;
+                        end
+                    end else begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end
+                end
+            end else begin
+                ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+            end
         end
     end
 
@@ -219,13 +226,11 @@ module wrapper_DATAVREF_tb;
     // Die A Instantiation (DUT)
     // =========================================================================
     logic        dut_local_datavref_en = 0;
-    logic        dut_local_datavref_done;
-    logic        dut_local_trainerror_req;
     logic        dut_local_update_lane_mask;
-
     logic        dut_partner_datavref_en = 0;
-    logic        dut_partner_datavref_done;
-    logic        dut_partner_trainerror_req;
+
+    logic        dut_datavref_done;
+    logic        dut_trainerror_req;
 
     wrapper_DATAVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
@@ -233,15 +238,13 @@ module wrapper_DATAVREF_tb;
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .soft_rst_n                     (soft_rst_n),
         .local_datavref_en              (dut_local_datavref_en),
-        .local_datavref_done            (dut_local_datavref_done),
-        .local_trainerror_req           (dut_local_trainerror_req),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .partner_datavref_en            (dut_partner_datavref_en),
-        .partner_datavref_done          (dut_partner_datavref_done),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
+        .datavref_done                  (dut_datavref_done),
+        .trainerror_req                 (dut_trainerror_req),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -274,13 +277,11 @@ module wrapper_DATAVREF_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_datavref_en = 0;
-    logic        ptn_local_datavref_done;
-    logic        ptn_local_trainerror_req;
     logic        ptn_local_update_lane_mask;
-
     logic        ptn_partner_datavref_en = 0;
-    logic        ptn_partner_datavref_done;
-    logic        ptn_partner_trainerror_req;
+
+    logic        ptn_datavref_done;
+    logic        ptn_trainerror_req;
 
     wrapper_DATAVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
@@ -288,15 +289,13 @@ module wrapper_DATAVREF_tb;
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .soft_rst_n                     (soft_rst_n),
         .local_datavref_en              (ptn_local_datavref_en),
-        .local_datavref_done            (ptn_local_datavref_done),
-        .local_trainerror_req           (ptn_local_trainerror_req),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .partner_datavref_en            (ptn_partner_datavref_en),
-        .partner_datavref_done          (ptn_partner_datavref_done),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
+        .datavref_done                  (ptn_datavref_done),
+        .trainerror_req                 (ptn_trainerror_req),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -341,13 +340,13 @@ module wrapper_DATAVREF_tb;
     } local_state_t;
 
     typedef enum reg [3:0] {
-        DATAVREF_PTN_IDLE            = 4'd0,
-        DATAVREF_PTN_WAIT_START_REQ  = 4'd1,
-        DATAVREF_PTN_SEND_START_RESP = 4'd2,
-        DATAVREF_PTN_WAIT_END_REQ    = 4'd3,
-        DATAVREF_PTN_SEND_END_RESP   = 4'd4,
-        DATAVREF_PTN_TO_SPEEDIDLE    = 4'd5,
-        DATAVREF_PTN_TO_TRAINERROR   = 4'd6
+        DATAVREF_PTR_IDLE            = 4'd0,
+        DATAVREF_PTR_WAIT_START_REQ  = 4'd1,
+        DATAVREF_PTR_SEND_START_RESP = 4'd2,
+        DATAVREF_PTR_WAIT_END_REQ    = 4'd3,
+        DATAVREF_PTR_SEND_END_RESP   = 4'd4,
+        DATAVREF_PTR_TO_SPEEDIDLE    = 4'd5,
+        DATAVREF_PTR_TO_TRAINERROR   = 4'd6
     } partner_state_t;
 
     local_state_t dut_local_state, prev_dut_local_state;
@@ -479,7 +478,7 @@ module wrapper_DATAVREF_tb;
 
         fork
             begin
-                wait (u_dut.local_datavref_done || u_dut.local_trainerror_req);
+                wait (dut_datavref_done || dut_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -492,8 +491,8 @@ module wrapper_DATAVREF_tb;
 
         // Verify FSM exits and calibrated midpoint codes
         if (expect_speedidle_dut) begin
-            if (!u_dut.local_datavref_done || u_dut.local_trainerror_req) begin
-                $display("# ERROR: Expected successful SPEEDIDLE exit, but got local_done=%b, trainerror=%b", u_dut.local_datavref_done, u_dut.local_trainerror_req);
+            if (!dut_datavref_done || dut_trainerror_req) begin
+                $display("# ERROR: Expected successful SPEEDIDLE exit, but got datavref_done=%b, trainerror=%b", dut_datavref_done, dut_trainerror_req);
                 fail_count++; $stop;
             end
 
@@ -513,8 +512,8 @@ module wrapper_DATAVREF_tb;
             end
         end
 
-        if (expect_te_dut && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_te_dut && !dut_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
             fail_count++; $stop;
         end
 
@@ -613,8 +612,7 @@ module wrapper_DATAVREF_tb;
         assume_holes_after_quarter_eye_start = 0;
         dut_local_datavref_en = 1; ptn_local_datavref_en = 1;
         dut_partner_datavref_en = 1; ptn_partner_datavref_en = 1;
-        @(negedge u_dut.local_datavref_done);  // Wait for FSM to leave IDLE
-        wait (u_dut.local_datavref_done);       // Then wait for sweep+handshake to complete
+        wait (dut_datavref_done);       // Then wait for sweep+handshake to complete
         #1000;
         dut_local_datavref_en = 0; ptn_local_datavref_en = 0;
         dut_partner_datavref_en = 0; ptn_partner_datavref_en = 0;
@@ -626,8 +624,7 @@ module wrapper_DATAVREF_tb;
         end
         dut_local_datavref_en = 1; ptn_local_datavref_en = 1;
         dut_partner_datavref_en = 1; ptn_partner_datavref_en = 1;
-        @(negedge u_dut.local_datavref_done);  // Wait for FSM to leave IDLE
-        wait (u_dut.local_datavref_done);       // Then wait for sweep+handshake to complete
+        wait (dut_datavref_done);       // Then wait for sweep+handshake to complete
         #1000;
         for (int l = 0; l < 16; l = l + 1) begin
             if (u_dut.phy_rx_datavref_ctrl[l] !== 7'd9) begin
@@ -699,7 +696,7 @@ module wrapper_DATAVREF_tb;
 
             fork
                 begin
-                    wait (u_dut.local_datavref_done || u_dut.local_trainerror_req);
+                    wait (dut_datavref_done || dut_trainerror_req);
                     #(LCLK_PERIOD * 10);
                 end
                 begin
@@ -711,7 +708,7 @@ module wrapper_DATAVREF_tb;
             disable fork;
 
             // Verification
-            if (u_dut.local_trainerror_req) begin
+            if (dut_trainerror_req) begin
                 $display("# ERROR: Unexpected TRAINERROR in randomized test %0d!", i);
                 $stop;
             end

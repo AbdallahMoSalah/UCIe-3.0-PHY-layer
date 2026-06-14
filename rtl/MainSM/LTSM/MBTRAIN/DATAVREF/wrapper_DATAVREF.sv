@@ -20,22 +20,18 @@ module wrapper_DATAVREF #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,           // 0: Soft reset active; 1: Normal operation
-        input  logic        timeout_8ms_occured,            // 0: No timeout; 1: 8ms watchdog timeout occurred
+        input  logic        soft_rst_n,                      // 0: Soft reset active; 1: Normal operation
 
         // Local FSM Control:
         input  logic        local_datavref_en,               // 0: Disable; 1: Enable Local DATAVREF sequence
-        output logic        local_datavref_done,             // 0: In progress; 1: Sub-state completed
-        output logic        local_trainerror_req,           // 0: Normal; 1: Request TRAINERROR entry
         output logic        local_update_lane_mask,         // Pulse: update negotiated lane mask
 
         // Partner FSM Control:
         input  logic        partner_datavref_en,             // 0: Disable; 1: Enable Partner DATAVREF sequence
-        output logic        partner_datavref_done,           // 0: In progress; 1: Sub-state completed
-        output logic        partner_trainerror_req,         // 0: Normal; 1: Request TRAINERROR entry
 
-        // Timer Control (Combined OR logic for watchdog):
-        output logic        timeout_timer_en,               // 0: Disable 8ms timer; 1: Enable (OR'ed)
+        // Combined outputs
+        output logic        datavref_done,                  // 0: In progress; 1: Completed
+        output logic        trainerror_req,                  // 0: Normal; 1: Request TRAINERROR entry
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -82,8 +78,10 @@ module wrapper_DATAVREF #(
     // =========================================================================
     // Internal Intermediate Wires
     // =========================================================================
-    wire        local_timeout_timer_en_wire  ;
-    wire        partner_timeout_timer_en_wire;
+    wire        local_datavref_done_wire;
+    wire        partner_datavref_done_wire;
+    wire        local_trainerror_req_wire;
+    wire        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -129,13 +127,10 @@ module wrapper_DATAVREF #(
         .rst_n                  (rst_n                        ),
         // LTSM Control Signals
         .datavref_en            (local_datavref_en            ),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset         ),
-        .timeout_8ms_occured    (timeout_8ms_occured          ),
-        .datavref_done          (local_datavref_done          ),
-        .trainerror_req         (local_trainerror_req         ),
+        .soft_rst_n             (soft_rst_n                   ),
+        .datavref_done          (local_datavref_done_wire     ),
+        .trainerror_req         (local_trainerror_req_wire    ),
         .update_lane_mask       (local_update_lane_mask       ),
-        // Timer Control Signals
-        .timeout_timer_en       (local_timeout_timer_en_wire  ),
         // PHY Vref Control
         .phy_rx_datavref_ctrl   (phy_rx_datavref_ctrl         ),
         // MB Lane Control Outputs
@@ -171,13 +166,10 @@ module wrapper_DATAVREF #(
         .lclk                   (lclk                          ),
         .rst_n                  (rst_n                         ),
         // LTSM Control Signals
-        .datavref_en            (partner_datavref_en            ),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset          ),
-        .timeout_8ms_occured    (timeout_8ms_occured           ),
-        .datavref_done          (partner_datavref_done          ),
-        .trainerror_req         (partner_trainerror_req        ),
-        // Timer Control Signals
-        .timeout_timer_en       (partner_timeout_timer_en_wire ),
+        .datavref_en            (partner_datavref_en           ),
+        .soft_rst_n             (soft_rst_n                    ),
+        .datavref_done          (partner_datavref_done_wire    ),
+        .trainerror_req         (partner_trainerror_req_wire   ),
         // MB Lane Control Outputs
         .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel    ),
         .mb_tx_data_lane_sel    (partner_mb_tx_data_lane_sel   ),
@@ -203,8 +195,9 @@ module wrapper_DATAVREF #(
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
 
-    // Timeout timer enable OR logic:
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
+    // Combined done and trainerror logic:
+    assign datavref_done  = local_datavref_done_wire & partner_datavref_done_wire;
+    assign trainerror_req = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority; partner drives only when local is silent.

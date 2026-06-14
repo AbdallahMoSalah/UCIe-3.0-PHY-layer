@@ -35,15 +35,9 @@ module unit_DATAVREF_partner (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        datavref_en         , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datavref_done       , // 1: Sub-state completed; held until datavref_en = 0.
-        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
+        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state. // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -108,7 +102,7 @@ module unit_DATAVREF_partner (
         if (!rst_n) begin
             current_state <= DATAVREF_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= DATAVREF_PTR_IDLE;
         end
         else begin
@@ -122,13 +116,10 @@ module unit_DATAVREF_partner (
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state; // Default: hold
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
             next_state = DATAVREF_PTR_TO_TRAINERROR;
         end
-        else if (!datavref_en &&
-                current_state != DATAVREF_PTR_TO_SPEEDIDLE &&
-                current_state != DATAVREF_PTR_TO_TRAINERROR) begin
+        else if (!datavref_en) begin
             next_state = DATAVREF_PTR_IDLE;
         end
         else begin
@@ -202,7 +193,6 @@ module unit_DATAVREF_partner (
         // --- Defaults: safe inactive values ---
         datavref_done    = 1'b0;
         trainerror_req   = 1'b0;
-        timeout_timer_en = 1'b1; // Watchdog ON by default
         partner_sweep_en = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -225,7 +215,6 @@ module unit_DATAVREF_partner (
             // IDLE: All outputs at minimum activity. Watchdog off.
             // ---------------------------------------------------------
             DATAVREF_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
@@ -272,7 +261,6 @@ module unit_DATAVREF_partner (
             // ---------------------------------------------------------
             DATAVREF_PTR_TO_SPEEDIDLE: begin
                 datavref_done     = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             // ---------------------------------------------------------
@@ -281,7 +269,6 @@ module unit_DATAVREF_partner (
             DATAVREF_PTR_TO_TRAINERROR: begin
                 datavref_done     = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin

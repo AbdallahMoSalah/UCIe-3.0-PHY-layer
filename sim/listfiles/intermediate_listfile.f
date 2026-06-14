@@ -16,14 +16,14 @@ rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/unit_D2C_sweep.sv
 
-// VALVREF RTL files
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALVREF/unit_VALVREF_local.sv
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALVREF/unit_VALVREF_partner.sv
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALVREF/wrapper_VALVREF.sv
+// DATAVREF RTL files
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/DATAVREF/unit_DATAVREF_local.sv
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/DATAVREF/unit_DATAVREF_partner.sv
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/DATAVREF/wrapper_DATAVREF.sv
 
 // Testbench Attachments
 ./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_if.sv
 ./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_attachments.sv
 
 // Testbench Top
-./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_VALVREF_tb.sv
+./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_DATAVREF_tb.sv
