@@ -21,7 +21,7 @@ module unit_RXCLKCAL_partner
         // Clock and Reset
         input  logic        lclk,
         input  logic        rst_n,
-        input  logic        is_ltsm_out_of_reset,
+        input  logic        soft_rst_n,
 
         // Control and Status
         input  logic        rxclkcal_partner_en,
@@ -57,13 +57,13 @@ module unit_RXCLKCAL_partner
     // State Encoding
     // ============================================================================
     typedef enum logic [2:0] {
-        RXCLKCAL_PTR_IDLE       = 3'h0,
-        RXCLKCAL_WAIT_START_REQ = 3'h1,
-        RXCLKCAL_SEND_START_RESP= 3'h2,
-        RXCLKCAL_PARTNER_IQ_LOOP= 3'h3,
-        RXCLKCAL_SEND_DONE_RESP = 3'h4,
-        TO_VALTRAINCENTER_RESP  = 3'h5,
-        TO_TRAINERROR_RESP      = 3'h6
+        RXCLKCAL_PTR_IDLE              = 3'h0,
+        RXCLKCAL_PTR_WAIT_START_REQ    = 3'h1,
+        RXCLKCAL_PTR_SEND_START_RESP   = 3'h2,
+        RXCLKCAL_PTR_IQ_LOOP           = 3'h3,
+        RXCLKCAL_PTR_SEND_DONE_RESP    = 3'h4,
+        RXCLKCAL_PTR_TO_VALTRAINCENTER = 3'h5,
+        RXCLKCAL_PTR_TO_TRAINERROR     = 3'h6
     } state_t;
 
     state_t current_state, next_state;
@@ -78,7 +78,7 @@ module unit_RXCLKCAL_partner
         if (!rst_n) begin
             current_state <= RXCLKCAL_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= RXCLKCAL_PTR_IDLE;
         end
         else begin
@@ -91,48 +91,45 @@ module unit_RXCLKCAL_partner
 
         // Global Error Override
         if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = TO_TRAINERROR_RESP;
+            next_state = RXCLKCAL_PTR_TO_TRAINERROR;
+        end
+        else if (!rxclkcal_partner_en) begin
+            next_state = RXCLKCAL_PTR_IDLE;
         end
         else begin
             case (current_state)
                 RXCLKCAL_PTR_IDLE: begin
-                    if (rxclkcal_partner_en) next_state = RXCLKCAL_WAIT_START_REQ;
-                    else                     next_state = RXCLKCAL_PTR_IDLE;
+                    next_state = RXCLKCAL_PTR_WAIT_START_REQ;
                 end
 
-                RXCLKCAL_WAIT_START_REQ: begin
+                RXCLKCAL_PTR_WAIT_START_REQ: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_start_req)
-                        next_state = RXCLKCAL_SEND_START_RESP;
-                    else
-                        next_state = RXCLKCAL_WAIT_START_REQ;
+                        next_state = RXCLKCAL_PTR_SEND_START_RESP;
                 end
 
-                RXCLKCAL_SEND_START_RESP: begin
-                    next_state = RXCLKCAL_PARTNER_IQ_LOOP;
+                RXCLKCAL_PTR_SEND_START_RESP: begin
+                    next_state = RXCLKCAL_PTR_IQ_LOOP;
                 end
 
-                RXCLKCAL_PARTNER_IQ_LOOP: begin
+                RXCLKCAL_PTR_IQ_LOOP: begin
                     if (iq_partner_done) begin
                         if (iq_partner_error)
-                            next_state = TO_TRAINERROR_RESP;
+                            next_state = RXCLKCAL_PTR_TO_TRAINERROR;
                         else
-                            next_state = RXCLKCAL_SEND_DONE_RESP;
-                    end
-                    else begin
-                        next_state = RXCLKCAL_PARTNER_IQ_LOOP;
+                            next_state = RXCLKCAL_PTR_SEND_DONE_RESP;
                     end
                 end
 
-                RXCLKCAL_SEND_DONE_RESP: begin
-                    next_state = TO_VALTRAINCENTER_RESP;
+                RXCLKCAL_PTR_SEND_DONE_RESP: begin
+                    next_state = RXCLKCAL_PTR_TO_VALTRAINCENTER;
                 end
 
-                TO_VALTRAINCENTER_RESP: begin
-                    next_state = (rxclkcal_partner_en) ? TO_VALTRAINCENTER_RESP : RXCLKCAL_PTR_IDLE;
+                RXCLKCAL_PTR_TO_VALTRAINCENTER: begin
+                    next_state = RXCLKCAL_PTR_TO_VALTRAINCENTER;
                 end
 
-                TO_TRAINERROR_RESP: begin
-                    next_state = (rxclkcal_partner_en) ? TO_TRAINERROR_RESP : RXCLKCAL_PTR_IDLE;
+                RXCLKCAL_PTR_TO_TRAINERROR: begin
+                    next_state = RXCLKCAL_PTR_TO_TRAINERROR;
                 end
 
                 default: next_state = RXCLKCAL_PTR_IDLE;
@@ -164,7 +161,7 @@ module unit_RXCLKCAL_partner
         if (!rst_n) begin
             tx_clk_active_r <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             tx_clk_active_r <= 1'b0;
         end
         else if (rxclkcal_partner_en) begin
@@ -206,33 +203,33 @@ module unit_RXCLKCAL_partner
                 // Idle state
             end
 
-            RXCLKCAL_WAIT_START_REQ: begin
+            RXCLKCAL_PTR_WAIT_START_REQ: begin
                 // Waiting for partner start request
             end
 
-            RXCLKCAL_SEND_START_RESP: begin
+            RXCLKCAL_PTR_SEND_START_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_RXCLKCAL_start_resp;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            RXCLKCAL_PARTNER_IQ_LOOP: begin
+            RXCLKCAL_PTR_IQ_LOOP: begin
                 iq_partner_en = 1'b1;
             end
 
-            RXCLKCAL_SEND_DONE_RESP: begin
+            RXCLKCAL_PTR_SEND_DONE_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_RXCLKCAL_done_resp;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            TO_VALTRAINCENTER_RESP: begin
+            RXCLKCAL_PTR_TO_VALTRAINCENTER: begin
                 rxclkcal_partner_done = 1'b1;
             end
 
-            TO_TRAINERROR_RESP: begin
+            RXCLKCAL_PTR_TO_TRAINERROR: begin
                 rxclkcal_partner_done = 1'b1;
                 trainerror_req        = 1'b1;
             end

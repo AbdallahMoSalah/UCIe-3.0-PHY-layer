@@ -43,12 +43,12 @@ module wrapper_SPEEDIDLE_tb;
     );
 
     // Control registers
-    logic is_ltsm_out_of_reset = 1;
+    logic soft_rst_n = 1;
     logic tb_ptn_inject_valid = 0;
     logic [7:0] tb_ptn_inject_msg = 0;
 
     // Configurations
-    state_n_e state_n [3:0];
+    state_n_e state_n_1;
     logic [2:0] param_negotiated_max_speed = 3'b010;
 
     // Sideband Delay Queue (Connecting Die A and Die B with SB_DELAY)
@@ -119,28 +119,22 @@ module wrapper_SPEEDIDLE_tb;
 
     // DUT Wrapper Signals
     logic        dut_local_speedidle_en = 0;
-    logic        dut_local_speedidle_done;
-    logic        dut_local_trainerror_req;
     logic        dut_partner_speedidle_en = 0;
-    logic        dut_partner_speedidle_done;
-    logic        dut_partner_trainerror_req;
+    logic        dut_speedidle_done;
+    logic        dut_trainerror_req;
     logic [2:0]  dut_phy_negotiated_speed;
 
     wrapper_SPEEDIDLE u_dut (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (dut_if.timeout_8ms_occured),
+        .soft_rst_n             (soft_rst_n),
         .local_speedidle_en     (dut_local_speedidle_en),
-        .local_speedidle_done   (dut_local_speedidle_done),
-        .local_trainerror_req   (dut_local_trainerror_req),
         .partner_speedidle_en   (dut_partner_speedidle_en),
-        .partner_speedidle_done (dut_partner_speedidle_done),
-        .partner_trainerror_req (dut_partner_trainerror_req),
-        .timeout_timer_en       (dut_if.timeout_timer_en),
+        .speedidle_done         (dut_speedidle_done),
+        .trainerror_req         (dut_trainerror_req),
         .analog_settle_timer_en (dut_if.analog_settle_timer_en),
         .analog_settle_time_done(dut_if.analog_settle_time_done),
-        .state_n                (state_n),
+        .state_n_1              (state_n_1),
         .param_negotiated_max_speed(param_negotiated_max_speed),
         .phy_negotiated_speed   (dut_phy_negotiated_speed),
         .mb_tx_clk_lane_sel     (dut_if.mb_tx_clk_lane_sel),
@@ -163,28 +157,22 @@ module wrapper_SPEEDIDLE_tb;
 
     // Partner Wrapper Signals
     logic        ptn_local_speedidle_en = 0;
-    logic        ptn_local_speedidle_done;
-    logic        ptn_local_trainerror_req;
     logic        ptn_partner_speedidle_en = 0;
-    logic        ptn_partner_speedidle_done;
-    logic        ptn_partner_trainerror_req;
+    logic        ptn_speedidle_done;
+    logic        ptn_trainerror_req;
     logic [2:0]  ptn_phy_negotiated_speed;
 
     wrapper_SPEEDIDLE u_ptn (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (ptn_if.timeout_8ms_occured),
+        .soft_rst_n             (soft_rst_n),
         .local_speedidle_en     (ptn_local_speedidle_en),
-        .local_speedidle_done   (ptn_local_speedidle_done),
-        .local_trainerror_req   (ptn_local_trainerror_req),
         .partner_speedidle_en   (ptn_partner_speedidle_en),
-        .partner_speedidle_done (ptn_partner_speedidle_done),
-        .partner_trainerror_req (ptn_partner_trainerror_req),
-        .timeout_timer_en       (ptn_if.timeout_timer_en),
+        .speedidle_done         (ptn_speedidle_done),
+        .trainerror_req         (ptn_trainerror_req),
         .analog_settle_timer_en (ptn_if.analog_settle_timer_en),
         .analog_settle_time_done(ptn_if.analog_settle_time_done),
-        .state_n                (state_n),
+        .state_n_1              (state_n_1),
         .param_negotiated_max_speed(param_negotiated_max_speed),
         .phy_negotiated_speed   (ptn_phy_negotiated_speed),
         .mb_tx_clk_lane_sel     (ptn_if.mb_tx_clk_lane_sel),
@@ -225,7 +213,7 @@ module wrapper_SPEEDIDLE_tb;
         );
         if (reset_before) assert_reset();
 
-        state_n[1] = prev_state;
+        state_n_1 = prev_state;
         param_negotiated_max_speed = max_speed;
 
         dut_local_speedidle_en = 1;
@@ -236,9 +224,9 @@ module wrapper_SPEEDIDLE_tb;
         fork
             begin
                 if (expect_trainerror) begin
-                    wait(dut_local_trainerror_req);
+                    wait(dut_trainerror_req);
                 end else begin
-                    wait(dut_local_speedidle_done && ptn_partner_speedidle_done);
+                    wait(dut_speedidle_done && ptn_speedidle_done);
                 end
                 #(LCLK_PERIOD * 10);
             end
@@ -251,7 +239,7 @@ module wrapper_SPEEDIDLE_tb;
         disable fork;
 
         if (expect_trainerror) begin
-            if (!dut_local_trainerror_req) begin
+            if (!dut_trainerror_req) begin
                 $display("# ERROR: Expected trainerror but did not see it!");
                 $stop;
             end
@@ -290,35 +278,35 @@ module wrapper_SPEEDIDLE_tb;
         // Scenario 4: Degrade speed from 3'b000 should cause trainerror
         run_scenario("Scenario 4: From LINKSPEED at min speed -> trainerror", LOG_MBTRAIN_LINKSPEED, 3'b000, 3'b000, 1, 1'b1);
 
-        // Scenario 5: Watchdog timeout
-        assert_reset();
-        dut_local_speedidle_en = 1;
-        ptn_if.tb_suppress_rx_sb = 1;
-        fork
-            begin
-                wait(dut_local_trainerror_req);
-                #(LCLK_PERIOD * 5);
-            end
-            begin
-                #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
-                $display("# ERROR: Watchdog timeout failed!");
-                $stop;
-            end
-        join_any
-        disable fork;
-        ptn_if.tb_suppress_rx_sb = 0;
-        dut_local_speedidle_en = 0;
-        pass_test("Scenario 5: Watchdog Timeout");
+        // Scenario 5: Watchdog timeout (Commented out because sub-FSM watchdogs were removed)
+        /*
+         assert_reset();
+         dut_local_speedidle_en = 1;
+         ptn_if.tb_suppress_rx_sb = 1;
+         fork
+         begin
+         wait(dut_trainerror_req);
+         #(LCLK_PERIOD * 5);
+         end
+         begin
+         #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
+         $display("# ERROR: Watchdog timeout failed!");
+         $stop;
+         end
+         join_any
+         disable fork;
+         ptn_if.tb_suppress_rx_sb = 0;
+         dut_local_speedidle_en = 0;
+         pass_test("Scenario 5: Watchdog Timeout");
+         */
 
         // Scenario 6: 50+ Randomized iterations
         $display("# Starting 60 Randomized iterations...");
         for (int i = 0; i < 60; i++) begin
             automatic bit [1:0] state_sel = $urandom_range(0, 2);
             automatic state_n_e prev = (state_sel == 0) ? LOG_MBTRAIN_DATAVREF :
-                                       (state_sel == 1) ? LOG_L1 : LOG_MBTRAIN_LINKSPEED;
+                (state_sel == 1) ? LOG_L1 : LOG_MBTRAIN_LINKSPEED;
             automatic bit [2:0] max_sp = $urandom_range(1, 4);
-            automatic bit [2:0] exp_sp = (prev == LOG_MBTRAIN_DATAVREF) ? max_sp :
-                                         (prev == LOG_L1) ? 3'b010 : 3'b001; // wait, depends on history, let's keep it simple
             // Just test clean entry-exit for speedidle
             run_scenario($sformatf("Randomized Iteration %0d", i), LOG_MBTRAIN_DATAVREF, max_sp, max_sp, 0);
         end

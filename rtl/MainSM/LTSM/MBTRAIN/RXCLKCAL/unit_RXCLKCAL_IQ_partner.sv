@@ -15,33 +15,33 @@
 
 module unit_RXCLKCAL_IQ_partner
     import UCIe_pkg::*;
-(
-    // Clock and Reset
-    input  logic        lclk,
-    input  logic        rst_n,
-    input  logic        is_ltsm_out_of_reset,
+    (
+        // Clock and Reset
+        input  logic        lclk,
+        input  logic        rst_n,
+        input  logic        soft_rst_n,
 
-    // Interface with Main Partner FSM
-    input  logic        iq_partner_en,          // Enable from main Partner FSM
-    output logic        iq_partner_done,        // Completed (received done_req)
-    output logic        iq_partner_error,       // Error (out of range)
+        // Interface with Main Partner FSM
+        input  logic        iq_partner_en,          // Enable from main Partner FSM
+        output logic        iq_partner_done,        // Completed (received done_req)
+        output logic        iq_partner_error,       // Error (out of range)
 
-    // PHY TCKN Shift Interface
-    output logic        phy_tx_tckn_shift_en,
-    output logic [4:0]  phy_tx_tckn_shift,
-    output logic        phy_tx_decrement_shift,
-    input  logic        phy_tx_tckn_shift_out_of_range,
+        // PHY TCKN Shift Interface
+        output logic        phy_tx_tckn_shift_en,
+        output logic [4:0]  phy_tx_tckn_shift,
+        output logic        phy_tx_decrement_shift,
+        input  logic        phy_tx_tckn_shift_out_of_range,
 
-    // Sideband Interface
-    output logic        tx_sb_msg_valid,
-    output logic [7:0]  tx_sb_msg,
-    output logic [15:0] tx_msginfo,
-    output logic [63:0] tx_data_field,
+        // Sideband Interface
+        output logic        tx_sb_msg_valid,
+        output logic [7:0]  tx_sb_msg,
+        output logic [15:0] tx_msginfo,
+        output logic [63:0] tx_data_field,
 
-    input  logic        rx_sb_msg_valid,
-    input  logic [7:0]  rx_sb_msg,
-    input  logic [15:0] rx_msginfo
-);
+        input  logic        rx_sb_msg_valid,
+        input  logic [7:0]  rx_sb_msg,
+        input  logic [15:0] rx_msginfo
+    );
 
     // ============================================================================
     // State Encoding
@@ -65,7 +65,7 @@ module unit_RXCLKCAL_IQ_partner
             shift_val_r <= 5'h0;
             direction_r <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             shift_val_r <= 5'h0;
             direction_r <= 1'b0;
         end
@@ -86,7 +86,7 @@ module unit_RXCLKCAL_IQ_partner
         if (!rst_n) begin
             current_state <= IQ_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= IQ_PTR_IDLE;
         end
         else begin
@@ -96,42 +96,41 @@ module unit_RXCLKCAL_IQ_partner
 
     always_comb begin
         next_state = current_state;
-        case (current_state)
-            IQ_PTR_IDLE: begin
-                if (iq_partner_en) next_state = IQ_PTR_LISTEN;
-                else               next_state = IQ_PTR_IDLE;
-            end
 
-            IQ_PTR_LISTEN: begin
-                if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req)
-                    next_state = IQ_PTR_SEND_SHIFT_RESP;
-                else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_done_req)
+        if (!iq_partner_en) begin
+            next_state = IQ_PTR_IDLE;
+        end
+        else begin
+            case (current_state)
+                IQ_PTR_IDLE: begin
+                    next_state = IQ_PTR_LISTEN;
+                end
+
+                IQ_PTR_LISTEN: begin
+                    if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req)
+                        next_state = IQ_PTR_SEND_SHIFT_RESP;
+                    else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_done_req)
+                        next_state = IQ_PTR_DONE;
+                end
+
+                IQ_PTR_SEND_SHIFT_RESP: begin
+                    if (phy_tx_tckn_shift_out_of_range)
+                        next_state = IQ_PTR_ERROR;
+                    else
+                        next_state = IQ_PTR_LISTEN;
+                end
+
+                IQ_PTR_DONE: begin
                     next_state = IQ_PTR_DONE;
-                else
-                    next_state = IQ_PTR_LISTEN;
-            end
+                end
 
-            IQ_PTR_SEND_SHIFT_RESP: begin
-                // Transition unconditionally on the next cycle to ensure the
-                // tx_sb_msg_valid response pulse lasts exactly 1 cycle.
-                if (phy_tx_tckn_shift_out_of_range)
+                IQ_PTR_ERROR: begin
                     next_state = IQ_PTR_ERROR;
-                else
-                    next_state = IQ_PTR_LISTEN;
-            end
+                end
 
-            IQ_PTR_DONE: begin
-                if (!iq_partner_en) next_state = IQ_PTR_IDLE;
-                else                next_state = IQ_PTR_DONE;
-            end
-
-            IQ_PTR_ERROR: begin
-                if (!iq_partner_en) next_state = IQ_PTR_IDLE;
-                else                next_state = IQ_PTR_ERROR;
-            end
-
-            default: next_state = IQ_PTR_IDLE;
-        endcase
+                default: next_state = IQ_PTR_IDLE;
+            endcase
+        end
     end
 
     // ============================================================================

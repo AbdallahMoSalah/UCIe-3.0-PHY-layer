@@ -17,22 +17,16 @@ module wrapper_VALTRAINCENTER #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
+        output logic        valtraincenter_done,
+        output logic        trainerror_req,
 
         // Local FSM Control:
         input  logic        local_valtraincenter_en,
-        output logic        local_valtraincenter_done,
-        output logic        local_trainerror_req,
         output logic        local_update_lane_mask,
 
         // Partner FSM Control:
         input  logic        partner_valtraincenter_en,
-        output logic        partner_valtraincenter_done,
-        output logic        partner_trainerror_req,
-
-        // Timer Control (Combined OR logic for watchdog):
-        output logic        timeout_timer_en,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -82,8 +76,11 @@ module wrapper_VALTRAINCENTER #(
 
     import UCIe_pkg::*;
 
-    wire        local_timeout_timer_en_wire  ;
-    wire        partner_timeout_timer_en_wire;
+    // Local/partner intermediate signals
+    logic        local_valtraincenter_done_wire;
+    logic        local_trainerror_req_wire;
+    logic        partner_valtraincenter_done_wire;
+    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -125,12 +122,10 @@ module wrapper_VALTRAINCENTER #(
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .valtraincenter_en              (local_valtraincenter_en),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (timeout_8ms_occured),
-        .valtraincenter_done            (local_valtraincenter_done),
-        .trainerror_req                 (local_trainerror_req),
+        .soft_rst_n                     (soft_rst_n),
+        .valtraincenter_done            (local_valtraincenter_done_wire),
+        .trainerror_req                 (local_trainerror_req_wire),
         .update_lane_mask               (local_update_lane_mask),
-        .timeout_timer_en               (local_timeout_timer_en_wire),
         .phy_tx_val_pi_phase_ctrl       (phy_tx_val_pi_phase_ctrl),
         .mb_tx_continuous_or_strobe_clk(mb_tx_continuous_or_strobe_clk),
         .phy_negotiated_speed          (phy_negotiated_speed),
@@ -161,11 +156,9 @@ module wrapper_VALTRAINCENTER #(
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .valtraincenter_en              (partner_valtraincenter_en),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (timeout_8ms_occured),
-        .valtraincenter_done            (partner_valtraincenter_done),
-        .trainerror_req                 (partner_trainerror_req),
-        .timeout_timer_en               (partner_timeout_timer_en_wire),
+        .soft_rst_n                     (soft_rst_n),
+        .valtraincenter_done            (partner_valtraincenter_done_wire),
+        .trainerror_req                 (partner_trainerror_req_wire),
         .mb_tx_continuous_or_strobe_clk(mb_tx_continuous_or_strobe_clk),
         .phy_negotiated_speed          (phy_negotiated_speed),
         .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel),
@@ -187,7 +180,9 @@ module wrapper_VALTRAINCENTER #(
         .rx_data_field                  (rx_data_field)
     );
 
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
+    // Combine terminal signals
+    assign valtraincenter_done = local_valtraincenter_done_wire & partner_valtraincenter_done_wire;
+    assign trainerror_req      = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband Arbitration
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;

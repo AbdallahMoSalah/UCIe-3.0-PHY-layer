@@ -3,8 +3,7 @@
 //
 // This module wraps both the Local (Initiator) and Partner (Responder) FSMs of the RXCLKCAL substate,
 // including their separated IQ calibration loop FSM sub-modules.
-// It arbitrates their Sideband (SB) TX outputs and multiplexes their Mainband (MB) control outputs
-// depending on whether the Local or Partner FSM is currently enabled.
+// It arbitrates their Sideband (SB) TX outputs and multiplexes their Mainband (MB) control outputs.
 //
 // ====================================================================================================
 // Sideband Messages Used in MBTRAIN.RXCLKCAL (Wrapper Routing):
@@ -27,28 +26,26 @@ module wrapper_RXCLKCAL (
         // =========================================================================
         input  logic        lclk,
         input  logic        rst_n,
-        input  logic        is_ltsm_out_of_reset,
+        input  logic        soft_rst_n,
 
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        timeout_8ms_occured,
         input  logic [2:0]  phy_negotiated_speed,
         input  logic        is_high_speed,
         input  logic        is_continuous_clk_mode,
 
         // Local FSM Control:
         input  logic        local_rxclkcal_en,
-        output logic        local_rxclkcal_done,
-        output logic        local_trainerror_req,
 
         // Partner FSM Control:
         input  logic        partner_rxclkcal_en,
-        output logic        partner_rxclkcal_done,
-        output logic        partner_trainerror_req,
+
+        // Combined outputs:
+        output logic        rxclkcal_done,
+        output logic        trainerror_req,
 
         // Timer Control:
-        output logic        timeout_timer_en,
         output logic        analog_settle_timer_en,
         input  logic        analog_settle_time_done,
 
@@ -105,7 +102,8 @@ module wrapper_RXCLKCAL (
     logic [7:0]  local_tx_sb_msg;
     logic [15:0] local_tx_msginfo;
     logic [63:0] local_tx_data_field;
-    logic        local_timeout_timer_en;
+    logic        local_rxclkcal_done_wire;
+    logic        local_trainerror_req_wire;
     logic        local_analog_settle_timer_en;
 
     // Internal IQ Local FSM SB and Timer signals
@@ -123,7 +121,8 @@ module wrapper_RXCLKCAL (
     logic [7:0]  partner_tx_sb_msg;
     logic [15:0] partner_tx_msginfo;
     logic [63:0] partner_tx_data_field;
-    logic        partner_timeout_timer_en;
+    logic        partner_rxclkcal_done_wire;
+    logic        partner_trainerror_req_wire;
 
     // Internal IQ Partner FSM SB signals
     logic        iq_partner_en;
@@ -147,10 +146,10 @@ module wrapper_RXCLKCAL (
     unit_RXCLKCAL_local u_RXCLKCAL_local (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset           ),
+        .soft_rst_n                     (soft_rst_n                     ),
         .rxclkcal_en                    (local_rxclkcal_en              ),
-        .rxclkcal_done                  (local_rxclkcal_done            ),
-        .trainerror_req                 (local_trainerror_req           ),
+        .rxclkcal_done                  (local_rxclkcal_done_wire       ),
+        .trainerror_req                 (local_trainerror_req_wire      ),
         .is_high_speed                  (is_high_speed                  ),
         .is_continuous_clk_mode         (is_continuous_clk_mode         ),
         .phy_rx_clock_lock_en           (phy_rx_clock_lock_en           ),
@@ -162,8 +161,6 @@ module wrapper_RXCLKCAL (
         .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel       ),
         .analog_settle_timer_en         (local_analog_settle_timer_en   ),
         .analog_settle_time_done        (analog_settle_time_done        ),
-        .timeout_timer_en               (local_timeout_timer_en         ),
-        .timeout_8ms_occured            (timeout_8ms_occured            ),
         .tx_sb_msg_valid                (local_tx_sb_msg_valid          ),
         .tx_sb_msg                      (local_tx_sb_msg                ),
         .tx_msginfo                     (local_tx_msginfo               ),
@@ -179,7 +176,7 @@ module wrapper_RXCLKCAL (
     unit_RXCLKCAL_IQ_local u_RXCLKCAL_IQ_local (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset           ),
+        .soft_rst_n                     (soft_rst_n                     ),
         .iq_en                          (iq_en                          ),
         .iq_done                        (iq_done                        ),
         .iq_error                       (iq_error                       ),
@@ -203,10 +200,10 @@ module wrapper_RXCLKCAL (
     unit_RXCLKCAL_partner u_RXCLKCAL_partner (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset           ),
+        .soft_rst_n                     (soft_rst_n                     ),
         .rxclkcal_partner_en            (partner_rxclkcal_en            ),
-        .rxclkcal_partner_done          (partner_rxclkcal_done          ),
-        .trainerror_req                 (partner_trainerror_req         ),
+        .rxclkcal_partner_done          (partner_rxclkcal_done_wire     ),
+        .trainerror_req                 (partner_trainerror_req_wire    ),
         .is_high_speed                  (is_high_speed                  ),
         .is_continuous_clk_mode         (is_continuous_clk_mode         ),
         .iq_partner_en                  (iq_partner_en                  ),
@@ -230,7 +227,7 @@ module wrapper_RXCLKCAL (
     unit_RXCLKCAL_IQ_partner u_RXCLKCAL_IQ_partner (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset           ),
+        .soft_rst_n                     (soft_rst_n                     ),
         .iq_partner_en                  (iq_partner_en                  ),
         .iq_partner_done                (iq_partner_done                ),
         .iq_partner_error               (iq_partner_error               ),
@@ -247,12 +244,9 @@ module wrapper_RXCLKCAL (
         .rx_msginfo                     (rx_msginfo                     )
     );
 
-    // =========================================================================
-    // Multiplexing and Output Assignments
-    // =========================================================================
-
-    // Timeout timer enable: Partner doesn't have local timeout timer, so just use local's
-    assign timeout_timer_en = local_timeout_timer_en;
+    // Combined outputs:
+    assign rxclkcal_done  = local_rxclkcal_done_wire & partner_rxclkcal_done_wire;
+    assign trainerror_req = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Analog Settle Timer Enable OR logic
     assign analog_settle_timer_en = local_analog_settle_timer_en | iq_local_analog_settle_timer_en;

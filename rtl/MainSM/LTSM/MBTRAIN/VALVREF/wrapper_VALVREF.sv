@@ -19,8 +19,8 @@
 // ====================================================================================================
 
 module wrapper_VALVREF #(
-        parameter int unsigned MAX_VAL_VREF_CODE = 7'd127, // Maximum Vref code
-        parameter int unsigned MIN_VAL_VREF_CODE = 7'd10   // Minimum Vref code
+        parameter int unsigned MAX_VAL_VREF_CODE = 8'd16, // Maximum Vref code
+        parameter int unsigned MIN_VAL_VREF_CODE = 8'd1   // Minimum Vref code
     ) (
         // =========================================================================
         // Group 1: Clock and Reset Signals
@@ -94,36 +94,36 @@ module wrapper_VALVREF #(
     logic        partner_trainerror_req     ;
 
     // SB outputs from Local FSM:
-    logic        local_tx_sb_msg_valid ;
-    logic [7:0]  local_tx_sb_msg       ;
-    logic [15:0] local_tx_msginfo      ;
-    logic [63:0] local_tx_data_field   ;
+    logic        local_tx_sb_msg_valid      ;
+    logic [7:0]  local_tx_sb_msg            ;
+    logic [15:0] local_tx_msginfo           ;
+    logic [63:0] local_tx_data_field        ;
 
     // SB outputs from Partner FSM:
-    logic        partner_tx_sb_msg_valid;
-    logic [7:0]  partner_tx_sb_msg     ;
-    logic [15:0] partner_tx_msginfo    ;
-    logic [63:0] partner_tx_data_field ;
+    logic        partner_tx_sb_msg_valid    ;
+    logic [7:0]  partner_tx_sb_msg          ;
+    logic [15:0] partner_tx_msginfo         ;
+    logic [63:0] partner_tx_data_field      ;
 
     // MB outputs from Local FSM:
-    logic [1:0]  local_mb_tx_clk_lane_sel  ;
-    logic [1:0]  local_mb_tx_data_lane_sel ;
-    logic [1:0]  local_mb_tx_val_lane_sel  ;
-    logic [1:0]  local_mb_tx_trk_lane_sel  ;
-    logic        local_mb_rx_clk_lane_sel  ;
-    logic        local_mb_rx_data_lane_sel ;
-    logic        local_mb_rx_val_lane_sel  ;
-    logic        local_mb_rx_trk_lane_sel  ;
+    logic [1:0]  local_mb_tx_clk_lane_sel   ;
+    logic [1:0]  local_mb_tx_data_lane_sel  ;
+    logic [1:0]  local_mb_tx_val_lane_sel   ;
+    logic [1:0]  local_mb_tx_trk_lane_sel   ;
+    logic        local_mb_rx_clk_lane_sel   ;
+    logic        local_mb_rx_data_lane_sel  ;
+    logic        local_mb_rx_val_lane_sel   ;
+    logic        local_mb_rx_trk_lane_sel   ;
 
     // MB outputs from Partner FSM:
-    logic [1:0]  partner_mb_tx_clk_lane_sel  ;
-    logic [1:0]  partner_mb_tx_data_lane_sel ;
-    logic [1:0]  partner_mb_tx_val_lane_sel  ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel  ;
-    logic        partner_mb_rx_clk_lane_sel  ;
-    logic        partner_mb_rx_data_lane_sel ;
-    logic        partner_mb_rx_val_lane_sel  ;
-    logic        partner_mb_rx_trk_lane_sel  ;
+    logic [1:0]  partner_mb_tx_clk_lane_sel ;
+    logic [1:0]  partner_mb_tx_data_lane_sel;
+    logic [1:0]  partner_mb_tx_val_lane_sel ;
+    logic [1:0]  partner_mb_tx_trk_lane_sel ;
+    logic        partner_mb_rx_clk_lane_sel ;
+    logic        partner_mb_rx_data_lane_sel;
+    logic        partner_mb_rx_val_lane_sel ;
+    logic        partner_mb_rx_trk_lane_sel ;
 
 
     // =========================================================================

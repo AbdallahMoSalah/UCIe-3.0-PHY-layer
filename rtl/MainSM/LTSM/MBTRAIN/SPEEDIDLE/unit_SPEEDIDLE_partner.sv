@@ -17,18 +17,16 @@ module unit_SPEEDIDLE_partner (
 
         // LTSM Control and Config Signals
         input  logic        speedidle_en,
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
         output logic        speedidle_done,
         output logic        trainerror_req,
 
         // State history and max speed configuration
-        input  wire  ltsm_state_n_pkg::state_n_e state_n [3:0],
+        input  wire  ltsm_state_n_pkg::state_n_e state_n_1,
         input  logic [2:0]  param_negotiated_max_speed,
         output logic [2:0]  phy_negotiated_speed,
 
         // Timer Control Signals
-        output logic        timeout_timer_en,
         output logic        analog_settle_timer_en,
         input  logic        analog_settle_time_done,
 
@@ -59,13 +57,13 @@ module unit_SPEEDIDLE_partner (
 
     // State encoding
     typedef enum logic [2:0] {
-        SPEEDIDLE_PTN_IDLE      = 3'd0,
-        SPEEDIDLE_PTN_CONFIG    = 3'd1,
-        SPEEDIDLE_PTN_WAIT_PLL  = 3'd2,
-        SPEEDIDLE_PTN_WAIT_REQ  = 3'd3,
-        SPEEDIDLE_PTN_SEND_RESP = 3'd4,
-        SPEEDIDLE_PTN_DONE      = 3'd5,
-        SPEEDIDLE_PTN_TO_TE     = 3'd6
+        SPEEDIDLE_PTN_IDLE           = 3'd0,
+        SPEEDIDLE_PTN_CONFIG         = 3'd1,
+        SPEEDIDLE_PTN_WAIT_PLL       = 3'd2,
+        SPEEDIDLE_PTN_WAIT_REQ       = 3'd3,
+        SPEEDIDLE_PTN_SEND_RESP      = 3'd4,
+        SPEEDIDLE_PTN_DONE           = 3'd5,
+        SPEEDIDLE_PTN_TO_TRAINERROR  = 3'd6
     } state_t;
 
     state_t current_state, next_state;
@@ -76,15 +74,18 @@ module unit_SPEEDIDLE_partner (
     assign phy_negotiated_speed = internal_phy_negotiated_speed;
 
     // Check if degrade is impossible (already at min speed 4 GT/s)
-    wire speed_degrade_error = (state_n[1] == LOG_MBTRAIN_LINKSPEED || state_n[1] == LOG_PHYRETRAIN) &&
-        (internal_phy_negotiated_speed == 3'b000);
+    wire is_entry_datavref = (state_n_1 == LOG_MBTRAIN_DATAVREF);
+    wire is_entry_l1_l2    = (state_n_1 == LOG_L1 || state_n_1 == LOG_L2 || state_n_1 == LOG_L1_L2);
+    wire is_entry_degrade  = (state_n_1 == LOG_MBTRAIN_LINKSPEED || state_n_1 == LOG_PHYRETRAIN);
+
+    wire speed_degrade_error = !(is_entry_datavref || is_entry_l1_l2 || (is_entry_degrade && (internal_phy_negotiated_speed != 3'b000)));
 
     // FSM State and Registers
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
             current_state                 <= SPEEDIDLE_PTN_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
-        end else if (!is_ltsm_out_of_reset) begin
+        end else if (!soft_rst_n) begin
             current_state                 <= SPEEDIDLE_PTN_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
         end else begin
@@ -92,11 +93,11 @@ module unit_SPEEDIDLE_partner (
 
             // Speed register configuration logic
             if (current_state == SPEEDIDLE_PTN_CONFIG) begin
-                if (state_n[1] == LOG_MBTRAIN_DATAVREF) begin
+                if (state_n_1 == LOG_MBTRAIN_DATAVREF) begin
                     internal_phy_negotiated_speed <= param_negotiated_max_speed;
-                end else if (state_n[1] == LOG_L1 || state_n[1] == LOG_L2) begin
+                end else if (state_n_1 == LOG_L1 || state_n_1 == LOG_L2 || state_n_1 == LOG_L1_L2) begin
                     internal_phy_negotiated_speed <= internal_phy_negotiated_speed; // Keep
-                end else if (state_n[1] == LOG_MBTRAIN_LINKSPEED || state_n[1] == LOG_PHYRETRAIN) begin
+                end else if (state_n_1 == LOG_MBTRAIN_LINKSPEED || state_n_1 == LOG_PHYRETRAIN) begin
                     if (internal_phy_negotiated_speed != 3'b000) begin
                         internal_phy_negotiated_speed <= internal_phy_negotiated_speed - 3'b001;
                     end
@@ -109,18 +110,19 @@ module unit_SPEEDIDLE_partner (
     always_comb begin : NEXT_STATE_LOGIC
         next_state = current_state;
 
-        // Watchdog timeout or partner error request
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = SPEEDIDLE_PTN_TO_TE;
-        end else begin
+        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) || (speed_degrade_error & speedidle_en)) begin
+            next_state = SPEEDIDLE_PTN_TO_TRAINERROR;
+        end
+        else if (~speedidle_en) begin
+            next_state = SPEEDIDLE_PTN_IDLE;
+        end
+        else begin
             case (current_state)
                 SPEEDIDLE_PTN_IDLE: begin
-                    if (speedidle_en) begin
-                        if (speed_degrade_error) begin
-                            next_state = SPEEDIDLE_PTN_TO_TE;
-                        end else begin
-                            next_state = SPEEDIDLE_PTN_CONFIG;
-                        end
+                    if (speed_degrade_error) begin
+                        next_state = SPEEDIDLE_PTN_TO_TRAINERROR;
+                    end else begin
+                        next_state = SPEEDIDLE_PTN_CONFIG;
                     end
                 end
 
@@ -150,7 +152,7 @@ module unit_SPEEDIDLE_partner (
                     end
                 end
 
-                SPEEDIDLE_PTN_TO_TE: begin
+                SPEEDIDLE_PTN_TO_TRAINERROR: begin
                     if (!speedidle_en) begin
                         next_state = SPEEDIDLE_PTN_IDLE;
                     end
@@ -166,7 +168,6 @@ module unit_SPEEDIDLE_partner (
         // Default outputs
         speedidle_done         = 1'b0;
         trainerror_req         = 1'b0;
-        timeout_timer_en       = 1'b1;
         analog_settle_timer_en = 1'b0;
 
         // TX/RX Default Values
@@ -186,8 +187,7 @@ module unit_SPEEDIDLE_partner (
 
         case (current_state)
             SPEEDIDLE_PTN_IDLE: begin
-                timeout_timer_en    = 1'b0;
-                mb_tx_clk_lane_sel  = 2'b00; // Low when inactive
+                mb_rx_clk_lane_sel = 1'b0; // RX disabled when FSM is inactive
             end
 
             SPEEDIDLE_PTN_CONFIG: begin
@@ -209,13 +209,11 @@ module unit_SPEEDIDLE_partner (
 
             SPEEDIDLE_PTN_DONE: begin
                 speedidle_done   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            SPEEDIDLE_PTN_TO_TE: begin
+            SPEEDIDLE_PTN_TO_TRAINERROR: begin
                 speedidle_done   = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
         endcase
     end

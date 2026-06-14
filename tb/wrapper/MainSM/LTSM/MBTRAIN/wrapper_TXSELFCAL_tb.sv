@@ -43,7 +43,7 @@ module wrapper_TXSELFCAL_tb;
     );
 
     // Control registers
-    logic is_ltsm_out_of_reset = 1;
+    logic soft_rst_n = 1;
     logic tb_ptn_inject_valid = 0;
     logic [7:0] tb_ptn_inject_msg = 0;
 
@@ -115,25 +115,19 @@ module wrapper_TXSELFCAL_tb;
 
     // DUT Wrapper Signals
     logic        dut_local_txselfcal_en = 0;
-    logic        dut_local_txselfcal_done;
-    logic        dut_local_trainerror_req;
     logic        dut_partner_txselfcal_en = 0;
-    logic        dut_partner_txselfcal_done;
-    logic        dut_partner_trainerror_req;
+    logic        dut_txselfcal_done;
+    logic        dut_trainerror_req;
     logic        dut_phy_tx_selfcal_en;
 
     wrapper_TXSELFCAL u_dut (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (dut_if.timeout_8ms_occured),
+        .soft_rst_n             (soft_rst_n),
         .local_txselfcal_en     (dut_local_txselfcal_en),
-        .local_txselfcal_done   (dut_local_txselfcal_done),
-        .local_trainerror_req   (dut_local_trainerror_req),
         .partner_txselfcal_en   (dut_partner_txselfcal_en),
-        .partner_txselfcal_done (dut_partner_txselfcal_done),
-        .partner_trainerror_req (dut_partner_trainerror_req),
-        .timeout_timer_en       (dut_if.timeout_timer_en),
+        .txselfcal_done         (dut_txselfcal_done),
+        .trainerror_req         (dut_trainerror_req),
         .analog_settle_timer_en (dut_if.analog_settle_timer_en),
         .analog_settle_time_done(dut_if.analog_settle_time_done),
         .phy_tx_selfcal_en      (dut_phy_tx_selfcal_en),
@@ -157,25 +151,19 @@ module wrapper_TXSELFCAL_tb;
 
     // Partner Wrapper Signals
     logic        ptn_local_txselfcal_en = 0;
-    logic        ptn_local_txselfcal_done;
-    logic        ptn_local_trainerror_req;
     logic        ptn_partner_txselfcal_en = 0;
-    logic        ptn_partner_txselfcal_done;
-    logic        ptn_partner_trainerror_req;
+    logic        ptn_txselfcal_done;
+    logic        ptn_trainerror_req;
     logic        ptn_phy_tx_selfcal_en;
 
     wrapper_TXSELFCAL u_ptn (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (ptn_if.timeout_8ms_occured),
+        .soft_rst_n             (soft_rst_n),
         .local_txselfcal_en     (ptn_local_txselfcal_en),
-        .local_txselfcal_done   (ptn_local_txselfcal_done),
-        .local_trainerror_req   (ptn_local_trainerror_req),
         .partner_txselfcal_en   (ptn_partner_txselfcal_en),
-        .partner_txselfcal_done (ptn_partner_txselfcal_done),
-        .partner_trainerror_req (ptn_partner_trainerror_req),
-        .timeout_timer_en       (ptn_if.timeout_timer_en),
+        .txselfcal_done         (ptn_txselfcal_done),
+        .trainerror_req         (ptn_trainerror_req),
         .analog_settle_timer_en (ptn_if.analog_settle_timer_en),
         .analog_settle_time_done(ptn_if.analog_settle_time_done),
         .phy_tx_selfcal_en      (ptn_phy_tx_selfcal_en),
@@ -220,7 +208,7 @@ module wrapper_TXSELFCAL_tb;
 
         fork
             begin
-                wait(dut_local_txselfcal_done && ptn_partner_txselfcal_done);
+                wait(dut_txselfcal_done && ptn_txselfcal_done);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -232,7 +220,7 @@ module wrapper_TXSELFCAL_tb;
         disable fork;
 
         // Check assertions
-        if (!dut_local_txselfcal_done || dut_local_trainerror_req || !ptn_partner_txselfcal_done) begin
+        if (!dut_txselfcal_done || dut_trainerror_req || !ptn_txselfcal_done) begin
             $display("# ERROR: Clean run failed!");
             $stop;
         end
@@ -245,18 +233,82 @@ module wrapper_TXSELFCAL_tb;
         pass_test(name);
     endtask
 
+    function automatic string get_lcl_state_str(input int state_val);
+        case (state_val)
+            0: return "TXSELFCAL_LCL_IDLE";
+            1: return "TXSELFCAL_LCL_EXECUTE";
+            2: return "TXSELFCAL_LCL_SEND_REQ";
+            3: return "TXSELFCAL_LCL_WAIT_RESP";
+            4: return "TXSELFCAL_LCL_TO_RXCLKCAL";
+            5: return "TXSELFCAL_LCL_TO_TRAINERROR";
+            default: return "UNKNOWN";
+        endcase
+    endfunction
+
+    function automatic string get_ptn_state_str(input int state_val);
+        case (state_val)
+            0: return "TXSELFCAL_PTN_IDLE";
+            1: return "TXSELFCAL_PTN_WAIT_REQ";
+            2: return "TXSELFCAL_PTN_SEND_RESP";
+            3: return "TXSELFCAL_PTN_DONE";
+            4: return "TXSELFCAL_PTN_TO_TRAINERROR";
+            default: return "UNKNOWN";
+        endcase
+    endfunction
+
+    function automatic string get_msg_str(input [7:0] msg_val);
+        case (msg_val)
+            SBINIT_Out_of_Reset: return "SBINIT_Out_of_Reset";
+            SBINIT_done_req: return "SBINIT_done_req";
+            SBINIT_done_resp: return "SBINIT_done_resp";
+            MBTRAIN_TXSELFCAL_Done_req: return "MBTRAIN_TXSELFCAL_Done_req";
+            MBTRAIN_TXSELFCAL_Done_resp: return "MBTRAIN_TXSELFCAL_Done_resp";
+            TRAINERROR_Entry_req: return "TRAINERROR_Entry_req";
+            TRAINERROR_Entry_resp: return "TRAINERROR_Entry_resp";
+            NOTHING: return "NOTHING";
+            default: return $sformatf("MsgCode: 8'h%2h", msg_val);
+        endcase
+    endfunction
+
+    string last_lcl_state_str = "";
+    string last_ptn_state_str = "";
+    string last_tx_msg_str = "";
+    string last_rx_msg_str = "";
+
     integer cycle_count = 0;
-    always @(posedge lclk) begin
-        cycle_count <= cycle_count + 1;
-        if (cycle_count < 100) begin
-            $display("# [Cycle %0d]: dut_local_state=%0d, tx_sb_msg_valid=%b, tx_sb_msg=8'h%h, ptn_rx_sb_msg_valid=%b, ptn_rx_sb_msg=8'h%h, ptn_partner_state=%0d",
-                cycle_count,
-                u_dut.u_TXSELFCAL_local.current_state,
-                dut_if.tx_sb_msg_valid,
-                dut_if.tx_sb_msg,
-                ptn_if.rx_sb_msg_valid,
-                ptn_if.rx_sb_msg,
-                u_ptn.u_TXSELFCAL_partner.current_state);
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            cycle_count <= 0;
+            last_lcl_state_str <= "";
+            last_ptn_state_str <= "";
+            last_tx_msg_str <= "";
+            last_rx_msg_str <= "";
+        end else begin
+            cycle_count <= cycle_count + 1;
+            if (cycle_count < 100) begin
+                automatic string lcl_state_str = get_lcl_state_str(u_dut.u_TXSELFCAL_local.current_state);
+                automatic string ptn_state_str = get_ptn_state_str(u_ptn.u_TXSELFCAL_partner.current_state);
+                automatic string tx_msg_str = get_msg_str(dut_if.tx_sb_msg_valid ? dut_if.tx_sb_msg : NOTHING);
+                automatic string rx_msg_str = get_msg_str(ptn_if.rx_sb_msg_valid ? ptn_if.rx_sb_msg : NOTHING);
+
+                if (lcl_state_str != last_lcl_state_str ||
+                        ptn_state_str != last_ptn_state_str ||
+                        tx_msg_str != last_tx_msg_str ||
+                        rx_msg_str != last_rx_msg_str) begin
+
+                    $display("# [Cycle %3d]: lcl_state=%-25s, ptn_state=%-25s, tx_sb_msg=%-27s, rx_sb_msg=%-27s",
+                        cycle_count,
+                        lcl_state_str,
+                        ptn_state_str,
+                        tx_msg_str,
+                        rx_msg_str);
+
+                    last_lcl_state_str = lcl_state_str;
+                    last_ptn_state_str = ptn_state_str;
+                    last_tx_msg_str = tx_msg_str;
+                    last_rx_msg_str = rx_msg_str;
+                end
+            end
         end
     end
 
@@ -271,26 +323,28 @@ module wrapper_TXSELFCAL_tb;
         // Scenario 1: Clean calibration run
         run_clean_scenario("Scenario 1: Clean Calibration");
 
-        // Scenario 2: Watchdog timeout
-        assert_reset();
-        dut_local_txselfcal_en = 1;
-        ptn_if.tb_suppress_rx_sb = 1; // suppress partner responses to force timeout
+        // Scenario 2: Watchdog timeout (Commented out because sub-FSM watchdogs were removed)
+        /*
+         assert_reset();
+         dut_local_txselfcal_en = 1;
+         ptn_if.tb_suppress_rx_sb = 1; // suppress partner responses to force timeout
 
-        fork
-            begin
-                wait(dut_local_trainerror_req);
-                #(LCLK_PERIOD * 5);
-            end
-            begin
-                #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
-                $display("# ERROR: Watchdog timeout failed to trigger trainerror!");
-                $stop;
-            end
-        join_any
-        disable fork;
-        ptn_if.tb_suppress_rx_sb = 0;
-        dut_local_txselfcal_en = 0;
-        pass_test("Scenario 2: Watchdog Timeout");
+         fork
+         begin
+         wait(dut_trainerror_req);
+         #(LCLK_PERIOD * 5);
+         end
+         begin
+         #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
+         $display("# ERROR: Watchdog timeout failed to trigger trainerror!");
+         $stop;
+         end
+         join_any
+         disable fork;
+         ptn_if.tb_suppress_rx_sb = 0;
+         dut_local_txselfcal_en = 0;
+         pass_test("Scenario 2: Watchdog Timeout");
+         */
 
         // Scenario 3: Partner requesting trainerror
         assert_reset();
@@ -303,7 +357,7 @@ module wrapper_TXSELFCAL_tb;
 
         fork
             begin
-                wait(dut_local_trainerror_req);
+                wait(dut_trainerror_req);
                 #(LCLK_PERIOD * 5);
             end
             begin

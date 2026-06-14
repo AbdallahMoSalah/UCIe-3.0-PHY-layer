@@ -34,15 +34,9 @@ module unit_VALTRAINCENTER_partner (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        valtraincenter_en   , // 0: Disable. 1: Enable/start sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valtraincenter_done , // 1: Sub-state completed; held until valtraincenter_en = 0.
         output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // MB Lane Control Configuration:       //
@@ -99,7 +93,7 @@ module unit_VALTRAINCENTER_partner (
         if (!rst_n) begin
             current_state <= VALTRAINCENTER_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= VALTRAINCENTER_PTR_IDLE;
         end
         else begin
@@ -110,13 +104,10 @@ module unit_VALTRAINCENTER_partner (
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
             next_state = VALTRAINCENTER_PTR_TO_TRAINERROR;
         end
-        else if (!valtraincenter_en &&
-                 current_state != VALTRAINCENTER_PTR_TO_VALTRAINVREF &&
-                 current_state != VALTRAINCENTER_PTR_TO_TRAINERROR) begin
+        else if (!valtraincenter_en) begin
             next_state = VALTRAINCENTER_PTR_IDLE;
         end
         else begin
@@ -163,7 +154,6 @@ module unit_VALTRAINCENTER_partner (
     always_comb begin : OUTPUT_COMB
         valtraincenter_done = 1'b0;
         trainerror_req      = 1'b0;
-        timeout_timer_en    = 1'b1;
         partner_sweep_en    = 1'b0;
 
         tx_sb_msg_valid     = 1'b0;
@@ -171,7 +161,10 @@ module unit_VALTRAINCENTER_partner (
         tx_msginfo          = 16'h0;
         tx_data_field       = 64'h0;
 
-        mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
+        // Default MB lane select behaviors based on spec for VALTRAINCENTER active states.
+        // During active training/gating actions, clock TX must be active center-phase (2'b01)
+        // and Valid TX must be active pattern (2'b01).
+        mb_tx_clk_lane_sel  = 2'b01; 
         mb_tx_data_lane_sel = 2'b00;
         mb_tx_val_lane_sel  = 2'b01; // Partner drives VALTRAIN pattern
         mb_tx_trk_lane_sel  = 2'b00;
@@ -182,8 +175,7 @@ module unit_VALTRAINCENTER_partner (
 
         case (current_state)
             VALTRAINCENTER_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
-                mb_tx_clk_lane_sel  = 2'b00;
+                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
                 mb_tx_val_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
@@ -215,13 +207,13 @@ module unit_VALTRAINCENTER_partner (
 
             VALTRAINCENTER_PTR_TO_VALTRAINVREF: begin
                 valtraincenter_done = 1'b1;
-                timeout_timer_en    = 1'b0;
+                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
             end
 
             VALTRAINCENTER_PTR_TO_TRAINERROR: begin
                 valtraincenter_done = 1'b1;
                 trainerror_req      = 1'b1;
-                timeout_timer_en    = 1'b0;
+                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
             end
 
             default: begin

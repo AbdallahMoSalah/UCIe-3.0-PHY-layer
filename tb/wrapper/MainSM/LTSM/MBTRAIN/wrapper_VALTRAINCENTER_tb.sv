@@ -211,13 +211,12 @@ module wrapper_VALTRAINCENTER_tb;
     // Die A Instantiation (DUT)
     // =========================================================================
     logic        dut_local_en = 0;
-    logic        dut_local_done;
-    logic        dut_local_trainerror_req;
     logic        dut_local_update_lane_mask;
 
     logic        dut_partner_en = 0;
-    logic        dut_partner_done;
-    logic        dut_partner_trainerror_req;
+
+    logic        dut_valtraincenter_done;
+    logic        dut_trainerror_req;
 
     wrapper_VALTRAINCENTER #(
         .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE),
@@ -225,19 +224,16 @@ module wrapper_VALTRAINCENTER_tb;
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
+
+        .valtraincenter_done            (dut_valtraincenter_done),
+        .trainerror_req                 (dut_trainerror_req),
 
         .local_valtraincenter_en        (dut_local_en),
-        .local_valtraincenter_done      (dut_local_done),
-        .local_trainerror_req           (dut_local_trainerror_req),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .partner_valtraincenter_en      (dut_partner_en),
-        .partner_valtraincenter_done    (dut_partner_done),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
 
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_tx_val_pi_phase_ctrl       (dut_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -273,13 +269,12 @@ module wrapper_VALTRAINCENTER_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_en = 0;
-    logic        ptn_local_done;
-    logic        ptn_local_trainerror_req;
     logic        ptn_local_update_lane_mask;
 
     logic        ptn_partner_en = 0;
-    logic        ptn_partner_done;
-    logic        ptn_partner_trainerror_req;
+
+    logic        ptn_valtraincenter_done;
+    logic        ptn_trainerror_req;
 
     wrapper_VALTRAINCENTER #(
         .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE),
@@ -287,19 +282,16 @@ module wrapper_VALTRAINCENTER_tb;
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
+
+        .valtraincenter_done            (ptn_valtraincenter_done),
+        .trainerror_req                 (ptn_trainerror_req),
 
         .local_valtraincenter_en        (ptn_local_en),
-        .local_valtraincenter_done      (ptn_local_done),
-        .local_trainerror_req           (ptn_local_trainerror_req),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .partner_valtraincenter_en      (ptn_partner_en),
-        .partner_valtraincenter_done    (ptn_partner_done),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
 
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_tx_val_pi_phase_ctrl       (ptn_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -335,15 +327,15 @@ module wrapper_VALTRAINCENTER_tb;
     // State Monitors
     // =========================================================================
     typedef enum reg [3:0] {
-        VALTRAINCENTER_LOCAL_IDLE           = 4'd0,
-        VALTRAINCENTER_LOCAL_SEND_START_REQ = 4'd1,
-        VALTRAINCENTER_LOCAL_WAIT_START_RESP= 4'd2,
-        VALTRAINCENTER_LOCAL_SWEEP          = 4'd3,
-        VALTRAINCENTER_LOCAL_APPLY_BEST     = 4'd4,
-        VALTRAINCENTER_LOCAL_SEND_DONE_REQ  = 4'd5,
-        VALTRAINCENTER_LOCAL_WAIT_DONE_RESP = 4'd6,
-        VALTRAINCENTER_LOCAL_TO_VALTRAINVREF= 4'd7,
-        VALTRAINCENTER_LOCAL_TO_TRAINERROR  = 4'd8
+        VALTRAINCENTER_LCL_IDLE           = 4'd0,
+        VALTRAINCENTER_LCL_SEND_START_REQ = 4'd1,
+        VALTRAINCENTER_LCL_WAIT_START_RESP= 4'd2,
+        VALTRAINCENTER_LCL_SWEEP          = 4'd3,
+        VALTRAINCENTER_LCL_APPLY_BEST     = 4'd4,
+        VALTRAINCENTER_LCL_SEND_DONE_REQ  = 4'd5,
+        VALTRAINCENTER_LCL_WAIT_DONE_RESP = 4'd6,
+        VALTRAINCENTER_LCL_TO_VALTRAINVREF= 4'd7,
+        VALTRAINCENTER_LCL_TO_TRAINERROR  = 4'd8
     } local_state_t;
 
     typedef enum reg [3:0] {
@@ -400,7 +392,7 @@ module wrapper_VALTRAINCENTER_tb;
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
+        dut_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_force_val_pass     = 1;
         dut_if.tb_verbose            = 0;
@@ -409,7 +401,7 @@ module wrapper_VALTRAINCENTER_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
+        ptn_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_force_val_pass     = 1;
         ptn_if.tb_verbose            = 0;
@@ -485,7 +477,7 @@ module wrapper_VALTRAINCENTER_tb;
 
         fork
             begin
-                wait (u_dut.local_valtraincenter_done || u_dut.local_trainerror_req);
+                wait (dut_valtraincenter_done || dut_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -498,8 +490,8 @@ module wrapper_VALTRAINCENTER_tb;
 
         // Verify FSM exits and calibrated midpoint code
         if (expect_done_dut) begin
-            if (!u_dut.local_valtraincenter_done || u_dut.local_trainerror_req) begin
-                $display("# ERROR: Expected successful VALTRAINCENTER exit, but got local_done=%b, trainerror=%b", u_dut.local_valtraincenter_done, u_dut.local_trainerror_req);
+            if (!dut_valtraincenter_done || dut_trainerror_req) begin
+                $display("# ERROR: Expected successful VALTRAINCENTER exit, but got local_done=%b, trainerror=%b", dut_valtraincenter_done, dut_trainerror_req);
                 fail_count++; $stop;
             end
             
@@ -519,8 +511,8 @@ module wrapper_VALTRAINCENTER_tb;
             end
         end
 
-        if (expect_te_dut && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_te_dut && !dut_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
             fail_count++; $stop;
         end
 
@@ -539,8 +531,8 @@ module wrapper_VALTRAINCENTER_tb;
     // Main Test Program
     // =========================================================================
     initial begin
-        dut_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
-        ptn_if.state_n[0] = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
+        dut_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
+        ptn_if.state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINCENTER;
         $display("# =========================================================");
         $display("# Running wrapper_VALTRAINCENTER_tb                        ");
         $display("# =========================================================");
@@ -593,7 +585,7 @@ module wrapper_VALTRAINCENTER_tb;
         assume_holes_after_quarter_eye_start = 0;
         dut_local_en = 1; ptn_local_en = 1;
         dut_partner_en = 1; ptn_partner_en = 1;
-        wait (u_dut.local_valtraincenter_done);
+        wait (dut_valtraincenter_done);
         #1000;
         dut_local_en = 0; ptn_local_en = 0;
         dut_partner_en = 0; ptn_partner_en = 0;
@@ -603,7 +595,7 @@ module wrapper_VALTRAINCENTER_tb;
         dut_eye_start = 6; dut_eye_end = 12; ptn_eye_start = 6; ptn_eye_end = 12;
         dut_local_en = 1; ptn_local_en = 1;
         dut_partner_en = 1; ptn_partner_en = 1;
-        wait (u_dut.local_valtraincenter_done);
+        wait (dut_valtraincenter_done);
         #1000;
         if (u_dut.phy_tx_val_pi_phase_ctrl !== 7'd9) begin
             $display("# ERROR: Multi-run 2 Vref value mismatch! Got %0d, expected 9", u_dut.phy_tx_val_pi_phase_ctrl);
@@ -614,15 +606,15 @@ module wrapper_VALTRAINCENTER_tb;
         #10000;
         pass_test("Scenario 5: Multi-run without Reset");
 
-        // Scenario 6: 8ms watchdog timeout -> TRAINERROR
-        run_scenario(
-            .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
-            .d_start(2), .d_end(12),
-            .p_start(2), .p_end(12),
-            .holes_en(0),
-            .expect_done_dut(0), .expect_te_dut(1),
-            .suppress_sb(1), .inject_trainerror(0)
-        );
+        // Scenario 6: 8ms watchdog timeout -> TRAINERROR (Commented out: watchdog timer handled globally)
+        // run_scenario(
+        //     .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
+        //     .d_start(2), .d_end(12),
+        //     .p_start(2), .p_end(12),
+        //     .holes_en(0),
+        //     .expect_done_dut(0), .expect_te_dut(1),
+        //     .suppress_sb(1), .inject_trainerror(0)
+        // );
 
         // Scenario 7: Injected TRAINERROR from partner
         run_scenario(
@@ -667,7 +659,7 @@ module wrapper_VALTRAINCENTER_tb;
 
             fork
                 begin
-                    wait (u_dut.local_valtraincenter_done || u_dut.local_trainerror_req);
+                    wait (dut_valtraincenter_done || dut_trainerror_req);
                     #(LCLK_PERIOD * 10);
                 end
                 begin
@@ -679,7 +671,7 @@ module wrapper_VALTRAINCENTER_tb;
             disable fork;
 
             // Verification
-            if (u_dut.local_trainerror_req) begin
+            if (dut_trainerror_req) begin
                 $display("# ERROR: Unexpected TRAINERROR in randomized test %0d!", i);
                 $stop;
             end

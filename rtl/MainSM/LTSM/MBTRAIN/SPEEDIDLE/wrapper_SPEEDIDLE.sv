@@ -12,26 +12,24 @@ module wrapper_SPEEDIDLE (
         input  logic        rst_n,
 
         // LTSM Control and Configuration Signals
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
 
         // Local FSM Control
         input  logic        local_speedidle_en,
-        output logic        local_speedidle_done,
-        output logic        local_trainerror_req,
 
         // Partner FSM Control
         input  logic        partner_speedidle_en,
-        output logic        partner_speedidle_done,
-        output logic        partner_trainerror_req,
 
-        // Timer Control (Combined OR logic for watchdog and settle)
-        output logic        timeout_timer_en,
+        // Combined outputs
+        output logic        speedidle_done,
+        output logic        trainerror_req,
+
+        // Timer Control (Settle timer)
         output logic        analog_settle_timer_en,
         input  logic        analog_settle_time_done,
 
         // Config signals
-        input  wire ltsm_state_n_pkg::state_n_e state_n [3:0],
+        input  wire ltsm_state_n_pkg::state_n_e state_n_1,
         input  logic [2:0]  param_negotiated_max_speed,
         output logic [2:0]  phy_negotiated_speed,
 
@@ -58,8 +56,11 @@ module wrapper_SPEEDIDLE (
     );
 
     // Internal wires
-    logic        local_timeout_timer_en;
-    logic        partner_timeout_timer_en;
+    logic        local_speedidle_done_wire;
+    logic        partner_speedidle_done_wire;
+    logic        local_trainerror_req_wire;
+    logic        partner_trainerror_req_wire;
+
     logic        local_analog_settle_timer_en;
     logic        partner_analog_settle_timer_en;
 
@@ -103,14 +104,12 @@ module wrapper_SPEEDIDLE (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .speedidle_en           (local_speedidle_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .speedidle_done         (local_speedidle_done),
-        .trainerror_req         (local_trainerror_req),
-        .state_n                (state_n),
+        .soft_rst_n             (soft_rst_n),
+        .speedidle_done         (local_speedidle_done_wire),
+        .trainerror_req         (local_trainerror_req_wire),
+        .state_n_1              (state_n_1),
         .param_negotiated_max_speed(param_negotiated_max_speed),
         .phy_negotiated_speed   (local_phy_negotiated_speed),
-        .timeout_timer_en       (local_timeout_timer_en),
         .analog_settle_timer_en (local_analog_settle_timer_en),
         .analog_settle_time_done(analog_settle_time_done),
         .mb_tx_clk_lane_sel     (local_mb_tx_clk_lane_sel),
@@ -136,14 +135,12 @@ module wrapper_SPEEDIDLE (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .speedidle_en           (partner_speedidle_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .speedidle_done         (partner_speedidle_done),
-        .trainerror_req         (partner_trainerror_req),
-        .state_n                (state_n),
+        .soft_rst_n             (soft_rst_n),
+        .speedidle_done         (partner_speedidle_done_wire),
+        .trainerror_req         (partner_trainerror_req_wire),
+        .state_n_1              (state_n_1),
         .param_negotiated_max_speed(param_negotiated_max_speed),
         .phy_negotiated_speed   (partner_phy_negotiated_speed),
-        .timeout_timer_en       (partner_timeout_timer_en),
         .analog_settle_timer_en (partner_analog_settle_timer_en),
         .analog_settle_time_done(analog_settle_time_done),
         .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel),
@@ -164,8 +161,11 @@ module wrapper_SPEEDIDLE (
         .rx_data_field          (rx_data_field)
     );
 
-    // OR logic for watchdog timer and settle timer
-    assign timeout_timer_en       = local_timeout_timer_en | partner_timeout_timer_en;
+    // Combined outputs logic
+    assign speedidle_done         = local_speedidle_done_wire & partner_speedidle_done_wire;
+    assign trainerror_req         = local_trainerror_req_wire | partner_trainerror_req_wire;
+
+    // Settle timer
     assign analog_settle_timer_en = local_analog_settle_timer_en | partner_analog_settle_timer_en;
 
     // Negotiated speed configuration MUX

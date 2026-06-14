@@ -7,57 +7,57 @@
 // ====================================================================================================
 
 module wrapper_TXSELFCAL (
-    // Clock and Reset Signals
-    input  logic        lclk,
-    input  logic        rst_n,
+        // Clock and Reset Signals
+        input  logic        lclk,
+        input  logic        rst_n,
 
-    // LTSM Control and Configuration Signals
-    input  logic        is_ltsm_out_of_reset,
-    input  logic        timeout_8ms_occured,
+        // LTSM Control and Configuration Signals
+        input  logic        soft_rst_n,
 
-    // Local FSM Control
-    input  logic        local_txselfcal_en,
-    output logic        local_txselfcal_done,
-    output logic        local_trainerror_req,
+        // Local FSM Control
+        input  logic        local_txselfcal_en,
 
-    // Partner FSM Control
-    input  logic        partner_txselfcal_en,
-    output logic        partner_txselfcal_done,
-    output logic        partner_trainerror_req,
+        // Partner FSM Control
+        input  logic        partner_txselfcal_en,
 
-    // Timer Control (Combined OR logic for watchdog)
-    output logic        timeout_timer_en,
-    output logic        analog_settle_timer_en,
-    input  logic        analog_settle_time_done,
+        // Combined outputs
+        output logic        txselfcal_done,
+        output logic        trainerror_req,
 
-    // PHY Control Signals
-    output logic        phy_tx_selfcal_en,
+        // Timer Control
+        output logic        analog_settle_timer_en,
+        input  logic        analog_settle_time_done,
 
-    // MB Signals
-    output logic [1:0]  mb_tx_clk_lane_sel,
-    output logic [1:0]  mb_tx_data_lane_sel,
-    output logic [1:0]  mb_tx_val_lane_sel,
-    output logic [1:0]  mb_tx_trk_lane_sel,
-    output logic        mb_rx_clk_lane_sel,
-    output logic        mb_rx_data_lane_sel,
-    output logic        mb_rx_val_lane_sel,
-    output logic        mb_rx_trk_lane_sel,
+        // PHY Control Signals
+        output logic        phy_tx_selfcal_en,
 
-    // SB Signals
-    output logic        tx_sb_msg_valid,
-    output logic [7:0]  tx_sb_msg,
-    output logic [15:0] tx_msginfo,
-    output logic [63:0] tx_data_field,
+        // MB Signals
+        output logic [1:0]  mb_tx_clk_lane_sel,
+        output logic [1:0]  mb_tx_data_lane_sel,
+        output logic [1:0]  mb_tx_val_lane_sel,
+        output logic [1:0]  mb_tx_trk_lane_sel,
+        output logic        mb_rx_clk_lane_sel,
+        output logic        mb_rx_data_lane_sel,
+        output logic        mb_rx_val_lane_sel,
+        output logic        mb_rx_trk_lane_sel,
 
-    input  logic        rx_sb_msg_valid,
-    input  logic [7:0]  rx_sb_msg,
-    input  logic [15:0] rx_msginfo,
-    input  logic [63:0] rx_data_field
-);
+        // SB Signals
+        output logic        tx_sb_msg_valid,
+        output logic [7:0]  tx_sb_msg,
+        output logic [15:0] tx_msginfo,
+        output logic [63:0] tx_data_field,
+
+        input  logic        rx_sb_msg_valid,
+        input  logic [7:0]  rx_sb_msg,
+        input  logic [15:0] rx_msginfo,
+        input  logic [63:0] rx_data_field
+    );
 
     // Internal wires
-    logic        local_timeout_timer_en;
-    logic        partner_timeout_timer_en;
+    logic        local_txselfcal_done_wire;
+    logic        partner_txselfcal_done_wire;
+    logic        local_trainerror_req_wire;
+    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM
     logic        local_tx_sb_msg_valid;
@@ -96,11 +96,9 @@ module wrapper_TXSELFCAL (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .txselfcal_en           (local_txselfcal_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .txselfcal_done         (local_txselfcal_done),
-        .trainerror_req         (local_trainerror_req),
-        .timeout_timer_en       (local_timeout_timer_en),
+        .soft_rst_n             (soft_rst_n),
+        .txselfcal_done         (local_txselfcal_done_wire),
+        .trainerror_req         (local_trainerror_req_wire),
         .analog_settle_timer_en (analog_settle_timer_en),
         .analog_settle_time_done(analog_settle_time_done),
         .phy_tx_selfcal_en      (phy_tx_selfcal_en),
@@ -127,11 +125,9 @@ module wrapper_TXSELFCAL (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .txselfcal_en           (partner_txselfcal_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .txselfcal_done         (partner_txselfcal_done),
-        .trainerror_req         (partner_trainerror_req),
-        .timeout_timer_en       (partner_timeout_timer_en),
+        .soft_rst_n             (soft_rst_n),
+        .txselfcal_done         (partner_txselfcal_done_wire),
+        .trainerror_req         (partner_trainerror_req_wire),
         .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel    (partner_mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel     (partner_mb_tx_val_lane_sel),
@@ -150,8 +146,9 @@ module wrapper_TXSELFCAL (
         .rx_data_field          (rx_data_field)
     );
 
-    // OR logic for watchdog timer
-    assign timeout_timer_en = local_timeout_timer_en | partner_timeout_timer_en;
+    // Combined outputs logic
+    assign txselfcal_done = local_txselfcal_done_wire & partner_txselfcal_done_wire;
+    assign trainerror_req = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // SB TX output arbitration (Local FSM has priority)
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;

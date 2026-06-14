@@ -151,9 +151,7 @@ module unit_VALVREF_partner (
         // SECOND PRIORITY: valvref_en deasserted.
         // Only applies to non-terminal states (terminal states gate on valvref_en below).
         // ------------------------------------------------------------------
-        else if (!valvref_en &&
-                 current_state != VALVREF_PTR_TO_DATAVREF &&
-                 current_state != VALVREF_PTR_TO_TRAINERROR) begin
+        else if (!valvref_en) begin
             next_state = VALVREF_PTR_IDLE;
         end
         // ------------------------------------------------------------------
