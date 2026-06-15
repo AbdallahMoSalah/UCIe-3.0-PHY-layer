@@ -154,37 +154,45 @@ module wrapper_VALTRAINVREF_tb;
     // =========================================================================
     // Dynamic Eye Simulation
     // =========================================================================
-    always @(posedge lclk) begin
-        if (dut_if.sweep_en) begin
-            automatic logic [6:0] code = dut_if.swept_code;
-            if (code >= dut_eye_start && code <= dut_eye_end) begin
-                if (assume_holes_after_quarter_eye_start && (code == dut_eye_start + (dut_eye_end - dut_eye_start)/4)) begin
-                    dut_if.tb_force_val_pass <= 1'b0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            dut_if.tb_force_val_pass <= 1'b1;
+        end else begin
+            if (dut_if.sweep_en) begin
+                automatic logic [6:0] code = dut_if.swept_code;
+                if (code >= dut_eye_start && code <= dut_eye_end) begin
+                    if (assume_holes_after_quarter_eye_start && (code == dut_eye_start + (dut_eye_end - dut_eye_start)/4)) begin
+                        dut_if.tb_force_val_pass <= 1'b0;
+                    end else begin
+                        dut_if.tb_force_val_pass <= 1'b1;
+                    end
                 end else begin
-                    dut_if.tb_force_val_pass <= 1'b1;
+                    dut_if.tb_force_val_pass <= 1'b0;
                 end
             end else begin
-                dut_if.tb_force_val_pass <= 1'b0;
+                dut_if.tb_force_val_pass <= 1'b1;
             end
-        end else begin
-            dut_if.tb_force_val_pass <= 1'b1;
         end
     end
 
-    always @(posedge lclk) begin
-        if (ptn_if.sweep_en) begin
-            automatic logic [6:0] code = ptn_if.swept_code;
-            if (code >= ptn_eye_start && code <= ptn_eye_end) begin
-                if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start + (ptn_eye_end - ptn_eye_start)/4)) begin
-                    ptn_if.tb_force_val_pass <= 1'b0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            ptn_if.tb_force_val_pass <= 1'b1;
+        end else begin
+            if (ptn_if.sweep_en) begin
+                automatic logic [6:0] code = ptn_if.swept_code;
+                if (code >= ptn_eye_start && code <= ptn_eye_end) begin
+                    if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start + (ptn_eye_end - ptn_eye_start)/4)) begin
+                        ptn_if.tb_force_val_pass <= 1'b0;
+                    end else begin
+                        ptn_if.tb_force_val_pass <= 1'b1;
+                    end
                 end else begin
-                    ptn_if.tb_force_val_pass <= 1'b1;
+                    ptn_if.tb_force_val_pass <= 1'b0;
                 end
             end else begin
-                ptn_if.tb_force_val_pass <= 1'b0;
+                ptn_if.tb_force_val_pass <= 1'b1;
             end
-        end else begin
-            ptn_if.tb_force_val_pass <= 1'b1;
         end
     end
 
@@ -210,14 +218,15 @@ module wrapper_VALTRAINVREF_tb;
     // =========================================================================
     // Die A Instantiation (DUT)
     // =========================================================================
+    // Die A Instantiation (DUT)
+    // =========================================================================
     logic        dut_local_en = 0;
-    logic        dut_local_done;
-    logic        dut_local_trainerror_req;
     logic        dut_local_update_lane_mask;
 
     logic        dut_partner_en = 0;
-    logic        dut_partner_done;
-    logic        dut_partner_trainerror_req;
+
+    logic        dut_valtrainvref_done;
+    logic        dut_trainerror_req;
 
     wrapper_VALTRAINVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
@@ -225,19 +234,16 @@ module wrapper_VALTRAINVREF_tb;
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
+
+        .valtrainvref_done              (dut_valtrainvref_done),
+        .trainerror_req                 (dut_trainerror_req),
 
         .local_valtrainvref_en          (dut_local_en),
-        .local_valtrainvref_done        (dut_local_done),
-        .local_trainerror_req           (dut_local_trainerror_req),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .partner_valtrainvref_en        (dut_partner_en),
-        .partner_valtrainvref_done      (dut_partner_done),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
 
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -270,13 +276,12 @@ module wrapper_VALTRAINVREF_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_en = 0;
-    logic        ptn_local_done;
-    logic        ptn_local_trainerror_req;
     logic        ptn_local_update_lane_mask;
 
     logic        ptn_partner_en = 0;
-    logic        ptn_partner_done;
-    logic        ptn_partner_trainerror_req;
+
+    logic        ptn_valtrainvref_done;
+    logic        ptn_trainerror_req;
 
     wrapper_VALTRAINVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
@@ -284,19 +289,16 @@ module wrapper_VALTRAINVREF_tb;
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
+
+        .valtrainvref_done              (ptn_valtrainvref_done),
+        .trainerror_req                 (ptn_trainerror_req),
 
         .local_valtrainvref_en          (ptn_local_en),
-        .local_valtrainvref_done        (ptn_local_done),
-        .local_trainerror_req           (ptn_local_trainerror_req),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .partner_valtrainvref_en        (ptn_partner_en),
-        .partner_valtrainvref_done      (ptn_partner_done),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
 
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -329,15 +331,15 @@ module wrapper_VALTRAINVREF_tb;
     // State Monitors
     // =========================================================================
     typedef enum reg [3:0] {
-        VALTRAINVREF_LOCAL_IDLE           = 4'd0,
-        VALTRAINVREF_LOCAL_SEND_START_REQ = 4'd1,
-        VALTRAINVREF_LOCAL_WAIT_START_RESP= 4'd2,
-        VALTRAINVREF_LOCAL_SWEEP          = 4'd3,
-        VALTRAINVREF_LOCAL_APPLY_BEST     = 4'd4,
-        VALTRAINVREF_LOCAL_SEND_END_REQ   = 4'd5,
-        VALTRAINVREF_LOCAL_WAIT_END_RESP  = 4'd6,
-        VALTRAINVREF_LOCAL_TO_DATATRAIN1  = 4'd7,
-        VALTRAINVREF_LOCAL_TO_TRAINERROR  = 4'd8
+        VALTRAINVREF_LCL_IDLE           = 4'd0,
+        VALTRAINVREF_LCL_SEND_START_REQ = 4'd1,
+        VALTRAINVREF_LCL_WAIT_START_RESP= 4'd2,
+        VALTRAINVREF_LCL_SWEEP          = 4'd3,
+        VALTRAINVREF_LCL_APPLY_BEST     = 4'd4,
+        VALTRAINVREF_LCL_SEND_END_REQ   = 4'd5,
+        VALTRAINVREF_LCL_WAIT_END_RESP  = 4'd6,
+        VALTRAINVREF_LCL_TO_DATATRAINCENTER1 = 4'd7,
+        VALTRAINVREF_LCL_TO_TRAINERROR  = 4'd8
     } local_state_t;
 
     typedef enum reg [3:0] {
@@ -346,7 +348,7 @@ module wrapper_VALTRAINVREF_tb;
         VALTRAINVREF_PTR_SEND_START_RESP = 4'd2,
         VALTRAINVREF_PTR_WAIT_END_REQ    = 4'd3,
         VALTRAINVREF_PTR_SEND_END_RESP   = 4'd4,
-        VALTRAINVREF_PTR_TO_DATATRAIN1   = 4'd5,
+        VALTRAINVREF_PTR_TO_DATATRAINCENTER1   = 4'd5,
         VALTRAINVREF_PTR_TO_TRAINERROR   = 4'd6
     } partner_state_t;
 
@@ -369,32 +371,37 @@ module wrapper_VALTRAINVREF_tb;
     endfunction
 
     // Print monitors with OTHER_SB_MSG suppressed
-    always @(posedge lclk) begin
-        if (!in_randomized_scenarios || ENABLE_RAND_LOG) begin
-            if (rst_n && dut_local_state !== prev_dut_local_state) begin
-                $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), dut_local_state.name());
-                prev_dut_local_state <= dut_local_state;
-            end
-            if (rst_n && dut_partner_state !== prev_dut_partner_state) begin
-                $display("# [%0d ps] Die A PARTNER State -> %s", $realtime(), dut_partner_state.name());
-                prev_dut_partner_state <= dut_partner_state;
-            end
-            if (dut_if.rx_sb_msg_valid) begin
-                automatic string name = get_short_msg_name(msg_no_e'(dut_if.rx_sb_msg));
-                if (name != "OTHER_SB_MSG") begin
-                    $display("# [%0d ps] DEBUG: Die A RX SB Msg from Die B: %s (MsgCode: 8'h%h, MsgInfo: 16'h%h)",
-                        $realtime(), name, dut_if.rx_sb_msg, dut_if.rx_msginfo);
-                end
-            end
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            prev_dut_local_state   <= VALTRAINVREF_LCL_IDLE;
+            prev_dut_partner_state <= VALTRAINVREF_PTR_IDLE;
         end else begin
-            if (rst_n && dut_local_state !== prev_dut_local_state) prev_dut_local_state <= dut_local_state;
-            if (rst_n && dut_partner_state !== prev_dut_partner_state) prev_dut_partner_state <= dut_partner_state;
+            if (!in_randomized_scenarios || ENABLE_RAND_LOG) begin
+                if (dut_local_state !== prev_dut_local_state) begin
+                    $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), dut_local_state.name());
+                    prev_dut_local_state <= dut_local_state;
+                end
+                if (dut_partner_state !== prev_dut_partner_state) begin
+                    $display("# [%0d ps] Die A PARTNER State -> %s", $realtime(), dut_partner_state.name());
+                    prev_dut_partner_state <= dut_partner_state;
+                end
+                if (dut_if.rx_sb_msg_valid) begin
+                    automatic string name = get_short_msg_name(msg_no_e'(dut_if.rx_sb_msg));
+                    if (name != "OTHER_SB_MSG") begin
+                        $display("# [%0d ps] DEBUG: Die A RX SB Msg from Die B: %s (MsgCode: 8'h%h, MsgInfo: 16'h%h)",
+                            $realtime(), name, dut_if.rx_sb_msg, dut_if.rx_msginfo);
+                    end
+                end
+            end else begin
+                if (dut_local_state !== prev_dut_local_state) prev_dut_local_state <= dut_local_state;
+                if (dut_partner_state !== prev_dut_partner_state) prev_dut_partner_state <= dut_partner_state;
+            end
         end
     end
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINVREF;
+        dut_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINVREF;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_force_val_pass     = 1;
         dut_if.tb_verbose            = 0;
@@ -403,7 +410,7 @@ module wrapper_VALTRAINVREF_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINVREF;
+        ptn_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_VALTRAINVREF;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_force_val_pass     = 1;
         ptn_if.tb_verbose            = 0;
@@ -479,7 +486,7 @@ module wrapper_VALTRAINVREF_tb;
 
         fork
             begin
-                wait (u_dut.local_valtrainvref_done || u_dut.local_trainerror_req);
+                wait (dut_valtrainvref_done || dut_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -492,8 +499,8 @@ module wrapper_VALTRAINVREF_tb;
 
         // Verify FSM exits and calibrated midpoint code
         if (expect_done_dut) begin
-            if (!u_dut.local_valtrainvref_done || u_dut.local_trainerror_req) begin
-                $display("# ERROR: Expected successful VALTRAINVREF exit, but got local_done=%b, trainerror=%b", u_dut.local_valtrainvref_done, u_dut.local_trainerror_req);
+            if (!dut_valtrainvref_done || dut_trainerror_req) begin
+                $display("# ERROR: Expected successful VALTRAINVREF exit, but got local_done=%b, trainerror=%b", dut_valtrainvref_done, dut_trainerror_req);
                 fail_count++; $stop;
             end
             
@@ -513,8 +520,8 @@ module wrapper_VALTRAINVREF_tb;
             end
         end
 
-        if (expect_te_dut && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_te_dut && !dut_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
             fail_count++; $stop;
         end
 
@@ -585,7 +592,7 @@ module wrapper_VALTRAINVREF_tb;
         assume_holes_after_quarter_eye_start = 0;
         dut_local_en = 1; ptn_local_en = 1;
         dut_partner_en = 1; ptn_partner_en = 1;
-        wait (u_dut.local_valtrainvref_done);
+        wait (dut_valtrainvref_done);
         #1000;
         dut_local_en = 0; ptn_local_en = 0;
         dut_partner_en = 0; ptn_partner_en = 0;
@@ -595,7 +602,7 @@ module wrapper_VALTRAINVREF_tb;
         dut_eye_start = 15; dut_eye_end = 20; ptn_eye_start = 15; ptn_eye_end = 20;
         dut_local_en = 1; ptn_local_en = 1;
         dut_partner_en = 1; ptn_partner_en = 1;
-        wait (u_dut.local_valtrainvref_done);
+        wait (dut_valtrainvref_done);
         #1000;
         if (u_dut.phy_rx_valvref_ctrl !== 7'd17) begin
             $display("# ERROR: Multi-run 2 Vref value mismatch! Got %0d, expected 17", u_dut.phy_rx_valvref_ctrl);
@@ -606,15 +613,15 @@ module wrapper_VALTRAINVREF_tb;
         #10000;
         pass_test("Scenario 5: Multi-run without Reset");
 
-        // Scenario 6: 8ms watchdog timeout -> TRAINERROR
-        run_scenario(
-            .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
-            .d_start(10), .d_end(20),
-            .p_start(10), .p_end(20),
-            .holes_en(0),
-            .expect_done_dut(0), .expect_te_dut(1),
-            .suppress_sb(1), .inject_trainerror(0)
-        );
+        // Scenario 6: 8ms watchdog timeout -> TRAINERROR (Commented out: watchdog timer handled globally)
+        // run_scenario(
+        //     .name("Scenario 6: Watchdog Timeout -> TRAINERROR"),
+        //     .d_start(10), .d_end(20),
+        //     .p_start(10), .p_end(20),
+        //     .holes_en(0),
+        //     .expect_done_dut(0), .expect_te_dut(1),
+        //     .suppress_sb(1), .inject_trainerror(0)
+        // );
 
         // Scenario 7: Injected TRAINERROR from partner
         run_scenario(
@@ -659,7 +666,7 @@ module wrapper_VALTRAINVREF_tb;
 
             fork
                 begin
-                    wait (u_dut.local_valtrainvref_done || u_dut.local_trainerror_req);
+                    wait (dut_valtrainvref_done || dut_trainerror_req);
                     #(LCLK_PERIOD * 10);
                 end
                 begin
@@ -671,7 +678,7 @@ module wrapper_VALTRAINVREF_tb;
             disable fork;
 
             // Verification
-            if (u_dut.local_trainerror_req) begin
+            if (dut_trainerror_req) begin
                 $display("# ERROR: Unexpected TRAINERROR in randomized test %0d!", i);
                 $stop;
             end

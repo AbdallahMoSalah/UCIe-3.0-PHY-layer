@@ -8,8 +8,8 @@ module wrapper_RXDESKEW_tb;
     // =========================================================================
     parameter LCLK_PERIOD          = 1*1000 ; // That means lclk period = 1ns (1GHz) and for the waveform persetion: multiply by 1000.
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait the analog circuits in the MB to settle its signals.
-    parameter MIN_DESKEW_CODE      = 7'D0   ;
-    parameter MAX_DESKEW_CODE      = 7'D15  ; // Reduced from 127 for fast simulation
+    parameter MIN_DESKEW_CODE      = 7'D1   ;
+    parameter MAX_DESKEW_CODE      = 7'D16  ; // Reduced from 127 for fast simulation
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
     parameter MB_DELAY             = 10     ; // Representing 128 lclk + 2 lclk delay (standard spec is 4096)
 
@@ -87,6 +87,7 @@ module wrapper_RXDESKEW_tb;
 
     // Intercept control
     logic corrupt_preset_val = 0;
+    logic corrupt_preset_val_dut2ptn = 0;
 
     // Testbench sideband injection for Die B (Partner)
     logic        tb_ptn_inject_valid = 0;
@@ -135,7 +136,11 @@ module wrapper_RXDESKEW_tb;
 
             // Insert new inputs
             dut2ptn_msg_sr[0]  <= dut_if.tb_muxed_tx_sb_msg;
-            dut2ptn_info_sr[0] <= dut_if.tb_muxed_tx_msginfo;
+            if (corrupt_preset_val_dut2ptn && dut_if.tb_muxed_tx_sb_msg_valid && dut_if.tb_muxed_tx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req) begin
+                dut2ptn_info_sr[0] <= 16'h0006; // Corrupt to preset 6
+            end else begin
+                dut2ptn_info_sr[0] <= dut_if.tb_muxed_tx_msginfo;
+            end
             dut2ptn_data_sr[0] <= dut_if.tb_muxed_tx_data_field;
 
             if (tb_ptn_inject_valid) begin
@@ -145,7 +150,7 @@ module wrapper_RXDESKEW_tb;
             end else begin
                 ptn2dut_msg_sr[0]  <= ptn_if.tb_muxed_tx_sb_msg;
                 if (corrupt_preset_val && ptn_if.tb_muxed_tx_sb_msg_valid && ptn_if.tb_muxed_tx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req) begin
-                    ptn2dut_info_sr[0] <= 16'h0006; // Corrupt to invalid preset 6
+                    ptn2dut_info_sr[0] <= 16'h0007; // Corrupt to invalid preset 7
                 end else begin
                     ptn2dut_info_sr[0] <= ptn_if.tb_muxed_tx_msginfo;
                 end
@@ -200,9 +205,9 @@ module wrapper_RXDESKEW_tb;
     // Die A Instantiation (DUT)
     // =========================================================================
     logic        dut_local_rxdeskew_en = 0;
-    logic        dut_local_rxdeskew_done;
-    logic        dut_local_datatraincenter1_req;
-    logic        dut_local_trainerror_req;
+    logic        dut_rxdeskew_done;
+    logic        dut_datatraincenter1_req;
+    logic        dut_trainerror_req;
 
     logic        dut_partner_rxdeskew_en = 0;
     logic        dut_partner_rxdeskew_done;
@@ -227,26 +232,21 @@ module wrapper_RXDESKEW_tb;
 
     wrapper_RXDESKEW #(
         .MAX_DESKEW_CODE(MAX_DESKEW_CODE),
-        .MIN_DESKEW_CODE(MIN_DESKEW_CODE)
+        .MIN_DESKEW_CODE(MIN_DESKEW_CODE),
+        .MAX_VALID_PRESET(5)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .local_rxdeskew_en              (dut_local_rxdeskew_en),
-        .local_rxdeskew_done            (dut_local_rxdeskew_done),
-        .local_datatraincenter1_req     (dut_local_datatraincenter1_req),
-        .local_trainerror_req           (dut_local_trainerror_req),
+        .rxdeskew_done                  (dut_rxdeskew_done),
+        .datatraincenter1_req           (dut_datatraincenter1_req),
+        .trainerror_req                 (dut_trainerror_req),
 
         .partner_rxdeskew_en            (dut_partner_rxdeskew_en),
-        .partner_rxdeskew_done          (dut_partner_rxdeskew_done),
-        .partner_datatraincenter1_req   (dut_partner_datatraincenter1_req),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
-
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_rx_deskew_ctrl             (dut_phy_rx_deskew_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .phy_tx_eq_preset_ctrl          (dut_phy_tx_eq_preset_ctrl),
@@ -282,9 +282,9 @@ module wrapper_RXDESKEW_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_rxdeskew_en = 0;
-    logic        ptn_local_rxdeskew_done;
-    logic        ptn_local_datatraincenter1_req;
-    logic        ptn_local_trainerror_req;
+    logic        ptn_rxdeskew_done;
+    logic        ptn_datatraincenter1_req;
+    logic        ptn_trainerror_req;
 
     logic        ptn_partner_rxdeskew_en = 0;
     logic        ptn_partner_rxdeskew_done;
@@ -308,26 +308,21 @@ module wrapper_RXDESKEW_tb;
 
     wrapper_RXDESKEW #(
         .MAX_DESKEW_CODE(MAX_DESKEW_CODE),
-        .MIN_DESKEW_CODE(MIN_DESKEW_CODE)
+        .MIN_DESKEW_CODE(MIN_DESKEW_CODE),
+        .MAX_VALID_PRESET(6)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .local_rxdeskew_en              (ptn_local_rxdeskew_en),
-        .local_rxdeskew_done            (ptn_local_rxdeskew_done),
-        .local_datatraincenter1_req     (ptn_local_datatraincenter1_req),
-        .local_trainerror_req           (ptn_local_trainerror_req),
+        .rxdeskew_done                  (ptn_rxdeskew_done),
+        .datatraincenter1_req           (ptn_datatraincenter1_req),
+        .trainerror_req                 (ptn_trainerror_req),
 
         .partner_rxdeskew_en            (ptn_partner_rxdeskew_en),
-        .partner_rxdeskew_done          (ptn_partner_rxdeskew_done),
-        .partner_datatraincenter1_req   (ptn_partner_datatraincenter1_req),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
-
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_rx_deskew_ctrl             (ptn_phy_rx_deskew_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .phy_tx_eq_preset_ctrl          (ptn_phy_tx_eq_preset_ctrl),
@@ -461,7 +456,7 @@ module wrapper_RXDESKEW_tb;
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_RXDESKEW;
+        dut_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_RXDESKEW;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_force_val_pass     = 1;
         dut_if.tb_verbose            = 0;
@@ -470,7 +465,7 @@ module wrapper_RXDESKEW_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_RXDESKEW;
+        ptn_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_RXDESKEW;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_force_val_pass     = 1;
         ptn_if.tb_verbose            = 0;
@@ -538,7 +533,7 @@ module wrapper_RXDESKEW_tb;
 
         fork
             begin
-                wait (u_dut.local_rxdeskew_done || u_dut.local_datatraincenter1_req || u_dut.local_trainerror_req);
+                wait (dut_rxdeskew_done || dut_datatraincenter1_req || dut_trainerror_req);
                 #(LCLK_PERIOD * 100);
             end
             begin
@@ -550,16 +545,16 @@ module wrapper_RXDESKEW_tb;
         disable fork;
 
         // Verify FSM exits on Die A
-        if (expect_dtc2_dut && (!u_dut.local_rxdeskew_done || u_dut.local_trainerror_req)) begin
-            $display("# ERROR: Expected successful DTC2 exit on Die A, but got local_done=%b, trainerror=%b", u_dut.local_rxdeskew_done, u_dut.local_trainerror_req);
+        if (expect_dtc2_dut && (!dut_rxdeskew_done || dut_trainerror_req)) begin
+            $display("# ERROR: Expected successful DTC2 exit on Die A, but got rxdeskew_done=%b, trainerror=%b", dut_rxdeskew_done, dut_trainerror_req);
             $stop;
         end
-        if (expect_dtc1_dut && !u_dut.local_datatraincenter1_req) begin
-            $display("# ERROR: Expected DTC1 arc request on Die A, but got datatraincenter1_req=%b", u_dut.local_datatraincenter1_req);
+        if (expect_dtc1_dut && !dut_datatraincenter1_req) begin
+            $display("# ERROR: Expected DTC1 arc request on Die A, but got datatraincenter1_req=%b", dut_datatraincenter1_req);
             $stop;
         end
-        if (expect_te_dut && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_te_dut && !dut_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
             $stop;
         end
 
@@ -656,7 +651,7 @@ module wrapper_RXDESKEW_tb;
         dut_target_preset = 1; ptn_target_preset = 1;
         dut_local_rxdeskew_en = 1; ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1; ptn_partner_rxdeskew_en = 1;
-        wait (u_dut.local_datatraincenter1_req);
+        wait (dut_datatraincenter1_req);
         #1000;
         dut_local_rxdeskew_en = 0; ptn_local_rxdeskew_en = 0;
         dut_partner_rxdeskew_en = 0; ptn_partner_rxdeskew_en = 0;
@@ -667,7 +662,7 @@ module wrapper_RXDESKEW_tb;
         dut_target_preset = 2; ptn_target_preset = 2;
         dut_local_rxdeskew_en = 1; ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1; ptn_partner_rxdeskew_en = 1;
-        wait (u_dut.local_datatraincenter1_req);
+        wait (dut_datatraincenter1_req);
         #1000;
         dut_local_rxdeskew_en = 0; ptn_local_rxdeskew_en = 0;
         dut_partner_rxdeskew_en = 0; ptn_partner_rxdeskew_en = 0;
@@ -678,7 +673,7 @@ module wrapper_RXDESKEW_tb;
         dut_target_preset = 3; ptn_target_preset = 3;
         dut_local_rxdeskew_en = 1; ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1; ptn_partner_rxdeskew_en = 1;
-        wait (u_dut.local_datatraincenter1_req);
+        wait (dut_datatraincenter1_req);
         #1000;
         dut_local_rxdeskew_en = 0; ptn_local_rxdeskew_en = 0;
         dut_partner_rxdeskew_en = 0; ptn_partner_rxdeskew_en = 0;
@@ -689,7 +684,7 @@ module wrapper_RXDESKEW_tb;
         dut_target_preset = 4; ptn_target_preset = 4;
         dut_local_rxdeskew_en = 1; ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1; ptn_partner_rxdeskew_en = 1;
-        wait (u_dut.local_datatraincenter1_req);
+        wait (dut_datatraincenter1_req);
         #1000;
         dut_local_rxdeskew_en = 0; ptn_local_rxdeskew_en = 0;
         dut_partner_rxdeskew_en = 0; ptn_partner_rxdeskew_en = 0;
@@ -700,9 +695,9 @@ module wrapper_RXDESKEW_tb;
         dut_target_preset = 5; ptn_target_preset = 5;
         dut_local_rxdeskew_en = 1; ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1; ptn_partner_rxdeskew_en = 1;
-        wait (u_dut.local_rxdeskew_done);
+        wait (dut_rxdeskew_done);
         #1000;
-        if (!u_dut.local_rxdeskew_done) begin
+        if (!dut_rxdeskew_done) begin
             $display("# ERROR: Expected DTC2 on 5th loop due to arc limit reached!");
             $stop;
         end
@@ -711,7 +706,10 @@ module wrapper_RXDESKEW_tb;
         #10000;
         $display("# Scenario 6 Passed!\n");
 
-        // Scenario 7: High Speed, Cross-Die Arc Conflict (Die A ends, Die B arcs -> both DTC1)
+        // // Scenario 7: High Speed, Cross-Die Arc Conflict (Die A ends, Die B arcs -> both DTC1)
+        // $display("# =========================================================");
+        // $display("# Starting Scenario 7: Cross-Die Conflict (Die A Ends, Die B Arcs)");
+        // $display("# =========================================================");
         run_scenario(
             .name("Scenario 7: Cross-Die Conflict (Die A Ends, Die B Arcs)"),
             .hs(1), .speed(3'b111), .cont_clk(0),
@@ -721,34 +719,9 @@ module wrapper_RXDESKEW_tb;
             .expect_dtc2_dut(0), .expect_dtc1_dut(1), .expect_te_dut(0)
         );
 
-        // Scenario 8: High Speed, Watchdog 8ms Timeout
-        $display("# =========================================================");
-        $display("# Starting Scenario 8: Watchdog 8ms Timeout");
-        $display("# =========================================================");
-        assert_reset();
-        is_high_speed = 1;
-        phy_negotiated_speed = 3'b111;
-        is_continuous_clk_mode = 0;
-
-        // Suppress responses from Partner B to force timeout on Local A
-        ptn_if.tb_suppress_rx_sb = 1;
-
-        dut_local_rxdeskew_en = 1;
-        wait (u_dut.local_trainerror_req);
-        #1000;
-        if (!u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR due to watchdog timeout!");
-            $stop;
-        end
-
-        ptn_if.tb_suppress_rx_sb = 0;
-        dut_local_rxdeskew_en = 0;
-        #10000;
-        $display("# Scenario 8 Passed!\n");
-
         // Scenario 9: High Speed, Partner requesting TRAINERROR
         $display("# =========================================================");
-        $display("# Starting Scenario 9: Partner Requesting TRAINERROR");
+        $display("# Starting Scenario 8: Partner Requesting TRAINERROR");
         $display("# =========================================================");
         assert_reset();
         is_high_speed = 1;
@@ -768,9 +741,9 @@ module wrapper_RXDESKEW_tb;
         @(posedge lclk);
         tb_ptn_inject_valid = 0;
 
-        wait (u_dut.local_trainerror_req);
+        wait (dut_trainerror_req);
         #1000;
-        if (!u_dut.local_trainerror_req) begin
+        if (!dut_trainerror_req) begin
             $display("# ERROR: Expected TRAINERROR entry response!");
             $stop;
         end
@@ -780,31 +753,34 @@ module wrapper_RXDESKEW_tb;
         dut_partner_rxdeskew_en = 0;
         ptn_partner_rxdeskew_en = 0;
         #10000;
-        $display("# Scenario 9 Passed!\n");
+        $display("# Scenario 8 Passed!\n");
 
-        // Scenario 10: High Speed, Invalid preset requested by partner (rejected)
+        // Scenario 9: High Speed, Invalid preset requested by partner (rejected)
         $display("# =========================================================");
-        $display("# Starting Scenario 10: Invalid Preset Rejected");
+        $display("# Starting Scenario 9: Invalid Preset Rejected");
         $display("# =========================================================");
         assert_reset();
         is_high_speed = 1;
         phy_negotiated_speed = 3'b111;
         is_continuous_clk_mode = 0;
 
-        corrupt_preset_val = 1; // Intercept and set Preset Code to 6
+        // Force Die B's request to Die A to be 7 (which is > Die A's MAX_VALID_PRESET of 6) -> Expect Rejection
+        corrupt_preset_val = 1;
+        // Force Die A's request to Die B to be 6 (which is <= Die B's MAX_VALID_PRESET of 6) -> Expect Acceptance
+        corrupt_preset_val_dut2ptn = 1;
 
         dut_local_rxdeskew_en = 1;
         ptn_local_rxdeskew_en = 1;
         dut_partner_rxdeskew_en = 1;
         ptn_partner_rxdeskew_en = 1;
 
-        // Wait until Partner A rejects with Fail status
+        // Wait until Partner A (u_dut) rejects with Fail status
         wait (u_dut.u_RXDESKEW_partner.current_state == 4'd5); // RXDESKEW_PTR_SEND_PRESET_FAIL
         $display("# Detected invalid preset rejection on Die A.");
         corrupt_preset_val = 0; // Clear corruption
 
         // Wait for eventual clean completion
-        wait (u_dut.local_rxdeskew_done || u_dut.local_datatraincenter1_req);
+        wait (dut_rxdeskew_done || dut_datatraincenter1_req);
         #1000;
 
         dut_local_rxdeskew_en = 0;
@@ -812,7 +788,7 @@ module wrapper_RXDESKEW_tb;
         dut_partner_rxdeskew_en = 0;
         ptn_partner_rxdeskew_en = 0;
         #10000;
-        $display("# Scenario 10 Passed!\n");
+        $display("# Scenario 9 Passed!\n");
 
         // =========================================================================
         // 9. Randomized Scenarios Block with Self-Checking

@@ -73,8 +73,7 @@ module unit_LINKSPEED_local (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        linkspeed_en,         // 1: Enable LINKSPEED substate; 0: Return to IDLE.
-        input  logic        is_ltsm_out_of_reset, // 1: Normal operation; 0: Soft-reset (return to IDLE).
-        input  logic        timeout_8ms_occured,  // 1: 8 ms watchdog fired → force TO_TRAINERROR.
+        input  logic        soft_rst_n,           // 1: Normal operation; 0: Soft-reset (return to IDLE).
 
         output logic        linkspeed_done,       // 1: Sub-state completed (held until linkspeed_en deasserts).
         output logic        speedidle_req,        // 1: Request transition to MBTRAIN.SPEEDIDLE.
@@ -108,10 +107,6 @@ module unit_LINKSPEED_local (
         //   any sideband traffic (satisfies the user requirement: ≥1 lclk, < SB msg gap).
         output logic        PHY_IN_RETRAIN_rst,        // 1-cycle pulse: clear PHY_IN_RETRAIN in LTSM.
         output logic        busy_bit_rst      ,        // 1-cycle pulse: clear busy_bit in LTSM.
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en,          // 1: Enable 8 ms watchdog; 0: Disable.
 
         //=====================================//
         // Result Output:                      //
@@ -189,39 +184,39 @@ module unit_LINKSPEED_local (
     // =========================================================================
     typedef enum logic [4:0] {
         // ── Common flow ──────────────────────────────────────────────────────
-        LINKSPEED_LOC_IDLE                   = 5'd0,  // Wait for linkspeed_en.
-        LINKSPEED_LOC_SEND_START_REQ         = 5'd1,  // Send {start req}.
-        LINKSPEED_LOC_WAIT_START_RESP        = 5'd2,  // Wait for {start resp}.
-        LINKSPEED_LOC_TX_D2C_PT              = 5'd3,  // Assert sweep_en; wait for sweep_done.
-        LINKSPEED_LOC_EVAL_RESULT            = 5'd4,  // 1-cycle: evaluate D2C results.
+        LINKSPEED_LCL_IDLE                   = 5'd0,  // Wait for linkspeed_en.
+        LINKSPEED_LCL_SEND_START_REQ         = 5'd1,  // Send {start req}.
+        LINKSPEED_LCL_WAIT_START_RESP        = 5'd2,  // Wait for {start resp}.
+        LINKSPEED_LCL_TX_D2C_PT              = 5'd3,  // Assert sweep_en; wait for sweep_done.
+        LINKSPEED_LCL_EVAL_RESULT            = 5'd4,  // 1-cycle: evaluate D2C results.
 
         // ── SUCCESS PATH ─────────────────────────────────────────────────────
         // PHY retrain: LOCAL detected params_changed (INITIATOR role only).
-        LINKSPEED_LOC_SEND_PHY_RETRAIN_REQ   = 5'd5,  // Send {exit to phy retrain REQ}.
-        LINKSPEED_LOC_WAIT_PHY_RETRAIN_RESP  = 5'd6,  // Wait for {exit to phy retrain RESP} from REMOTE PARTNER.
+        LINKSPEED_LCL_SEND_PHY_RETRAIN_REQ   = 5'd5,  // Send {exit to phy retrain REQ}.
+        LINKSPEED_LCL_WAIT_PHY_RETRAIN_RESP  = 5'd6,  // Wait for {exit to phy retrain RESP} from REMOTE PARTNER.
         // Normal success:
-        LINKSPEED_LOC_SEND_DONE_REQ          = 5'd7,  // Send {done req}.
-        LINKSPEED_LOC_WAIT_DONE_RESP         = 5'd8,  // Wait for {done resp}.
+        LINKSPEED_LCL_SEND_DONE_REQ          = 5'd7,  // Send {done req}.
+        LINKSPEED_LCL_WAIT_DONE_RESP         = 5'd8,  // Wait for {done resp}.
 
         // ── ERROR / RECOVERY PATH ────────────────────────────────────────────
-        LINKSPEED_LOC_SEND_ERROR_REQ         = 5'd9,  // Send {error req}. TX → Elec Idle.
-        LINKSPEED_LOC_WAIT_ERROR_RESP        = 5'd10, // Wait for {error resp}.
-        LINKSPEED_LOC_RECOVERY_DECISION      = 5'd11, // 1-cycle: choose repair vs speed-degrade.
-        LINKSPEED_LOC_SEND_REPAIR_REQ        = 5'd12, // Send {exit to repair req}.
-        LINKSPEED_LOC_WAIT_REPAIR_RESP       = 5'd13, // Wait for {exit to repair resp}.
-        LINKSPEED_LOC_SEND_SPEED_DEGRADE_REQ = 5'd14, // Send {exit to speed degrade req}.
-        LINKSPEED_LOC_WAIT_SPEED_DEGRADE_RESP= 5'd15, // Wait for {exit to speed degrade resp}.
-        LINKSPEED_LOC_WAIT_RECOVERY_REQ      = 5'd16, // Wait for partner's recovery req (PARTNER FSM handles resp).
+        LINKSPEED_LCL_SEND_ERROR_REQ         = 5'd9,  // Send {error req}. TX → Elec Idle.
+        LINKSPEED_LCL_WAIT_ERROR_RESP        = 5'd10, // Wait for {error resp}.
+        LINKSPEED_LCL_RECOVERY_DECISION      = 5'd11, // 1-cycle: choose repair vs speed-degrade.
+        LINKSPEED_LCL_SEND_REPAIR_REQ        = 5'd12, // Send {exit to repair req}.
+        LINKSPEED_LCL_WAIT_REPAIR_RESP       = 5'd13, // Wait for {exit to repair resp}.
+        LINKSPEED_LCL_SEND_SPEED_DEGRADE_REQ = 5'd14, // Send {exit to speed degrade req}.
+        LINKSPEED_LCL_WAIT_SPEED_DEGRADE_RESP= 5'd15, // Wait for {exit to speed degrade resp}.
+        LINKSPEED_LCL_WAIT_RECOVERY_REQ      = 5'd16, // Wait for partner's recovery req (PARTNER FSM handles resp).
 
         // ── Terminal states ───────────────────────────────────────────────────
-        LINKSPEED_LOC_TO_LINKINIT            = 5'd17, // linkspeed_done=1, linkinit_req=1.
-        LINKSPEED_LOC_TO_REPAIR              = 5'd18, // linkspeed_done=1, repair_req=1.
-        LINKSPEED_LOC_TO_SPEEDIDLE           = 5'd19, // linkspeed_done=1, speedidle_req=1.
-        LINKSPEED_LOC_TO_PHYRETRAIN          = 5'd20, // linkspeed_done=1, phyretrain_req=1.
-        LINKSPEED_LOC_TO_TRAINERROR          = 5'd21  // linkspeed_done=1, trainerror_req=1.
-    } linkspeed_loc_state_e;
+        LINKSPEED_LCL_TO_LINKINIT            = 5'd17, // linkspeed_done=1, linkinit_req=1.
+        LINKSPEED_LCL_TO_REPAIR              = 5'd18, // linkspeed_done=1, repair_req=1.
+        LINKSPEED_LCL_TO_SPEEDIDLE           = 5'd19, // linkspeed_done=1, speedidle_req=1.
+        LINKSPEED_LCL_TO_PHYRETRAIN          = 5'd20, // linkspeed_done=1, phyretrain_req=1.
+        LINKSPEED_LCL_TO_TRAINERROR          = 5'd21  // linkspeed_done=1, trainerror_req=1.
+    } linkspeed_lcl_state_e;
 
-    linkspeed_loc_state_e current_state, next_state;
+    linkspeed_lcl_state_e current_state, next_state;
 
     // =========================================================================
     // Decision Registers (latched in EVAL_RESULT, 1-cycle state)
@@ -259,7 +254,7 @@ module unit_LINKSPEED_local (
             partner_exit_to_repair_req_rcvd         <= 1'b0;
             partner_exit_to_speed_degrade_req_rcvd  <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset || !linkspeed_en) begin
+        else if (!linkspeed_en) begin
             partner_error_req_rcvd                  <= 1'b0;
             partner_exit_to_repair_req_rcvd         <= 1'b0;
             partner_exit_to_speed_degrade_req_rcvd  <= 1'b0;
@@ -279,9 +274,9 @@ module unit_LINKSPEED_local (
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n)
-            current_state <= LINKSPEED_LOC_IDLE;
-        else if (!is_ltsm_out_of_reset)
-            current_state <= LINKSPEED_LOC_IDLE;
+            current_state <= LINKSPEED_LCL_IDLE;
+        else if (!soft_rst_n)
+            current_state <= LINKSPEED_LCL_IDLE;
         else
             current_state <= next_state;
     end
@@ -301,40 +296,40 @@ module unit_LINKSPEED_local (
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
         // P1: TRAINERROR — highest priority, overrides everything.
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = LINKSPEED_LOC_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = LINKSPEED_LCL_TO_TRAINERROR;
         end
         // P2: Session teardown.
         else if (!linkspeed_en) begin
-            next_state = LINKSPEED_LOC_IDLE;
+            next_state = LINKSPEED_LCL_IDLE;
         end
         // P3: Normal FSM transitions.
         else begin
             case (current_state)
 
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_IDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_SEND_START_REQ : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_IDLE: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_SEND_START_REQ : LINKSPEED_LCL_IDLE;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // SEND_START_REQ: 1-cycle. Move to WAIT_START_RESP immediately.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_SEND_START_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_START_RESP;
+                LINKSPEED_LCL_SEND_START_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_START_RESP;
                 end
 
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_WAIT_START_RESP: begin
+                LINKSPEED_LCL_WAIT_START_RESP: begin
                     next_state = (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_start_resp) ?
-                        LINKSPEED_LOC_TX_D2C_PT : LINKSPEED_LOC_WAIT_START_RESP;
+                        LINKSPEED_LCL_TX_D2C_PT : LINKSPEED_LCL_WAIT_START_RESP;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // TX_D2C_PT: Holds sweep_en=1 until sweep_done.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_TX_D2C_PT: begin
-                    next_state = sweep_done ? LINKSPEED_LOC_EVAL_RESULT : LINKSPEED_LOC_TX_D2C_PT;
+                LINKSPEED_LCL_TX_D2C_PT: begin
+                    next_state = sweep_done ? LINKSPEED_LCL_EVAL_RESULT : LINKSPEED_LCL_TX_D2C_PT;
                 end
 
                 // ────────────────────────────────────────────────────────────
@@ -345,22 +340,22 @@ module unit_LINKSPEED_local (
                 //   - No error + PHY retrain + no change      → clear flag, done
                 //   - No error + no PHY retrain               → done path
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_EVAL_RESULT: begin
+                LINKSPEED_LCL_EVAL_RESULT: begin
                     if (error_detected_w)
-                        next_state = LINKSPEED_LOC_SEND_ERROR_REQ;
+                        next_state = LINKSPEED_LCL_SEND_ERROR_REQ;
                     else if (PHY_IN_RETRAIN && params_changed)
-                        next_state = LINKSPEED_LOC_SEND_PHY_RETRAIN_REQ;
+                        next_state = LINKSPEED_LCL_SEND_PHY_RETRAIN_REQ;
                     else
                         // PHY_IN_RETRAIN && !params_changed: clear flags and go to done.
                         // !PHY_IN_RETRAIN: go to done.
-                        next_state = LINKSPEED_LOC_SEND_DONE_REQ;
+                        next_state = LINKSPEED_LCL_SEND_DONE_REQ;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // Role A: LOCAL sends {exit to phy retrain REQ}.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_SEND_PHY_RETRAIN_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_PHY_RETRAIN_RESP;
+                LINKSPEED_LCL_SEND_PHY_RETRAIN_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_PHY_RETRAIN_RESP;
                 end
 
                 // ────────────────────────────────────────────────────────────
@@ -370,115 +365,115 @@ module unit_LINKSPEED_local (
                 //   NOTE: The shared opcode is also used as RXDESKEW EQ Preset resp —
                 //   in LINKSPEED context it unambiguously means the phy retrain resp.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_WAIT_PHY_RETRAIN_RESP: begin
+                LINKSPEED_LCL_WAIT_PHY_RETRAIN_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp)
-                        next_state = LINKSPEED_LOC_TO_PHYRETRAIN;
+                        next_state = LINKSPEED_LCL_TO_PHYRETRAIN;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_PHY_RETRAIN_RESP;
+                        next_state = LINKSPEED_LCL_WAIT_PHY_RETRAIN_RESP;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // SUCCESS PATH: {done req} / {done resp}.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_SEND_DONE_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_DONE_RESP;
+                LINKSPEED_LCL_SEND_DONE_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_DONE_RESP;
                 end
 
                 // Wait for {done resp}. Interrupt: partner sent {error req} first.
                 // Per spec §4.5.3.4.12 Step 3d: outstanding {done req} must be abandoned.
-                LINKSPEED_LOC_WAIT_DONE_RESP: begin
+                LINKSPEED_LCL_WAIT_DONE_RESP: begin
                     if (partner_error_req_rcvd)
-                        next_state = LINKSPEED_LOC_WAIT_RECOVERY_REQ;
+                        next_state = LINKSPEED_LCL_WAIT_RECOVERY_REQ;
                     else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_done_resp)
-                        next_state = LINKSPEED_LOC_TO_LINKINIT;
+                        next_state = LINKSPEED_LCL_TO_LINKINIT;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_DONE_RESP;
+                        next_state = LINKSPEED_LCL_WAIT_DONE_RESP;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // ERROR PATH.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_SEND_ERROR_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_ERROR_RESP;
+                LINKSPEED_LCL_SEND_ERROR_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_ERROR_RESP;
                 end
 
                 // Spec Step 3: "if not initiating {exit to phy retrain req}, partner
                 //   enters Elec Idle and sends {error resp}."
                 // P3 handles the case where partner IS initiating phy retrain req instead.
-                LINKSPEED_LOC_WAIT_ERROR_RESP: begin
+                LINKSPEED_LCL_WAIT_ERROR_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_error_resp)
-                        next_state = LINKSPEED_LOC_RECOVERY_DECISION;
+                        next_state = LINKSPEED_LCL_RECOVERY_DECISION;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_ERROR_RESP;
+                        next_state = LINKSPEED_LCL_WAIT_ERROR_RESP;
                 end
 
                 // 1-cycle decision: check if partner already committed to speed degrade.
-                LINKSPEED_LOC_RECOVERY_DECISION: begin
+                LINKSPEED_LCL_RECOVERY_DECISION: begin
                     if (partner_exit_to_speed_degrade_req_rcvd)
-                        next_state = LINKSPEED_LOC_TO_SPEEDIDLE;
+                        next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
                     else if (req_speed_degrade_r)
-                        next_state = LINKSPEED_LOC_SEND_SPEED_DEGRADE_REQ;
+                        next_state = LINKSPEED_LCL_SEND_SPEED_DEGRADE_REQ;
                     else
-                        next_state = LINKSPEED_LOC_SEND_REPAIR_REQ;
+                        next_state = LINKSPEED_LCL_SEND_REPAIR_REQ;
                 end
 
-                LINKSPEED_LOC_SEND_REPAIR_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_REPAIR_RESP;
+                LINKSPEED_LCL_SEND_REPAIR_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_REPAIR_RESP;
                 end
 
                 // Spec Step 3c: {speed degrade req} received → abandon {repair req}.
-                LINKSPEED_LOC_WAIT_REPAIR_RESP: begin
+                LINKSPEED_LCL_WAIT_REPAIR_RESP: begin
                     if (partner_exit_to_speed_degrade_req_rcvd)
-                        next_state = LINKSPEED_LOC_TO_SPEEDIDLE;
+                        next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
                     else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_repair_resp)
-                        next_state = LINKSPEED_LOC_TO_REPAIR;
+                        next_state = LINKSPEED_LCL_TO_REPAIR;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_REPAIR_RESP;
+                        next_state = LINKSPEED_LCL_WAIT_REPAIR_RESP;
                 end
 
-                LINKSPEED_LOC_SEND_SPEED_DEGRADE_REQ: begin
-                    next_state = LINKSPEED_LOC_WAIT_SPEED_DEGRADE_RESP;
+                LINKSPEED_LCL_SEND_SPEED_DEGRADE_REQ: begin
+                    next_state = LINKSPEED_LCL_WAIT_SPEED_DEGRADE_RESP;
                 end
 
-                LINKSPEED_LOC_WAIT_SPEED_DEGRADE_RESP: begin
+                LINKSPEED_LCL_WAIT_SPEED_DEGRADE_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp)
-                        next_state = LINKSPEED_LOC_TO_SPEEDIDLE;
+                        next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_SPEED_DEGRADE_RESP;
+                        next_state = LINKSPEED_LCL_WAIT_SPEED_DEGRADE_RESP;
                 end
 
                 // Cross-die: LOCAL was on success path; partner had errors.
                 // Wait for partner to send recovery req (handled by PARTNER FSM resp).
                 // Priority: speed degrade > repair.
-                LINKSPEED_LOC_WAIT_RECOVERY_REQ: begin
+                LINKSPEED_LCL_WAIT_RECOVERY_REQ: begin
                     if (partner_exit_to_speed_degrade_req_rcvd)
-                        next_state = LINKSPEED_LOC_TO_SPEEDIDLE;
+                        next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
                     else if (partner_exit_to_repair_req_rcvd)
-                        next_state = LINKSPEED_LOC_TO_REPAIR;
+                        next_state = LINKSPEED_LCL_TO_REPAIR;
                     else
-                        next_state = LINKSPEED_LOC_WAIT_RECOVERY_REQ;
+                        next_state = LINKSPEED_LCL_WAIT_RECOVERY_REQ;
                 end
 
                 // ────────────────────────────────────────────────────────────
                 // Terminal states: hold until linkspeed_en deasserts.
                 // ────────────────────────────────────────────────────────────
-                LINKSPEED_LOC_TO_LINKINIT: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_TO_LINKINIT : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_TO_LINKINIT: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_LINKINIT : LINKSPEED_LCL_IDLE;
                 end
-                LINKSPEED_LOC_TO_REPAIR: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_TO_REPAIR : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_TO_REPAIR: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_REPAIR : LINKSPEED_LCL_IDLE;
                 end
-                LINKSPEED_LOC_TO_SPEEDIDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_TO_SPEEDIDLE : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_TO_SPEEDIDLE: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_SPEEDIDLE : LINKSPEED_LCL_IDLE;
                 end
-                LINKSPEED_LOC_TO_PHYRETRAIN: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_TO_PHYRETRAIN : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_TO_PHYRETRAIN: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_PHYRETRAIN : LINKSPEED_LCL_IDLE;
                 end
-                LINKSPEED_LOC_TO_TRAINERROR: begin
-                    next_state = linkspeed_en ? LINKSPEED_LOC_TO_TRAINERROR : LINKSPEED_LOC_IDLE;
+                LINKSPEED_LCL_TO_TRAINERROR: begin
+                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_TRAINERROR : LINKSPEED_LCL_IDLE;
                 end
 
-                default: next_state = LINKSPEED_LOC_IDLE;
+                default: next_state = LINKSPEED_LCL_IDLE;
 
             endcase
         end
@@ -493,13 +488,13 @@ module unit_LINKSPEED_local (
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
-        else if (!is_ltsm_out_of_reset || !linkspeed_en) begin
+        else if (!soft_rst_n || !linkspeed_en) begin
             req_speed_degrade_r     <= 1'b0;
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
         else begin
-            if (current_state == LINKSPEED_LOC_EVAL_RESULT) begin
+            if (current_state == LINKSPEED_LCL_EVAL_RESULT) begin
                 // req_speed_degrade_r: held for RECOVERY_DECISION state (after error resp).
                 req_speed_degrade_r     <= ~width_degrade_feasible;
                 // in_electrical_idle_r: held throughout the error path; drives MB TX Elec-Idle.
@@ -517,7 +512,7 @@ module unit_LINKSPEED_local (
     // =========================================================================
     // sweep_en: Combinational, deasserts automatically on leaving TX_D2C_PT.
     // =========================================================================
-    assign sweep_en = (current_state == LINKSPEED_LOC_TX_D2C_PT);
+    assign sweep_en = (current_state == LINKSPEED_LCL_TX_D2C_PT);
 
     // =========================================================================
     // FSM Output Logic (Moore Machine — outputs depend only on current_state)
@@ -531,7 +526,6 @@ module unit_LINKSPEED_local (
         linkinit_req        = 1'b0;
         phyretrain_req      = 1'b0;
         trainerror_req      = 1'b0;
-        timeout_timer_en    = 1'b1;
         // NOTE: PHY_IN_RETRAIN_rst is driven by its own dedicated block (PHY_IN_RETRAIN_RST_PROC).
 
         // ── MB Rx defaults (always enabled per spec) ──
@@ -560,46 +554,44 @@ module unit_LINKSPEED_local (
 
         case (current_state)
 
-            LINKSPEED_LOC_IDLE: begin
-                timeout_timer_en = 1'b0;
-            end
+            LINKSPEED_LCL_IDLE: ;
 
             // ── Common flow ──────────────────────────────────────────────────
-            LINKSPEED_LOC_SEND_START_REQ: begin
+            LINKSPEED_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_LINKSPEED_start_req;
             end
 
-            LINKSPEED_LOC_WAIT_START_RESP: ; // Hold.
+            LINKSPEED_LCL_WAIT_START_RESP: ; // Hold.
 
-            LINKSPEED_LOC_TX_D2C_PT: begin
+            LINKSPEED_LCL_TX_D2C_PT: begin
                 mb_tx_data_lane_sel = 2'b01; // Active: TX sends LFSR pattern.
                 mb_tx_val_lane_sel  = 2'b01; // Active: TX sends valid framing.
                 // Clock TX: set by default logic above.
             end
 
-            LINKSPEED_LOC_EVAL_RESULT: ; // No SB output. Sequential block latches this cycle.
+            LINKSPEED_LCL_EVAL_RESULT: ; // No SB output. Sequential block latches this cycle.
 
             // ── Role A: LOCAL initiates PHY retrain ──────────────────────────
             // (LOCAL detected params_changed AND PHY_IN_RETRAIN AND no D2C errors)
-            LINKSPEED_LOC_SEND_PHY_RETRAIN_REQ: begin
+            LINKSPEED_LCL_SEND_PHY_RETRAIN_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 // Opcode shared with RXDESKEW EQ Preset req — context disambiguates.
                 tx_sb_msg       = MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req;
             end
 
-            LINKSPEED_LOC_WAIT_PHY_RETRAIN_RESP: ; // Hold. Wait for partner's resp.
+            LINKSPEED_LCL_WAIT_PHY_RETRAIN_RESP: ; // Hold. Wait for partner's resp.
 
             // ── Success path ─────────────────────────────────────────────────
-            LINKSPEED_LOC_SEND_DONE_REQ: begin
+            LINKSPEED_LCL_SEND_DONE_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_LINKSPEED_done_req;
             end
 
-            LINKSPEED_LOC_WAIT_DONE_RESP: ; // Hold.
+            LINKSPEED_LCL_WAIT_DONE_RESP: ; // Hold.
 
             // ── Error path ───────────────────────────────────────────────────
-            LINKSPEED_LOC_SEND_ERROR_REQ: begin
+            LINKSPEED_LCL_SEND_ERROR_REQ: begin
                 tx_sb_msg_valid     = 1'b1;
                 tx_sb_msg           = MBTRAIN_LINKSPEED_error_req;
                 // TX already in Elec-Idle from in_electrical_idle_r (set in EVAL_RESULT).
@@ -608,55 +600,50 @@ module unit_LINKSPEED_local (
                 mb_tx_clk_lane_sel  = 2'b11;
             end
 
-            LINKSPEED_LOC_WAIT_ERROR_RESP: ; // Hold. TX in Elec-Idle.
+            LINKSPEED_LCL_WAIT_ERROR_RESP: ; // Hold. TX in Elec-Idle.
 
-            LINKSPEED_LOC_RECOVERY_DECISION: ; // 1-cycle. No SB output. (PHY_IN_RETRAIN_rst driven by PHY_IN_RETRAIN_RST_PROC)
+            LINKSPEED_LCL_RECOVERY_DECISION: ; // 1-cycle. No SB output. (PHY_IN_RETRAIN_rst driven by PHY_IN_RETRAIN_RST_PROC)
 
-            LINKSPEED_LOC_SEND_REPAIR_REQ: begin
+            LINKSPEED_LCL_SEND_REPAIR_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_LINKSPEED_exit_to_repair_req;
             end
 
-            LINKSPEED_LOC_WAIT_REPAIR_RESP: ; // Hold.
+            LINKSPEED_LCL_WAIT_REPAIR_RESP: ; // Hold.
 
-            LINKSPEED_LOC_SEND_SPEED_DEGRADE_REQ: begin
+            LINKSPEED_LCL_SEND_SPEED_DEGRADE_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_LINKSPEED_exit_to_speed_degrade_req;
             end
 
-            LINKSPEED_LOC_WAIT_SPEED_DEGRADE_RESP: ; // Hold.
+            LINKSPEED_LCL_WAIT_SPEED_DEGRADE_RESP: ; // Hold.
 
-            LINKSPEED_LOC_WAIT_RECOVERY_REQ: ; // Hold. Partner had errors; wait for their recovery req.
+            LINKSPEED_LCL_WAIT_RECOVERY_REQ: ; // Hold. Partner had errors; wait for their recovery req.
 
             // ── Terminal states ──────────────────────────────────────────────
-            LINKSPEED_LOC_TO_LINKINIT: begin
+            LINKSPEED_LCL_TO_LINKINIT: begin
                 linkspeed_done   = 1'b1;
                 linkinit_req     = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            LINKSPEED_LOC_TO_REPAIR: begin
+            LINKSPEED_LCL_TO_REPAIR: begin
                 linkspeed_done   = 1'b1;
                 repair_req       = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            LINKSPEED_LOC_TO_SPEEDIDLE: begin
+            LINKSPEED_LCL_TO_SPEEDIDLE: begin
                 linkspeed_done   = 1'b1;
                 speedidle_req    = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            LINKSPEED_LOC_TO_PHYRETRAIN: begin
+            LINKSPEED_LCL_TO_PHYRETRAIN: begin
                 linkspeed_done   = 1'b1;
                 phyretrain_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            LINKSPEED_LOC_TO_TRAINERROR: begin
+            LINKSPEED_LCL_TO_TRAINERROR: begin
                 linkspeed_done   = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: ; // All defaults apply.
@@ -684,8 +671,8 @@ module unit_LINKSPEED_local (
     // RESULT: A clean 1-lclk-wide active-high pulse, fully isolated from any SB activity.
     // =========================================================================
     always_comb begin : PHY_IN_RETRAIN_RST_PROC
-        PHY_IN_RETRAIN_rst = (current_state == LINKSPEED_LOC_RECOVERY_DECISION) || (current_state == LINKSPEED_LOC_SEND_DONE_REQ);
-        busy_bit_rst       = (current_state == LINKSPEED_LOC_SEND_DONE_REQ);
+        PHY_IN_RETRAIN_rst = (current_state == LINKSPEED_LCL_RECOVERY_DECISION) || (current_state == LINKSPEED_LCL_SEND_DONE_REQ);
+        busy_bit_rst       = (current_state == LINKSPEED_LCL_SEND_DONE_REQ);
     end
 
 endmodule

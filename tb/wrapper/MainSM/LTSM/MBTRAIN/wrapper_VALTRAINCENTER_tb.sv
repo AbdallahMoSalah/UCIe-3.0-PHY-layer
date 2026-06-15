@@ -61,7 +61,8 @@ module wrapper_VALTRAINCENTER_tb;
         .ANALOG_SETTLE_CYCLES(ANALOG_SETTLE_CYCLES),
         .MIN_DESKEW_CODE     (MIN_VAL_PI_CODE     ),
         .MAX_DESKEW_CODE     (MAX_VAL_PI_CODE     ),
-        .MB_DELAY            (MB_DELAY            )
+        .MB_DELAY            (MB_DELAY            ),
+        .ENABLE_LOOPBACK     (1'b0                )
     ) ptn_attach (
         .intf(ptn_if)
     );
@@ -154,37 +155,45 @@ module wrapper_VALTRAINCENTER_tb;
     // =========================================================================
     // Dynamic Eye Simulation
     // =========================================================================
-    always @(posedge lclk) begin
-        if (dut_if.sweep_en) begin
-            automatic logic [6:0] code = dut_if.swept_code;
-            if (code >= dut_eye_start && code <= dut_eye_end) begin
-                if (assume_holes_after_quarter_eye_start && (code == dut_eye_start + (dut_eye_end - dut_eye_start)/4)) begin
-                    dut_if.tb_force_val_pass <= 1'b0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            dut_if.tb_force_val_pass <= 1'b1;
+        end else begin
+            if (dut_if.sweep_en) begin
+                automatic logic [6:0] code = dut_if.swept_code;
+                if (code >= dut_eye_start && code <= dut_eye_end) begin
+                    if (assume_holes_after_quarter_eye_start && (code == dut_eye_start + (dut_eye_end - dut_eye_start)/4)) begin
+                        dut_if.tb_force_val_pass <= 1'b0;
+                    end else begin
+                        dut_if.tb_force_val_pass <= 1'b1;
+                    end
                 end else begin
-                    dut_if.tb_force_val_pass <= 1'b1;
+                    dut_if.tb_force_val_pass <= 1'b0;
                 end
             end else begin
-                dut_if.tb_force_val_pass <= 1'b0;
+                dut_if.tb_force_val_pass <= 1'b1;
             end
-        end else begin
-            dut_if.tb_force_val_pass <= 1'b1;
         end
     end
 
-    always @(posedge lclk) begin
-        if (ptn_if.sweep_en) begin
-            automatic logic [6:0] code = ptn_if.swept_code;
-            if (code >= ptn_eye_start && code <= ptn_eye_end) begin
-                if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start + (ptn_eye_end - ptn_eye_start)/4)) begin
-                    ptn_if.tb_force_val_pass <= 1'b0;
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            ptn_if.tb_force_val_pass <= 1'b1;
+        end else begin
+            if (ptn_if.sweep_en) begin
+                automatic logic [6:0] code = ptn_if.swept_code;
+                if (code >= ptn_eye_start && code <= ptn_eye_end) begin
+                    if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start + (ptn_eye_end - ptn_eye_start)/4)) begin
+                        ptn_if.tb_force_val_pass <= 1'b0;
+                    end else begin
+                        ptn_if.tb_force_val_pass <= 1'b1;
+                    end
                 end else begin
-                    ptn_if.tb_force_val_pass <= 1'b1;
+                    ptn_if.tb_force_val_pass <= 1'b0;
                 end
             end else begin
-                ptn_if.tb_force_val_pass <= 1'b0;
+                ptn_if.tb_force_val_pass <= 1'b1;
             end
-        end else begin
-            ptn_if.tb_force_val_pass <= 1'b1;
         end
     end
 
@@ -367,26 +376,31 @@ module wrapper_VALTRAINCENTER_tb;
     endfunction
 
     // Print monitors with OTHER_SB_MSG suppressed
-    always @(posedge lclk) begin
-        if (!in_randomized_scenarios || ENABLE_RAND_LOG) begin
-            if (rst_n && dut_local_state !== prev_dut_local_state) begin
-                $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), dut_local_state.name());
-                prev_dut_local_state <= dut_local_state;
-            end
-            if (rst_n && dut_partner_state !== prev_dut_partner_state) begin
-                $display("# [%0d ps] Die A PARTNER State -> %s", $realtime(), dut_partner_state.name());
-                prev_dut_partner_state <= dut_partner_state;
-            end
-            if (dut_if.rx_sb_msg_valid) begin
-                automatic string name = get_short_msg_name(msg_no_e'(dut_if.rx_sb_msg));
-                if (name != "OTHER_SB_MSG") begin
-                    $display("# [%0d ps] DEBUG: Die A RX SB Msg from Die B: %s (MsgCode: 8'h%h, MsgInfo: 16'h%h)",
-                        $realtime(), name, dut_if.rx_sb_msg, dut_if.rx_msginfo);
-                end
-            end
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            prev_dut_local_state   <= VALTRAINCENTER_LCL_IDLE;
+            prev_dut_partner_state <= VALTRAINCENTER_PTR_IDLE;
         end else begin
-            if (rst_n && dut_local_state !== prev_dut_local_state) prev_dut_local_state <= dut_local_state;
-            if (rst_n && dut_partner_state !== prev_dut_partner_state) prev_dut_partner_state <= dut_partner_state;
+            if (!in_randomized_scenarios || ENABLE_RAND_LOG) begin
+                if (dut_local_state !== prev_dut_local_state) begin
+                    $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), dut_local_state.name());
+                    prev_dut_local_state <= dut_local_state;
+                end
+                if (dut_partner_state !== prev_dut_partner_state) begin
+                    $display("# [%0d ps] Die A PARTNER State -> %s", $realtime(), dut_partner_state.name());
+                    prev_dut_partner_state <= dut_partner_state;
+                end
+                if (dut_if.rx_sb_msg_valid) begin
+                    automatic string name = get_short_msg_name(msg_no_e'(dut_if.rx_sb_msg));
+                    if (name != "OTHER_SB_MSG") begin
+                        $display("# [%0d ps] DEBUG: Die A RX SB Msg from Die B: %s (MsgCode: 8'h%h, MsgInfo: 16'h%h)",
+                            $realtime(), name, dut_if.rx_sb_msg, dut_if.rx_msginfo);
+                    end
+                end
+            end else begin
+                if (dut_local_state !== prev_dut_local_state) prev_dut_local_state <= dut_local_state;
+                if (dut_partner_state !== prev_dut_partner_state) prev_dut_partner_state <= dut_partner_state;
+            end
         end
     end
 

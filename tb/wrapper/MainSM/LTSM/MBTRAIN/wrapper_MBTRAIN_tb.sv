@@ -535,8 +535,8 @@ module wrapper_MBTRAIN_tb;
         intf_die1.tb_wrong_sb_msg_en    = 1'b0;
 
         // Initialize state_n array to LOG_RESET
-        intf_die0.state_n[0] = LOG_RESET; intf_die0.state_n[1] = LOG_RESET; intf_die0.state_n[2] = LOG_RESET; intf_die0.state_n[3] = LOG_RESET;
-        intf_die1.state_n[0] = LOG_RESET; intf_die1.state_n[1] = LOG_RESET; intf_die1.state_n[2] = LOG_RESET; intf_die1.state_n[3] = LOG_RESET;
+        intf_die0.state_n_0 = LOG_RESET; intf_die0.state_n_1 = LOG_RESET; intf_die0.state_n_2 = LOG_RESET; intf_die0.state_n_3 = LOG_RESET;
+        intf_die1.state_n_0 = LOG_RESET; intf_die1.state_n_1 = LOG_RESET; intf_die1.state_n_2 = LOG_RESET; intf_die1.state_n_3 = LOG_RESET;
 
         // Apply Reset
         rst_n = 1'b0;
@@ -547,22 +547,22 @@ module wrapper_MBTRAIN_tb;
         // Sequence through the LTSM top-level states to un-reset the MBTRAIN sub-FSMs
         // Note: the wrapper maps intf.state_n[0:3] to wrapper state_n[3:0].
         // We must ensure the wrapper's state_n[0] matches the correct state.
-        // That means we must drive intf.state_n[3].
+        // That means we must drive intf.state_n_3.
 
-        intf_die0.state_n[0] = LOG_RESET; intf_die0.state_n[1] = LOG_RESET; intf_die0.state_n[2] = LOG_RESET; intf_die0.state_n[3] = LOG_RESET;
-        intf_die1.state_n[0] = LOG_RESET; intf_die1.state_n[1] = LOG_RESET; intf_die1.state_n[2] = LOG_RESET; intf_die1.state_n[3] = LOG_RESET;
+        intf_die0.state_n_0 = LOG_RESET; intf_die0.state_n_1 = LOG_RESET; intf_die0.state_n_2 = LOG_RESET; intf_die0.state_n_3 = LOG_RESET;
+        intf_die1.state_n_0 = LOG_RESET; intf_die1.state_n_1 = LOG_RESET; intf_die1.state_n_2 = LOG_RESET; intf_die1.state_n_3 = LOG_RESET;
         #(CLK_PERIOD * 10);
 
-        intf_die0.state_n[0] = LOG_SBINIT; intf_die0.state_n[1] = LOG_SBINIT; intf_die0.state_n[2] = LOG_SBINIT; intf_die0.state_n[3] = LOG_SBINIT;
-        intf_die1.state_n[0] = LOG_SBINIT; intf_die1.state_n[1] = LOG_SBINIT; intf_die1.state_n[2] = LOG_SBINIT; intf_die1.state_n[3] = LOG_SBINIT;
+        intf_die0.state_n_0 = LOG_SBINIT; intf_die0.state_n_1 = LOG_SBINIT; intf_die0.state_n_2 = LOG_SBINIT; intf_die0.state_n_3 = LOG_SBINIT;
+        intf_die1.state_n_0 = LOG_SBINIT; intf_die1.state_n_1 = LOG_SBINIT; intf_die1.state_n_2 = LOG_SBINIT; intf_die1.state_n_3 = LOG_SBINIT;
         #(CLK_PERIOD * 10);
 
-        intf_die0.state_n[0] = LOG_MBINIT_REPAIRMB; intf_die0.state_n[1] = LOG_MBINIT_REPAIRMB; intf_die0.state_n[2] = LOG_MBINIT_REPAIRMB; intf_die0.state_n[3] = LOG_MBINIT_REPAIRMB;
-        intf_die1.state_n[0] = LOG_MBINIT_REPAIRMB; intf_die1.state_n[1] = LOG_MBINIT_REPAIRMB; intf_die1.state_n[2] = LOG_MBINIT_REPAIRMB; intf_die1.state_n[3] = LOG_MBINIT_REPAIRMB;
+        intf_die0.state_n_0 = LOG_MBINIT_REPAIRMB; intf_die0.state_n_1 = LOG_MBINIT_REPAIRMB; intf_die0.state_n_2 = LOG_MBINIT_REPAIRMB; intf_die0.state_n_3 = LOG_MBINIT_REPAIRMB;
+        intf_die1.state_n_0 = LOG_MBINIT_REPAIRMB; intf_die1.state_n_1 = LOG_MBINIT_REPAIRMB; intf_die1.state_n_2 = LOG_MBINIT_REPAIRMB; intf_die1.state_n_3 = LOG_MBINIT_REPAIRMB;
         #(CLK_PERIOD * 10);
 
-        intf_die0.state_n[0] = LOG_MBTRAIN_VALVREF; intf_die0.state_n[1] = LOG_MBTRAIN_VALVREF; intf_die0.state_n[2] = LOG_MBTRAIN_VALVREF; intf_die0.state_n[3] = LOG_MBTRAIN_VALVREF;
-        intf_die1.state_n[0] = LOG_MBTRAIN_VALVREF; intf_die1.state_n[1] = LOG_MBTRAIN_VALVREF; intf_die1.state_n[2] = LOG_MBTRAIN_VALVREF; intf_die1.state_n[3] = LOG_MBTRAIN_VALVREF;
+        intf_die0.state_n_0 = LOG_MBTRAIN_VALVREF; intf_die0.state_n_1 = LOG_MBTRAIN_VALVREF; intf_die0.state_n_2 = LOG_MBTRAIN_VALVREF; intf_die0.state_n_3 = LOG_MBTRAIN_VALVREF;
+        intf_die1.state_n_0 = LOG_MBTRAIN_VALVREF; intf_die1.state_n_1 = LOG_MBTRAIN_VALVREF; intf_die1.state_n_2 = LOG_MBTRAIN_VALVREF; intf_die1.state_n_3 = LOG_MBTRAIN_VALVREF;
         #(CLK_PERIOD * 10);
 
         // Start MBTRAIN on both dies simultaneously

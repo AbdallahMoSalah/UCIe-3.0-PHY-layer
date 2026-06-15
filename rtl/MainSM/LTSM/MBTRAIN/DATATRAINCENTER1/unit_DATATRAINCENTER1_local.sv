@@ -37,16 +37,10 @@ module unit_DATATRAINCENTER1_local #(
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        datatraincenter1_en , // 0: Disable (→ IDLE). 1: Enable sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datatraincenter1_done, // 1: Sub-state completed (held until en = 0).
         output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
         output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // PHY PI Control:                     //
@@ -99,27 +93,27 @@ module unit_DATATRAINCENTER1_local #(
 
     // FSM State Encoding
     localparam [3:0]
-    DTC1_LOCAL_IDLE           = 4'd0,  // Wait for en
-    DTC1_LOCAL_SEND_START_REQ = 4'd1,  // TX {start req}
-    DTC1_LOCAL_WAIT_START_RESP= 4'd2,  // Wait for {start resp}
-    DTC1_LOCAL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done
-    DTC1_LOCAL_APPLY_BEST     = 4'd4,  // Stability stage
-    DTC1_LOCAL_SEND_END_REQ   = 4'd5,  // TX {end req}
-    DTC1_LOCAL_WAIT_END_RESP  = 4'd6,  // Wait for {end resp}
-    DTC1_LOCAL_TO_VREF        = 4'd7,  // Terminal: completed
-    DTC1_LOCAL_TO_TRAINERROR  = 4'd8;  // Terminal: error
+    DATATRAINCENTER1_LCL_IDLE                = 4'd0,  // Wait for en
+    DATATRAINCENTER1_LCL_SEND_START_REQ      = 4'd1,  // TX {start req}
+    DATATRAINCENTER1_LCL_WAIT_START_RESP     = 4'd2,  // Wait for {start resp}
+    DATATRAINCENTER1_LCL_SWEEP               = 4'd3,  // Assert sweep_en; wait for sweep_done
+    DATATRAINCENTER1_LCL_APPLY_BEST          = 4'd4,  // Stability stage
+    DATATRAINCENTER1_LCL_SEND_END_REQ        = 4'd5,  // TX {end req}
+    DATATRAINCENTER1_LCL_WAIT_END_RESP       = 4'd6,  // Wait for {end resp}
+    DATATRAINCENTER1_LCL_TO_DATATRAINVREF    = 4'd7,  // Terminal: completed
+    DATATRAINCENTER1_LCL_TO_TRAINERROR       = 4'd8;  // Terminal: error
 
     reg [3:0] current_state, next_state;
     reg [PW-1:0] best_code_r [0:15];
 
-    assign sweep_en = (current_state == DTC1_LOCAL_SWEEP);
+    assign sweep_en = (current_state == DATATRAINCENTER1_LCL_SWEEP);
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
-            current_state <= DTC1_LOCAL_IDLE;
+            current_state <= DATATRAINCENTER1_LCL_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
-            current_state <= DTC1_LOCAL_IDLE;
+        else if (!soft_rst_n) begin
+            current_state <= DATATRAINCENTER1_LCL_IDLE;
         end
         else begin
             current_state <= next_state;
@@ -129,54 +123,56 @@ module unit_DATATRAINCENTER1_local #(
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = DTC1_LOCAL_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = DATATRAINCENTER1_LCL_TO_TRAINERROR;
+        end
+        else if (!datatraincenter1_en) begin
+            next_state = DATATRAINCENTER1_LCL_IDLE;
         end
         else begin
             case (current_state)
-                DTC1_LOCAL_IDLE: begin
-                    next_state = datatraincenter1_en ? DTC1_LOCAL_SEND_START_REQ : DTC1_LOCAL_IDLE;
+                DATATRAINCENTER1_LCL_IDLE: begin
+                    next_state = datatraincenter1_en ? DATATRAINCENTER1_LCL_SEND_START_REQ : DATATRAINCENTER1_LCL_IDLE;
                 end
 
-                DTC1_LOCAL_SEND_START_REQ: begin
-                    next_state = DTC1_LOCAL_WAIT_START_RESP;
+                DATATRAINCENTER1_LCL_SEND_START_REQ: begin
+                    next_state = DATATRAINCENTER1_LCL_WAIT_START_RESP;
                 end
 
-                DTC1_LOCAL_WAIT_START_RESP: begin
+                DATATRAINCENTER1_LCL_WAIT_START_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINCENTER1_start_resp) begin
-                        next_state = DTC1_LOCAL_SWEEP;
+                        next_state = DATATRAINCENTER1_LCL_SWEEP;
                     end
                 end
 
-                DTC1_LOCAL_SWEEP: begin
-                    next_state = sweep_done ? DTC1_LOCAL_APPLY_BEST : DTC1_LOCAL_SWEEP;
+                DATATRAINCENTER1_LCL_SWEEP: begin
+                    next_state = sweep_done ? DATATRAINCENTER1_LCL_APPLY_BEST : DATATRAINCENTER1_LCL_SWEEP;
                 end
 
-                DTC1_LOCAL_APPLY_BEST: begin
-                    next_state = DTC1_LOCAL_SEND_END_REQ;
+                DATATRAINCENTER1_LCL_APPLY_BEST: begin
+                    next_state = DATATRAINCENTER1_LCL_SEND_END_REQ;
                 end
 
-                DTC1_LOCAL_SEND_END_REQ: begin
-                    next_state = DTC1_LOCAL_WAIT_END_RESP;
+                DATATRAINCENTER1_LCL_SEND_END_REQ: begin
+                    next_state = DATATRAINCENTER1_LCL_WAIT_END_RESP;
                 end
 
-                DTC1_LOCAL_WAIT_END_RESP: begin
+                DATATRAINCENTER1_LCL_WAIT_END_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINCENTER1_end_resp) begin
-                        next_state = DTC1_LOCAL_TO_VREF;
+                        next_state = DATATRAINCENTER1_LCL_TO_DATATRAINVREF;
                     end
                 end
 
-                DTC1_LOCAL_TO_VREF: begin
-                    next_state = datatraincenter1_en ? DTC1_LOCAL_TO_VREF : DTC1_LOCAL_IDLE;
+                DATATRAINCENTER1_LCL_TO_DATATRAINVREF: begin
+                    next_state = datatraincenter1_en ? DATATRAINCENTER1_LCL_TO_DATATRAINVREF : DATATRAINCENTER1_LCL_IDLE;
                 end
 
-                DTC1_LOCAL_TO_TRAINERROR: begin
-                    next_state = datatraincenter1_en ? DTC1_LOCAL_TO_TRAINERROR : DTC1_LOCAL_IDLE;
+                DATATRAINCENTER1_LCL_TO_TRAINERROR: begin
+                    next_state = datatraincenter1_en ? DATATRAINCENTER1_LCL_TO_TRAINERROR : DATATRAINCENTER1_LCL_IDLE;
                 end
 
                 default: begin
-                    next_state = DTC1_LOCAL_IDLE;
+                    next_state = DATATRAINCENTER1_LCL_IDLE;
                 end
             endcase
         end
@@ -189,13 +185,13 @@ module unit_DATATRAINCENTER1_local #(
                 best_code_r[j] <= {PW{1'b0}};
             end
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             for (j = 0; j < 16; j = j + 1) begin
                 best_code_r[j] <= {PW{1'b0}};
             end
         end
         else begin
-            if (current_state == DTC1_LOCAL_SWEEP && sweep_done) begin
+            if (current_state == DATATRAINCENTER1_LCL_SWEEP && sweep_done) begin
                 for (j = 0; j < 16; j = j + 1) begin
                     best_code_r[j] <= best_code[j][PW-1:0];
                 end
@@ -207,7 +203,6 @@ module unit_DATATRAINCENTER1_local #(
         datatraincenter1_done = 1'b0;
         trainerror_req         = 1'b0;
         update_lane_mask       = 1'b0;
-        timeout_timer_en       = 1'b1;
 
         tx_sb_msg_valid  = 1'b0;
         tx_sb_msg        = NOTHING;
@@ -225,15 +220,14 @@ module unit_DATATRAINCENTER1_local #(
         mb_rx_trk_lane_sel  = 1'b0;  // Disabled
 
         case (current_state)
-            DTC1_LOCAL_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            DATATRAINCENTER1_LCL_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
             end
 
-            DTC1_LOCAL_SEND_START_REQ: begin
+            DATATRAINCENTER1_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid  = 1'b1;
                 tx_sb_msg        = MBTRAIN_DATATRAINCENTER1_start_req;
                 tx_msginfo       = 16'h0;
@@ -241,38 +235,36 @@ module unit_DATATRAINCENTER1_local #(
                 update_lane_mask = 1'b1;
             end
 
-            DTC1_LOCAL_WAIT_START_RESP: begin
+            DATATRAINCENTER1_LCL_WAIT_START_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            DTC1_LOCAL_SWEEP: begin
+            DATATRAINCENTER1_LCL_SWEEP: begin
                 // sweep_en driven combinationally
             end
 
-            DTC1_LOCAL_APPLY_BEST: begin
+            DATATRAINCENTER1_LCL_APPLY_BEST: begin
                 // Latch midpoints
             end
 
-            DTC1_LOCAL_SEND_END_REQ: begin
+            DATATRAINCENTER1_LCL_SEND_END_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_DATATRAINCENTER1_end_req;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            DTC1_LOCAL_WAIT_END_RESP: begin
+            DATATRAINCENTER1_LCL_WAIT_END_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            DTC1_LOCAL_TO_VREF: begin
+            DATATRAINCENTER1_LCL_TO_DATATRAINVREF: begin
                 datatraincenter1_done = 1'b1;
-                timeout_timer_en       = 1'b0;
             end
 
-            DTC1_LOCAL_TO_TRAINERROR: begin
+            DATATRAINCENTER1_LCL_TO_TRAINERROR: begin
                 datatraincenter1_done = 1'b1;
                 trainerror_req         = 1'b1;
-                timeout_timer_en       = 1'b0;
             end
 
             default: begin
@@ -285,7 +277,7 @@ module unit_DATATRAINCENTER1_local #(
     generate
         for (l = 0; l < 16; l = l + 1) begin : PI_OUT_GEN
             assign phy_tx_data_pi_phase_ctrl[l] =
-                (current_state == DTC1_LOCAL_SWEEP) ?
+                (current_state == DATATRAINCENTER1_LCL_SWEEP) ?
                 PW'(swept_code) :
                 best_code_r[l];
         end

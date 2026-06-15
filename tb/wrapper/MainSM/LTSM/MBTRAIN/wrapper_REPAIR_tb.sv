@@ -122,7 +122,7 @@ module wrapper_REPAIR_tb;
     // =========================================================================
     // Shared configuration signals (same for both DUT and PTN in tests below)
     // =========================================================================
-    logic        is_ltsm_out_of_reset = 1;
+    logic        soft_rst_n = 1;
     logic [2:0]  mbinit_rx_data_lane_mask = 3'b000;
     logic [2:0]  mbinit_tx_data_lane_mask = 3'b000;
     logic        update_lane_mask = 0;
@@ -144,30 +144,24 @@ module wrapper_REPAIR_tb;
     // DUT (Die A) instance
     // =========================================================================
     logic        dut_local_repair_en      = 0;
-    logic        dut_local_repair_done;
+    logic        dut_repair_done;
     logic        dut_local_txselfcal_req;
-    logic        dut_local_trainerror_req;
-    logic        dut_partner_repair_en    = 0;
-    logic        dut_partner_repair_done;
     logic        dut_partner_txselfcal_req;
-    logic        dut_partner_trainerror_req;
+    logic        dut_trainerror_req;
+    logic        dut_partner_repair_en    = 0;
     logic [2:0]  dut_mb_tx_data_lane_mask;
     logic [2:0]  dut_mb_rx_data_lane_mask;
 
     wrapper_REPAIR u_dut (
         .lclk                       (lclk),
         .rst_n                      (rst_n),
-        .is_ltsm_out_of_reset       (is_ltsm_out_of_reset),
-        .timeout_8ms_occured        (dut_if.timeout_8ms_occured),
+        .soft_rst_n                 (soft_rst_n),
         .local_repair_en            (dut_local_repair_en),
-        .local_repair_done          (dut_local_repair_done),
+        .repair_done                (dut_repair_done),
         .local_txselfcal_req        (dut_local_txselfcal_req),
-        .local_trainerror_req       (dut_local_trainerror_req),
-        .partner_repair_en          (dut_partner_repair_en),
-        .partner_repair_done        (dut_partner_repair_done),
         .partner_txselfcal_req      (dut_partner_txselfcal_req),
-        .partner_trainerror_req     (dut_partner_trainerror_req),
-        .timeout_timer_en           (dut_if.timeout_timer_en),
+        .trainerror_req             (dut_trainerror_req),
+        .partner_repair_en          (dut_partner_repair_en),
         .success_tx_lanes           (dut_success_tx_lanes),
         // .success_rx_lanes_encoding  (dut_success_rx_enc),
         .rf_cap_SPMW                (dut_rf_cap_SPMW),
@@ -200,30 +194,24 @@ module wrapper_REPAIR_tb;
     // PTN (Die B) instance
     // =========================================================================
     logic        ptn_local_repair_en      = 0;
-    logic        ptn_local_repair_done;
+    logic        ptn_repair_done;
     logic        ptn_local_txselfcal_req;
-    logic        ptn_local_trainerror_req;
-    logic        ptn_partner_repair_en    = 0;
-    logic        ptn_partner_repair_done;
     logic        ptn_partner_txselfcal_req;
-    logic        ptn_partner_trainerror_req;
+    logic        ptn_trainerror_req;
+    logic        ptn_partner_repair_en    = 0;
     logic [2:0]  ptn_mb_tx_data_lane_mask;
     logic [2:0]  ptn_mb_rx_data_lane_mask;
 
     wrapper_REPAIR u_ptn (
         .lclk                       (lclk),
         .rst_n                      (rst_n),
-        .is_ltsm_out_of_reset       (is_ltsm_out_of_reset),
-        .timeout_8ms_occured        (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                 (soft_rst_n),
         .local_repair_en            (ptn_local_repair_en),
-        .local_repair_done          (ptn_local_repair_done),
+        .repair_done                (ptn_repair_done),
         .local_txselfcal_req        (ptn_local_txselfcal_req),
-        .local_trainerror_req       (ptn_local_trainerror_req),
-        .partner_repair_en          (ptn_partner_repair_en),
-        .partner_repair_done        (ptn_partner_repair_done),
         .partner_txselfcal_req      (ptn_partner_txselfcal_req),
-        .partner_trainerror_req     (ptn_partner_trainerror_req),
-        .timeout_timer_en           (ptn_if.timeout_timer_en),
+        .trainerror_req             (ptn_trainerror_req),
+        .partner_repair_en          (ptn_partner_repair_en),
         .success_tx_lanes           (ptn_success_tx_lanes),
         // .success_rx_lanes_encoding  (ptn_success_rx_enc),
         .rf_cap_SPMW                (ptn_rf_cap_SPMW),
@@ -251,6 +239,9 @@ module wrapper_REPAIR_tb;
         .rx_msginfo                 (ptn_if.rx_msginfo),
         .rx_data_field              (ptn_if.rx_data_field)
     );
+
+    assign dut_if.timeout_timer_en = dut_local_repair_en | dut_partner_repair_en;
+    assign ptn_if.timeout_timer_en = ptn_local_repair_en | ptn_partner_repair_en;
 
     // =========================================================================
     // Test infrastructure
@@ -311,11 +302,9 @@ module wrapper_REPAIR_tb;
         fork
             begin
                 if (expect_err) begin
-                    wait(dut_local_trainerror_req || dut_partner_trainerror_req ||
-                         ptn_local_trainerror_req || ptn_partner_trainerror_req);
+                    wait(dut_trainerror_req || ptn_trainerror_req);
                 end else begin
-                    wait(dut_local_repair_done   && dut_partner_repair_done &&
-                         ptn_local_repair_done   && ptn_partner_repair_done);
+                    wait(dut_repair_done && ptn_repair_done);
                 end
                 #(LCLK_PERIOD * 10);
             end
@@ -519,7 +508,17 @@ module wrapper_REPAIR_tb;
 
             fork
                 begin
-                    wait(dut_local_trainerror_req);
+                    wait(dut_if.timeout_8ms_occured == 1);
+                    force dut_if.rx_sb_msg_valid = 1;
+                    force dut_if.rx_sb_msg = TRAINERROR_Entry_req;
+                    force dut_if.rx_msginfo = 16'h0;
+                    @(posedge lclk);
+                    release dut_if.rx_sb_msg_valid;
+                    release dut_if.rx_sb_msg;
+                    release dut_if.rx_msginfo;
+                end
+                begin
+                    wait(dut_trainerror_req);
                     #(LCLK_PERIOD * 5);
                 end
                 begin

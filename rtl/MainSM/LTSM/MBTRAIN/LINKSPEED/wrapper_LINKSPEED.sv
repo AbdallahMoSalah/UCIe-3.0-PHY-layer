@@ -60,31 +60,30 @@ module wrapper_LINKSPEED (
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,              // 0: Soft reset; 1: Normal operation
-        input  logic        timeout_8ms_occured,               // 0: No timeout; 1: 8ms watchdog fired
+        input  logic        soft_rst_n,                        // 0: Soft reset; 1: Normal operation
         input  logic        is_high_speed,                     // 0: <= 32 GT/s; 1: > 32 GT/s
         input  logic        is_continuous_clk_mode,            // 0: Strobe mode; 1: Continuous clock
 
         // Local FSM Control:
         input  logic        local_linkspeed_en,                // 0: Disable; 1: Enable Local LINKSPEED FSM
-        output logic        local_linkspeed_done,              // 0: In progress; 1: Sub-state completed
+        // Partner FSM Control:
+        input  logic        partner_linkspeed_en,              // 0: Disable; 1: Enable Partner LINKSPEED FSM
+
+        // Combined outputs
+        output logic        linkspeed_done,                    // 0: In progress; 1: Sub-state completed
+        output logic        trainerror_req,                    // 1: Request exit to TRAINERROR
+
+        // Exit route requests from Local:
         output logic        local_linkinit_req,                // 1: Request exit to LINKINIT
         output logic        local_speedidle_req,               // 1: Request exit to MBTRAIN.SPEEDIDLE
         output logic        local_repair_req,                  // 1: Request exit to MBTRAIN.REPAIR
         output logic        local_phyretrain_req,              // 1: Request exit to PHYRETRAIN
-        output logic        local_trainerror_req,              // 1: Request exit to TRAINERROR
 
-        // Partner FSM Control:
-        input  logic        partner_linkspeed_en,              // 0: Disable; 1: Enable Partner LINKSPEED FSM
-        output logic        partner_linkspeed_done,            // 0: In progress; 1: Sub-state completed
+        // Exit route requests from Partner:
         output logic        partner_linkinit_req,              // 1: Request exit to LINKINIT
         output logic        partner_speedidle_req,             // 1: Request exit to MBTRAIN.SPEEDIDLE
         output logic        partner_repair_req,                // 1: Request exit to MBTRAIN.REPAIR
         output logic        partner_phyretrain_req,            // 1: Request exit to PHYRETRAIN
-        output logic        partner_trainerror_req,            // 1: Request exit to TRAINERROR
-
-        // Timer Control (OR'd from both FSMs):
-        output logic        timeout_timer_en,                  // 0: Disable 8ms timer; 1: Enable
 
         // =========================================================================
         // Group 3: Lane & Width Configuration (Local FSM only)
@@ -143,9 +142,11 @@ module wrapper_LINKSPEED (
     // Internal Intermediate Wires
     // =========================================================================
 
-    // Timer enable wires:
-    logic        local_timeout_timer_en_w  ;
-    logic        partner_timeout_timer_en_w;
+    // Done and trainerror wires from substate FSMs:
+    logic        local_linkspeed_done_w     ;
+    logic        partner_linkspeed_done_w   ;
+    logic        local_trainerror_req_w     ;
+    logic        partner_trainerror_req_w   ;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid     ;
@@ -188,14 +189,13 @@ module wrapper_LINKSPEED (
         .rst_n                          (rst_n                         ), // Active-low async reset
         // LTSM Control Signals
         .linkspeed_en                   (local_linkspeed_en            ), // Enable Local LINKSPEED FSM
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset          ), // Soft-reset control
-        .timeout_8ms_occured            (timeout_8ms_occured           ), // 8ms watchdog
-        .linkspeed_done                 (local_linkspeed_done          ), // Sub-state done
+        .soft_rst_n                     (soft_rst_n                    ), // Soft-reset control
+        .linkspeed_done                 (local_linkspeed_done_w        ), // Sub-state done
         .speedidle_req                  (local_speedidle_req           ), // Exit to SPEEDIDLE
         .repair_req                     (local_repair_req              ), // Exit to REPAIR
         .linkinit_req                   (local_linkinit_req            ), // Exit to LINKINIT
         .phyretrain_req                 (local_phyretrain_req          ), // Exit to PHYRETRAIN
-        .trainerror_req                 (local_trainerror_req          ), // Exit to TRAINERROR
+        .trainerror_req                 (local_trainerror_req_w        ), // Exit to TRAINERROR
         // Lane & Width Configuration
         .active_rx_lanes                (active_rx_lanes               ), // Active lane mask
         .width_degrade_feasible         (width_degrade_feasible        ), // Width degradation feasibility
@@ -204,8 +204,6 @@ module wrapper_LINKSPEED (
         .params_changed                 (params_changed                ), // Runtime reg changed flag
         .PHY_IN_RETRAIN_rst             (PHY_IN_RETRAIN_rst            ), // Clear PHY_IN_RETRAIN pulse
         .busy_bit_rst                   (busy_bit_rst                  ), // Clear busy bit pulse
-        // Timer Control
-        .timeout_timer_en               (local_timeout_timer_en_w      ), // Watchdog enable
         // LINKSPEED Result
         .linkspeed_success_lanes        (linkspeed_success_lanes       ), // Per-lane D2C pass mask
         // MB Lane Control
@@ -246,16 +244,13 @@ module wrapper_LINKSPEED (
         .rst_n                          (rst_n                         ), // Active-low async reset
         // LTSM Control Signals
         .linkspeed_en                   (partner_linkspeed_en          ), // Enable Partner LINKSPEED FSM
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset          ), // Soft-reset control
-        .timeout_8ms_occured            (timeout_8ms_occured           ), // 8ms watchdog
-        .linkspeed_done                 (partner_linkspeed_done        ), // Sub-state done
+        .soft_rst_n                     (soft_rst_n                    ), // Soft-reset control
+        .linkspeed_done                 (partner_linkspeed_done_w      ), // Sub-state done
         .speedidle_req                  (partner_speedidle_req         ), // Exit to SPEEDIDLE
         .repair_req                     (partner_repair_req            ), // Exit to REPAIR
         .linkinit_req                   (partner_linkinit_req          ), // Exit to LINKINIT
         .phyretrain_req                 (partner_phyretrain_req        ), // Exit to PHYRETRAIN
-        .trainerror_req                 (partner_trainerror_req        ), // Exit to TRAINERROR
-        // Timer Control
-        .timeout_timer_en               (partner_timeout_timer_en_w    ), // Watchdog enable
+        .trainerror_req                 (partner_trainerror_req_w      ), // Exit to TRAINERROR
         // MB Lane Control
         .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel    ), // Clock TX select
         .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel   ), // Data TX select
@@ -287,9 +282,9 @@ module wrapper_LINKSPEED (
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
 
-    // ── Timeout timer enable — OR both FSMs ──────────────────────────────────
-    // If either FSM requests the 8ms watchdog, enable it.
-    assign timeout_timer_en = local_timeout_timer_en_w | partner_timeout_timer_en_w;
+    // Consolidated terminal/status signals
+    assign linkspeed_done = local_linkspeed_done_w & partner_linkspeed_done_w;
+    assign trainerror_req = local_trainerror_req_w | partner_trainerror_req_w;
 
     // ── Sideband TX Output Arbitration ───────────────────────────────────────
     // LOCAL has priority (Source A). PARTNER is secondary (Source B).

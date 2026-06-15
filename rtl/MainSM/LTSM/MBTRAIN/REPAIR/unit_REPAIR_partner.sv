@@ -58,8 +58,7 @@ module unit_REPAIR_partner (
 
         // LTSM Control Signals
         input  logic        repair_en,
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
         output logic        repair_done,
         output logic        txselfcal_req,
         output logic        trainerror_req,
@@ -79,9 +78,6 @@ module unit_REPAIR_partner (
         output logic [2:0]  mb_tx_data_lane_mask,
         input  logic [2:0]  mbinit_tx_data_lane_mask,   // Initial mask from LTSM controller
         input  logic        update_lane_mask,            // 1 = load mbinit values (override)
-
-        // Timer Control Signals
-        output logic        timeout_timer_en,
 
         // MB TX/RX Lane Control
         output logic [1:0]  mb_tx_clk_lane_sel,
@@ -120,18 +116,18 @@ module unit_REPAIR_partner (
     // State encoding
     // =========================================================================
     typedef enum logic [3:0] {
-        REPAIR_PTN_IDLE          = 4'd0,
-        REPAIR_PTN_WAIT_INIT     = 4'd1,
-        REPAIR_PTN_SEND_INIT     = 4'd2,
-        REPAIR_PTN_WAIT_DEGRADE  = 4'd3,
-        REPAIR_PTN_SEND_DEGRADE  = 4'd4,
-        REPAIR_PTN_WAIT_END      = 4'd5,
-        REPAIR_PTN_SEND_END      = 4'd6,
-        REPAIR_PTN_DONE          = 4'd7,
-        REPAIR_PTN_TO_TRAINERROR = 4'd8
-    } state_t;
+        REPAIR_PTR_IDLE          = 4'd0,
+        REPAIR_PTR_WAIT_INIT     = 4'd1,
+        REPAIR_PTR_SEND_INIT     = 4'd2,
+        REPAIR_PTR_WAIT_DEGRADE  = 4'd3,
+        REPAIR_PTR_SEND_DEGRADE  = 4'd4,
+        REPAIR_PTR_WAIT_END      = 4'd5,
+        REPAIR_PTR_SEND_END      = 4'd6,
+        REPAIR_PTR_DONE          = 4'd7,
+        REPAIR_PTR_TO_TRAINERROR = 4'd8
+    } linkspeed_ptr_state_e;
 
-    state_t current_state, next_state;
+    linkspeed_ptr_state_e current_state, next_state;
 
     // =========================================================================
     // Registers
@@ -158,12 +154,12 @@ module unit_REPAIR_partner (
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
-            current_state          <= REPAIR_PTN_IDLE;
+            current_state          <= REPAIR_PTR_IDLE;
             mb_rx_data_lane_mask_r <= 3'b000;
             mb_tx_data_lane_mask_r <= 3'b000;
             remote_local_tx_code_r <= 3'b000;
-        end else if (!is_ltsm_out_of_reset) begin
-            current_state          <= REPAIR_PTN_IDLE;
+        end else if (!soft_rst_n) begin
+            current_state          <= REPAIR_PTR_IDLE;
             mb_rx_data_lane_mask_r <= 3'b000;
             mb_tx_data_lane_mask_r <= 3'b000;
             remote_local_tx_code_r <= 3'b000;
@@ -184,7 +180,7 @@ module unit_REPAIR_partner (
             //   3'b000 = degrade not possible on Die B
             //   other  = Die B's TX will use these lanes
             // ------------------------------------------------------------------
-            if (current_state == REPAIR_PTN_WAIT_DEGRADE
+            if (current_state == REPAIR_PTR_WAIT_DEGRADE
                     && rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req) begin
                 remote_local_tx_code_r <= rx_msginfo[2:0];
             end
@@ -209,7 +205,7 @@ module unit_REPAIR_partner (
             //   Case C — BOTH have specific degrades (neither is full_width_code):
             //     → TX = our code,   RX = remote code
             // ------------------------------------------------------------------
-            if (current_state == REPAIR_PTN_SEND_DEGRADE && width_degrade_feasible
+            if (current_state == REPAIR_PTR_SEND_DEGRADE && width_degrade_feasible
                     && remote_local_tx_code_r != CODE_NONE) begin
                 if (remote_local_tx_code_r == full_width_code) begin
                     // Case A: Die B said all lanes functional → use our own code
@@ -235,64 +231,66 @@ module unit_REPAIR_partner (
         next_state = current_state;
 
         // TRAINERROR global overrides
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = REPAIR_PTN_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = REPAIR_PTR_TO_TRAINERROR;
+        end else if (!repair_en) begin
+            next_state = REPAIR_PTR_IDLE;
         end else begin
             case (current_state)
-                REPAIR_PTN_IDLE: begin
+                REPAIR_PTR_IDLE: begin
                     if (repair_en) begin
-                        next_state = REPAIR_PTN_WAIT_INIT;
+                        next_state = REPAIR_PTR_WAIT_INIT;
                     end
                 end
 
-                REPAIR_PTN_WAIT_INIT: begin
+                REPAIR_PTR_WAIT_INIT: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_init_req) begin
-                        next_state = REPAIR_PTN_SEND_INIT;
+                        next_state = REPAIR_PTR_SEND_INIT;
                     end
                 end
 
-                REPAIR_PTN_SEND_INIT: begin
-                    next_state = REPAIR_PTN_WAIT_DEGRADE;
+                REPAIR_PTR_SEND_INIT: begin
+                    next_state = REPAIR_PTR_WAIT_DEGRADE;
                 end
 
-                REPAIR_PTN_WAIT_DEGRADE: begin
+                REPAIR_PTR_WAIT_DEGRADE: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req) begin
-                        next_state = REPAIR_PTN_SEND_DEGRADE;
+                        next_state = REPAIR_PTR_SEND_DEGRADE;
                     end
                 end
 
-                REPAIR_PTN_SEND_DEGRADE: begin
+                REPAIR_PTR_SEND_DEGRADE: begin
                     // TRAINERROR if either side encoded "Degrade not possible" (3'b000).
                     if (!width_degrade_feasible || (remote_local_tx_code_r == CODE_NONE)) begin
-                        next_state = REPAIR_PTN_TO_TRAINERROR;
+                        next_state = REPAIR_PTR_TO_TRAINERROR;
                     end else begin
-                        next_state = REPAIR_PTN_WAIT_END;
+                        next_state = REPAIR_PTR_WAIT_END;
                     end
                 end
 
-                REPAIR_PTN_WAIT_END: begin
+                REPAIR_PTR_WAIT_END: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_end_req) begin
-                        next_state = REPAIR_PTN_SEND_END;
+                        next_state = REPAIR_PTR_SEND_END;
                     end
                 end
 
-                REPAIR_PTN_SEND_END: begin
-                    next_state = REPAIR_PTN_DONE;
+                REPAIR_PTR_SEND_END: begin
+                    next_state = REPAIR_PTR_DONE;
                 end
 
-                REPAIR_PTN_DONE: begin
+                REPAIR_PTR_DONE: begin
                     if (!repair_en) begin
-                        next_state = REPAIR_PTN_IDLE;
+                        next_state = REPAIR_PTR_IDLE;
                     end
                 end
 
-                REPAIR_PTN_TO_TRAINERROR: begin
+                REPAIR_PTR_TO_TRAINERROR: begin
                     if (!repair_en) begin
-                        next_state = REPAIR_PTN_IDLE;
+                        next_state = REPAIR_PTR_IDLE;
                     end
                 end
 
-                default: next_state = REPAIR_PTN_IDLE;
+                default: next_state = REPAIR_PTR_IDLE;
             endcase
         end
     end
@@ -305,7 +303,6 @@ module unit_REPAIR_partner (
         repair_done         = 1'b0;
         txselfcal_req       = 1'b0;
         trainerror_req      = 1'b0;
-        timeout_timer_en    = 1'b1;
 
         // Mainband Defaults during REPAIR (spec §4.5.3.4.13):
         //   Track, Data, Valid TX held low (2'b00).
@@ -326,8 +323,7 @@ module unit_REPAIR_partner (
         tx_data_field       = 64'h0;
 
         case (current_state)
-            REPAIR_PTN_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            REPAIR_PTR_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_tx_data_lane_sel = 2'b00;
                 mb_tx_val_lane_sel  = 2'b00;
@@ -338,45 +334,43 @@ module unit_REPAIR_partner (
                 mb_rx_trk_lane_sel  = 1'b0;
             end
 
-            REPAIR_PTN_WAIT_INIT: begin
+            REPAIR_PTR_WAIT_INIT: begin
                 // Waiting for {MBTRAIN.REPAIR init req}
             end
 
-            REPAIR_PTN_SEND_INIT: begin
+            REPAIR_PTR_SEND_INIT: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_init_resp;
             end
 
-            REPAIR_PTN_WAIT_DEGRADE: begin
+            REPAIR_PTR_WAIT_DEGRADE: begin
                 // Waiting for {MBTRAIN.REPAIR apply degrade req}
             end
 
-            REPAIR_PTN_SEND_DEGRADE: begin
+            REPAIR_PTR_SEND_DEGRADE: begin
                 // Send pure acknowledgment — NO data, NO lane code in msginfo.
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_apply_degrade_resp;
                 // tx_msginfo = 16'h0 (default) — resp carries no data per spec.
             end
 
-            REPAIR_PTN_WAIT_END: begin
+            REPAIR_PTR_WAIT_END: begin
                 // Waiting for {MBTRAIN.REPAIR end req}
             end
 
-            REPAIR_PTN_SEND_END: begin
+            REPAIR_PTR_SEND_END: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_end_resp;
             end
 
-            REPAIR_PTN_DONE: begin
+            REPAIR_PTR_DONE: begin
                 repair_done      = 1'b1;
                 txselfcal_req    = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            REPAIR_PTN_TO_TRAINERROR: begin
+            REPAIR_PTR_TO_TRAINERROR: begin
                 repair_done      = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin

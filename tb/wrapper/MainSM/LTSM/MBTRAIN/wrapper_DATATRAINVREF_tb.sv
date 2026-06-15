@@ -165,23 +165,49 @@ module wrapper_DATATRAINVREF_tb;
     // =========================================================================
     // Dynamic Vref Simulation
     // =========================================================================
-    always @(posedge lclk) begin
-        if (dut_if.sweep_en) begin
-            automatic logic [6:0] code = dut_if.swept_code;
-            $display("Time=%0t ps, swept_code=%0d", $time, code);
-            for (int l = 0; l < 16; l = l + 1) begin
-                if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
-                    if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
-                        dut_if.tb_force_perlane_pass[l] <= 1'b0;
-                    end else begin
-                        dut_if.tb_force_perlane_pass[l] <= 1'b1;
-                    end
-                end else begin
-                    dut_if.tb_force_perlane_pass[l] <= 1'b0;
-                end
-            end
-        end else begin
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
             dut_if.tb_force_perlane_pass <= 16'hFFFF;
+        end else begin
+            if (dut_if.sweep_en) begin
+                automatic logic [6:0] code = dut_if.swept_code;
+                for (int l = 0; l < 16; l = l + 1) begin
+                    if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
+                        if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
+                            dut_if.tb_force_perlane_pass[l] <= 1'b0;
+                        end else begin
+                            dut_if.tb_force_perlane_pass[l] <= 1'b1;
+                        end
+                    end else begin
+                        dut_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end
+                end
+            end else begin
+                dut_if.tb_force_perlane_pass <= 16'hFFFF;
+            end
+        end
+    end
+
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+        end else begin
+            if (ptn_if.sweep_en) begin
+                automatic logic [6:0] code = ptn_if.swept_code;
+                for (int l = 0; l < 16; l = l + 1) begin
+                    if (code >= ptn_eye_start[l] && code <= ptn_eye_end[l]) begin
+                        if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start[l] + (ptn_eye_end[l] - ptn_eye_start[l])/4)) begin
+                            ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                        end else begin
+                            ptn_if.tb_force_perlane_pass[l] <= 1'b1;
+                        end
+                    end else begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end
+                end
+            end else begin
+                ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+            end
         end
     end
 
@@ -189,12 +215,10 @@ module wrapper_DATATRAINVREF_tb;
     // Die A (DUT)
     // =========================================================================
     logic        dut_local_datatrainvref_en = 0;
-    logic        dut_local_datatrainvref_done;
-    logic        dut_local_trainerror_req;
+    logic        dut_datatrainvref_done;
+    logic        dut_trainerror_req;
     logic        dut_local_update_lane_mask;
     logic        dut_partner_datatrainvref_en = 0;
-    logic        dut_partner_datatrainvref_done;
-    logic        dut_partner_trainerror_req;
 
     wrapper_DATATRAINVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
@@ -202,16 +226,12 @@ module wrapper_DATATRAINVREF_tb;
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (tb_is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
+        .soft_rst_n                     (tb_is_ltsm_out_of_reset),
         .local_datatrainvref_en          (dut_local_datatrainvref_en),
-        .local_datatrainvref_done        (dut_local_datatrainvref_done),
-        .local_trainerror_req            (dut_local_trainerror_req),
+        .datatrainvref_done             (dut_datatrainvref_done),
+        .trainerror_req                 (dut_trainerror_req),
         .local_update_lane_mask          (dut_local_update_lane_mask),
         .partner_datatrainvref_en        (dut_partner_datatrainvref_en),
-        .partner_datatrainvref_done      (dut_partner_datatrainvref_done),
-        .partner_trainerror_req          (dut_partner_trainerror_req),
-        .timeout_timer_en               (dut_if.timeout_timer_en),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .sweep_en                       (dut_if.sweep_en),
@@ -240,12 +260,10 @@ module wrapper_DATATRAINVREF_tb;
     // Die B (PARTNER)
     // =========================================================================
     logic        ptn_local_datatrainvref_en = 0;
-    logic        ptn_local_datatrainvref_done;
-    logic        ptn_local_trainerror_req;
+    logic        ptn_datatrainvref_done;
+    logic        ptn_trainerror_req;
     logic        ptn_local_update_lane_mask;
     logic        ptn_partner_datatrainvref_en = 0;
-    logic        ptn_partner_datatrainvref_done;
-    logic        ptn_partner_trainerror_req;
 
     wrapper_DATATRAINVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
@@ -253,16 +271,12 @@ module wrapper_DATATRAINVREF_tb;
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (tb_is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                     (tb_is_ltsm_out_of_reset),
         .local_datatrainvref_en          (ptn_local_datatrainvref_en),
-        .local_datatrainvref_done        (ptn_local_datatrainvref_done),
-        .local_trainerror_req            (ptn_local_trainerror_req),
+        .datatrainvref_done             (ptn_datatrainvref_done),
+        .trainerror_req                 (ptn_trainerror_req),
         .local_update_lane_mask          (ptn_local_update_lane_mask),
         .partner_datatrainvref_en        (ptn_partner_datatrainvref_en),
-        .partner_datatrainvref_done      (ptn_partner_datatrainvref_done),
-        .partner_trainerror_req          (ptn_partner_trainerror_req),
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .sweep_en                       (ptn_if.sweep_en),
@@ -291,35 +305,57 @@ module wrapper_DATATRAINVREF_tb;
     // State Monitors
     // =========================================================================
     typedef enum reg [3:0] {
-        TB_DTVREF_LOCAL_IDLE           = 4'd0,
-        TB_DTVREF_LOCAL_SEND_START_REQ = 4'd1,
-        TB_DTVREF_LOCAL_WAIT_START_RESP= 4'd2,
-        TB_DTVREF_LOCAL_SWEEP          = 4'd3,
-        TB_DTVREF_LOCAL_APPLY_BEST     = 4'd4,
-        TB_DTVREF_LOCAL_SEND_END_REQ   = 4'd5,
-        TB_DTVREF_LOCAL_WAIT_END_RESP  = 4'd6,
-        TB_DTVREF_LOCAL_TO_RXDESKEW    = 4'd7,
-        TB_DTVREF_LOCAL_TO_TRAINERROR  = 4'd8
+        DATATRAINVREF_LCL_IDLE                = 4'd0,
+        DATATRAINVREF_LCL_SEND_START_REQ      = 4'd1,
+        DATATRAINVREF_LCL_WAIT_START_RESP     = 4'd2,
+        DATATRAINVREF_LCL_SWEEP               = 4'd3,
+        DATATRAINVREF_LCL_APPLY_BEST          = 4'd4,
+        DATATRAINVREF_LCL_SEND_END_REQ        = 4'd5,
+        DATATRAINVREF_LCL_WAIT_END_RESP       = 4'd6,
+        DATATRAINVREF_LCL_TO_RXDESKEW         = 4'd7,
+        DATATRAINVREF_LCL_TO_TRAINERROR       = 4'd8
     } tb_local_state_t;
 
+    typedef enum reg [3:0] {
+        DATATRAINVREF_PTR_IDLE            = 4'd0,
+        DATATRAINVREF_PTR_WAIT_START_REQ  = 4'd1,
+        DATATRAINVREF_PTR_SEND_START_RESP = 4'd2,
+        DATATRAINVREF_PTR_WAIT_END_REQ    = 4'd3,
+        DATATRAINVREF_PTR_SEND_END_RESP   = 4'd4,
+        DATATRAINVREF_PTR_TO_RXDESKEW     = 4'd5,
+        DATATRAINVREF_PTR_TO_TRAINERROR   = 4'd6
+    } tb_partner_state_t;
+
     tb_local_state_t tb_dut_local_state, tb_prev_dut_local_state;
+    tb_partner_state_t tb_dut_partner_state, tb_prev_dut_partner_state;
     logic           tb_in_randomized_scenarios = 1'b0;
 
     assign tb_dut_local_state   = tb_local_state_t'(u_dut.u_local.current_state);
+    assign tb_dut_partner_state = tb_partner_state_t'(u_dut.u_partner.current_state);
 
-    always @(posedge lclk) begin
-        if (!tb_in_randomized_scenarios || ENABLE_RAND_LOG) begin
-            if (rst_n && tb_dut_local_state !== tb_prev_dut_local_state) begin
-                $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), tb_dut_local_state.name());
-                tb_prev_dut_local_state <= tb_dut_local_state;
-            end
+    always @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            tb_prev_dut_local_state   <= DATATRAINVREF_LCL_IDLE;
+            tb_prev_dut_partner_state <= DATATRAINVREF_PTR_IDLE;
         end else begin
-            if (rst_n && tb_dut_local_state !== tb_prev_dut_local_state) tb_prev_dut_local_state <= tb_dut_local_state;
+            if (!tb_in_randomized_scenarios || ENABLE_RAND_LOG) begin
+                if (tb_dut_local_state !== tb_prev_dut_local_state) begin
+                    $display("# [%0d ps] Die A LOCAL   State -> %s", $realtime(), tb_dut_local_state.name());
+                    tb_prev_dut_local_state <= tb_dut_local_state;
+                end
+                if (tb_dut_partner_state !== tb_prev_dut_partner_state) begin
+                    $display("# [%0d ps] Die A PARTNER State -> %s", $realtime(), tb_dut_partner_state.name());
+                    tb_prev_dut_partner_state <= tb_dut_partner_state;
+                end
+            end else begin
+                if (tb_dut_local_state !== tb_prev_dut_local_state) tb_prev_dut_local_state <= tb_dut_local_state;
+                if (tb_dut_partner_state !== tb_prev_dut_partner_state) tb_prev_dut_partner_state <= tb_dut_partner_state;
+            end
         end
     end
 
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_DATATRAINVREF;
+        dut_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_DATATRAINVREF;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_verbose            = 0;
         dut_if.tb_wait_timeout       = 0;
@@ -329,7 +365,7 @@ module wrapper_DATATRAINVREF_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_DATATRAINVREF;
+        ptn_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_DATATRAINVREF;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_verbose            = 0;
         ptn_if.tb_wait_timeout       = 0;
@@ -362,11 +398,15 @@ module wrapper_DATATRAINVREF_tb;
         for (int l = 0; l < 16; l = l + 1) begin
             dut_eye_start[l] = d_start[l];
             dut_eye_end[l]   = d_end[l];
+            ptn_eye_start[l] = d_start[l];
+            ptn_eye_end[l]   = d_end[l];
         end
         assume_holes_after_quarter_eye_start = holes_en;
         if (suppress_sb) ptn_if.tb_suppress_rx_sb = 1;
 
         dut_local_datatrainvref_en = 1;
+        ptn_local_datatrainvref_en = 1;
+        dut_partner_datatrainvref_en = 1;
         ptn_partner_datatrainvref_en = 1;
 
         if (inject_trainerror) begin
@@ -379,7 +419,7 @@ module wrapper_DATATRAINVREF_tb;
 
         fork
             begin
-                wait (u_dut.local_datatrainvref_done || u_dut.local_trainerror_req);
+                wait (dut_datatrainvref_done || dut_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -391,7 +431,7 @@ module wrapper_DATATRAINVREF_tb;
         disable fork;
 
         if (expect_success) begin
-            if (!u_dut.local_datatrainvref_done || u_dut.local_trainerror_req) begin
+            if (!dut_datatrainvref_done || dut_trainerror_req) begin
                 $display("# ERROR: Expected success but failed");
                 tb_fail_count++; $stop;
             end
@@ -408,12 +448,14 @@ module wrapper_DATATRAINVREF_tb;
                     tb_fail_count++; $stop;
                 end
             end
-        end else if (!u_dut.local_trainerror_req) begin
+        end else if (!dut_trainerror_req) begin
             $display("# ERROR: Expected TRAINERROR but got success");
             tb_fail_count++; $stop;
         end
 
         dut_local_datatrainvref_en = 0;
+        ptn_local_datatrainvref_en = 0;
+        dut_partner_datatrainvref_en = 0;
         ptn_partner_datatrainvref_en = 0;
         if (suppress_sb) ptn_if.tb_suppress_rx_sb = 0;
         #(LCLK_PERIOD * 50);
@@ -442,11 +484,18 @@ module wrapper_DATATRAINVREF_tb;
                 r_s[l] = $urandom_range(MIN_DATA_VREF_CODE, MAX_DATA_VREF_CODE - 4);
                 r_e[l] = $urandom_range(r_s[l] + 3, MAX_DATA_VREF_CODE);
                 dut_eye_start[l] = r_s[l]; dut_eye_end[l] = r_e[l];
+                ptn_eye_start[l] = r_s[l]; ptn_eye_end[l] = r_e[l];
             end
-            dut_local_datatrainvref_en = 1; ptn_partner_datatrainvref_en = 1;
-            wait (u_dut.local_datatrainvref_done || u_dut.local_trainerror_req);
+            dut_local_datatrainvref_en = 1;
+            ptn_local_datatrainvref_en = 1;
+            dut_partner_datatrainvref_en = 1;
+            ptn_partner_datatrainvref_en = 1;
+            wait (dut_datatrainvref_done || dut_trainerror_req);
             #10000;
-            dut_local_datatrainvref_en = 0; ptn_partner_datatrainvref_en = 0;
+            dut_local_datatrainvref_en = 0;
+            ptn_local_datatrainvref_en = 0;
+            dut_partner_datatrainvref_en = 0;
+            ptn_partner_datatrainvref_en = 0;
             #10000;
         end
         tb_pass_test("Randomized Scenarios");

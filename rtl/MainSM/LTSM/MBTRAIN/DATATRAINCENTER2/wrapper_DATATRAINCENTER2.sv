@@ -16,19 +16,14 @@ module wrapper_DATATRAINCENTER2 #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
 
         input  logic        local_datatraincenter2_en,
-        output logic        local_datatraincenter2_done,
-        output logic        local_trainerror_req,
+        output logic        datatraincenter2_done,
+        output logic        trainerror_req,
         output logic        local_update_lane_mask,
 
         input  logic        partner_datatraincenter2_en,
-        output logic        partner_datatraincenter2_done,
-        output logic        partner_trainerror_req,
-
-        output logic        timeout_timer_en,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -72,8 +67,10 @@ module wrapper_DATATRAINCENTER2 #(
 
     import UCIe_pkg::*;
 
-    wire        local_timeout_timer_en_wire  ;
-    wire        partner_timeout_timer_en_wire;
+    logic        local_datatraincenter2_done_wire;
+    logic        local_trainerror_req_wire;
+    logic        partner_datatraincenter2_done_wire;
+    logic        partner_trainerror_req_wire;
 
     logic        local_tx_sb_msg_valid ;
     logic [7:0]  local_tx_sb_msg      ;
@@ -110,12 +107,10 @@ module wrapper_DATATRAINCENTER2 #(
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .datatraincenter2_en            (local_datatraincenter2_en),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (timeout_8ms_occured),
-        .datatraincenter2_done          (local_datatraincenter2_done),
-        .trainerror_req                 (local_trainerror_req),
+        .soft_rst_n                     (soft_rst_n),
+        .datatraincenter2_done          (local_datatraincenter2_done_wire),
+        .trainerror_req                 (local_trainerror_req_wire),
         .update_lane_mask               (local_update_lane_mask),
-        .timeout_timer_en               (local_timeout_timer_en_wire),
         .phy_tx_data_pi_phase_ctrl      (phy_tx_data_pi_phase_ctrl),
         .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel),
@@ -143,11 +138,9 @@ module wrapper_DATATRAINCENTER2 #(
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .datatraincenter2_en            (partner_datatraincenter2_en),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (timeout_8ms_occured),
-        .datatraincenter2_done          (partner_datatraincenter2_done),
-        .trainerror_req                 (partner_trainerror_req),
-        .timeout_timer_en               (partner_timeout_timer_en_wire),
+        .soft_rst_n                     (soft_rst_n),
+        .datatraincenter2_done          (partner_datatraincenter2_done_wire),
+        .trainerror_req                 (partner_trainerror_req_wire),
         .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel),
@@ -167,7 +160,9 @@ module wrapper_DATATRAINCENTER2 #(
         .rx_data_field                  (rx_data_field)
     );
 
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
+    // Combine terminal signals
+    assign datatraincenter2_done = local_datatraincenter2_done_wire & partner_datatraincenter2_done_wire;
+    assign trainerror_req        = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg;

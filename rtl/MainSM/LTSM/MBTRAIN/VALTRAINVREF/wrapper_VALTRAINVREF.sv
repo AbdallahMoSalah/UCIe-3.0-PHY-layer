@@ -17,22 +17,16 @@ module wrapper_VALTRAINVREF #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
+        output logic        valtrainvref_done,
+        output logic        trainerror_req,
 
         // Local FSM Control:
         input  logic        local_valtrainvref_en,
-        output logic        local_valtrainvref_done,
-        output logic        local_trainerror_req,
         output logic        local_update_lane_mask,
 
         // Partner FSM Control:
         input  logic        partner_valtrainvref_en,
-        output logic        partner_valtrainvref_done,
-        output logic        partner_trainerror_req,
-
-        // Timer Control (Combined OR logic for watchdog):
-        output logic        timeout_timer_en,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -76,8 +70,11 @@ module wrapper_VALTRAINVREF #(
 
     import UCIe_pkg::*;
 
-    wire        local_timeout_timer_en_wire  ;
-    wire        partner_timeout_timer_en_wire;
+    // Local/partner intermediate signals
+    logic        local_valtrainvref_done_wire;
+    logic        local_trainerror_req_wire;
+    logic        partner_valtrainvref_done_wire;
+    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -116,68 +113,66 @@ module wrapper_VALTRAINVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
     ) u_local (
-        .lclk                   (lclk),
-        .rst_n                  (rst_n),
-        .valtrainvref_en        (local_valtrainvref_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .valtrainvref_done      (local_valtrainvref_done),
-        .trainerror_req         (local_trainerror_req),
-        .update_lane_mask       (local_update_lane_mask),
-        .timeout_timer_en       (local_timeout_timer_en_wire),
-        .phy_rx_valvref_ctrl    (phy_rx_valvref_ctrl),
-        .mb_tx_clk_lane_sel     (local_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel    (local_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel     (local_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel     (local_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel     (local_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel    (local_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel     (local_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel     (local_mb_rx_trk_lane_sel),
-        .sweep_en               (sweep_en),
-        .swept_code             (swept_code),
-        .best_code              (best_code),
-        .sweep_done             (sweep_done),
-        .tx_sb_msg_valid        (local_tx_sb_msg_valid),
-        .tx_sb_msg              (local_tx_sb_msg),
-        .tx_msginfo             (local_tx_msginfo),
-        .tx_data_field          (local_tx_data_field),
-        .rx_sb_msg_valid        (rx_sb_msg_valid),
-        .rx_sb_msg              (rx_sb_msg),
-        .rx_msginfo             (rx_msginfo),
-        .rx_data_field          (rx_data_field)
+        .lclk                           (lclk),
+        .rst_n                          (rst_n),
+        .valtrainvref_en                (local_valtrainvref_en),
+        .soft_rst_n                     (soft_rst_n),
+        .valtrainvref_done              (local_valtrainvref_done_wire),
+        .trainerror_req                 (local_trainerror_req_wire),
+        .update_lane_mask               (local_update_lane_mask),
+        .phy_rx_valvref_ctrl            (phy_rx_valvref_ctrl),
+        .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel),
+        .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel),
+        .mb_tx_val_lane_sel             (local_mb_tx_val_lane_sel),
+        .mb_tx_trk_lane_sel             (local_mb_tx_trk_lane_sel),
+        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel),
+        .mb_rx_data_lane_sel            (local_mb_rx_data_lane_sel),
+        .mb_rx_val_lane_sel             (local_mb_rx_val_lane_sel),
+        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel),
+        .sweep_en                       (sweep_en),
+        .swept_code                     (swept_code),
+        .best_code                      (best_code),
+        .sweep_done                     (sweep_done),
+        .tx_sb_msg_valid                (local_tx_sb_msg_valid),
+        .tx_sb_msg                      (local_tx_sb_msg),
+        .tx_msginfo                     (local_tx_msginfo),
+        .tx_data_field                  (local_tx_data_field),
+        .rx_sb_msg_valid                (rx_sb_msg_valid),
+        .rx_sb_msg                      (rx_sb_msg),
+        .rx_msginfo                     (rx_msginfo),
+        .rx_data_field                  (rx_data_field)
     );
 
     // Partner FSM Instance
     unit_VALTRAINVREF_partner u_partner (
-        .lclk                   (lclk),
-        .rst_n                  (rst_n),
-        .valtrainvref_en        (partner_valtrainvref_en),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset),
-        .timeout_8ms_occured    (timeout_8ms_occured),
-        .valtrainvref_done      (partner_valtrainvref_done),
-        .trainerror_req         (partner_trainerror_req),
-        .timeout_timer_en       (partner_timeout_timer_en_wire),
-        .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel    (partner_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel     (partner_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel     (partner_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel     (partner_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel    (partner_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel     (partner_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel     (partner_mb_rx_trk_lane_sel),
-        .partner_sweep_en       (partner_sweep_en),
-        .tx_sb_msg_valid        (partner_tx_sb_msg_valid),
-        .tx_sb_msg              (partner_tx_sb_msg),
-        .tx_msginfo             (partner_tx_msginfo),
-        .tx_data_field          (partner_tx_data_field),
-        .rx_sb_msg_valid        (rx_sb_msg_valid),
-        .rx_sb_msg              (rx_sb_msg),
-        .rx_msginfo             (rx_msginfo),
-        .rx_data_field          (rx_data_field)
+        .lclk                           (lclk),
+        .rst_n                          (rst_n),
+        .valtrainvref_en                (partner_valtrainvref_en),
+        .soft_rst_n                     (soft_rst_n),
+        .valtrainvref_done              (partner_valtrainvref_done_wire),
+        .trainerror_req                 (partner_trainerror_req_wire),
+        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel),
+        .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel),
+        .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel),
+        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel),
+        .mb_rx_clk_lane_sel             (partner_mb_rx_clk_lane_sel),
+        .mb_rx_data_lane_sel            (partner_mb_rx_data_lane_sel),
+        .mb_rx_val_lane_sel             (partner_mb_rx_val_lane_sel),
+        .mb_rx_trk_lane_sel             (partner_mb_rx_trk_lane_sel),
+        .partner_sweep_en               (partner_sweep_en),
+        .tx_sb_msg_valid                (partner_tx_sb_msg_valid),
+        .tx_sb_msg                      (partner_tx_sb_msg),
+        .tx_msginfo                     (partner_tx_msginfo),
+        .tx_data_field                  (partner_tx_data_field),
+        .rx_sb_msg_valid                (rx_sb_msg_valid),
+        .rx_sb_msg                      (rx_sb_msg),
+        .rx_msginfo                     (rx_msginfo),
+        .rx_data_field                  (rx_data_field)
     );
 
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
+    // Combine terminal signals
+    assign valtrainvref_done = local_valtrainvref_done_wire & partner_valtrainvref_done_wire;
+    assign trainerror_req      = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband Arbitration
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;

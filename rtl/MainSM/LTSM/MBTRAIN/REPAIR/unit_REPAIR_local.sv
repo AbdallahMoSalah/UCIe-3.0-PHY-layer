@@ -42,8 +42,7 @@ module unit_REPAIR_local (
 
         // LTSM Control Signals
         input  logic        repair_en,
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
         output logic        repair_done,
         output logic        txselfcal_req,
         output logic        trainerror_req,
@@ -51,9 +50,6 @@ module unit_REPAIR_local (
         // Width Degradation Input (our TX code, computed by unit_negotiated_lanes in the wrapper)
         input  logic [2:0]  degraded_tx_lane_map_code, // Our best TX degraded lane code
         input  logic        width_degrade_feasible,     // 1 = our TX code is valid (!= 3'b000)
-
-        // Timer Control Signals
-        output logic        timeout_timer_en,
 
         // MB TX/RX Lane Control
         output logic [1:0]  mb_tx_clk_lane_sel,
@@ -83,19 +79,19 @@ module unit_REPAIR_local (
     // State encoding
     // =========================================================================
     typedef enum logic [3:0] {
-        REPAIR_LOCAL_IDLE          = 4'd0,
-        REPAIR_LOCAL_SEND_INIT     = 4'd1,
-        REPAIR_LOCAL_WAIT_INIT     = 4'd2,
-        REPAIR_LOCAL_SEND_DEGRADE  = 4'd3,
-        REPAIR_LOCAL_WAIT_DEGRADE  = 4'd4,
-        REPAIR_LOCAL_EVAL          = 4'd5,
-        REPAIR_LOCAL_SEND_END      = 4'd6,
-        REPAIR_LOCAL_WAIT_END      = 4'd7,
-        REPAIR_LOCAL_TO_TXSELFCAL  = 4'd8,
-        REPAIR_LOCAL_TO_TRAINERROR = 4'd9
-    } state_t;
+        REPAIR_LCL_IDLE          = 4'd0,
+        REPAIR_LCL_SEND_INIT     = 4'd1,
+        REPAIR_LCL_WAIT_INIT     = 4'd2,
+        REPAIR_LCL_SEND_DEGRADE  = 4'd3,
+        REPAIR_LCL_WAIT_DEGRADE  = 4'd4,
+        REPAIR_LCL_EVAL          = 4'd5,
+        REPAIR_LCL_SEND_END      = 4'd6,
+        REPAIR_LCL_WAIT_END      = 4'd7,
+        REPAIR_LCL_TO_TXSELFCAL  = 4'd8,
+        REPAIR_LCL_TO_TRAINERROR = 4'd9
+    } linkspeed_lcl_state_e;
 
-    state_t current_state, next_state;
+    linkspeed_lcl_state_e current_state, next_state;
 
     // =========================================================================
     // Snoop register: capture the remote die's TX code from its {apply degrade req}.
@@ -108,10 +104,10 @@ module unit_REPAIR_local (
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
-            current_state    <= REPAIR_LOCAL_IDLE;
+            current_state    <= REPAIR_LCL_IDLE;
             partner_tx_code_r <= 3'b000;
-        end else if (!is_ltsm_out_of_reset) begin
-            current_state    <= REPAIR_LOCAL_IDLE;
+        end else if (!soft_rst_n) begin
+            current_state    <= REPAIR_LCL_IDLE;
             partner_tx_code_r <= 3'b000;
         end else begin
             current_state <= next_state;
@@ -132,69 +128,71 @@ module unit_REPAIR_local (
         next_state = current_state;
 
         // TRAINERROR global overrides
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = REPAIR_LOCAL_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = REPAIR_LCL_TO_TRAINERROR;
+        end else if (!repair_en) begin
+            next_state = REPAIR_LCL_IDLE;
         end else begin
             case (current_state)
-                REPAIR_LOCAL_IDLE: begin
+                REPAIR_LCL_IDLE: begin
                     if (repair_en) begin
-                        next_state = REPAIR_LOCAL_SEND_INIT;
+                        next_state = REPAIR_LCL_SEND_INIT;
                     end
                 end
 
-                REPAIR_LOCAL_SEND_INIT: begin
-                    next_state = REPAIR_LOCAL_WAIT_INIT;
+                REPAIR_LCL_SEND_INIT: begin
+                    next_state = REPAIR_LCL_WAIT_INIT;
                 end
 
-                REPAIR_LOCAL_WAIT_INIT: begin
+                REPAIR_LCL_WAIT_INIT: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_init_resp) begin
-                        next_state = REPAIR_LOCAL_SEND_DEGRADE;
+                        next_state = REPAIR_LCL_SEND_DEGRADE;
                     end
                 end
 
-                REPAIR_LOCAL_SEND_DEGRADE: begin
-                    next_state = REPAIR_LOCAL_WAIT_DEGRADE;
+                REPAIR_LCL_SEND_DEGRADE: begin
+                    next_state = REPAIR_LCL_WAIT_DEGRADE;
                 end
 
-                REPAIR_LOCAL_WAIT_DEGRADE: begin
+                REPAIR_LCL_WAIT_DEGRADE: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_resp) begin
-                        next_state = REPAIR_LOCAL_EVAL;
+                        next_state = REPAIR_LCL_EVAL;
                     end
                 end
 
-                REPAIR_LOCAL_EVAL: begin
+                REPAIR_LCL_EVAL: begin
                     // TRAINERROR if our TX code is 3'b000 OR if the remote die sent 3'b000.
                     // partner_tx_code_r was captured (snooped) when we saw their req on the bus.
                     if (!width_degrade_feasible || (partner_tx_code_r == 3'b000)) begin
-                        next_state = REPAIR_LOCAL_TO_TRAINERROR;
+                        next_state = REPAIR_LCL_TO_TRAINERROR;
                     end else begin
-                        next_state = REPAIR_LOCAL_SEND_END;
+                        next_state = REPAIR_LCL_SEND_END;
                     end
                 end
 
-                REPAIR_LOCAL_SEND_END: begin
-                    next_state = REPAIR_LOCAL_WAIT_END;
+                REPAIR_LCL_SEND_END: begin
+                    next_state = REPAIR_LCL_WAIT_END;
                 end
 
-                REPAIR_LOCAL_WAIT_END: begin
+                REPAIR_LCL_WAIT_END: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_end_resp) begin
-                        next_state = REPAIR_LOCAL_TO_TXSELFCAL;
+                        next_state = REPAIR_LCL_TO_TXSELFCAL;
                     end
                 end
 
-                REPAIR_LOCAL_TO_TXSELFCAL: begin
+                REPAIR_LCL_TO_TXSELFCAL: begin
                     if (!repair_en) begin
-                        next_state = REPAIR_LOCAL_IDLE;
+                        next_state = REPAIR_LCL_IDLE;
                     end
                 end
 
-                REPAIR_LOCAL_TO_TRAINERROR: begin
+                REPAIR_LCL_TO_TRAINERROR: begin
                     if (!repair_en) begin
-                        next_state = REPAIR_LOCAL_IDLE;
+                        next_state = REPAIR_LCL_IDLE;
                     end
                 end
 
-                default: next_state = REPAIR_LOCAL_IDLE;
+                default: next_state = REPAIR_LCL_IDLE;
             endcase
         end
     end
@@ -207,7 +205,6 @@ module unit_REPAIR_local (
         repair_done         = 1'b0;
         txselfcal_req       = 1'b0;
         trainerror_req      = 1'b0;
-        timeout_timer_en    = 1'b1;
 
         // Mainband defaults during REPAIR (spec §4.5.3.4.13):
         //   Track, Data, Valid TX held low (2'b00).
@@ -228,8 +225,7 @@ module unit_REPAIR_local (
         tx_data_field       = 64'h0;
 
         case (current_state)
-            REPAIR_LOCAL_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            REPAIR_LCL_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_tx_data_lane_sel = 2'b00;
                 mb_tx_val_lane_sel  = 2'b00;
@@ -240,16 +236,16 @@ module unit_REPAIR_local (
                 mb_rx_trk_lane_sel  = 1'b0;
             end
 
-            REPAIR_LOCAL_SEND_INIT: begin
+            REPAIR_LCL_SEND_INIT: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_init_req;
             end
 
-            REPAIR_LOCAL_WAIT_INIT: begin
+            REPAIR_LCL_WAIT_INIT: begin
                 // Waiting for {MBTRAIN.REPAIR init resp}
             end
 
-            REPAIR_LOCAL_SEND_DEGRADE: begin
+            REPAIR_LCL_SEND_DEGRADE: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_apply_degrade_req;
                 // MsgInfo[2:0] carries our TX lane code.
@@ -257,33 +253,31 @@ module unit_REPAIR_local (
                 tx_msginfo      = {13'h0, degraded_tx_lane_map_code};
             end
 
-            REPAIR_LOCAL_WAIT_DEGRADE: begin
+            REPAIR_LCL_WAIT_DEGRADE: begin
                 // Waiting for {MBTRAIN.REPAIR apply degrade resp} (pure ACK — no data)
             end
 
-            REPAIR_LOCAL_EVAL: begin
+            REPAIR_LCL_EVAL: begin
                 // Single-cycle evaluation state — no SB activity.
             end
 
-            REPAIR_LOCAL_SEND_END: begin
+            REPAIR_LCL_SEND_END: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_REPAIR_end_req;
             end
 
-            REPAIR_LOCAL_WAIT_END: begin
+            REPAIR_LCL_WAIT_END: begin
                 // Waiting for {MBTRAIN.REPAIR end resp}
             end
 
-            REPAIR_LOCAL_TO_TXSELFCAL: begin
+            REPAIR_LCL_TO_TXSELFCAL: begin
                 repair_done      = 1'b1;
                 txselfcal_req    = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
-            REPAIR_LOCAL_TO_TRAINERROR: begin
+            REPAIR_LCL_TO_TRAINERROR: begin
                 repair_done      = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin

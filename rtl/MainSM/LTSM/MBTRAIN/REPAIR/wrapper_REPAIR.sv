@@ -21,23 +21,17 @@ module wrapper_REPAIR (
         input  logic        rst_n,
 
         // LTSM Control and Configuration Signals
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured,
+        input  logic        soft_rst_n,
 
         // Local FSM Control
         input  logic        local_repair_en,
-        output logic        local_repair_done,
+        output logic        repair_done,
         output logic        local_txselfcal_req,
-        output logic        local_trainerror_req,
+        output logic        partner_txselfcal_req,
+        output logic        trainerror_req,
 
         // Partner FSM Control
         input  logic        partner_repair_en,
-        output logic        partner_repair_done,
-        output logic        partner_txselfcal_req,
-        output logic        partner_trainerror_req,
-
-        // Timer Control (ORed watchdog)
-        output logic        timeout_timer_en,
 
         // Width Degradation Inputs for unit_negotiated_lanes
         input  logic [15:0] success_tx_lanes,           // Per-lane TX success bitmask
@@ -81,8 +75,10 @@ module wrapper_REPAIR (
     // =========================================================================
     // Internal wires
     // =========================================================================
-    logic        local_timeout_timer_en;
-    logic        partner_timeout_timer_en;
+    logic        local_repair_done_w;
+    logic        partner_repair_done_w;
+    logic        local_trainerror_req_w;
+    logic        partner_trainerror_req_w;
 
     // SB outputs from Local FSM
     logic        local_tx_sb_msg_valid;
@@ -150,14 +146,12 @@ module wrapper_REPAIR (
         .lclk                       (lclk),
         .rst_n                      (rst_n),
         .repair_en                  (local_repair_en),
-        .is_ltsm_out_of_reset       (is_ltsm_out_of_reset),
-        .timeout_8ms_occured        (timeout_8ms_occured),
-        .repair_done                (local_repair_done),
+        .soft_rst_n                 (soft_rst_n),
+        .repair_done                (local_repair_done_w),
         .txselfcal_req              (local_txselfcal_req),
-        .trainerror_req             (local_trainerror_req),
+        .trainerror_req             (local_trainerror_req_w),
         .degraded_tx_lane_map_code  (degraded_lane_map_code),
         .width_degrade_feasible     (degrade_feasible),
-        .timeout_timer_en           (local_timeout_timer_en),
         .mb_tx_clk_lane_sel         (local_mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel        (local_mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel         (local_mb_tx_val_lane_sel),
@@ -184,11 +178,10 @@ module wrapper_REPAIR (
         .lclk                       (lclk),
         .rst_n                      (rst_n),
         .repair_en                  (partner_repair_en),
-        .is_ltsm_out_of_reset       (is_ltsm_out_of_reset),
-        .timeout_8ms_occured        (timeout_8ms_occured),
-        .repair_done                (partner_repair_done),
+        .soft_rst_n                 (soft_rst_n),
+        .repair_done                (partner_repair_done_w),
         .txselfcal_req              (partner_txselfcal_req),
-        .trainerror_req             (partner_trainerror_req),
+        .trainerror_req             (partner_trainerror_req_w),
         .degraded_tx_lane_map_code  (degraded_lane_map_code),
         .width_degrade_feasible     (degrade_feasible),
         .is_x16_module              (is_x16_module),
@@ -197,7 +190,6 @@ module wrapper_REPAIR (
         .mb_tx_data_lane_mask       (mb_tx_data_lane_mask),
         .mbinit_tx_data_lane_mask   (mbinit_tx_data_lane_mask),
         .update_lane_mask           (update_lane_mask),
-        .timeout_timer_en           (partner_timeout_timer_en),
         .mb_tx_clk_lane_sel         (partner_mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel        (partner_mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel         (partner_mb_tx_val_lane_sel),
@@ -217,9 +209,10 @@ module wrapper_REPAIR (
     );
 
     // =========================================================================
-    // OR logic for watchdog timer
+    // Output done & trainerror consolidation
     // =========================================================================
-    assign timeout_timer_en = local_timeout_timer_en | partner_timeout_timer_en;
+    assign repair_done    = local_repair_done_w & partner_repair_done_w;
+    assign trainerror_req = local_trainerror_req_w | partner_trainerror_req_w;
 
     // =========================================================================
     // SB TX output arbitration

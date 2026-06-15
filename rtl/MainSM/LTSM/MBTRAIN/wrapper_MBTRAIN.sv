@@ -899,30 +899,30 @@ module wrapper_MBTRAIN #(
         .rx_data_field                (rx_data_field)
     );
 
+    logic linkspeed_done_w;
+    logic linkspeed_trainerror_req_w;
+
     wrapper_LINKSPEED u_LINKSPEED (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (is_ltsm_out_of_reset),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
         .local_linkspeed_en           (local_linkspeed_en),
-        .local_linkspeed_done         (local_linkspeed_done),
+        .partner_linkspeed_en         (partner_linkspeed_en),
+
+        .linkspeed_done               (linkspeed_done_w),
+        .trainerror_req               (linkspeed_trainerror_req_w),
+
         .local_linkinit_req           (local_linkinit_route_req  ),
         .local_speedidle_req          (local_speedidle_route_req ),
         .local_repair_req             (local_repair_route_req    ),
         .local_phyretrain_req         (local_phyretrain_route_req),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_LINKSPEED]),
-        .partner_linkspeed_en         (partner_linkspeed_en),
-        .partner_linkspeed_done       (partner_linkspeed_done),
 
         .partner_linkinit_req         (partner_linkinit_route_req  ),
         .partner_speedidle_req        (partner_speedidle_route_req ),
         .partner_repair_req           (partner_repair_route_req    ),
         .partner_phyretrain_req       (partner_phyretrain_route_req),
-
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_LINKSPEED]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_LINKSPEED]),
         .active_rx_lanes              (active_rx_lanes),
         .width_degrade_feasible       (degrade_feasible),
         .PHY_IN_RETRAIN               (PHY_IN_RETRAIN),
@@ -932,8 +932,6 @@ module wrapper_MBTRAIN #(
         .local_sweep_en               (ss_sweep_en[SS_LINKSPEED]),
         .partner_sweep_en             (ss_partner_sweep_en[SS_LINKSPEED]),
         .d2c_perlane_pass             (d2c_perlane_pass),
-        // .d2c_aggr_pass                (d2c_aggr_pass),
-        // .d2c_val_pass                 (d2c_val_pass),
         .local_sweep_done             (sweep_done),
         .linkspeed_success_lanes      (linkspeed_success_lanes),
         .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_LINKSPEED]),
@@ -954,22 +952,28 @@ module wrapper_MBTRAIN #(
         .rx_data_field                (rx_data_field)
     );
 
+    assign local_linkspeed_done = linkspeed_done_w;
+    assign partner_linkspeed_done = linkspeed_done_w;
+    assign ss_local_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
+    assign ss_partner_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
+    assign ss_timeout_timer_en[SS_LINKSPEED] = local_linkspeed_en | partner_linkspeed_en;
+    logic repair_done_w;
+    logic repair_trainerror_req_w;
+
     wrapper_REPAIR u_REPAIR (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (is_ltsm_out_of_reset),
         .local_repair_en              (local_repair_en),
-        .local_repair_done            (local_repair_done),
+        .repair_done                  (repair_done_w),
         .local_txselfcal_req          (local_repair_txselfcal_req),
-        .partner_txselfcal_req        (partner_repair_txselfcal_req), // I didn't handle This port yet. we have to handle `partner_repair_txselfcal_req`
-        .local_trainerror_req         (ss_local_trainerror_req[SS_REPAIR]),
+        .partner_txselfcal_req        (partner_repair_txselfcal_req),
+        .trainerror_req               (repair_trainerror_req_w),
         .partner_repair_en            (partner_repair_en),
-        .partner_repair_done          (partner_repair_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_REPAIR]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_REPAIR]),
-        .local_tx_lane_map_code       (degraded_lane_map_code),
-        .width_degrade_feasible       (degrade_feasible),
+        .success_tx_lanes             (linkspeed_success_lanes),
+        .rf_cap_SPMW                  (rf_cap_SPMW),
+        .rf_ctrl_target_link_width    (rf_ctrl_target_link_width),
+        .param_UCIe_S_x8              (param_UCIe_S_x8),
         .mb_rx_data_lane_mask         (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask         (mb_tx_data_lane_mask),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask),
@@ -992,6 +996,12 @@ module wrapper_MBTRAIN #(
         .rx_msginfo                   (rx_msginfo),
         .rx_data_field                (rx_data_field)
     );
+
+    assign local_repair_done = repair_done_w;
+    assign partner_repair_done = repair_done_w;
+    assign ss_local_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
+    assign ss_partner_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
+    assign ss_timeout_timer_en[SS_REPAIR] = local_repair_en | partner_repair_en;
 
     // Substates without analog-settle or sweep/update ports get explicit inactive values.
     assign ss_analog_settle_timer_en[SS_VALVREF]        = 1'b0;

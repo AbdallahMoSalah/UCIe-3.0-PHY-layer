@@ -158,20 +158,18 @@ module wrapper_LINKSPEED_tb;
     // Die A Instantiation (DUT)
     // =========================================================================
     logic        dut_local_linkspeed_en = 0;
-    logic        dut_local_linkspeed_done;
+    logic        dut_linkspeed_done;
     logic        dut_local_linkinit_req;
     logic        dut_local_speedidle_req;
     logic        dut_local_repair_req;
     logic        dut_local_phyretrain_req;
-    logic        dut_local_trainerror_req;
+    logic        dut_trainerror_req;
 
     logic        dut_partner_linkspeed_en = 0;
-    logic        dut_partner_linkspeed_done;
     logic        dut_partner_linkinit_req;
     logic        dut_partner_speedidle_req;
     logic        dut_partner_repair_req;
     logic        dut_partner_phyretrain_req;
-    logic        dut_partner_trainerror_req;
 
     logic        dut_PHY_IN_RETRAIN_rst;
     logic        dut_busy_bit_rst;
@@ -187,31 +185,29 @@ module wrapper_LINKSPEED_tb;
     assign ptn_if.param_UCIe_S_x8           = 1'b0;
     assign ptn_if.linkspeed_success_lanes   = ptn_if.d2c_perlane_pass & ptn_active_rx_lanes;
 
+
     wrapper_LINKSPEED u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (dut_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .local_linkspeed_en             (dut_local_linkspeed_en),
-        .local_linkspeed_done           (dut_local_linkspeed_done),
+        .partner_linkspeed_en           (dut_partner_linkspeed_en),
+
+        .linkspeed_done                 (dut_linkspeed_done),
+        .trainerror_req                 (dut_trainerror_req),
+
         .local_linkinit_req             (dut_local_linkinit_req),
         .local_speedidle_req            (dut_local_speedidle_req),
         .local_repair_req               (dut_local_repair_req),
         .local_phyretrain_req           (dut_local_phyretrain_req),
-        .local_trainerror_req           (dut_local_trainerror_req),
 
-        .partner_linkspeed_en           (dut_partner_linkspeed_en),
-        .partner_linkspeed_done         (dut_partner_linkspeed_done),
         .partner_linkinit_req           (dut_partner_linkinit_req),
         .partner_speedidle_req          (dut_partner_speedidle_req),
         .partner_repair_req             (dut_partner_repair_req),
         .partner_phyretrain_req         (dut_partner_phyretrain_req),
-        .partner_trainerror_req         (dut_partner_trainerror_req),
-
-        .timeout_timer_en               (dut_if.timeout_timer_en),
 
         .active_rx_lanes                (dut_active_rx_lanes),
         .width_degrade_feasible         (dut_if.degrade_feasible),
@@ -252,20 +248,18 @@ module wrapper_LINKSPEED_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_linkspeed_en = 0;
-    logic        ptn_local_linkspeed_done;
+    logic        ptn_linkspeed_done;
     logic        ptn_local_linkinit_req;
     logic        ptn_local_speedidle_req;
     logic        ptn_local_repair_req;
     logic        ptn_local_phyretrain_req;
-    logic        ptn_local_trainerror_req;
+    logic        ptn_trainerror_req;
 
     logic        ptn_partner_linkspeed_en = 0;
-    logic        ptn_partner_linkspeed_done;
     logic        ptn_partner_linkinit_req;
     logic        ptn_partner_speedidle_req;
     logic        ptn_partner_repair_req;
     logic        ptn_partner_phyretrain_req;
-    logic        ptn_partner_trainerror_req;
 
     logic        ptn_PHY_IN_RETRAIN_rst;
     logic        ptn_busy_bit_rst;
@@ -273,28 +267,25 @@ module wrapper_LINKSPEED_tb;
     wrapper_LINKSPEED u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
-        .timeout_8ms_occured            (ptn_if.timeout_8ms_occured),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .local_linkspeed_en             (ptn_local_linkspeed_en),
-        .local_linkspeed_done           (ptn_local_linkspeed_done),
+        .partner_linkspeed_en           (ptn_partner_linkspeed_en),
+
+        .linkspeed_done                 (ptn_linkspeed_done),
+        .trainerror_req                 (ptn_trainerror_req),
+
         .local_linkinit_req             (ptn_local_linkinit_req),
         .local_speedidle_req            (ptn_local_speedidle_req),
         .local_repair_req               (ptn_local_repair_req),
         .local_phyretrain_req           (ptn_local_phyretrain_req),
-        .local_trainerror_req           (ptn_local_trainerror_req),
 
-        .partner_linkspeed_en           (ptn_partner_linkspeed_en),
-        .partner_linkspeed_done         (ptn_partner_linkspeed_done),
         .partner_linkinit_req           (ptn_partner_linkinit_req),
         .partner_speedidle_req          (ptn_partner_speedidle_req),
         .partner_repair_req             (ptn_partner_repair_req),
         .partner_phyretrain_req         (ptn_partner_phyretrain_req),
-        .partner_trainerror_req         (ptn_partner_trainerror_req),
-
-        .timeout_timer_en               (ptn_if.timeout_timer_en),
 
         .active_rx_lanes                (ptn_active_rx_lanes),
         .width_degrade_feasible         (ptn_if.degrade_feasible),
@@ -330,18 +321,21 @@ module wrapper_LINKSPEED_tb;
         .rx_data_field                  (ptn_if.rx_data_field)
     );
 
+    assign dut_if.timeout_timer_en          = dut_local_linkspeed_en | dut_partner_linkspeed_en;
+    assign ptn_if.timeout_timer_en          = ptn_local_linkspeed_en | ptn_partner_linkspeed_en;
+
     // =========================================================================
     // State Names Enum & Monitors
     // =========================================================================
     typedef enum logic [4:0] {
-        LOC_IDLE=0,LOC_SEND_START_REQ=1,LOC_WAIT_START_RESP=2,LOC_TX_D2C_PT=3,
-        LOC_EVAL_RESULT=4,LOC_SEND_PHY_RETRAIN_REQ=5,LOC_WAIT_PHY_RETRAIN_RESP=6,
-        LOC_SEND_DONE_REQ=7,LOC_WAIT_DONE_RESP=8,LOC_SEND_ERROR_REQ=9,
-        LOC_WAIT_ERROR_RESP=10,LOC_RECOVERY_DECISION=11,LOC_SEND_REPAIR_REQ=12,
-        LOC_WAIT_REPAIR_RESP=13,LOC_SEND_SPEED_DEGRADE_REQ=14,LOC_WAIT_SPEED_DEGRADE_RESP=15,
-        LOC_WAIT_RECOVERY_REQ=16,LOC_TO_LINKINIT=17,LOC_TO_REPAIR=18,
-        LOC_TO_SPEEDIDLE=19,LOC_TO_PHYRETRAIN=20,LOC_TO_TRAINERROR=21
-    } loc_state_t;
+        LCL_IDLE=0,LCL_SEND_START_REQ=1,LCL_WAIT_START_RESP=2,LCL_TX_D2C_PT=3,
+        LCL_EVAL_RESULT=4,LCL_SEND_PHY_RETRAIN_REQ=5,LCL_WAIT_PHY_RETRAIN_RESP=6,
+        LCL_SEND_DONE_REQ=7,LCL_WAIT_DONE_RESP=8,LCL_SEND_ERROR_REQ=9,
+        LCL_WAIT_ERROR_RESP=10,LCL_RECOVERY_DECISION=11,LCL_SEND_REPAIR_REQ=12,
+        LCL_WAIT_REPAIR_RESP=13,LCL_SEND_SPEED_DEGRADE_REQ=14,LCL_WAIT_SPEED_DEGRADE_RESP=15,
+        LCL_WAIT_RECOVERY_REQ=16,LCL_TO_LINKINIT=17,LCL_TO_REPAIR=18,
+        LCL_TO_SPEEDIDLE=19,LCL_TO_PHYRETRAIN=20,LCL_TO_TRAINERROR=21
+    } lcl_state_t;
 
     typedef enum logic [3:0] {
         PTR_IDLE=0,PTR_WAIT_START_REQ=1,PTR_SEND_START_RESP=2,PTR_WAIT_POST_D2C_REQ=3,
@@ -351,11 +345,11 @@ module wrapper_LINKSPEED_tb;
         PTR_TO_PHYRETRAIN=13,PTR_TO_TRAINERROR=14
     } ptr_state_t;
 
-    loc_state_t dut_local_state, prev_dut_local_state;
+    lcl_state_t dut_local_state, prev_dut_local_state;
     ptr_state_t dut_partner_state, prev_dut_partner_state;
     logic       in_randomized_scenarios = 1'b0;
 
-    assign dut_local_state   = loc_state_t'(u_dut.u_LINKSPEED_local.current_state);
+    assign dut_local_state   = lcl_state_t'(u_dut.u_LINKSPEED_local.current_state);
     assign dut_partner_state = ptr_state_t'(u_dut.u_LINKSPEED_partner.current_state);
 
     function string get_short_msg_name(msg_no_e msg);
@@ -405,7 +399,7 @@ module wrapper_LINKSPEED_tb;
 
     // Default parameters setup
     initial begin
-        dut_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED;
+        dut_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED;
         dut_if.tb_suppress_rx_sb     = 0;
         dut_if.tb_force_val_pass     = 1;
         dut_if.tb_verbose            = 0;
@@ -414,7 +408,7 @@ module wrapper_LINKSPEED_tb;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
 
-        ptn_if.state_n[0]            = ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED;
+        ptn_if.state_n_0             = ltsm_state_n_pkg::LOG_MBTRAIN_LINKSPEED;
         ptn_if.tb_suppress_rx_sb     = 0;
         ptn_if.tb_force_val_pass     = 1;
         ptn_if.tb_verbose            = 0;
@@ -481,9 +475,11 @@ module wrapper_LINKSPEED_tb;
                 begin
                     wait (dut_if.timeout_timer_en == 1);
                     repeat(200) @(posedge lclk);
-                    force dut_if.timeout_8ms_occured = 1;
+                    tb_ptn_inject_valid = 1;
+                    tb_ptn_inject_msg = TRAINERROR_Entry_req;
+                    tb_ptn_inject_info = 16'h0;
                     @(posedge lclk);
-                    release dut_if.timeout_8ms_occured;
+                    tb_ptn_inject_valid = 0;
                 end
             join_none
         end
@@ -505,7 +501,7 @@ module wrapper_LINKSPEED_tb;
 
         fork
             begin
-                wait (u_dut.local_linkspeed_done || u_dut.local_trainerror_req);
+                wait (dut_linkspeed_done || dut_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -517,24 +513,24 @@ module wrapper_LINKSPEED_tb;
         disable fork;
 
         // Verify FSM exits on Die A
-        if (expect_linkinit && (!u_dut.local_linkinit_req || !u_dut.local_linkspeed_done)) begin
-            $display("# ERROR: Expected LINKINIT exit on Die A, but got linkinit_req=%b, done=%b", u_dut.local_linkinit_req, u_dut.local_linkspeed_done);
+        if (expect_linkinit && (!u_dut.local_linkinit_req || !dut_linkspeed_done)) begin
+            $display("# ERROR: Expected LINKINIT exit on Die A, but got linkinit_req=%b, done=%b", u_dut.local_linkinit_req, dut_linkspeed_done);
             fail_count++; $stop;
         end
-        if (expect_repair && (!u_dut.local_repair_req || !u_dut.local_linkspeed_done)) begin
-            $display("# ERROR: Expected REPAIR exit on Die A, but got repair_req=%b, done=%b", u_dut.local_repair_req, u_dut.local_linkspeed_done);
+        if (expect_repair && (!u_dut.local_repair_req || !dut_linkspeed_done)) begin
+            $display("# ERROR: Expected REPAIR exit on Die A, but got repair_req=%b, done=%b", u_dut.local_repair_req, dut_linkspeed_done);
             fail_count++; $stop;
         end
-        if (expect_speedidle && (!u_dut.local_speedidle_req || !u_dut.local_linkspeed_done)) begin
-            $display("# ERROR: Expected SPEEDIDLE exit on Die A, but got speedidle_req=%b, done=%b", u_dut.local_speedidle_req, u_dut.local_linkspeed_done);
+        if (expect_speedidle && (!u_dut.local_speedidle_req || !dut_linkspeed_done)) begin
+            $display("# ERROR: Expected SPEEDIDLE exit on Die A, but got speedidle_req=%b, done=%b", u_dut.local_speedidle_req, dut_linkspeed_done);
             fail_count++; $stop;
         end
-        if (expect_phyretrain && (!u_dut.local_phyretrain_req || !u_dut.local_linkspeed_done)) begin
-            $display("# ERROR: Expected PHYRETRAIN exit on Die A, but got phyretrain_req=%b, done=%b", u_dut.local_phyretrain_req, u_dut.local_linkspeed_done);
+        if (expect_phyretrain && (!u_dut.local_phyretrain_req || !dut_linkspeed_done)) begin
+            $display("# ERROR: Expected PHYRETRAIN exit on Die A, but got phyretrain_req=%b, done=%b", u_dut.local_phyretrain_req, dut_linkspeed_done);
             fail_count++; $stop;
         end
-        if (expect_trainerror && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_trainerror && !dut_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
             fail_count++; $stop;
         end
 
@@ -756,7 +752,7 @@ module wrapper_LINKSPEED_tb;
 
             fork
                 begin
-                    wait (u_dut.local_linkspeed_done || u_dut.local_trainerror_req);
+                    wait (dut_linkspeed_done || dut_trainerror_req);
                     #(LCLK_PERIOD * 10);
                 end
                 begin

@@ -75,8 +75,7 @@ module unit_RXDESKEW_partner #(
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        rxdeskew_en          , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
-        input  logic        is_ltsm_out_of_reset , // 0: Soft-reset active (all regs → defaults). 1: Normal.
-        input  logic        timeout_8ms_occured  , // 1: 8 ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n           , // 0: Soft-reset active (all regs → defaults). 1: Normal.
         output logic        rxdeskew_done        , // 1: Sub-state completed; held until rxdeskew_en = 0.
         output logic        datatraincenter1_req , // 1: Arc to DTC1 requested (partner side).
         output logic        trainerror_req       , // 1: Fatal error — request TRAINERROR state.
@@ -104,11 +103,6 @@ module unit_RXDESKEW_partner #(
         input  logic        local_exit_dtc1_active,
         input  logic        local_arc_taken,
         input  logic        local_end_active,
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en     , // 1: Enable 8 ms watchdog. 0: Disable.
 
         //=====================================//
         // PHY TX EQ Preset Control:           //
@@ -200,7 +194,6 @@ module unit_RXDESKEW_partner #(
     // =========================================================================
     reg [2:0] dtc1_arc_cnt;        // Counts how many times we have sent {exit to DTC1 resp}.
     reg [3:0] rx_preset_code_r;    // EQ preset code latched from rx_msginfo[2:0] on receipt of {EQ Preset req}.
-    reg       preset_valid_r;      // 1 = the latched preset code is within valid range [0, MAX_VALID_PRESET].
     reg       end_req_rcvd;
 
     // =========================================================================
@@ -211,7 +204,7 @@ module unit_RXDESKEW_partner #(
         if (!rst_n) begin
             current_state <= RXDESKEW_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             // Soft reset: return to IDLE synchronously.
             current_state <= RXDESKEW_PTR_IDLE;
         end
@@ -240,8 +233,7 @@ module unit_RXDESKEW_partner #(
         // HIGHEST PRIORITY: TRAINERROR override.
         // Applies to all states except the terminal states (which already hold).
         // ------------------------------------------------------------------
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
+        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
                 (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req && (dtc1_arc_cnt == 3'd4))) begin
             next_state = RXDESKEW_PTR_TO_TRAINERROR;
         end
@@ -455,14 +447,12 @@ module unit_RXDESKEW_partner #(
         if (!rst_n) begin
             dtc1_arc_cnt                <= 3'd0;
             rx_preset_code_r            <= 4'd0;
-            preset_valid_r              <= 1'b0;
             is_dtc1_arc_cnt_inc_allowed <= 1'b1;
             end_req_rcvd                <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             dtc1_arc_cnt                <= 3'd0;
             rx_preset_code_r            <= 4'd0;
-            preset_valid_r              <= 1'b0;
             is_dtc1_arc_cnt_inc_allowed <= 1'b1;
             end_req_rcvd                <= 1'b0;
         end
@@ -508,8 +498,9 @@ module unit_RXDESKEW_partner #(
             else if (current_state == RXDESKEW_PTR_WAIT_SWEEP_OR_REQ &&
                     rx_sb_msg_valid &&
                     rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req) begin
-                rx_preset_code_r <= rx_msginfo[3:0];
-                preset_valid_r   <= (rx_msginfo[3:0] <= MAX_VALID_PRESET[3:0]) ? 1'b1 : 1'b0;
+                if (rx_msginfo[3:0] <= MAX_VALID_PRESET[3:0]) begin
+                    rx_preset_code_r <= rx_msginfo[3:0];
+                end
             end
         end
     end
@@ -524,11 +515,10 @@ module unit_RXDESKEW_partner #(
         rxdeskew_done        = 1'b0;
         datatraincenter1_req = 1'b0;
         trainerror_req       = 1'b0;
-        timeout_timer_en     = 1'b1; // Watchdog ON by default (except terminal/idle states)
         partner_sweep_en     = 1'b0;
 
         // PHY EQ preset defaults (hold current preset)
-        phy_tx_eq_preset_ctrl = rx_preset_code_r;
+        phy_tx_eq_preset_ctrl = rx_preset_code_r[2:0];
         phy_tx_eq_preset_en   = 1'b0;
 
         // SB TX defaults (inactive)
@@ -563,7 +553,6 @@ module unit_RXDESKEW_partner #(
             // IDLE: All MB lanes disabled, watchdog off.
             // -------------------------------------------------------
             RXDESKEW_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
@@ -617,7 +606,7 @@ module unit_RXDESKEW_partner #(
                 tx_msginfo            = 16'h0000; // MsgInfo[0]=0: Success
                 tx_data_field         = 64'h0;
                 // Apply the EQ preset to this die's TX PHY.
-                phy_tx_eq_preset_ctrl = rx_preset_code_r;
+                phy_tx_eq_preset_ctrl = rx_preset_code_r[2:0];
                 phy_tx_eq_preset_en   = 1'b1;
             end
 
@@ -671,7 +660,6 @@ module unit_RXDESKEW_partner #(
             // -------------------------------------------------------
             RXDESKEW_PTR_TO_DTC2: begin
                 rxdeskew_done    = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             // -------------------------------------------------------
@@ -680,7 +668,6 @@ module unit_RXDESKEW_partner #(
             // -------------------------------------------------------
             RXDESKEW_PTR_TO_DTC1: begin
                 datatraincenter1_req = 1'b1;
-                timeout_timer_en     = 1'b0;
             end
 
             // -------------------------------------------------------
@@ -688,7 +675,6 @@ module unit_RXDESKEW_partner #(
             // -------------------------------------------------------
             RXDESKEW_PTR_TO_TRAINERROR: begin
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: begin

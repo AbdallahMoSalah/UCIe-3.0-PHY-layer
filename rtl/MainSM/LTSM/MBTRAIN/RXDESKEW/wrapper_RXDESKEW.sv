@@ -27,12 +27,11 @@
 // ====================================================================================================
 
 module wrapper_RXDESKEW #(
-        parameter int unsigned MAX_DESKEW_CODE          = 7'd127, // Maximum deskew code (inclusive)
-        parameter int unsigned MIN_DESKEW_CODE          = 7'd0  , // Minimum deskew code (inclusive)
-        parameter int unsigned MAX_ARC_LIMIT            = 3'd4  , // Maximum DTC1 arc iterations (spec = 4)
-        parameter int unsigned MAX_PRESET_SEARCH        = 3'd6  , // Maximum EQ presets to try (0–5, total 6)
-        parameter int unsigned MIN_DESIRED_SWEEP_RANGE  = (MAX_DESKEW_CODE - MIN_DESKEW_CODE + 1) * 75 / 100,
-        parameter int unsigned MAX_VALID_PRESET         = 4'd5    // Valid TX EQ preset range limit
+        parameter int unsigned MAX_DESKEW_CODE          = 7'd16, // Maximum deskew code (inclusive)
+        parameter int unsigned MIN_DESKEW_CODE          = 7'd0 , // Minimum deskew code (inclusive)
+        parameter int unsigned MAX_ARC_LIMIT            = 3'd4 , // Maximum DTC1 arc iterations (spec = 4)
+        parameter int unsigned MAX_VALID_PRESET         = 4'd5 , // Valid TX EQ preset range limit
+        parameter int unsigned MIN_DESIRED_SWEEP_RANGE  = (MAX_DESKEW_CODE - MIN_DESKEW_CODE + 1) * 75 / 100
     ) (
         // =========================================================================
         // Group 1: Clock and Reset Signals
@@ -43,25 +42,18 @@ module wrapper_RXDESKEW #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,           // 0: Soft reset active; 1: Normal operation
-        input  logic        timeout_8ms_occured,            // 0: No timeout; 1: 8ms watchdog timeout occurred
+        input  logic        soft_rst_n,                     // 0: Soft reset active; 1: Normal operation
         input  logic        is_high_speed,                  // 0: <= 32 GT/s; 1: > 32 GT/s
         input  logic        is_continuous_clk_mode,         // 0: Strobe mode; 1: Continuous clock mode
 
         // Local FSM Control:
         input  logic        local_rxdeskew_en,              // 0: Disable; 1: Enable Local RXDESKEW sequence
-        output logic        local_rxdeskew_done,            // 0: In progress; 1: Sub-state completed
-        output logic        local_datatraincenter1_req,     // 0: No arc; 1: Request arc to DATATRAINCENTER1
-        output logic        local_trainerror_req,           // 0: Normal; 1: Request TRAINERROR entry
+        output logic        rxdeskew_done,                  // 0: In progress; 1: Sub-state completed
+        output logic        datatraincenter1_req,           // 0: No arc; 1: Request arc to DATATRAINCENTER1
+        output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry
 
         // Partner FSM Control:
         input  logic        partner_rxdeskew_en,            // 0: Disable; 1: Enable Partner RXDESKEW sequence
-        output logic        partner_rxdeskew_done,          // 0: In progress; 1: Sub-state completed
-        output logic        partner_datatraincenter1_req,   // 0: No arc; 1: Request arc to DATATRAINCENTER1
-        output logic        partner_trainerror_req,         // 0: Normal; 1: Request TRAINERROR entry
-
-        // Timer Control (Combined OR logic for watchdog):
-        output logic        timeout_timer_en,               // 0: Disable 8ms timer; 1: Enable 8ms timer (OR'ed)
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -115,8 +107,14 @@ module wrapper_RXDESKEW #(
     wire         local_exit_dtc1_active       ;
     wire         local_end_active             ;
     wire [2:0]   partner_arc_cnt_wire         ;
-    wire         local_timeout_timer_en_wire  ;
-    wire         partner_timeout_timer_en_wire;
+
+    logic        local_rxdeskew_done_wire;
+    logic        local_datatraincenter1_req_wire;
+    logic        local_trainerror_req_wire;
+
+    logic        partner_rxdeskew_done_wire;
+    logic        partner_datatraincenter1_req_wire;
+    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid        ;
@@ -158,7 +156,7 @@ module wrapper_RXDESKEW #(
         .MAX_DESKEW_CODE                (MAX_DESKEW_CODE             ),
         .MIN_DESKEW_CODE                (MIN_DESKEW_CODE             ),
         .MAX_ARC_LIMIT                  (MAX_ARC_LIMIT               ),
-        .MAX_PRESET_SEARCH              (MAX_PRESET_SEARCH           ),
+        .MAX_VALID_PRESET               (MAX_VALID_PRESET            ),
         .MIN_DESIRED_SWEEP_RANGE        (MIN_DESIRED_SWEEP_RANGE     )
     ) u_RXDESKEW_local (
         // Clock and Reset Signals
@@ -166,16 +164,13 @@ module wrapper_RXDESKEW #(
         .rst_n                          (rst_n                       ), // Active-low reset
         // LTSM Control Signals
         .rxdeskew_en                    (local_rxdeskew_en           ), // Enable Local RXDESKEW
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset        ), // Soft reset control
-        .timeout_8ms_occured            (timeout_8ms_occured         ), // residency timeout
-        .rxdeskew_done                  (local_rxdeskew_done         ), // Sub-state done
-        .datatraincenter1_req           (local_datatraincenter1_req  ), // Arc request to DTC1
-        .trainerror_req                 (local_trainerror_req        ), // TRAINERROR exit request
+        .soft_rst_n                     (soft_rst_n                  ), // Soft reset control
+        .rxdeskew_done                  (local_rxdeskew_done_wire    ), // Sub-state done
+        .datatraincenter1_req           (local_datatraincenter1_req_wire), // Arc request to DTC1
+        .trainerror_req                 (local_trainerror_req_wire   ), // TRAINERROR exit request
         .local_exit_dtc1_active         (local_exit_dtc1_active      ), // Committed to arc flag
         .local_end_active               (local_end_active            ),
         .partner_arc_cnt                (partner_arc_cnt_wire        ), // From Partner: unified arc count
-        // Timer Control Signals
-        .timeout_timer_en               (local_timeout_timer_en_wire ), // Watchdog timer enable
         // PHY Deskew Control
         .phy_rx_deskew_ctrl             (phy_rx_deskew_ctrl          ), // Per-lane rx deskew settings
         // MB Lane Control Outputs
@@ -219,19 +214,16 @@ module wrapper_RXDESKEW #(
         .rst_n                          (rst_n                       ), // Active-low reset
         // LTSM Control Signals
         .rxdeskew_en                    (partner_rxdeskew_en         ), // Enable Partner RXDESKEW
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset        ), // Soft reset control
-        .timeout_8ms_occured            (timeout_8ms_occured         ), // residency timeout
-        .rxdeskew_done                  (partner_rxdeskew_done       ), // Sub-state done
-        .datatraincenter1_req           (partner_datatraincenter1_req), // Arc request to DTC1
-        .trainerror_req                 (partner_trainerror_req      ), // TRAINERROR exit request
+        .soft_rst_n                     (soft_rst_n                  ), // Soft reset control
+        .rxdeskew_done                  (partner_rxdeskew_done_wire  ), // Sub-state done
+        .datatraincenter1_req           (partner_datatraincenter1_req_wire), // Arc request to DTC1
+        .trainerror_req                 (partner_trainerror_req_wire ), // TRAINERROR exit request
         .partner_sweep_en               (partner_sweep_en            ), // Partner sweep ready indicator
         .partner_arc_cnt_out            (partner_arc_cnt_wire        ), // To Local: unified arc count
         // Cross-die Coordination
         .local_exit_dtc1_active         (local_exit_dtc1_active      ), // Coordination from Local FSM
-        .local_arc_taken                (local_datatraincenter1_req  ),
+        .local_arc_taken                (local_datatraincenter1_req_wire),
         .local_end_active               (local_end_active            ),
-        // Timer Control Signals
-        .timeout_timer_en               (partner_timeout_timer_en_wire), // Watchdog timer enable
         // PHY TX EQ Preset Control
         .phy_tx_eq_preset_ctrl          (phy_tx_eq_preset_ctrl       ), // Applied Tx EQ preset
         .phy_tx_eq_preset_en            (phy_tx_eq_preset_en         ), // Strobe to apply preset
@@ -263,9 +255,10 @@ module wrapper_RXDESKEW #(
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
 
-    // Timeout timer enable OR logic:
-    // If either FSM requests the 8ms timer, enable it.
-    assign timeout_timer_en = local_timeout_timer_en_wire | partner_timeout_timer_en_wire;
+    // Combine terminal signals
+    assign rxdeskew_done        = local_rxdeskew_done_wire & partner_rxdeskew_done_wire;
+    assign datatraincenter1_req = local_datatraincenter1_req_wire | partner_datatraincenter1_req_wire;
+    assign trainerror_req       = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority: if local_tx_sb_msg_valid=1 it wins, otherwise partner drives the SB port.

@@ -35,6 +35,12 @@ interface ltsm_tb_if #(
     state_n_e state_n_2;
     state_n_e state_n_3;
 
+    state_n_e state_n [3:0];
+    assign state_n[0] = state_n_0;
+    assign state_n[1] = state_n_1;
+    assign state_n[2] = state_n_2;
+    assign state_n[3] = state_n_3;
+
     // =========================================================================
     // Sideband Interface (DUT <-> Partner)
     // =========================================================================

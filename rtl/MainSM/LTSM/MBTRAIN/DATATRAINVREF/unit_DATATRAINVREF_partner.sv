@@ -35,15 +35,9 @@ module unit_DATATRAINVREF_partner (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        datatrainvref_en    ,
-        input  logic        is_ltsm_out_of_reset,
-        input  logic        timeout_8ms_occured ,
+        input  logic        soft_rst_n          ,
         output logic        datatrainvref_done  ,
         output logic        trainerror_req      ,
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    ,
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -80,85 +74,81 @@ module unit_DATATRAINVREF_partner (
 
     // FSM State Encoding
     localparam [3:0]
-    DTVREF_PTR_IDLE            = 4'd0,
-    DTVREF_PTR_WAIT_START_REQ  = 4'd1,
-    DTVREF_PTR_SEND_START_RESP = 4'd2,
-    DTVREF_PTR_WAIT_END_REQ    = 4'd3,
-    DTVREF_PTR_SEND_END_RESP   = 4'd4,
-    DTVREF_PTR_TO_RXDESKEW     = 4'd5,
-    DTVREF_PTR_TO_TRAINERROR   = 4'd6;
+    DATATRAINVREF_PTR_IDLE            = 4'd0,
+    DATATRAINVREF_PTR_WAIT_START_REQ  = 4'd1,
+    DATATRAINVREF_PTR_SEND_START_RESP = 4'd2,
+    DATATRAINVREF_PTR_WAIT_END_REQ    = 4'd3,
+    DATATRAINVREF_PTR_SEND_END_RESP   = 4'd4,
+    DATATRAINVREF_PTR_TO_RXDESKEW     = 4'd5,
+    DATATRAINVREF_PTR_TO_TRAINERROR   = 4'd6;
 
     reg [3:0] current_state, next_state;
 
-    always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
+    always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC_PTR
         if (!rst_n) begin
-            current_state <= DTVREF_PTR_IDLE;
+            current_state <= DATATRAINVREF_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
-            current_state <= DTVREF_PTR_IDLE;
+        else if (!soft_rst_n) begin
+            current_state <= DATATRAINVREF_PTR_IDLE;
         end
         else begin
             current_state <= next_state;
         end
     end
 
-    always_comb begin : NEXT_STATE_PROC
+    always_comb begin : NEXT_STATE_PROC_PTR
         next_state = current_state;
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = DTVREF_PTR_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = DATATRAINVREF_PTR_TO_TRAINERROR;
         end
-        else if (!datatrainvref_en &&
-                current_state != DTVREF_PTR_TO_RXDESKEW &&
-                current_state != DTVREF_PTR_TO_TRAINERROR) begin
-            next_state = DTVREF_PTR_IDLE;
+        else if (!datatrainvref_en) begin
+            next_state = DATATRAINVREF_PTR_IDLE;
         end
         else begin
             case (current_state)
-                DTVREF_PTR_IDLE: begin
-                    next_state = datatrainvref_en ? DTVREF_PTR_WAIT_START_REQ : DTVREF_PTR_IDLE;
+                DATATRAINVREF_PTR_IDLE: begin
+                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_WAIT_START_REQ : DATATRAINVREF_PTR_IDLE;
                 end
 
-                DTVREF_PTR_WAIT_START_REQ: begin
+                DATATRAINVREF_PTR_WAIT_START_REQ: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINVREF_start_req) begin
-                        next_state = DTVREF_PTR_SEND_START_RESP;
+                        next_state = DATATRAINVREF_PTR_SEND_START_RESP;
                     end
                 end
 
-                DTVREF_PTR_SEND_START_RESP: begin
-                    next_state = DTVREF_PTR_WAIT_END_REQ;
+                DATATRAINVREF_PTR_SEND_START_RESP: begin
+                    next_state = DATATRAINVREF_PTR_WAIT_END_REQ;
                 end
 
-                DTVREF_PTR_WAIT_END_REQ: begin
+                DATATRAINVREF_PTR_WAIT_END_REQ: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINVREF_end_req) begin
-                        next_state = DTVREF_PTR_SEND_END_RESP;
+                        next_state = DATATRAINVREF_PTR_SEND_END_RESP;
                     end
                 end
 
-                DTVREF_PTR_SEND_END_RESP: begin
-                    next_state = DTVREF_PTR_TO_RXDESKEW;
+                DATATRAINVREF_PTR_SEND_END_RESP: begin
+                    next_state = DATATRAINVREF_PTR_TO_RXDESKEW;
                 end
 
-                DTVREF_PTR_TO_RXDESKEW: begin
-                    next_state = datatrainvref_en ? DTVREF_PTR_TO_RXDESKEW : DTVREF_PTR_IDLE;
+                DATATRAINVREF_PTR_TO_RXDESKEW: begin
+                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_TO_RXDESKEW : DATATRAINVREF_PTR_IDLE;
                 end
 
-                DTVREF_PTR_TO_TRAINERROR: begin
-                    next_state = datatrainvref_en ? DTVREF_PTR_TO_TRAINERROR : DTVREF_PTR_IDLE;
+                DATATRAINVREF_PTR_TO_TRAINERROR: begin
+                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_TO_TRAINERROR : DATATRAINVREF_PTR_IDLE;
                 end
 
                 default: begin
-                    next_state = DTVREF_PTR_IDLE;
+                    next_state = DATATRAINVREF_PTR_IDLE;
                 end
             endcase
         end
     end
 
-    always_comb begin : OUTPUT_COMB
+    always_comb begin : OUTPUT_COMB_PTR
         datatrainvref_done = 1'b0;
         trainerror_req      = 1'b0;
-        timeout_timer_en    = 1'b1;
         partner_sweep_en    = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -176,46 +166,43 @@ module unit_DATATRAINVREF_partner (
         mb_rx_trk_lane_sel  = 1'b0;
 
         case (current_state)
-            DTVREF_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            DATATRAINVREF_PTR_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
             end
 
-            DTVREF_PTR_WAIT_START_REQ: begin
+            DATATRAINVREF_PTR_WAIT_START_REQ: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            DTVREF_PTR_SEND_START_RESP: begin
+            DATATRAINVREF_PTR_SEND_START_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_DATATRAINVREF_start_resp;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            DTVREF_PTR_WAIT_END_REQ: begin
+            DATATRAINVREF_PTR_WAIT_END_REQ: begin
                 tx_sb_msg_valid  = 1'b0;
                 partner_sweep_en = 1'b1;
             end
 
-            DTVREF_PTR_SEND_END_RESP: begin
+            DATATRAINVREF_PTR_SEND_END_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_DATATRAINVREF_end_resp;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            DTVREF_PTR_TO_RXDESKEW: begin
+            DATATRAINVREF_PTR_TO_RXDESKEW: begin
                 datatrainvref_done = 1'b1;
-                timeout_timer_en    = 1'b0;
             end
 
-            DTVREF_PTR_TO_TRAINERROR: begin
+            DATATRAINVREF_PTR_TO_TRAINERROR: begin
                 datatrainvref_done = 1'b1;
                 trainerror_req      = 1'b1;
-                timeout_timer_en    = 1'b0;
             end
 
             default: begin

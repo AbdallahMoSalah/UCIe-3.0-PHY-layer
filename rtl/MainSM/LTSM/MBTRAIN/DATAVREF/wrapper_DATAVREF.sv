@@ -8,7 +8,7 @@
 // ====================================================================================================
 
 module wrapper_DATAVREF #(
-        parameter int unsigned MAX_DATA_VREF_CODE = 7'd127, // Maximum Vref code
+        parameter int unsigned MAX_DATA_VREF_CODE = 7'd16, // Maximum Vref code
         parameter int unsigned MIN_DATA_VREF_CODE = 7'd10   // Minimum Vref code
     ) (
         // =========================================================================

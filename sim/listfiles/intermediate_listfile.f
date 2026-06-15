@@ -6,7 +6,7 @@ rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_negotiated_lanes.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/common/unit_negotiated_speed.sv
 
-// D2C PT and Sweep files
+// D2C PT and Sweep files (needed for ltsm_tb_attachments)
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_local.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT/unit_RX_D2C_PT_local.sv
@@ -16,14 +16,14 @@ rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
 ./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/D2C_PT/unit_D2C_sweep.sv
 
-// VALTRAINCENTER RTL files
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/unit_VALTRAINCENTER_local.sv
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/unit_VALTRAINCENTER_partner.sv
-./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/wrapper_VALTRAINCENTER.sv
+// REPAIR RTL files
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_local.sv
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv
+./../target_implementation_technique/new_version_implementation/rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
 
 // Testbench Attachments
 ./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_if.sv
 ./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_attachments.sv
 
 // Testbench Top
-./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_VALTRAINCENTER_tb.sv
+./../target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_REPAIR_tb.sv

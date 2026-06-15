@@ -164,7 +164,7 @@ module unit_VALTRAINCENTER_partner (
         // Default MB lane select behaviors based on spec for VALTRAINCENTER active states.
         // During active training/gating actions, clock TX must be active center-phase (2'b01)
         // and Valid TX must be active pattern (2'b01).
-        mb_tx_clk_lane_sel  = 2'b01; 
+        mb_tx_clk_lane_sel  = 2'b01;
         mb_tx_data_lane_sel = 2'b00;
         mb_tx_val_lane_sel  = 2'b01; // Partner drives VALTRAIN pattern
         mb_tx_trk_lane_sel  = 2'b00;
@@ -213,7 +213,7 @@ module unit_VALTRAINCENTER_partner (
             VALTRAINCENTER_PTR_TO_TRAINERROR: begin
                 valtraincenter_done = 1'b1;
                 trainerror_req      = 1'b1;
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
+                mb_tx_clk_lane_sel  = 2'b00;
             end
 
             default: begin

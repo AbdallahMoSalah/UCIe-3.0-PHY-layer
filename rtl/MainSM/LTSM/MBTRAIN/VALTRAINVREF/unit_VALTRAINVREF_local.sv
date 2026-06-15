@@ -25,16 +25,10 @@ module unit_VALTRAINVREF_local #(
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        valtrainvref_en     , // 0: Disable (→ IDLE). 1: Enable/start VALTRAINVREF sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valtrainvref_done   , // 1: Sub-state completed (held until valtrainvref_en = 0).
         output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
         output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // PHY Vref Control:                   //
@@ -81,27 +75,27 @@ module unit_VALTRAINVREF_local #(
 
     // FSM State Encoding — SEND → WAIT pattern
     localparam [3:0]
-    VALTRAINVREF_LOCAL_IDLE           = 4'd0,  // Wait for valtrainvref_en
-    VALTRAINVREF_LOCAL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.VALTRAINVREF start req}
-    VALTRAINVREF_LOCAL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.VALTRAINVREF start resp}
-    VALTRAINVREF_LOCAL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done
-    VALTRAINVREF_LOCAL_APPLY_BEST     = 4'd4,  // 1-cycle best midpoint stability stage
-    VALTRAINVREF_LOCAL_SEND_END_REQ   = 4'd5,  // TX {MBTRAIN.VALTRAINVREF end req}
-    VALTRAINVREF_LOCAL_WAIT_END_RESP  = 4'd6,  // Wait for {MBTRAIN.VALTRAINVREF end resp}
-    VALTRAINVREF_LOCAL_TO_DATATRAIN1  = 4'd7,  // Terminal: completed (next DTC1)
-    VALTRAINVREF_LOCAL_TO_TRAINERROR  = 4'd8;  // Terminal: error
+    VALTRAINVREF_LCL_IDLE                = 4'd0,  // Wait for valtrainvref_en
+    VALTRAINVREF_LCL_SEND_START_REQ      = 4'd1,  // TX {MBTRAIN.VALTRAINVREF start req}
+    VALTRAINVREF_LCL_WAIT_START_RESP     = 4'd2,  // Wait for {MBTRAIN.VALTRAINVREF start resp}
+    VALTRAINVREF_LCL_SWEEP               = 4'd3,  // Assert sweep_en; wait for sweep_done
+    VALTRAINVREF_LCL_APPLY_BEST          = 4'd4,  // 1-cycle best midpoint stability stage
+    VALTRAINVREF_LCL_SEND_END_REQ        = 4'd5,  // TX {MBTRAIN.VALTRAINVREF end req}
+    VALTRAINVREF_LCL_WAIT_END_RESP       = 4'd6,  // Wait for {MBTRAIN.VALTRAINVREF end resp}
+    VALTRAINVREF_LCL_TO_DATATRAINCENTER1 = 4'd7,  // Terminal: completed (next DTC1)
+    VALTRAINVREF_LCL_TO_TRAINERROR       = 4'd8;  // Terminal: error
 
     reg [3:0] current_state, next_state;
     reg [VW-1:0] best_code_r;
 
-    assign sweep_en = (current_state == VALTRAINVREF_LOCAL_SWEEP);
+    assign sweep_en = (current_state == VALTRAINVREF_LCL_SWEEP);
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
-            current_state <= VALTRAINVREF_LOCAL_IDLE;
+            current_state <= VALTRAINVREF_LCL_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
-            current_state <= VALTRAINVREF_LOCAL_IDLE;
+        else if (!soft_rst_n) begin
+            current_state <= VALTRAINVREF_LCL_IDLE;
         end
         else begin
             current_state <= next_state;
@@ -111,54 +105,56 @@ module unit_VALTRAINVREF_local #(
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = VALTRAINVREF_LOCAL_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = VALTRAINVREF_LCL_TO_TRAINERROR;
+        end
+        else if (!valtrainvref_en) begin
+            next_state = VALTRAINVREF_LCL_IDLE;
         end
         else begin
             case (current_state)
-                VALTRAINVREF_LOCAL_IDLE: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_LOCAL_SEND_START_REQ : VALTRAINVREF_LOCAL_IDLE;
+                VALTRAINVREF_LCL_IDLE: begin
+                    next_state = valtrainvref_en ? VALTRAINVREF_LCL_SEND_START_REQ : VALTRAINVREF_LCL_IDLE;
                 end
 
-                VALTRAINVREF_LOCAL_SEND_START_REQ: begin
-                    next_state = VALTRAINVREF_LOCAL_WAIT_START_RESP;
+                VALTRAINVREF_LCL_SEND_START_REQ: begin
+                    next_state = VALTRAINVREF_LCL_WAIT_START_RESP;
                 end
 
-                VALTRAINVREF_LOCAL_WAIT_START_RESP: begin
+                VALTRAINVREF_LCL_WAIT_START_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_VALTRAINVREF_start_resp) begin
-                        next_state = VALTRAINVREF_LOCAL_SWEEP;
+                        next_state = VALTRAINVREF_LCL_SWEEP;
                     end
                 end
 
-                VALTRAINVREF_LOCAL_SWEEP: begin
-                    next_state = sweep_done ? VALTRAINVREF_LOCAL_APPLY_BEST : VALTRAINVREF_LOCAL_SWEEP;
+                VALTRAINVREF_LCL_SWEEP: begin
+                    next_state = sweep_done ? VALTRAINVREF_LCL_APPLY_BEST : VALTRAINVREF_LCL_SWEEP;
                 end
 
-                VALTRAINVREF_LOCAL_APPLY_BEST: begin
-                    next_state = VALTRAINVREF_LOCAL_SEND_END_REQ;
+                VALTRAINVREF_LCL_APPLY_BEST: begin
+                    next_state = VALTRAINVREF_LCL_SEND_END_REQ;
                 end
 
-                VALTRAINVREF_LOCAL_SEND_END_REQ: begin
-                    next_state = VALTRAINVREF_LOCAL_WAIT_END_RESP;
+                VALTRAINVREF_LCL_SEND_END_REQ: begin
+                    next_state = VALTRAINVREF_LCL_WAIT_END_RESP;
                 end
 
-                VALTRAINVREF_LOCAL_WAIT_END_RESP: begin
+                VALTRAINVREF_LCL_WAIT_END_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_VALTRAINVREF_end_resp) begin
-                        next_state = VALTRAINVREF_LOCAL_TO_DATATRAIN1;
+                        next_state = VALTRAINVREF_LCL_TO_DATATRAINCENTER1;
                     end
                 end
 
-                VALTRAINVREF_LOCAL_TO_DATATRAIN1: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_LOCAL_TO_DATATRAIN1 : VALTRAINVREF_LOCAL_IDLE;
+                VALTRAINVREF_LCL_TO_DATATRAINCENTER1: begin
+                    next_state = valtrainvref_en ? VALTRAINVREF_LCL_TO_DATATRAINCENTER1 : VALTRAINVREF_LCL_IDLE;
                 end
 
-                VALTRAINVREF_LOCAL_TO_TRAINERROR: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_LOCAL_TO_TRAINERROR : VALTRAINVREF_LOCAL_IDLE;
+                VALTRAINVREF_LCL_TO_TRAINERROR: begin
+                    next_state = valtrainvref_en ? VALTRAINVREF_LCL_TO_TRAINERROR : VALTRAINVREF_LCL_IDLE;
                 end
 
                 default: begin
-                    next_state = VALTRAINVREF_LOCAL_IDLE;
+                    next_state = VALTRAINVREF_LCL_IDLE;
                 end
             endcase
         end
@@ -168,11 +164,11 @@ module unit_VALTRAINVREF_local #(
         if (!rst_n) begin
             best_code_r <= {VW{1'b0}};
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             best_code_r <= {VW{1'b0}};
         end
         else begin
-            if (current_state == VALTRAINVREF_LOCAL_SWEEP && sweep_done) begin
+            if (current_state == VALTRAINVREF_LCL_SWEEP && sweep_done) begin
                 best_code_r <= best_code[0][VW-1:0];
             end
         end
@@ -182,7 +178,6 @@ module unit_VALTRAINVREF_local #(
         valtrainvref_done = 1'b0;
         trainerror_req    = 1'b0;
         update_lane_mask  = 1'b0;
-        timeout_timer_en  = 1'b1;
 
         tx_sb_msg_valid   = 1'b0;
         tx_sb_msg         = NOTHING;
@@ -200,13 +195,12 @@ module unit_VALTRAINVREF_local #(
         mb_rx_trk_lane_sel  = 1'b0;
 
         case (current_state)
-            VALTRAINVREF_LOCAL_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            VALTRAINVREF_LCL_IDLE: begin
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
             end
 
-            VALTRAINVREF_LOCAL_SEND_START_REQ: begin
+            VALTRAINVREF_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid  = 1'b1;
                 tx_sb_msg        = MBTRAIN_VALTRAINVREF_start_req;
                 tx_msginfo       = 16'h0;
@@ -214,38 +208,36 @@ module unit_VALTRAINVREF_local #(
                 update_lane_mask = 1'b1;
             end
 
-            VALTRAINVREF_LOCAL_WAIT_START_RESP: begin
+            VALTRAINVREF_LCL_WAIT_START_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            VALTRAINVREF_LOCAL_SWEEP: begin
+            VALTRAINVREF_LCL_SWEEP: begin
                 // sweep_en driven combinational
             end
 
-            VALTRAINVREF_LOCAL_APPLY_BEST: begin
+            VALTRAINVREF_LCL_APPLY_BEST: begin
                 // Latch stable
             end
 
-            VALTRAINVREF_LOCAL_SEND_END_REQ: begin
+            VALTRAINVREF_LCL_SEND_END_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_VALTRAINVREF_end_req;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            VALTRAINVREF_LOCAL_WAIT_END_RESP: begin
+            VALTRAINVREF_LCL_WAIT_END_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            VALTRAINVREF_LOCAL_TO_DATATRAIN1: begin
+            VALTRAINVREF_LCL_TO_DATATRAINCENTER1: begin
                 valtrainvref_done = 1'b1;
-                timeout_timer_en  = 1'b0;
             end
 
-            VALTRAINVREF_LOCAL_TO_TRAINERROR: begin
+            VALTRAINVREF_LCL_TO_TRAINERROR: begin
                 valtrainvref_done = 1'b1;
                 trainerror_req    = 1'b1;
-                timeout_timer_en  = 1'b0;
             end
 
             default: begin
@@ -255,7 +247,7 @@ module unit_VALTRAINVREF_local #(
     end
 
     assign phy_rx_valvref_ctrl =
-        (current_state == VALTRAINVREF_LOCAL_SWEEP) ?
+        (current_state == VALTRAINVREF_LCL_SWEEP) ?
         swept_code[VW-1:0] :
         best_code_r;
 

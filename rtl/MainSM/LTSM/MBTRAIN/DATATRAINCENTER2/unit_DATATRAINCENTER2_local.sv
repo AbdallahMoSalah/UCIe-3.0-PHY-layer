@@ -24,8 +24,8 @@
 // Spec Reference: UCIe 3.0 §4.5.3.4.11 MBTRAIN.DATATRAINCENTER2
 
 module unit_DATATRAINCENTER2_local #(
-        parameter int unsigned MAX_DATA_PI_CODE = 6'd63, // Maximum PI phase code
-        parameter int unsigned MIN_DATA_PI_CODE = 6'd0   // Minimum PI phase code
+        parameter int unsigned MAX_DATA_PI_CODE = 6'd16, // Maximum PI phase code
+        parameter int unsigned MIN_DATA_PI_CODE = 6'd1   // Minimum PI phase code
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -37,16 +37,10 @@ module unit_DATATRAINCENTER2_local #(
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        datatraincenter2_en , // 0: Disable (→ IDLE). 1: Enable sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
-        input  logic        timeout_8ms_occured , // 1: 8ms residency timeout → force TO_TRAINERROR.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datatraincenter2_done, // 1: Sub-state completed (held until en = 0).
         output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
-        output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en    , // 1: Enable 8ms watchdog. 0: Disable.
+        output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ. // 1: Enable 8ms watchdog. 0: Disable.
 
         //=====================================//
         // PHY PI Control:                     //
@@ -56,14 +50,14 @@ module unit_DATATRAINCENTER2_local #(
         //=====================================//
         // MB Lane Control Outputs:            //
         //=====================================//
-        output logic [1:0]  mb_tx_clk_lane_sel  , 
-        output logic [1:0]  mb_tx_data_lane_sel , 
-        output logic [1:0]  mb_tx_val_lane_sel  , 
-        output logic [1:0]  mb_tx_trk_lane_sel  , 
-        output logic        mb_rx_clk_lane_sel  , 
-        output logic        mb_rx_data_lane_sel , 
-        output logic        mb_rx_val_lane_sel  , 
-        output logic        mb_rx_trk_lane_sel  , 
+        output logic [1:0]  mb_tx_clk_lane_sel  ,
+        output logic [1:0]  mb_tx_data_lane_sel ,
+        output logic [1:0]  mb_tx_val_lane_sel  ,
+        output logic [1:0]  mb_tx_trk_lane_sel  ,
+        output logic        mb_rx_clk_lane_sel  ,
+        output logic        mb_rx_data_lane_sel ,
+        output logic        mb_rx_val_lane_sel  ,
+        output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -93,27 +87,27 @@ module unit_DATATRAINCENTER2_local #(
 
     // FSM State Encoding
     localparam [3:0]
-    DTC2_LOCAL_IDLE           = 4'd0,  
-    DTC2_LOCAL_SEND_START_REQ = 4'd1,  
-    DTC2_LOCAL_WAIT_START_RESP= 4'd2,  
-    DTC2_LOCAL_SWEEP          = 4'd3,  
-    DTC2_LOCAL_APPLY_BEST     = 4'd4,  
-    DTC2_LOCAL_SEND_END_REQ   = 4'd5,  
-    DTC2_LOCAL_WAIT_END_RESP  = 4'd6,  
-    DTC2_LOCAL_TO_LINKSPEED   = 4'd7,  
-    DTC2_LOCAL_TO_TRAINERROR  = 4'd8;  
+    DATATRAINCENTER2_LCL_IDLE           = 4'd0,
+    DATATRAINCENTER2_LCL_SEND_START_REQ = 4'd1,
+    DATATRAINCENTER2_LCL_WAIT_START_RESP= 4'd2,
+    DATATRAINCENTER2_LCL_SWEEP          = 4'd3,
+    DATATRAINCENTER2_LCL_APPLY_BEST     = 4'd4,
+    DATATRAINCENTER2_LCL_SEND_END_REQ   = 4'd5,
+    DATATRAINCENTER2_LCL_WAIT_END_RESP  = 4'd6,
+    DATATRAINCENTER2_LCL_TO_LINKSPEED   = 4'd7,
+    DATATRAINCENTER2_LCL_TO_TRAINERROR  = 4'd8;
 
     reg [3:0] current_state, next_state;
     reg [PW-1:0] best_code_r [0:15];
 
-    assign sweep_en = (current_state == DTC2_LOCAL_SWEEP);
+    assign sweep_en = (current_state == DATATRAINCENTER2_LCL_SWEEP);
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
-            current_state <= DTC2_LOCAL_IDLE;
+            current_state <= DATATRAINCENTER2_LCL_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
-            current_state <= DTC2_LOCAL_IDLE;
+        else if (!soft_rst_n) begin
+            current_state <= DATATRAINCENTER2_LCL_IDLE;
         end
         else begin
             current_state <= next_state;
@@ -123,54 +117,56 @@ module unit_DATATRAINCENTER2_local #(
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (timeout_8ms_occured ||
-                (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
-            next_state = DTC2_LOCAL_TO_TRAINERROR;
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
+            next_state = DATATRAINCENTER2_LCL_TO_TRAINERROR;
+        end
+        else if (!datatraincenter2_en) begin
+            next_state = DATATRAINCENTER2_LCL_IDLE;
         end
         else begin
             case (current_state)
-                DTC2_LOCAL_IDLE: begin
-                    next_state = datatraincenter2_en ? DTC2_LOCAL_SEND_START_REQ : DTC2_LOCAL_IDLE;
+                DATATRAINCENTER2_LCL_IDLE: begin
+                    next_state = datatraincenter2_en ? DATATRAINCENTER2_LCL_SEND_START_REQ : DATATRAINCENTER2_LCL_IDLE;
                 end
 
-                DTC2_LOCAL_SEND_START_REQ: begin
-                    next_state = DTC2_LOCAL_WAIT_START_RESP;
+                DATATRAINCENTER2_LCL_SEND_START_REQ: begin
+                    next_state = DATATRAINCENTER2_LCL_WAIT_START_RESP;
                 end
 
-                DTC2_LOCAL_WAIT_START_RESP: begin
+                DATATRAINCENTER2_LCL_WAIT_START_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINCENTER2_start_resp) begin
-                        next_state = DTC2_LOCAL_SWEEP;
+                        next_state = DATATRAINCENTER2_LCL_SWEEP;
                     end
                 end
 
-                DTC2_LOCAL_SWEEP: begin
-                    next_state = sweep_done ? DTC2_LOCAL_APPLY_BEST : DTC2_LOCAL_SWEEP;
+                DATATRAINCENTER2_LCL_SWEEP: begin
+                    next_state = sweep_done ? DATATRAINCENTER2_LCL_APPLY_BEST : DATATRAINCENTER2_LCL_SWEEP;
                 end
 
-                DTC2_LOCAL_APPLY_BEST: begin
-                    next_state = DTC2_LOCAL_SEND_END_REQ;
+                DATATRAINCENTER2_LCL_APPLY_BEST: begin
+                    next_state = DATATRAINCENTER2_LCL_SEND_END_REQ;
                 end
 
-                DTC2_LOCAL_SEND_END_REQ: begin
-                    next_state = DTC2_LOCAL_WAIT_END_RESP;
+                DATATRAINCENTER2_LCL_SEND_END_REQ: begin
+                    next_state = DATATRAINCENTER2_LCL_WAIT_END_RESP;
                 end
 
-                DTC2_LOCAL_WAIT_END_RESP: begin
+                DATATRAINCENTER2_LCL_WAIT_END_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_DATATRAINCENTER2_end_resp) begin
-                        next_state = DTC2_LOCAL_TO_LINKSPEED;
+                        next_state = DATATRAINCENTER2_LCL_TO_LINKSPEED;
                     end
                 end
 
-                DTC2_LOCAL_TO_LINKSPEED: begin
-                    next_state = datatraincenter2_en ? DTC2_LOCAL_TO_LINKSPEED : DTC2_LOCAL_IDLE;
+                DATATRAINCENTER2_LCL_TO_LINKSPEED: begin
+                    next_state = datatraincenter2_en ? DATATRAINCENTER2_LCL_TO_LINKSPEED : DATATRAINCENTER2_LCL_IDLE;
                 end
 
-                DTC2_LOCAL_TO_TRAINERROR: begin
-                    next_state = datatraincenter2_en ? DTC2_LOCAL_TO_TRAINERROR : DTC2_LOCAL_IDLE;
+                DATATRAINCENTER2_LCL_TO_TRAINERROR: begin
+                    next_state = datatraincenter2_en ? DATATRAINCENTER2_LCL_TO_TRAINERROR : DATATRAINCENTER2_LCL_IDLE;
                 end
 
                 default: begin
-                    next_state = DTC2_LOCAL_IDLE;
+                    next_state = DATATRAINCENTER2_LCL_IDLE;
                 end
             endcase
         end
@@ -183,13 +179,13 @@ module unit_DATATRAINCENTER2_local #(
                 best_code_r[j] <= {PW{1'b0}};
             end
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             for (j = 0; j < 16; j = j + 1) begin
                 best_code_r[j] <= {PW{1'b0}};
             end
         end
         else begin
-            if (current_state == DTC2_LOCAL_SWEEP && sweep_done) begin
+            if (current_state == DATATRAINCENTER2_LCL_SWEEP && sweep_done) begin
                 for (j = 0; j < 16; j = j + 1) begin
                     best_code_r[j] <= best_code[j][PW-1:0];
                 end
@@ -201,32 +197,30 @@ module unit_DATATRAINCENTER2_local #(
         datatraincenter2_done = 1'b0;
         trainerror_req         = 1'b0;
         update_lane_mask       = 1'b0;
-        timeout_timer_en       = 1'b1;
 
         tx_sb_msg_valid  = 1'b0;
         tx_sb_msg        = NOTHING;
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        mb_tx_clk_lane_sel  = 2'b01; 
-        mb_tx_data_lane_sel = 2'b00; 
-        mb_tx_val_lane_sel  = 2'b00; 
-        mb_tx_trk_lane_sel  = 2'b00; 
-        mb_rx_clk_lane_sel  = 1'b1;  
-        mb_rx_data_lane_sel = 1'b1;  
-        mb_rx_val_lane_sel  = 1'b1;  
-        mb_rx_trk_lane_sel  = 1'b0;  
+        mb_tx_clk_lane_sel  = 2'b01;
+        mb_tx_data_lane_sel = 2'b00;
+        mb_tx_val_lane_sel  = 2'b00;
+        mb_tx_trk_lane_sel  = 2'b00;
+        mb_rx_clk_lane_sel  = 1'b1;
+        mb_rx_data_lane_sel = 1'b1;
+        mb_rx_val_lane_sel  = 1'b1;
+        mb_rx_trk_lane_sel  = 1'b0;
 
         case (current_state)
-            DTC2_LOCAL_IDLE: begin
-                timeout_timer_en    = 1'b0;
+            DATATRAINCENTER2_LCL_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
             end
 
-            DTC2_LOCAL_SEND_START_REQ: begin
+            DATATRAINCENTER2_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid  = 1'b1;
                 tx_sb_msg        = MBTRAIN_DATATRAINCENTER2_start_req;
                 tx_msginfo       = 16'h0;
@@ -234,36 +228,34 @@ module unit_DATATRAINCENTER2_local #(
                 update_lane_mask = 1'b1;
             end
 
-            DTC2_LOCAL_WAIT_START_RESP: begin
+            DATATRAINCENTER2_LCL_WAIT_START_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            DTC2_LOCAL_SWEEP: begin
+            DATATRAINCENTER2_LCL_SWEEP: begin
             end
 
-            DTC2_LOCAL_APPLY_BEST: begin
+            DATATRAINCENTER2_LCL_APPLY_BEST: begin
             end
 
-            DTC2_LOCAL_SEND_END_REQ: begin
+            DATATRAINCENTER2_LCL_SEND_END_REQ: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_DATATRAINCENTER2_end_req;
                 tx_msginfo      = 16'h0;
                 tx_data_field   = 64'h0;
             end
 
-            DTC2_LOCAL_WAIT_END_RESP: begin
+            DATATRAINCENTER2_LCL_WAIT_END_RESP: begin
                 tx_sb_msg_valid = 1'b0;
             end
 
-            DTC2_LOCAL_TO_LINKSPEED: begin
+            DATATRAINCENTER2_LCL_TO_LINKSPEED: begin
                 datatraincenter2_done = 1'b1;
-                timeout_timer_en       = 1'b0;
             end
 
-            DTC2_LOCAL_TO_TRAINERROR: begin
+            DATATRAINCENTER2_LCL_TO_TRAINERROR: begin
                 datatraincenter2_done = 1'b1;
                 trainerror_req         = 1'b1;
-                timeout_timer_en       = 1'b0;
             end
 
             default: begin
@@ -276,7 +268,7 @@ module unit_DATATRAINCENTER2_local #(
     generate
         for (l = 0; l < 16; l = l + 1) begin : PI_OUT_GEN
             assign phy_tx_data_pi_phase_ctrl[l] =
-                (current_state == DTC2_LOCAL_SWEEP) ?
+                (current_state == DATATRAINCENTER2_LCL_SWEEP) ?
                 PW'(swept_code) :
                 best_code_r[l];
         end

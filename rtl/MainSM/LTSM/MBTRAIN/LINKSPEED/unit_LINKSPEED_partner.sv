@@ -75,8 +75,7 @@ module unit_LINKSPEED_partner (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        linkspeed_en,          // 1: Enable; 0: Return to IDLE.
-        input  logic        is_ltsm_out_of_reset,  // 1: Normal; 0: Soft-reset → IDLE.
-        input  logic        timeout_8ms_occured,   // 1: 8ms watchdog → TO_TRAINERROR.
+        input  logic        soft_rst_n,            // 1: Normal; 0: Soft-reset → IDLE.
         output logic        partner_sweep_en,      // 1: enable the TX_D2C_PT in partner side.
 
         output logic        linkspeed_done,        // 1: Sub-state completed (held until linkspeed_en=0).
@@ -85,11 +84,6 @@ module unit_LINKSPEED_partner (
         output logic        linkinit_req,          // 1: Exit to LINKINIT.
         output logic        phyretrain_req,        // 1: Exit to PHYRETRAIN.
         output logic        trainerror_req,        // 1: Exit to TRAINERROR.
-
-        //=====================================//
-        // Timer Control Signals:              //
-        //=====================================//
-        output logic        timeout_timer_en,      // 1: Enable 8ms watchdog; 0: Disable.
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -189,7 +183,7 @@ module unit_LINKSPEED_partner (
     always_ff @(posedge lclk or negedge rst_n) begin : SNOOP_PROC
         if (!rst_n)
             error_req_rcvd <= 1'b0;
-        else if (!is_ltsm_out_of_reset || !linkspeed_en)
+        else if (!linkspeed_en)
             error_req_rcvd <= 1'b0;
         else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_error_req)
             error_req_rcvd <= 1'b1;
@@ -201,7 +195,7 @@ module unit_LINKSPEED_partner (
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n)
             current_state <= LINKSPEED_PTR_IDLE;
-        else if (!is_ltsm_out_of_reset)
+        else if (!soft_rst_n)
             current_state <= LINKSPEED_PTR_IDLE;
         else
             current_state <= next_state;
@@ -217,7 +211,7 @@ module unit_LINKSPEED_partner (
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
         // P1: TRAINERROR — highest priority.
-        if (timeout_8ms_occured || (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req)) begin
+        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
             next_state = LINKSPEED_PTR_TO_TRAINERROR;
         end
         // P2: Session teardown.
@@ -369,7 +363,6 @@ module unit_LINKSPEED_partner (
         linkinit_req     = 1'b0;
         phyretrain_req   = 1'b0;
         trainerror_req   = 1'b0;
-        timeout_timer_en = 1'b1;
         partner_sweep_en = 1'b0;
 
         // ── MB RX defaults (always enabled per spec §4.5.3.4.12) ──
@@ -409,7 +402,6 @@ module unit_LINKSPEED_partner (
         case (current_state)
 
             LINKSPEED_PTR_IDLE: begin
-                timeout_timer_en    = 1'b0;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
@@ -463,31 +455,26 @@ module unit_LINKSPEED_partner (
             LINKSPEED_PTR_TO_LINKINIT: begin
                 linkspeed_done   = 1'b1;
                 linkinit_req     = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             LINKSPEED_PTR_TO_REPAIR: begin
                 linkspeed_done   = 1'b1;
                 repair_req       = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             LINKSPEED_PTR_TO_SPEEDIDLE: begin
                 linkspeed_done   = 1'b1;
                 speedidle_req    = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             LINKSPEED_PTR_TO_PHYRETRAIN: begin
                 linkspeed_done   = 1'b1;
                 phyretrain_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             LINKSPEED_PTR_TO_TRAINERROR: begin
                 linkspeed_done   = 1'b1;
                 trainerror_req   = 1'b1;
-                timeout_timer_en = 1'b0;
             end
 
             default: ; // All defaults apply.
