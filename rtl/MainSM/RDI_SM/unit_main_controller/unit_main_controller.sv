@@ -40,8 +40,8 @@ module unit_main_controller(
     // pl_trainerror is asserted whenever the link is in LinkError (regardless of
     // whether it was entered via an LTSM training error or an adapter/peer link
     // error) and clears on the exit to Reset.  This matches assertion A12.
-    assign trainerror = (state_sts == TRAINERROR) || (rdi_state_sts == LinkError);
-    assign pm_exit = (state_sts == L1 || state_sts == L2);
+    assign trainerror =(rdi_state_sts == LinkError);
+    assign pm_exit = (rdi_state_sts == L_1 || rdi_state_sts == L_2);
     assign phyinrecenter = (state_sts == SBINIT 
                             || state_sts == MBINIT 
                             || state_sts == MBTRAIN 
