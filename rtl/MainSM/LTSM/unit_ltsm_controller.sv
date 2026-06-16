@@ -23,11 +23,6 @@ import RDI_SM_pkg :: *;
     // =========================================================================
     // FSM Control Inputs / Outputs
     // =========================================================================
-    input  logic [3:0]      state_req,
-    input  logic            reset_req,
-    input  logic            phyretrain_req,
-    input  logic            trainerror_req,
-    input  logic            mbtrain_speedidle_req,
     input  ltsm_ctrl_state_e active_next_ltsm_state,
     input  logic            active_error,
 

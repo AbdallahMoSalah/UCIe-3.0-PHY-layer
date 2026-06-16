@@ -70,7 +70,8 @@ module unit_mb_die #(
     input  logic [15:0]             i_vcmp_thr,
     input  logic                    i_vcmp_clear,
     input  logic                    i_clk_detector_en,
-    input  logic                    i_deser_en,
+    input  logic [NUM_LANES-1:0]    i_rx_data_deser_en,
+    input  logic                    i_rx_valid_deser_en,
 
     // ------------------------------------------------ RX serial in (partner TX)
     input  logic [NUM_LANES-1:0]    i_RD_P,
@@ -194,7 +195,8 @@ module unit_mb_die #(
         .i_vcmp_clear         (i_vcmp_clear),
 
         .i_clk_detector_en    (i_clk_detector_en),
-        .i_deser_en           (i_deser_en),
+        .i_rx_data_deser_en   (i_rx_data_deser_en),
+        .i_rx_valid_deser_en  (i_rx_valid_deser_en),
 
         .o_out_data           (o_out_data),
         .o_pl_valid           (o_pl_valid),

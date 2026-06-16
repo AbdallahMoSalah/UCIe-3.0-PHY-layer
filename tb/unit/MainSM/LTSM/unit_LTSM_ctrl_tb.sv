@@ -113,6 +113,10 @@ module unit_LTSM_ctrl_tb;
         .sb_tx_msg_id(),
         .sb_tx_MsgInfo(),
         .sb_tx_data_Field(),
+        // TRAINERROR entry-handshake inputs (tied off; exercised by a dedicated TB)
+        .sb_rx_valid(1'b0),
+        .sb_rx_msg_id(msg_no_e'(0)),
+        .sb_ltsm_rdy(1'b1),
         .sbinit_tx_valid(1'b0),
         .sbinit_tx_msg_id(msg_no_e'(0)),
         .sbinit_tx_MsgInfo(16'b0),
