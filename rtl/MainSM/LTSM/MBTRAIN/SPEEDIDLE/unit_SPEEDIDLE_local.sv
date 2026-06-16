@@ -31,14 +31,14 @@ module unit_SPEEDIDLE_local (
         input  logic        analog_settle_time_done,
 
         // MB TX/RX Lane Control
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // output logic [1:0]  mb_tx_clk_lane_sel,
+        // output logic [1:0]  mb_tx_data_lane_sel,
+        // output logic [1:0]  mb_tx_val_lane_sel,
+        // output logic [1:0]  mb_tx_trk_lane_sel,
+        // output logic        mb_rx_clk_lane_sel,
+        // output logic        mb_rx_data_lane_sel,
+        // output logic        mb_rx_val_lane_sel,
+        // output logic        mb_rx_trk_lane_sel,
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -47,9 +47,9 @@ module unit_SPEEDIDLE_local (
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -142,15 +142,11 @@ module unit_SPEEDIDLE_local (
                 end
 
                 SPEEDIDLE_LCL_TO_TXSELFCAL: begin
-                    if (!speedidle_en) begin
-                        next_state = SPEEDIDLE_LCL_IDLE;
-                    end
+                    next_state = SPEEDIDLE_LCL_TO_TXSELFCAL;
                 end
 
                 SPEEDIDLE_LCL_TO_TRAINERROR: begin
-                    if (!speedidle_en) begin
-                        next_state = SPEEDIDLE_LCL_IDLE;
-                    end
+                    next_state = SPEEDIDLE_LCL_TO_TRAINERROR;
                 end
 
                 default: next_state = SPEEDIDLE_LCL_IDLE;
@@ -164,16 +160,6 @@ module unit_SPEEDIDLE_local (
         trainerror_req         = 1'b0;
         analog_settle_timer_en = 1'b0;
 
-        // TX/RX Default Values
-        mb_tx_clk_lane_sel     = 2'b01; // Clock held low/differential low
-        mb_tx_data_lane_sel    = 2'b00;
-        mb_tx_val_lane_sel     = 2'b00;
-        mb_tx_trk_lane_sel     = 2'b00;
-        mb_rx_clk_lane_sel     = 1'b1;  // Clock Receiver enabled
-        mb_rx_data_lane_sel    = 1'b0;
-        mb_rx_val_lane_sel     = 1'b0;
-        mb_rx_trk_lane_sel     = 1'b0;
-
         tx_sb_msg_valid        = 1'b0;
         tx_sb_msg              = NOTHING;
         tx_msginfo             = 16'h0;
@@ -181,7 +167,6 @@ module unit_SPEEDIDLE_local (
 
         case (current_state)
             SPEEDIDLE_LCL_IDLE: begin
-                mb_rx_clk_lane_sel = 1'b0; // Clock RX disabled when FSM is inactive
             end
 
             SPEEDIDLE_LCL_CONFIG: begin

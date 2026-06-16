@@ -24,8 +24,7 @@
 // Spec Reference: UCIe 3.0 §4.5.3.4.2 MBTRAIN.DATAVREF
 
 module unit_DATAVREF_local #(
-        parameter int unsigned MAX_DATA_VREF_CODE = 7'd127, // Maximum Vref code
-        parameter int unsigned MIN_DATA_VREF_CODE = 7'd10   // Minimum Vref code
+        parameter int unsigned MAX_DATA_VREF_CODE = 'd16 // Maximum Vref code
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -60,10 +59,10 @@ module unit_DATAVREF_local #(
         //   - Clock TX: active (center-phase forwarded clock).
         //   - Clock RX, Data RX, Valid RX: enabled.
         //   - Track RX: permitted to be disabled.
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 01=Active (forwarded clock phase at center of UI)
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (will be muxed by sweep top/D2C PT)
-        output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low
+        // output logic [1:0]  mb_tx_clk_lane_sel  , // 01=Active (forwarded clock phase at center of UI)
+        // output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (will be muxed by sweep top/D2C PT)
+        // output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low
+        // output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low
         output logic        mb_rx_clk_lane_sel  , // 1=Enabled
         output logic        mb_rx_data_lane_sel , // 1=Enabled
         output logic        mb_rx_val_lane_sel  , // 1=Enabled
@@ -86,9 +85,9 @@ module unit_DATAVREF_local #(
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg             // Received MsgCode from partner die.
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -164,7 +163,7 @@ module unit_DATAVREF_local #(
                 // IDLE: Wait for datavref_en.
                 // ---------------------------------------------------------
                 DATAVREF_LCL_IDLE: begin
-                    next_state = datavref_en ? DATAVREF_LCL_SEND_START_REQ : DATAVREF_LCL_IDLE;
+                    next_state = DATAVREF_LCL_SEND_START_REQ;
                 end
 
                 // ---------------------------------------------------------
@@ -217,14 +216,14 @@ module unit_DATAVREF_local #(
                 // TO_SPEEDIDLE (Terminal): datavref_done=1.
                 // ---------------------------------------------------------
                 DATAVREF_LCL_TO_SPEEDIDLE: begin
-                    next_state = datavref_en ? DATAVREF_LCL_TO_SPEEDIDLE : DATAVREF_LCL_IDLE;
+                    next_state = DATAVREF_LCL_TO_SPEEDIDLE;
                 end
 
                 // ---------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // ---------------------------------------------------------
                 DATAVREF_LCL_TO_TRAINERROR: begin
-                    next_state = datavref_en ? DATAVREF_LCL_TO_TRAINERROR : DATAVREF_LCL_IDLE;
+                    next_state = DATAVREF_LCL_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -277,10 +276,10 @@ module unit_DATAVREF_local #(
         //   Data TX, Valid TX, Track TX: held low.
         //   Clock RX, Data RX, Valid RX: enabled.
         //   Track RX: disabled.
-        mb_tx_clk_lane_sel  = 2'b01; // Active center-phase forwarded clock
-        mb_tx_data_lane_sel = 2'b00; // Held Low
-        mb_tx_val_lane_sel  = 2'b00; // Held Low
-        mb_tx_trk_lane_sel  = 2'b00; // Held Low
+        // mb_tx_clk_lane_sel  = 2'b01; // Active center-phase forwarded clock
+        // mb_tx_data_lane_sel = 2'b00; // Held Low
+        // mb_tx_val_lane_sel  = 2'b00; // Held Low
+        // mb_tx_trk_lane_sel  = 2'b00; // Held Low
         mb_rx_clk_lane_sel  = 1'b1;  // Enabled
         mb_rx_data_lane_sel = 1'b1;  // Enabled
         mb_rx_val_lane_sel  = 1'b1;  // Enabled
@@ -292,7 +291,6 @@ module unit_DATAVREF_local #(
             // IDLE: Watchdog off, RX disabled.
             // ---------------------------------------------------------
             DATAVREF_LCL_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;

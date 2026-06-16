@@ -24,21 +24,17 @@ module unit_SPEEDIDLE_partner (
         // State history and max speed configuration
         input  wire  ltsm_state_n_pkg::state_n_e state_n_1,
         input  logic [2:0]  param_negotiated_max_speed,
-        output logic [2:0]  phy_negotiated_speed,
+        // output logic [2:0]  phy_negotiated_speed,
 
-        // Timer Control Signals
-        output logic        analog_settle_timer_en,
-        input  logic        analog_settle_time_done,
-
-        // MB TX/RX Lane Control
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // // MB TX/RX Lane Control
+        // output logic [1:0]  mb_tx_clk_lane_sel,
+        // output logic [1:0]  mb_tx_data_lane_sel,
+        // output logic [1:0]  mb_tx_val_lane_sel,
+        // output logic [1:0]  mb_tx_trk_lane_sel,
+        // output logic        mb_rx_clk_lane_sel,
+        // output logic        mb_rx_data_lane_sel,
+        // output logic        mb_rx_val_lane_sel,
+        // output logic        mb_rx_trk_lane_sel,
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -47,9 +43,9 @@ module unit_SPEEDIDLE_partner (
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -57,21 +53,18 @@ module unit_SPEEDIDLE_partner (
 
     // State encoding
     typedef enum logic [2:0] {
-        SPEEDIDLE_PTN_IDLE           = 3'd0,
-        SPEEDIDLE_PTN_CONFIG         = 3'd1,
-        SPEEDIDLE_PTN_WAIT_PLL       = 3'd2,
-        SPEEDIDLE_PTN_WAIT_REQ       = 3'd3,
-        SPEEDIDLE_PTN_SEND_RESP      = 3'd4,
-        SPEEDIDLE_PTN_DONE           = 3'd5,
-        SPEEDIDLE_PTN_TO_TRAINERROR  = 3'd6
+        SPEEDIDLE_PTR_IDLE           = 3'd0,
+        SPEEDIDLE_PTR_CONFIG         = 3'd1,
+        SPEEDIDLE_PTR_WAIT_REQ       = 3'd2,
+        SPEEDIDLE_PTR_SEND_RESP      = 3'd3,
+        SPEEDIDLE_PTR_DONE           = 3'd4,
+        SPEEDIDLE_PTR_TO_TRAINERROR  = 3'd5
     } state_t;
 
     state_t current_state, next_state;
 
     // Registers
     reg [2:0] internal_phy_negotiated_speed;
-
-    assign phy_negotiated_speed = internal_phy_negotiated_speed;
 
     // Check if degrade is impossible (already at min speed 4 GT/s)
     wire is_entry_datavref = (state_n_1 == LOG_MBTRAIN_DATAVREF);
@@ -83,16 +76,16 @@ module unit_SPEEDIDLE_partner (
     // FSM State and Registers
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
-            current_state                 <= SPEEDIDLE_PTN_IDLE;
+            current_state                 <= SPEEDIDLE_PTR_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
         end else if (!soft_rst_n) begin
-            current_state                 <= SPEEDIDLE_PTN_IDLE;
+            current_state                 <= SPEEDIDLE_PTR_IDLE;
             internal_phy_negotiated_speed <= 3'b000;
         end else begin
             current_state <= next_state;
 
             // Speed register configuration logic
-            if (current_state == SPEEDIDLE_PTN_CONFIG) begin
+            if (current_state == SPEEDIDLE_PTR_CONFIG) begin
                 if (state_n_1 == LOG_MBTRAIN_DATAVREF) begin
                     internal_phy_negotiated_speed <= param_negotiated_max_speed;
                 end else if (state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2) begin
@@ -111,54 +104,48 @@ module unit_SPEEDIDLE_partner (
         next_state = current_state;
 
         if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) || (speed_degrade_error & speedidle_en)) begin
-            next_state = SPEEDIDLE_PTN_TO_TRAINERROR;
+            next_state = SPEEDIDLE_PTR_TO_TRAINERROR;
         end
         else if (~speedidle_en) begin
-            next_state = SPEEDIDLE_PTN_IDLE;
+            next_state = SPEEDIDLE_PTR_IDLE;
         end
         else begin
             case (current_state)
-                SPEEDIDLE_PTN_IDLE: begin
+                SPEEDIDLE_PTR_IDLE: begin
                     if (speed_degrade_error) begin
-                        next_state = SPEEDIDLE_PTN_TO_TRAINERROR;
+                        next_state = SPEEDIDLE_PTR_TO_TRAINERROR;
                     end else begin
-                        next_state = SPEEDIDLE_PTN_CONFIG;
+                        next_state = SPEEDIDLE_PTR_CONFIG;
                     end
                 end
 
-                SPEEDIDLE_PTN_CONFIG: begin
-                    next_state = SPEEDIDLE_PTN_WAIT_PLL;
+                SPEEDIDLE_PTR_CONFIG: begin
+                    next_state = SPEEDIDLE_PTR_WAIT_REQ;
                 end
 
-                SPEEDIDLE_PTN_WAIT_PLL: begin
-                    if (analog_settle_time_done) begin
-                        next_state = SPEEDIDLE_PTN_WAIT_REQ;
-                    end
-                end
-
-                SPEEDIDLE_PTN_WAIT_REQ: begin
+                SPEEDIDLE_PTR_WAIT_REQ: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_SPEEDIDLE_done_req) begin
-                        next_state = SPEEDIDLE_PTN_SEND_RESP;
+                        next_state = SPEEDIDLE_PTR_SEND_RESP;
                     end
                 end
 
-                SPEEDIDLE_PTN_SEND_RESP: begin
-                    next_state = SPEEDIDLE_PTN_DONE;
+                SPEEDIDLE_PTR_SEND_RESP: begin
+                    next_state = SPEEDIDLE_PTR_DONE;
                 end
 
-                SPEEDIDLE_PTN_DONE: begin
+                SPEEDIDLE_PTR_DONE: begin
                     if (!speedidle_en) begin
-                        next_state = SPEEDIDLE_PTN_IDLE;
+                        next_state = SPEEDIDLE_PTR_IDLE;
                     end
                 end
 
-                SPEEDIDLE_PTN_TO_TRAINERROR: begin
+                SPEEDIDLE_PTR_TO_TRAINERROR: begin
                     if (!speedidle_en) begin
-                        next_state = SPEEDIDLE_PTN_IDLE;
+                        next_state = SPEEDIDLE_PTR_IDLE;
                     end
                 end
 
-                default: next_state = SPEEDIDLE_PTN_IDLE;
+                default: next_state = SPEEDIDLE_PTR_IDLE;
             endcase
         end
     end
@@ -168,17 +155,6 @@ module unit_SPEEDIDLE_partner (
         // Default outputs
         speedidle_done         = 1'b0;
         trainerror_req         = 1'b0;
-        analog_settle_timer_en = 1'b0;
-
-        // TX/RX Default Values
-        mb_tx_clk_lane_sel     = 2'b01; // Clock held low/differential low
-        mb_tx_data_lane_sel    = 2'b00;
-        mb_tx_val_lane_sel     = 2'b00;
-        mb_tx_trk_lane_sel     = 2'b00;
-        mb_rx_clk_lane_sel     = 1'b1;  // Clock Receiver enabled
-        mb_rx_data_lane_sel    = 1'b0;
-        mb_rx_val_lane_sel     = 1'b0;
-        mb_rx_trk_lane_sel     = 1'b0;
 
         tx_sb_msg_valid        = 1'b0;
         tx_sb_msg              = NOTHING;
@@ -186,32 +162,28 @@ module unit_SPEEDIDLE_partner (
         tx_data_field          = 64'h0;
 
         case (current_state)
-            SPEEDIDLE_PTN_IDLE: begin
-                mb_rx_clk_lane_sel = 1'b0; // RX disabled when FSM is inactive
+            SPEEDIDLE_PTR_IDLE: begin
+                // RX disabled when FSM is inactive
             end
 
-            SPEEDIDLE_PTN_CONFIG: begin
+            SPEEDIDLE_PTR_CONFIG: begin
                 // configuration phase
             end
 
-            SPEEDIDLE_PTN_WAIT_PLL: begin
-                analog_settle_timer_en = 1'b1;
-            end
-
-            SPEEDIDLE_PTN_WAIT_REQ: begin
+            SPEEDIDLE_PTR_WAIT_REQ: begin
                 // Waiting
             end
 
-            SPEEDIDLE_PTN_SEND_RESP: begin
+            SPEEDIDLE_PTR_SEND_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_SPEEDIDLE_done_resp;
             end
 
-            SPEEDIDLE_PTN_DONE: begin
+            SPEEDIDLE_PTR_DONE: begin
                 speedidle_done   = 1'b1;
             end
 
-            SPEEDIDLE_PTN_TO_TRAINERROR: begin
+            SPEEDIDLE_PTR_TO_TRAINERROR: begin
                 speedidle_done   = 1'b1;
                 trainerror_req   = 1'b1;
             end

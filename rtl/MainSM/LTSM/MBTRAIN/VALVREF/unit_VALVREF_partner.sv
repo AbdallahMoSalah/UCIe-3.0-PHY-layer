@@ -65,10 +65,10 @@ module unit_VALVREF_partner (
         output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (data lanes unused in VALVREF)
         output logic [1:0]  mb_tx_val_lane_sel  , // 01=Active (partner drives VALTRAIN pattern)
         output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (spec: track held low)
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled
-        output logic        mb_rx_data_lane_sel , // 1=Enabled (passive)
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled (passive)
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled (permitted per spec)
+        // output logic        mb_rx_clk_lane_sel  , // 1=Enabled
+        // output logic        mb_rx_data_lane_sel , // 1=Enabled (passive)
+        // output logic        mb_rx_val_lane_sel  , // 1=Enabled (passive)
+        // output logic        mb_rx_trk_lane_sel  , // 0=Disabled (permitted per spec)
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -87,9 +87,9 @@ module unit_VALVREF_partner (
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg             // Received MsgCode from partner die.
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -164,7 +164,7 @@ module unit_VALVREF_partner (
                 // IDLE: Wait for valvref_en from MBTRAIN_ctrl_partner.
                 // ---------------------------------------------------------
                 VALVREF_PTR_IDLE: begin
-                    next_state = valvref_en ? VALVREF_PTR_WAIT_START_REQ : VALVREF_PTR_IDLE;
+                    next_state = VALVREF_PTR_WAIT_START_REQ;
                 end
 
                 // ---------------------------------------------------------
@@ -214,7 +214,7 @@ module unit_VALVREF_partner (
                 // Hold until MBTRAIN_ctrl_partner deasserts valvref_en.
                 // ---------------------------------------------------------
                 VALVREF_PTR_TO_DATAVREF: begin
-                    next_state = valvref_en ? VALVREF_PTR_TO_DATAVREF : VALVREF_PTR_IDLE;
+                    next_state = VALVREF_PTR_TO_DATAVREF;
                 end
 
                 // ---------------------------------------------------------
@@ -222,7 +222,7 @@ module unit_VALVREF_partner (
                 // Hold until MBTRAIN_ctrl_partner deasserts valvref_en.
                 // ---------------------------------------------------------
                 VALVREF_PTR_TO_TRAINERROR: begin
-                    next_state = valvref_en ? VALVREF_PTR_TO_TRAINERROR : VALVREF_PTR_IDLE;
+                    next_state = VALVREF_PTR_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -257,10 +257,10 @@ module unit_VALVREF_partner (
         mb_tx_data_lane_sel = 2'b00; // Held Low
         mb_tx_val_lane_sel  = 2'b01; // Active: VALTRAIN pattern (driven by D2C_PT hardware)
         mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        mb_rx_data_lane_sel = 1'b1;  // Enabled (passive)
-        mb_rx_val_lane_sel  = 1'b1;  // Enabled (passive)
-        mb_rx_trk_lane_sel  = 1'b0;  // Disabled
+        // mb_rx_clk_lane_sel  = 1'b1;  // Enabled
+        // mb_rx_data_lane_sel = 1'b1;  // Enabled (passive)
+        // mb_rx_val_lane_sel  = 1'b1;  // Enabled (passive)
+        // mb_rx_trk_lane_sel  = 1'b0;  // Disabled
 
         case (current_state)
 
@@ -270,9 +270,6 @@ module unit_VALVREF_partner (
             VALVREF_PTR_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
                 mb_tx_val_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
             end
 
             // ---------------------------------------------------------

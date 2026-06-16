@@ -47,8 +47,7 @@
 // Spec Reference: UCIe 3.0 §4.5.3.4.1 MBTRAIN.VALVREF
 
 module unit_VALVREF_local #(
-        parameter int unsigned MAX_VAL_VREF_CODE = 16, // Maximum Vref code
-        parameter int unsigned MIN_VAL_VREF_CODE = 1   // Minimum Vref code
+        parameter int unsigned MAX_VAL_VREF_CODE = 16 // Maximum Vref code
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -82,10 +81,10 @@ module unit_VALVREF_local #(
         //   - Clock RX: enabled.
         //   - Clock TX: held differential low.
         //   - Track RX: permitted to be disabled.
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 00=Held Low (spec: diff low during VALVREF)
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (spec: data lanes held low)
-        output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low (spec: Local TX valid held low)
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (spec: track held low)
+        // output logic [1:0]  mb_tx_clk_lane_sel  , // 00=Held Low (spec: diff low during VALVREF)
+        // output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (spec: data lanes held low)
+        // output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low (spec: Local TX valid held low)
+        // output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (spec: track held low)
         output logic        mb_rx_clk_lane_sel  , // 1=Enabled  (Clock RX always enabled)
         output logic        mb_rx_data_lane_sel , // 0=Disabled (data lanes held low, no data RX)
         output logic        mb_rx_val_lane_sel  , // 1=Enabled  (Valid RX — we sample this)
@@ -108,9 +107,9 @@ module unit_VALVREF_local #(
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg             // Received MsgCode from partner die.
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -204,7 +203,7 @@ module unit_VALVREF_local #(
                 // IDLE: Wait for valvref_en from MBTRAIN_ctrl_local.
                 // ---------------------------------------------------------
                 VALVREF_LCL_IDLE: begin
-                    next_state = valvref_en ? VALVREF_LCL_SEND_START_REQ : VALVREF_LCL_IDLE;
+                    next_state = VALVREF_LCL_SEND_START_REQ;
                 end
 
                 // ---------------------------------------------------------
@@ -268,7 +267,7 @@ module unit_VALVREF_local #(
                 // Hold until MBTRAIN_ctrl_local deasserts valvref_en.
                 // ---------------------------------------------------------
                 VALVREF_LCL_TO_DATAVREF: begin
-                    next_state = valvref_en ? VALVREF_LCL_TO_DATAVREF : VALVREF_LCL_IDLE;
+                    next_state = VALVREF_LCL_TO_DATAVREF;
                 end
 
                 // ---------------------------------------------------------
@@ -276,7 +275,7 @@ module unit_VALVREF_local #(
                 // Hold until MBTRAIN_ctrl_local deasserts valvref_en.
                 // ---------------------------------------------------------
                 VALVREF_LCL_TO_TRAINERROR: begin
-                    next_state = valvref_en ? VALVREF_LCL_TO_TRAINERROR : VALVREF_LCL_IDLE;
+                    next_state = VALVREF_LCL_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -329,10 +328,10 @@ module unit_VALVREF_local #(
         //   Valid RX: enabled (we sample Valid Lane for Vref calibration).
         //   Data RX: disabled (data lanes not used).
         //   Track RX: disabled (permitted to disable per spec).
-        mb_tx_clk_lane_sel  = 2'b00; // Held Low (diff low during VALVREF)
-        mb_tx_data_lane_sel = 2'b00; // Held Low
-        mb_tx_val_lane_sel  = 2'b00; // Held Low
-        mb_tx_trk_lane_sel  = 2'b00; // Held Low
+        // mb_tx_clk_lane_sel  = 2'b00; // Held Low (diff low during VALVREF)
+        // mb_tx_data_lane_sel = 2'b00; // Held Low
+        // mb_tx_val_lane_sel  = 2'b00; // Held Low
+        // mb_tx_trk_lane_sel  = 2'b00; // Held Low
         mb_rx_clk_lane_sel  = 1'b1;  // Enabled
         mb_rx_data_lane_sel = 1'b0;  // Disabled (data lanes not tested in VALVREF)
         mb_rx_val_lane_sel  = 1'b1;  // Enabled (Valid Lane is what we calibrate)
@@ -428,6 +427,7 @@ module unit_VALVREF_local #(
     // During VALVREF_LCL_SWEEP (sweep_en = 1):
     //   Drive swept_code so the PHY tests each Vref setting.
     //   unit_D2C_sweep steps swept_code from MIN_VAL_VREF_CODE to MAX_VAL_VREF_CODE.
+    //   (note: MIN_VAL_VREF_CODE is not used in the current file)
     //
     // In all other states (APPLY_BEST onwards):
     //   Drive registered best_code_r (best Valid Lane Vref midpoint found).

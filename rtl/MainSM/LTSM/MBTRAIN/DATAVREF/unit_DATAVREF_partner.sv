@@ -49,10 +49,10 @@ module unit_DATAVREF_partner (
         output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (will be driven active by D2C_PT)
         output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low
         output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled
-        output logic        mb_rx_data_lane_sel , // 1=Enabled
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled
+        // output logic        mb_rx_clk_lane_sel  , // 1=Enabled
+        // output logic        mb_rx_data_lane_sel , // 1=Enabled
+        // output logic        mb_rx_val_lane_sel  , // 1=Enabled
+        // output logic        mb_rx_trk_lane_sel  , // 0=Disabled
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -71,9 +71,9 @@ module unit_DATAVREF_partner (
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg             // Received MsgCode from partner die.
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -129,7 +129,7 @@ module unit_DATAVREF_partner (
                 // IDLE: Wait for datavref_en.
                 // ---------------------------------------------------------
                 DATAVREF_PTR_IDLE: begin
-                    next_state = datavref_en ? DATAVREF_PTR_WAIT_START_REQ : DATAVREF_PTR_IDLE;
+                    next_state = DATAVREF_PTR_WAIT_START_REQ;
                 end
 
                 // ---------------------------------------------------------
@@ -168,14 +168,14 @@ module unit_DATAVREF_partner (
                 // TO_SPEEDIDLE (Terminal): datavref_done=1.
                 // ---------------------------------------------------------
                 DATAVREF_PTR_TO_SPEEDIDLE: begin
-                    next_state = datavref_en ? DATAVREF_PTR_TO_SPEEDIDLE : DATAVREF_PTR_IDLE;
+                    next_state = DATAVREF_PTR_TO_SPEEDIDLE;
                 end
 
                 // ---------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // ---------------------------------------------------------
                 DATAVREF_PTR_TO_TRAINERROR: begin
-                    next_state = datavref_en ? DATAVREF_PTR_TO_TRAINERROR : DATAVREF_PTR_IDLE;
+                    next_state = DATAVREF_PTR_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -204,11 +204,6 @@ module unit_DATAVREF_partner (
         mb_tx_data_lane_sel = 2'b00; // Held Low (will be driven active by D2C_PT)
         mb_tx_val_lane_sel  = 2'b00; // Held Low
         mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        mb_rx_data_lane_sel = 1'b1;  // Enabled
-        mb_rx_val_lane_sel  = 1'b1;  // Enabled
-        mb_rx_trk_lane_sel  = 1'b0;  // Disabled
-
         case (current_state)
 
             // ---------------------------------------------------------
@@ -216,9 +211,6 @@ module unit_DATAVREF_partner (
             // ---------------------------------------------------------
             DATAVREF_PTR_IDLE: begin
                 mb_tx_clk_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
             end
 
             // ---------------------------------------------------------

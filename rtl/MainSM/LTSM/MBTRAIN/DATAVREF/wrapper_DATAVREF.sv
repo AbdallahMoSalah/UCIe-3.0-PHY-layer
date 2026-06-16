@@ -8,8 +8,7 @@
 // ====================================================================================================
 
 module wrapper_DATAVREF #(
-        parameter int unsigned MAX_DATA_VREF_CODE = 7'd16, // Maximum Vref code
-        parameter int unsigned MIN_DATA_VREF_CODE = 7'd10   // Minimum Vref code
+        parameter int unsigned MAX_DATA_VREF_CODE = 'd16 // Maximum Vref code
     ) (
         // =========================================================================
         // Group 1: Clock and Reset Signals
@@ -21,13 +20,10 @@ module wrapper_DATAVREF #(
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
         input  logic        soft_rst_n,                      // 0: Soft reset active; 1: Normal operation
+        input  logic        datavref_en,               // 0: Disable; 1: Enable Local DATAVREF sequence
 
         // Local FSM Control:
-        input  logic        local_datavref_en,               // 0: Disable; 1: Enable Local DATAVREF sequence
         output logic        local_update_lane_mask,         // Pulse: update negotiated lane mask
-
-        // Partner FSM Control:
-        input  logic        partner_datavref_en,             // 0: Disable; 1: Enable Partner DATAVREF sequence
 
         // Combined outputs
         output logic        datavref_done,                  // 0: In progress; 1: Completed
@@ -68,9 +64,9 @@ module wrapper_DATAVREF #(
         output logic [63:0] tx_data_field,                  // Transmitted Sideband 64-bit Data payload
 
         input  logic        rx_sb_msg_valid,                // 0: Invalid; 1: Valid 1-cycle RX sideband pulse
-        input  logic [7:0]  rx_sb_msg,                      // Received Sideband MsgCode
-        input  logic [15:0] rx_msginfo,                     // Received Sideband MsgInfo payload
-        input  logic [63:0] rx_data_field                   // Received Sideband 64-bit Data payload
+        input  logic [7:0]  rx_sb_msg                       // Received Sideband MsgCode
+        // input  logic [15:0] rx_msginfo,                     // Received Sideband MsgInfo payload
+        // input  logic [63:0] rx_data_field                   // Received Sideband 64-bit Data payload
     );
 
     import UCIe_pkg::*;
@@ -84,49 +80,28 @@ module wrapper_DATAVREF #(
     wire        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
-    logic        local_tx_sb_msg_valid ;
+    logic        local_tx_sb_msg_valid;
     logic [7:0]  local_tx_sb_msg      ;
     logic [15:0] local_tx_msginfo     ;
     logic [63:0] local_tx_data_field  ;
 
     // SB outputs from Partner FSM:
     logic        partner_tx_sb_msg_valid;
-    logic [7:0]  partner_tx_sb_msg     ;
-    logic [15:0] partner_tx_msginfo    ;
-    logic [63:0] partner_tx_data_field ;
-
-    // MB outputs from Local FSM:
-    logic [1:0]  local_mb_tx_clk_lane_sel  ;
-    logic [1:0]  local_mb_tx_data_lane_sel ;
-    logic [1:0]  local_mb_tx_val_lane_sel  ;
-    logic [1:0]  local_mb_tx_trk_lane_sel  ;
-    logic        local_mb_rx_clk_lane_sel  ;
-    logic        local_mb_rx_data_lane_sel ;
-    logic        local_mb_rx_val_lane_sel  ;
-    logic        local_mb_rx_trk_lane_sel  ;
-
-    // MB outputs from Partner FSM:
-    logic [1:0]  partner_mb_tx_clk_lane_sel  ;
-    logic [1:0]  partner_mb_tx_data_lane_sel ;
-    logic [1:0]  partner_mb_tx_val_lane_sel  ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel  ;
-    logic        partner_mb_rx_clk_lane_sel  ;
-    logic        partner_mb_rx_data_lane_sel ;
-    logic        partner_mb_rx_val_lane_sel  ;
-    logic        partner_mb_rx_trk_lane_sel  ;
+    logic [7:0]  partner_tx_sb_msg      ;
+    logic [15:0] partner_tx_msginfo     ;
+    logic [63:0] partner_tx_data_field  ;
 
     // =========================================================================
     // 1st: Port Mapping of unit_DATAVREF_local
     // =========================================================================
     unit_DATAVREF_local #(
-        .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE  (MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE  (MAX_DATA_VREF_CODE)
     ) u_DATAVREF_local (
         // Clock and Reset Signals
         .lclk                   (lclk                         ),
         .rst_n                  (rst_n                        ),
         // LTSM Control Signals
-        .datavref_en            (local_datavref_en            ),
+        .datavref_en            (datavref_en                  ),
         .soft_rst_n             (soft_rst_n                   ),
         .datavref_done          (local_datavref_done_wire     ),
         .trainerror_req         (local_trainerror_req_wire    ),
@@ -134,14 +109,10 @@ module wrapper_DATAVREF #(
         // PHY Vref Control
         .phy_rx_datavref_ctrl   (phy_rx_datavref_ctrl         ),
         // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel     (local_mb_tx_clk_lane_sel     ),
-        .mb_tx_data_lane_sel    (local_mb_tx_data_lane_sel    ),
-        .mb_tx_val_lane_sel     (local_mb_tx_val_lane_sel     ),
-        .mb_tx_trk_lane_sel     (local_mb_tx_trk_lane_sel     ),
-        .mb_rx_clk_lane_sel     (local_mb_rx_clk_lane_sel     ),
-        .mb_rx_data_lane_sel    (local_mb_rx_data_lane_sel    ),
-        .mb_rx_val_lane_sel     (local_mb_rx_val_lane_sel     ),
-        .mb_rx_trk_lane_sel     (local_mb_rx_trk_lane_sel     ),
+        .mb_rx_clk_lane_sel     (mb_rx_clk_lane_sel           ),
+        .mb_rx_data_lane_sel    (mb_rx_data_lane_sel          ),
+        .mb_rx_val_lane_sel     (mb_rx_val_lane_sel           ),
+        .mb_rx_trk_lane_sel     (mb_rx_trk_lane_sel           ),
         // D2C Sweep Interface
         .sweep_en               (sweep_en                     ),
         .swept_code             (swept_code                   ),
@@ -153,9 +124,9 @@ module wrapper_DATAVREF #(
         .tx_msginfo             (local_tx_msginfo             ),
         .tx_data_field          (local_tx_data_field          ),
         .rx_sb_msg_valid        (rx_sb_msg_valid              ),
-        .rx_sb_msg              (rx_sb_msg                    ),
-        .rx_msginfo             (rx_msginfo                   ),
-        .rx_data_field          (rx_data_field                )
+        .rx_sb_msg              (rx_sb_msg                    )
+        // .rx_msginfo             (rx_msginfo                   ),
+        // .rx_data_field          (rx_data_field                )
     );
 
     // =========================================================================
@@ -166,19 +137,15 @@ module wrapper_DATAVREF #(
         .lclk                   (lclk                          ),
         .rst_n                  (rst_n                         ),
         // LTSM Control Signals
-        .datavref_en            (partner_datavref_en           ),
+        .datavref_en            (datavref_en                   ),
         .soft_rst_n             (soft_rst_n                    ),
         .datavref_done          (partner_datavref_done_wire    ),
         .trainerror_req         (partner_trainerror_req_wire   ),
         // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel     (partner_mb_tx_clk_lane_sel    ),
-        .mb_tx_data_lane_sel    (partner_mb_tx_data_lane_sel   ),
-        .mb_tx_val_lane_sel     (partner_mb_tx_val_lane_sel    ),
-        .mb_tx_trk_lane_sel     (partner_mb_tx_trk_lane_sel    ),
-        .mb_rx_clk_lane_sel     (partner_mb_rx_clk_lane_sel    ),
-        .mb_rx_data_lane_sel    (partner_mb_rx_data_lane_sel   ),
-        .mb_rx_val_lane_sel     (partner_mb_rx_val_lane_sel    ),
-        .mb_rx_trk_lane_sel     (partner_mb_rx_trk_lane_sel    ),
+        .mb_tx_clk_lane_sel     (mb_tx_clk_lane_sel            ),
+        .mb_tx_data_lane_sel    (mb_tx_data_lane_sel           ),
+        .mb_tx_val_lane_sel     (mb_tx_val_lane_sel            ),
+        .mb_tx_trk_lane_sel     (mb_tx_trk_lane_sel            ),
         .partner_sweep_en       (partner_sweep_en              ),
         // Sideband Control Signals
         .tx_sb_msg_valid        (partner_tx_sb_msg_valid       ),
@@ -186,9 +153,9 @@ module wrapper_DATAVREF #(
         .tx_msginfo             (partner_tx_msginfo            ),
         .tx_data_field          (partner_tx_data_field         ),
         .rx_sb_msg_valid        (rx_sb_msg_valid               ),
-        .rx_sb_msg              (rx_sb_msg                     ),
-        .rx_msginfo             (rx_msginfo                    ),
-        .rx_data_field          (rx_data_field                 )
+        .rx_sb_msg              (rx_sb_msg                     )
+        // .rx_msginfo             (rx_msginfo                    ),
+        // .rx_data_field          (rx_data_field                 )
     );
 
     // =========================================================================
@@ -205,41 +172,6 @@ module wrapper_DATAVREF #(
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg      ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo     ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field  ;
-
-    // MB Outputs MUX: independent TX/RX routing.
-    //   MB TX: PARTNER drives when partner_datavref_en=1;
-    //          otherwise LOCAL drives.
-    //   MB RX: LOCAL drives when local_datavref_en=1;
-    //          otherwise PARTNER drives.
-    always_comb begin : MB_OUTPUTS_MUX
-        // MB TX source selection:
-        if (partner_datavref_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel ;
-            mb_tx_data_lane_sel = partner_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = partner_mb_tx_val_lane_sel ;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel ;
-        end
-        else begin
-            mb_tx_clk_lane_sel  = local_mb_tx_clk_lane_sel   ;
-            mb_tx_data_lane_sel = local_mb_tx_data_lane_sel  ;
-            mb_tx_val_lane_sel  = local_mb_tx_val_lane_sel   ;
-            mb_tx_trk_lane_sel  = local_mb_tx_trk_lane_sel   ;
-        end
-
-        // MB RX source selection:
-        if (local_datavref_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel   ;
-            mb_rx_data_lane_sel = local_mb_rx_data_lane_sel  ;
-            mb_rx_val_lane_sel  = local_mb_rx_val_lane_sel   ;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel   ;
-        end
-        else begin
-            mb_rx_clk_lane_sel  = partner_mb_rx_clk_lane_sel ;
-            mb_rx_data_lane_sel = partner_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = partner_mb_rx_val_lane_sel ;
-            mb_rx_trk_lane_sel  = partner_mb_rx_trk_lane_sel ;
-        end
-    end
 
 endmodule
 
