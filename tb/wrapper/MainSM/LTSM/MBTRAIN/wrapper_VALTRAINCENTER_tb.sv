@@ -223,13 +223,14 @@ module wrapper_VALTRAINCENTER_tb;
     logic        dut_local_update_lane_mask;
 
     logic        dut_partner_en = 0;
+    logic        dut_valtraincenter_en;
+    assign dut_valtraincenter_en = dut_local_en | dut_partner_en;
 
     logic        dut_valtraincenter_done;
     logic        dut_trainerror_req;
 
     wrapper_VALTRAINCENTER #(
-        .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE),
-        .MIN_VAL_PI_CODE(MIN_VAL_PI_CODE)
+        .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
@@ -238,10 +239,8 @@ module wrapper_VALTRAINCENTER_tb;
         .valtraincenter_done            (dut_valtraincenter_done),
         .trainerror_req                 (dut_trainerror_req),
 
-        .local_valtraincenter_en        (dut_local_en),
+        .valtraincenter_en              (dut_valtraincenter_en),
         .local_update_lane_mask         (dut_local_update_lane_mask),
-
-        .partner_valtraincenter_en      (dut_partner_en),
 
         .phy_tx_val_pi_phase_ctrl       (dut_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
@@ -269,9 +268,8 @@ module wrapper_VALTRAINCENTER_tb;
         .tx_data_field                  (dut_if.tx_data_field),
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
+        // .rx_msginfo                     (dut_if.rx_msginfo)
     );
 
     // =========================================================================
@@ -281,13 +279,14 @@ module wrapper_VALTRAINCENTER_tb;
     logic        ptn_local_update_lane_mask;
 
     logic        ptn_partner_en = 0;
+    logic        ptn_valtraincenter_en;
+    assign ptn_valtraincenter_en = ptn_local_en | ptn_partner_en;
 
     logic        ptn_valtraincenter_done;
     logic        ptn_trainerror_req;
 
     wrapper_VALTRAINCENTER #(
-        .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE),
-        .MIN_VAL_PI_CODE(MIN_VAL_PI_CODE)
+        .MAX_VAL_PI_CODE(MAX_VAL_PI_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
@@ -296,10 +295,8 @@ module wrapper_VALTRAINCENTER_tb;
         .valtraincenter_done            (ptn_valtraincenter_done),
         .trainerror_req                 (ptn_trainerror_req),
 
-        .local_valtraincenter_en        (ptn_local_en),
+        .valtraincenter_en              (ptn_valtraincenter_en),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
-
-        .partner_valtraincenter_en      (ptn_partner_en),
 
         .phy_tx_val_pi_phase_ctrl       (ptn_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
@@ -327,9 +324,8 @@ module wrapper_VALTRAINCENTER_tb;
         .tx_data_field                  (ptn_if.tx_data_field),
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
+        // .rx_msginfo                     (ptn_if.rx_msginfo)
     );
 
     // =========================================================================
@@ -508,7 +504,7 @@ module wrapper_VALTRAINCENTER_tb;
                 $display("# ERROR: Expected successful VALTRAINCENTER exit, but got local_done=%b, trainerror=%b", dut_valtraincenter_done, dut_trainerror_req);
                 fail_count++; $stop;
             end
-            
+
             // Check calibrated PI code
             begin
                 automatic logic [PI_W-1:0] expected_best;

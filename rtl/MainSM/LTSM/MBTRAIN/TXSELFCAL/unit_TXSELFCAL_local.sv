@@ -45,10 +45,10 @@ module unit_TXSELFCAL_local (
         output logic [1:0]  mb_tx_data_lane_sel,
         output logic [1:0]  mb_tx_val_lane_sel,
         output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // output logic        mb_rx_clk_lane_sel,
+        // output logic        mb_rx_data_lane_sel,
+        // output logic        mb_rx_val_lane_sel,
+        // output logic        mb_rx_trk_lane_sel,
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -57,9 +57,9 @@ module unit_TXSELFCAL_local (
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -101,9 +101,7 @@ module unit_TXSELFCAL_local (
         else begin
             case (current_state)
                 TXSELFCAL_LCL_IDLE: begin
-                    if (txselfcal_en) begin
-                        next_state = TXSELFCAL_LCL_EXECUTE;
-                    end
+                    next_state = TXSELFCAL_LCL_EXECUTE;
                 end
 
                 TXSELFCAL_LCL_EXECUTE: begin
@@ -123,15 +121,11 @@ module unit_TXSELFCAL_local (
                 end
 
                 TXSELFCAL_LCL_TO_RXCLKCAL: begin
-                    if (!txselfcal_en) begin
-                        next_state = TXSELFCAL_LCL_IDLE;
-                    end
+                    next_state = TXSELFCAL_LCL_TO_RXCLKCAL;
                 end
 
                 TXSELFCAL_LCL_TO_TRAINERROR: begin
-                    if (!txselfcal_en) begin
-                        next_state = TXSELFCAL_LCL_IDLE;
-                    end
+                    next_state = TXSELFCAL_LCL_TO_TRAINERROR;
                 end
 
                 default: next_state = TXSELFCAL_LCL_IDLE;
@@ -151,10 +145,6 @@ module unit_TXSELFCAL_local (
         mb_tx_data_lane_sel     = 2'b10;
         mb_tx_val_lane_sel      = 2'b10;
         mb_tx_trk_lane_sel      = 2'b10;
-        mb_rx_clk_lane_sel      = 1'b0;
-        mb_rx_data_lane_sel     = 1'b0;
-        mb_rx_val_lane_sel      = 1'b0;
-        mb_rx_trk_lane_sel      = 1'b0;
 
         tx_sb_msg_valid         = 1'b0;
         tx_sb_msg               = NOTHING;

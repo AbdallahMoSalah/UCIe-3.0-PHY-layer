@@ -24,8 +24,8 @@ module unit_RXCLKCAL_partner
         input  logic        soft_rst_n,
 
         // Control and Status
-        input  logic        rxclkcal_partner_en,
-        output logic        rxclkcal_partner_done,
+        input  logic        rxclkcal_en,
+        output logic        rxclkcal_done,
         output logic        trainerror_req,
 
         // Link Configuration
@@ -49,8 +49,8 @@ module unit_RXCLKCAL_partner
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo
     );
 
     // ============================================================================
@@ -93,7 +93,7 @@ module unit_RXCLKCAL_partner
         if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
             next_state = RXCLKCAL_PTR_TO_TRAINERROR;
         end
-        else if (!rxclkcal_partner_en) begin
+        else if (!rxclkcal_en) begin
             next_state = RXCLKCAL_PTR_IDLE;
         end
         else begin
@@ -155,7 +155,7 @@ module unit_RXCLKCAL_partner
     //    - If operating speed > 32 GT/s OR Continuous clock mode was advertised,
     //      the partner must continue sending the free-running clock (so tx_clk_active_r
     //      remains unchanged or clk_active logic enforces that they stay free-running).
-    // 4. When Partner calibration is not active (rxclkcal_partner_en = 0), this
+    // 4. When Partner calibration is not active (rxclkcal_en = 0), this
     //    tracking register resets to 1'b0.
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
@@ -164,7 +164,7 @@ module unit_RXCLKCAL_partner
         else if (!soft_rst_n) begin
             tx_clk_active_r <= 1'b0;
         end
-        else if (rxclkcal_partner_en) begin
+        else if (rxclkcal_en) begin
             if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_start_req) begin
                 tx_clk_active_r <= 1'b1;
             end
@@ -189,7 +189,7 @@ module unit_RXCLKCAL_partner
     // ============================================================================
     always_comb begin
         // Safe Defaults
-        rxclkcal_partner_done  = 1'b0;
+        rxclkcal_done          = 1'b0;
         trainerror_req         = 1'b0;
         iq_partner_en          = 1'b0;
 
@@ -226,12 +226,12 @@ module unit_RXCLKCAL_partner
             end
 
             RXCLKCAL_PTR_TO_VALTRAINCENTER: begin
-                rxclkcal_partner_done = 1'b1;
+                rxclkcal_done = 1'b1;
             end
 
             RXCLKCAL_PTR_TO_TRAINERROR: begin
-                rxclkcal_partner_done = 1'b1;
-                trainerror_req        = 1'b1;
+                rxclkcal_done  = 1'b1;
+                trainerror_req = 1'b1;
             end
         endcase
     end

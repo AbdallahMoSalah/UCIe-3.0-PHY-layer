@@ -30,7 +30,6 @@ module unit_RXCLKCAL_local
 
         // Link Configuration
         input  logic        is_high_speed,          // 1 = operating speed > 32 GT/s
-        input  logic        is_continuous_clk_mode, // 1 = partner advertised continuous clock mode
 
         // PHY Lock Controls
         output logic        phy_rx_clock_lock_en,
@@ -56,8 +55,8 @@ module unit_RXCLKCAL_local
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo
     );
 
     // ============================================================================

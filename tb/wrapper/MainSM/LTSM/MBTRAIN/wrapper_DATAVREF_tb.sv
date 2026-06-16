@@ -233,16 +233,14 @@ module wrapper_DATAVREF_tb;
     logic        dut_trainerror_req;
 
     wrapper_DATAVREF #(
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (soft_rst_n),
-        .local_datavref_en              (dut_local_datavref_en),
+        .datavref_en                    (dut_local_datavref_en),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
-        .partner_datavref_en            (dut_partner_datavref_en),
         .datavref_done                  (dut_datavref_done),
         .trainerror_req                 (dut_trainerror_req),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
@@ -268,9 +266,7 @@ module wrapper_DATAVREF_tb;
         .tx_data_field                  (dut_if.tx_data_field),
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
     );
 
     // =========================================================================
@@ -284,16 +280,14 @@ module wrapper_DATAVREF_tb;
     logic        ptn_trainerror_req;
 
     wrapper_DATAVREF #(
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (soft_rst_n),
-        .local_datavref_en              (ptn_local_datavref_en),
+        .datavref_en                    (ptn_local_datavref_en),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
-        .partner_datavref_en            (ptn_partner_datavref_en),
         .datavref_done                  (ptn_datavref_done),
         .trainerror_req                 (ptn_trainerror_req),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
@@ -319,9 +313,7 @@ module wrapper_DATAVREF_tb;
         .tx_data_field                  (ptn_if.tx_data_field),
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
     );
 
     // =========================================================================

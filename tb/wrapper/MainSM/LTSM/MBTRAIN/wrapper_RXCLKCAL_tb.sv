@@ -73,17 +73,18 @@ module wrapper_RXCLKCAL_tb ();
     logic       phy_rx_decrement_shift;
     logic       phy_tx_tckn_shift_out_of_range;
 
+    logic       rxclkcal_en;
+    assign rxclkcal_en = local_rxclkcal_en | partner_rxclkcal_en;
+
     wrapper_RXCLKCAL dut (
         .lclk                           (lclk                        ),
         .rst_n                          (rst_n                       ),
         .soft_rst_n                     (soft_rst_n                  ),
-        .phy_negotiated_speed           (intf.phy_negotiated_speed   ),
         .is_high_speed                  (is_high_speed               ),
         .is_continuous_clk_mode         (is_continuous_clk_mode      ),
-        .local_rxclkcal_en              (local_rxclkcal_en           ),
+        .rxclkcal_en                    (rxclkcal_en                 ),
         .rxclkcal_done                  (rxclkcal_done               ),
         .trainerror_req                 (trainerror_req              ),
-        .partner_rxclkcal_en            (partner_rxclkcal_en         ),
         .analog_settle_timer_en         (intf.analog_settle_timer_en ),
         .analog_settle_time_done        (intf.analog_settle_time_done),
         .phy_rx_clock_lock_en           (intf.phy_rx_clock_lock_en   ),
@@ -112,8 +113,7 @@ module wrapper_RXCLKCAL_tb ();
         .tx_data_field                  (intf.tx_data_field          ),
         .rx_sb_msg_valid                (intf.rx_sb_msg_valid        ),
         .rx_sb_msg                      (intf.rx_sb_msg              ),
-        .rx_msginfo                     (intf.rx_msginfo             ),
-        .rx_data_field                  (intf.rx_data_field          )
+        .rx_msginfo                     (intf.rx_msginfo             )
     );
 
     // =========================================================================

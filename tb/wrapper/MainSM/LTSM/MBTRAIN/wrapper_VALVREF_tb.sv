@@ -228,19 +228,17 @@ module wrapper_VALVREF_tb;
     assign       dut_partner_trainerror_req = dut_local_trainerror_req; 
     
     wrapper_VALVREF #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .valvref_done                   (dut_local_valvref_done),
         .trainerror_req                 (dut_local_trainerror_req),
 
-        .local_valvref_en               (dut_local_valvref_en),
+        .valvref_en                     (dut_local_valvref_en),
         .local_update_lane_mask         (dut_local_update_lane_mask),
 
-        .partner_valvref_en             (dut_partner_valvref_en),
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -264,9 +262,7 @@ module wrapper_VALVREF_tb;
         .tx_data_field                  (dut_if.tx_data_field),
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
     );
 
     // =========================================================================
@@ -285,19 +281,17 @@ module wrapper_VALVREF_tb;
     assign       ptn_partner_trainerror_req = ptn_local_trainerror_req; 
 
     wrapper_VALVREF #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .is_ltsm_out_of_reset           (is_ltsm_out_of_reset),
+        .soft_rst_n                     (is_ltsm_out_of_reset),
         .valvref_done                   (ptn_local_valvref_done),
         .trainerror_req                 (ptn_local_trainerror_req),
 
-        .local_valvref_en               (ptn_local_valvref_en),
+        .valvref_en                     (ptn_local_valvref_en),
         .local_update_lane_mask         (ptn_local_update_lane_mask),
 
-        .partner_valvref_en             (ptn_partner_valvref_en),
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -321,9 +315,7 @@ module wrapper_VALVREF_tb;
         .tx_data_field                  (ptn_if.tx_data_field),
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
     );
 
     // =========================================================================

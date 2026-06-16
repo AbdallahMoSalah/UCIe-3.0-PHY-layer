@@ -128,8 +128,7 @@ module wrapper_SPEEDIDLE_tb;
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .soft_rst_n             (soft_rst_n),
-        .local_speedidle_en     (dut_local_speedidle_en),
-        .partner_speedidle_en   (dut_partner_speedidle_en),
+        .speedidle_en           (dut_local_speedidle_en),
         .speedidle_done         (dut_speedidle_done),
         .trainerror_req         (dut_trainerror_req),
         .analog_settle_timer_en (dut_if.analog_settle_timer_en),
@@ -150,9 +149,7 @@ module wrapper_SPEEDIDLE_tb;
         .tx_msginfo             (dut_if.tx_msginfo),
         .tx_data_field          (dut_if.tx_data_field),
         .rx_sb_msg_valid        (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg              (dut_if.rx_sb_msg),
-        .rx_msginfo             (dut_if.rx_msginfo),
-        .rx_data_field          (dut_if.rx_data_field)
+        .rx_sb_msg              (dut_if.rx_sb_msg)
     );
 
     // Partner Wrapper Signals
@@ -166,8 +163,7 @@ module wrapper_SPEEDIDLE_tb;
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .soft_rst_n             (soft_rst_n),
-        .local_speedidle_en     (ptn_local_speedidle_en),
-        .partner_speedidle_en   (ptn_partner_speedidle_en),
+        .speedidle_en           (ptn_local_speedidle_en),
         .speedidle_done         (ptn_speedidle_done),
         .trainerror_req         (ptn_trainerror_req),
         .analog_settle_timer_en (ptn_if.analog_settle_timer_en),
@@ -188,9 +184,7 @@ module wrapper_SPEEDIDLE_tb;
         .tx_msginfo             (ptn_if.tx_msginfo),
         .tx_data_field          (ptn_if.tx_data_field),
         .rx_sb_msg_valid        (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg              (ptn_if.rx_sb_msg),
-        .rx_msginfo             (ptn_if.rx_msginfo),
-        .rx_data_field          (ptn_if.rx_data_field)
+        .rx_sb_msg              (ptn_if.rx_sb_msg)
     );
 
     integer test_no = 1;

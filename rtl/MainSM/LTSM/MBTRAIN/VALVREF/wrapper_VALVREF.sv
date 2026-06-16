@@ -32,7 +32,7 @@ module wrapper_VALVREF #(
         // =========================================================================
         input  logic        soft_rst_n,                     // 0: Soft reset active; 1: Normal operation
         output logic        valvref_done,                   // 0: In progress; 1: Sub-state completed
-        output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry
+        output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry // remove it...
         input  logic        valvref_en,                     // 0: Disable; 1: Enable Local VALVREF sequence
 
         // Local FSM Control:
@@ -56,7 +56,7 @@ module wrapper_VALVREF #(
         // Group 5: MB Signals (Mainband Control & Status)
         // =========================================================================
         output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Low; 01: Active clock; 10: Tri-state
-        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Low; 01: Active data; 10: Tri-state
+        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Low; 01: Active data ; 10: Tri-state
         output logic [1:0]  mb_tx_val_lane_sel,             // 00: Low; 01: Active valid; 10: Tri-state
         output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Low; 01: Active track; 10: Tri-state
         output logic        mb_rx_clk_lane_sel,             // 0: Disabled; 1: Enabled

@@ -34,11 +34,8 @@ module wrapper_RXCLKCAL (
         input  logic        is_high_speed,
         input  logic        is_continuous_clk_mode,
 
-        // Local FSM Control:
-        input  logic        local_rxclkcal_en,
-
-        // Partner FSM Control:
-        input  logic        partner_rxclkcal_en,
+        // Control and Status
+        input  logic        rxclkcal_en,
 
         // Combined outputs:
         output logic        rxclkcal_done,
@@ -90,8 +87,8 @@ module wrapper_RXCLKCAL (
 
         input  logic        rx_sb_msg_valid,
         input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -132,13 +129,6 @@ module wrapper_RXCLKCAL (
     logic [15:0] iq_partner_tx_msginfo;
     logic [63:0] iq_partner_tx_data_field;
 
-    // Internal MB Local and Partner intermediate signals
-    logic        local_mb_rx_clk_lane_sel;
-    logic        local_mb_rx_trk_lane_sel;
-    logic [1:0]  partner_mb_tx_clk_lane_sel;
-    logic [1:0]  partner_mb_tx_trk_lane_sel;
-    logic        partner_mb_tx_pattern_en;
-
     // =========================================================================
     // unit_RXCLKCAL_local Instance
     // =========================================================================
@@ -146,18 +136,18 @@ module wrapper_RXCLKCAL (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
         .soft_rst_n                     (soft_rst_n                     ),
-        .rxclkcal_en                    (local_rxclkcal_en              ),
+        .rxclkcal_en                    (rxclkcal_en                    ),
         .rxclkcal_done                  (local_rxclkcal_done_wire       ),
         .trainerror_req                 (local_trainerror_req_wire      ),
         .is_high_speed                  (is_high_speed                  ),
-        .is_continuous_clk_mode         (is_continuous_clk_mode         ),
+        // .is_continuous_clk_mode         (is_continuous_clk_mode         ),
         .phy_rx_clock_lock_en           (phy_rx_clock_lock_en           ),
         .phy_rx_track_lock_en           (phy_rx_track_lock_en           ),
         .iq_en                          (iq_en                          ),
         .iq_done                        (iq_done                        ),
         .iq_error                       (iq_error                       ),
-        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel       ),
-        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel       ),
+        .mb_rx_clk_lane_sel             (mb_rx_clk_lane_sel             ),
+        .mb_rx_trk_lane_sel             (mb_rx_trk_lane_sel             ),
         .analog_settle_timer_en         (local_analog_settle_timer_en   ),
         .analog_settle_time_done        (analog_settle_time_done        ),
         .tx_sb_msg_valid                (local_tx_sb_msg_valid          ),
@@ -165,8 +155,8 @@ module wrapper_RXCLKCAL (
         .tx_msginfo                     (local_tx_msginfo               ),
         .tx_data_field                  (local_tx_data_field            ),
         .rx_sb_msg_valid                (rx_sb_msg_valid                ),
-        .rx_sb_msg                      (rx_sb_msg                      ),
-        .rx_msginfo                     (rx_msginfo                     )
+        .rx_sb_msg                      (rx_sb_msg                      )
+        // .rx_msginfo                  (rx_msginfo                     )
     );
 
     // =========================================================================
@@ -200,24 +190,24 @@ module wrapper_RXCLKCAL (
         .lclk                           (lclk                           ),
         .rst_n                          (rst_n                          ),
         .soft_rst_n                     (soft_rst_n                     ),
-        .rxclkcal_partner_en            (partner_rxclkcal_en            ),
-        .rxclkcal_partner_done          (partner_rxclkcal_done_wire     ),
+        .rxclkcal_en                    (rxclkcal_en                    ),
+        .rxclkcal_done                  (partner_rxclkcal_done_wire     ),
         .trainerror_req                 (partner_trainerror_req_wire    ),
         .is_high_speed                  (is_high_speed                  ),
         .is_continuous_clk_mode         (is_continuous_clk_mode         ),
         .iq_partner_en                  (iq_partner_en                  ),
         .iq_partner_done                (iq_partner_done                ),
         .iq_partner_error               (iq_partner_error               ),
-        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel     ),
-        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel     ),
-        .mb_tx_pattern_en               (partner_mb_tx_pattern_en       ),
+        .mb_tx_clk_lane_sel             (mb_tx_clk_lane_sel             ),
+        .mb_tx_trk_lane_sel             (mb_tx_trk_lane_sel             ),
+        .mb_tx_pattern_en               (mb_tx_pattern_en               ),
         .tx_sb_msg_valid                (partner_tx_sb_msg_valid        ),
         .tx_sb_msg                      (partner_tx_sb_msg              ),
         .tx_msginfo                     (partner_tx_msginfo             ),
         .tx_data_field                  (partner_tx_data_field          ),
         .rx_sb_msg_valid                (rx_sb_msg_valid                ),
-        .rx_sb_msg                      (rx_sb_msg                      ),
-        .rx_msginfo                     (rx_msginfo                     )
+        .rx_sb_msg                      (rx_sb_msg                      )
+        // .rx_msginfo                  (rx_msginfo                     )
     );
 
     // =========================================================================
@@ -269,53 +259,12 @@ module wrapper_RXCLKCAL (
         partner_tx_sb_msg_valid    ? partner_tx_data_field  :
         iq_partner_tx_data_field;
 
-    // MB Outputs MUX
-    always_comb begin : MB_OUTPUTS_MUX
-        // Data and Valid lanes are always disabled/held low in MBTRAIN.RXCLKCAL
-        mb_tx_data_lane_sel   = 2'b00;
-        mb_tx_val_lane_sel    = 2'b00;
-        mb_rx_data_lane_sel   = 1'b0;
-        mb_rx_val_lane_sel    = 1'b0;
+    assign mb_tx_data_lane_sel   = 2'b00;
+    assign mb_tx_val_lane_sel    = 2'b00;
+    assign mb_rx_data_lane_sel   = 1'b0;
+    assign mb_rx_val_lane_sel    = 1'b0;
 
-        // Pattern setup defaults for MBTRAIN.RXCLKCAL
-        mb_tx_pattern_setup   = 3'b100; // Clock pattern configuration
-        mb_tx_clk_pattern_sel = 2'd3;   // Clk Mode 2 (quarter rate clock)
-
-        // =====================================================================
-        // 1. Receiver Clock & Track Control (mb_rx_*)
-        // =====================================================================
-        // The local module controls its own receiver settings during calibration.
-        if (local_rxclkcal_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel;
-        end
-        else begin
-            // Default when Local is not active:
-            // Disable mainband receivers when Local calibration is not active
-            // (e.g., when this die is the Partner/Responder, or when completely idle).
-            mb_rx_clk_lane_sel  = 1'b0;
-            mb_rx_trk_lane_sel  = 1'b0;
-        end
-
-        // =====================================================================
-        // 2. Transmitter Clock & Track Control (mb_tx_*)
-        // =====================================================================
-        // The partner module controls the transmitter settings to send patterns to the initiator.
-        if (partner_rxclkcal_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel;
-            mb_tx_pattern_en    = partner_mb_tx_pattern_en;
-        end
-        else begin
-            // Default when Partner is not active:
-            // When Partner calibration is not active (e.g., when this die is the Local
-            // Initiator, or when completely idle), clock transmitters behave based on speed and mode:
-            // - Held low (2'b00) if operating speed <= 32 GT/s AND Strobe mode is active.
-            // - Free-running (2'b01) if operating speed > 32 GT/s OR continuous clock mode.
-            mb_tx_clk_lane_sel  = (is_high_speed | is_continuous_clk_mode) ? 2'b01 : 2'b00;
-            mb_tx_trk_lane_sel  = (is_high_speed | is_continuous_clk_mode) ? 2'b01 : 2'b00;
-            mb_tx_pattern_en    = (is_high_speed | is_continuous_clk_mode);
-        end
-    end
+    assign mb_tx_pattern_setup   = 3'b100; // Clock pattern configuration
+    assign mb_tx_clk_pattern_sel = 2'd3;   // Clk Mode 2 (quarter rate clock)
 
 endmodule

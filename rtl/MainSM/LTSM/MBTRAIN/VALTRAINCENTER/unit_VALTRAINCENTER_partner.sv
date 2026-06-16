@@ -39,18 +39,8 @@ module unit_VALTRAINCENTER_partner (
         output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
 
         //=====================================//
-        // MB Lane Control Configuration:       //
-        //=====================================//
-        input  logic        mb_tx_continuous_or_strobe_clk,
-        input  logic [2:0]  phy_negotiated_speed          ,
-
-        //=====================================//
         // MB Lane Control Outputs:            //
         //=====================================//
-        output logic [1:0]  mb_tx_clk_lane_sel  ,
-        output logic [1:0]  mb_tx_data_lane_sel ,
-        output logic [1:0]  mb_tx_val_lane_sel  ,
-        output logic [1:0]  mb_tx_trk_lane_sel  ,
         output logic        mb_rx_clk_lane_sel  ,
         output logic        mb_rx_data_lane_sel ,
         output logic        mb_rx_val_lane_sel  ,
@@ -70,9 +60,9 @@ module unit_VALTRAINCENTER_partner (
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -113,7 +103,7 @@ module unit_VALTRAINCENTER_partner (
         else begin
             case (current_state)
                 VALTRAINCENTER_PTR_IDLE: begin
-                    next_state = valtraincenter_en ? VALTRAINCENTER_PTR_WAIT_START_REQ : VALTRAINCENTER_PTR_IDLE;
+                    next_state = VALTRAINCENTER_PTR_WAIT_START_REQ;
                 end
 
                 VALTRAINCENTER_PTR_WAIT_START_REQ: begin
@@ -137,11 +127,11 @@ module unit_VALTRAINCENTER_partner (
                 end
 
                 VALTRAINCENTER_PTR_TO_VALTRAINVREF: begin
-                    next_state = valtraincenter_en ? VALTRAINCENTER_PTR_TO_VALTRAINVREF : VALTRAINCENTER_PTR_IDLE;
+                    next_state = VALTRAINCENTER_PTR_TO_VALTRAINVREF;
                 end
 
                 VALTRAINCENTER_PTR_TO_TRAINERROR: begin
-                    next_state = valtraincenter_en ? VALTRAINCENTER_PTR_TO_TRAINERROR : VALTRAINCENTER_PTR_IDLE;
+                    next_state = VALTRAINCENTER_PTR_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -162,12 +152,6 @@ module unit_VALTRAINCENTER_partner (
         tx_data_field       = 64'h0;
 
         // Default MB lane select behaviors based on spec for VALTRAINCENTER active states.
-        // During active training/gating actions, clock TX must be active center-phase (2'b01)
-        // and Valid TX must be active pattern (2'b01).
-        mb_tx_clk_lane_sel  = 2'b01;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b01; // Partner drives VALTRAIN pattern
-        mb_tx_trk_lane_sel  = 2'b00;
         mb_rx_clk_lane_sel  = 1'b1;
         mb_rx_data_lane_sel = 1'b1;
         mb_rx_val_lane_sel  = 1'b1;
@@ -175,11 +159,10 @@ module unit_VALTRAINCENTER_partner (
 
         case (current_state)
             VALTRAINCENTER_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
-                mb_tx_val_lane_sel  = 2'b00;
                 mb_rx_clk_lane_sel  = 1'b0;
                 mb_rx_data_lane_sel = 1'b0;
                 mb_rx_val_lane_sel  = 1'b0;
+                mb_rx_trk_lane_sel  = 1'b0;
             end
 
             VALTRAINCENTER_PTR_WAIT_START_REQ: begin
@@ -207,13 +190,15 @@ module unit_VALTRAINCENTER_partner (
 
             VALTRAINCENTER_PTR_TO_VALTRAINVREF: begin
                 valtraincenter_done = 1'b1;
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
             end
 
             VALTRAINCENTER_PTR_TO_TRAINERROR: begin
                 valtraincenter_done = 1'b1;
                 trainerror_req      = 1'b1;
-                mb_tx_clk_lane_sel  = 2'b00;
+                mb_rx_clk_lane_sel  = 1'b0;
+                mb_rx_data_lane_sel = 1'b0;
+                mb_rx_val_lane_sel  = 1'b0;
+                mb_rx_trk_lane_sel  = 1'b0;
             end
 
             default: begin
