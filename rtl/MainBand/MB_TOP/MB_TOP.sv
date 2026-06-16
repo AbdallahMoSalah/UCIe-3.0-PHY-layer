@@ -181,8 +181,7 @@ module MB_TOP #(
         .o_clk_done             (o_clk_done),
 
         //clk div
-        .o_mb_clk               (o_mb_clk),
-
+        .o_mb_clk               (o_mb_clk)
     );
 
     // ─────────────────────────────────────────────────────────────────────
