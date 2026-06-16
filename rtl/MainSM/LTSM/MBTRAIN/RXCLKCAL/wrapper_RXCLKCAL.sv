@@ -31,7 +31,6 @@ module wrapper_RXCLKCAL (
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic [2:0]  phy_negotiated_speed,
         input  logic        is_high_speed,
         input  logic        is_continuous_clk_mode,
 

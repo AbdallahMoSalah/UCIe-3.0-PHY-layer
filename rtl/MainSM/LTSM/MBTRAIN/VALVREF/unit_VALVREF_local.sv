@@ -60,7 +60,7 @@ module unit_VALVREF_local #(
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        valvref_en          , // 0: Disable (→ IDLE). 1: Enable/start VALVREF sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valvref_done        , // 1: Sub-state completed (held until valvref_en = 0).
         output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
         output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
@@ -158,13 +158,13 @@ module unit_VALVREF_local #(
 
     // =========================================================================
     // Sequential FSM: state register
-    // Rule: rst_n (async) and is_ltsm_out_of_reset (sync) in SEPARATE branches.
+    // Rule: rst_n (async) and soft_rst_n (sync) in SEPARATE branches.
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
             current_state <= VALVREF_LCL_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= VALVREF_LCL_IDLE;
         end
         else begin
@@ -297,7 +297,7 @@ module unit_VALVREF_local #(
         if (!rst_n) begin
             best_code_r <= {VW{1'b0}};
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             best_code_r <= {VW{1'b0}};
         end
         else begin
@@ -431,7 +431,7 @@ module unit_VALVREF_local #(
     //
     // In all other states (APPLY_BEST onwards):
     //   Drive registered best_code_r (best Valid Lane Vref midpoint found).
-    //   Held permanently until is_ltsm_out_of_reset = 0 clears it.
+    //   Held permanently until soft_rst_n = 0 clears it.
     // =========================================================================
     assign phy_rx_valvref_ctrl =
         (current_state == VALVREF_LCL_SWEEP) ?

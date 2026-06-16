@@ -150,13 +150,15 @@ module ltsm_tb_attachments #(
     integer idle_counter  = 0;
     integer iter_counter  = 0;
 
-    wire real_mb_tx_pattern_en   = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_pattern_en : mb_tx_pattern_en;
-    wire [15:0] real_mb_tx_burst_count = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_burst_count : mb_tx_burst_count;
-    wire [15:0] real_mb_rx_burst_count = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_burst_count : mb_rx_burst_count;
-    wire [15:0] real_mb_tx_idle_count  = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_idle_count  : mb_tx_idle_count;
-    wire [15:0] real_mb_rx_idle_count  = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_idle_count  : mb_rx_idle_count;
-    wire [15:0] real_mb_tx_iter_count  = (intf.mb_tx_pattern_en !== 1'bz && intf.mb_tx_pattern_en !== 1'bx) ? intf.mb_tx_iter_count  : mb_tx_iter_count;
-    wire [15:0] real_mb_rx_iter_count  = (intf.mb_rx_compare_en !== 1'bz && intf.mb_rx_compare_en !== 1'bx) ? intf.mb_rx_iter_count  : mb_rx_iter_count;
+    wire real_mb_tx_pattern_en   = (mb_tx_pattern_en === 1'b1) || (intf.mb_tx_pattern_en === 1'b1);
+    wire real_mb_rx_compare_en   = (mb_rx_compare_en === 1'b1) || (intf.mb_rx_compare_en === 1'b1);
+
+    wire [15:0] real_mb_tx_burst_count = (mb_tx_pattern_en === 1'b1) ? mb_tx_burst_count : intf.mb_tx_burst_count;
+    wire [15:0] real_mb_rx_burst_count = (mb_rx_compare_en === 1'b1) ? mb_rx_burst_count : intf.mb_rx_burst_count;
+    wire [15:0] real_mb_tx_idle_count  = (mb_tx_pattern_en === 1'b1) ? mb_tx_idle_count  : intf.mb_tx_idle_count;
+    wire [15:0] real_mb_rx_idle_count  = (mb_rx_compare_en === 1'b1) ? mb_rx_idle_count  : intf.mb_rx_idle_count;
+    wire [15:0] real_mb_tx_iter_count  = (mb_tx_pattern_en === 1'b1) ? mb_tx_iter_count  : intf.mb_tx_iter_count;
+    wire [15:0] real_mb_rx_iter_count  = (mb_rx_compare_en === 1'b1) ? mb_rx_iter_count  : intf.mb_rx_iter_count;
 
     wire [15:0] target_burst = real_mb_tx_pattern_en ? real_mb_tx_burst_count : real_mb_rx_burst_count;
     wire [15:0] target_idle  = real_mb_tx_pattern_en ? real_mb_tx_idle_count  : real_mb_rx_idle_count;
@@ -164,6 +166,7 @@ module ltsm_tb_attachments #(
 
     // Use MB_DELAY instead of 4096 to speed up data pattern transmission/reception in simulation
     wire [15:0] effective_target_burst = (target_burst == 4096) ? MB_DELAY : target_burst;
+
 
     wire mb_tx_pattern_count_done = (iter_counter == target_iter && (intf.tb_wait_timeout == 0)) ? 1'b1 : 1'b0;
 
@@ -422,10 +425,13 @@ module ltsm_tb_attachments #(
     );
 
     // MUX wrapper and substate sideband messages onto tb_muxed signals
-    assign intf.tb_muxed_tx_sb_msg_valid = wrapper_tx_sb_msg_valid || intf.tx_sb_msg_valid;
-    assign intf.tb_muxed_tx_sb_msg       = wrapper_tx_sb_msg_valid ? msg_no_e'(wrapper_tx_sb_msg) : intf.tx_sb_msg;
-    assign intf.tb_muxed_tx_msginfo      = wrapper_tx_sb_msg_valid ? wrapper_tx_msginfo : intf.tx_msginfo;
-    assign intf.tb_muxed_tx_data_field   = wrapper_tx_sb_msg_valid ? wrapper_tx_data_field : intf.tx_data_field;
+    assign intf.tb_muxed_tx_sb_msg_valid = (wrapper_tx_sb_msg_valid === 1'b1) || (intf.tx_sb_msg_valid === 1'b1);
+    assign intf.tb_muxed_tx_sb_msg       = (wrapper_tx_sb_msg_valid === 1'b1) ? msg_no_e'(wrapper_tx_sb_msg) :
+        ($isunknown(intf.tx_sb_msg) ? NOTHING : intf.tx_sb_msg);
+    assign intf.tb_muxed_tx_msginfo      = (wrapper_tx_sb_msg_valid === 1'b1) ? wrapper_tx_msginfo :
+        ($isunknown(intf.tx_msginfo) ? 16'h0000 : intf.tx_msginfo);
+    assign intf.tb_muxed_tx_data_field   = (wrapper_tx_sb_msg_valid === 1'b1) ? wrapper_tx_data_field :
+        ($isunknown(intf.tx_data_field) ? 64'h0000_0000_0000_0000 : intf.tx_data_field);
 
     // Procedural assignments to intf to avoid structural multi-driver conflicts.
     reg ptn_test_d2c_done_val;

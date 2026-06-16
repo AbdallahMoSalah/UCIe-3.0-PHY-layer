@@ -60,7 +60,7 @@ module unit_REPAIR_partner (
         input  logic        repair_en,
         input  logic        soft_rst_n,
         output logic        repair_done,
-        output logic        txselfcal_req,
+        // output logic        txselfcal_req,
         output logic        trainerror_req,
 
         // Width Degradation Inputs (our TX side, computed by unit_negotiated_lanes in the wrapper)
@@ -301,7 +301,6 @@ module unit_REPAIR_partner (
     always_comb begin : OUTPUT_LOGIC
         // Defaults
         repair_done         = 1'b0;
-        txselfcal_req       = 1'b0;
         trainerror_req      = 1'b0;
 
         // Mainband Defaults during REPAIR (spec §4.5.3.4.13):
@@ -365,7 +364,6 @@ module unit_REPAIR_partner (
 
             REPAIR_PTR_DONE: begin
                 repair_done      = 1'b1;
-                txselfcal_req    = 1'b1;
             end
 
             REPAIR_PTR_TO_TRAINERROR: begin

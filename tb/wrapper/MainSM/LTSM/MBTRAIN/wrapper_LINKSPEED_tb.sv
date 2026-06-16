@@ -10,7 +10,7 @@ module wrapper_LINKSPEED_tb;
     parameter ANALOG_SETTLE_CYCLES = 10     ; // Number of lclk cycles to wait the analog circuits in the MB to settle.
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
     parameter MB_DELAY             = 10     ; // Representing 128 lclk + 2 lclk delay
-    parameter TIMEOUT_CYCLES       = 5_000_000;
+    parameter TIMEOUT_CYCLES       = 1_000_000;
     parameter bit ENABLE_RAND_LOG  = 1'b0; // 1: display details of randomized scenarios in terminal; 0: suppress
 
     // =========================================================================

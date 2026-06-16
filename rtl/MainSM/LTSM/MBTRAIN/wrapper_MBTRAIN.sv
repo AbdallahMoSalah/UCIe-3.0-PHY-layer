@@ -17,21 +17,27 @@
 // ====================================================================================================
 
 module wrapper_MBTRAIN #(
-        parameter int unsigned MAX_VAL_VREF_CODE  = 7'd127,
-        parameter int unsigned MIN_VAL_VREF_CODE  = 7'd10,
-        parameter int unsigned MAX_DATA_VREF_CODE = 7'd127,
-        parameter int unsigned MIN_DATA_VREF_CODE = 7'd10,
-        parameter int unsigned MAX_DATA_PI_CODE   = 6'd63,
-        parameter int unsigned MIN_DATA_PI_CODE   = 6'd0,
-        parameter int unsigned MAX_VAL_PI_CODE    = 6'd63,
-        parameter int unsigned MIN_VAL_PI_CODE    = 6'd0,
-        parameter int unsigned MAX_DESKEW_CODE    = 7'd127,
-        parameter int unsigned MIN_DESKEW_CODE    = 7'd0
+        parameter int unsigned MAX_VAL_VREF_CODE  = 7'd16,
+        parameter int unsigned MIN_VAL_VREF_CODE  = 7'd1,
+        parameter int unsigned MAX_DATA_VREF_CODE = 7'd16,
+        parameter int unsigned MIN_DATA_VREF_CODE = 7'd1,
+        parameter int unsigned MAX_DATA_PI_CODE   = 6'd16,
+        parameter int unsigned MIN_DATA_PI_CODE   = 6'd1,
+        parameter int unsigned MAX_VAL_PI_CODE    = 6'd16,
+        parameter int unsigned MIN_VAL_PI_CODE    = 6'd1,
+        parameter int unsigned MAX_DESKEW_CODE    = 7'd16,
+        parameter int unsigned MIN_DESKEW_CODE    = 7'd1,
+
+        parameter int unsigned MAX_CODE =
+            (MAX_VAL_VREF_CODE >= MAX_DATA_VREF_CODE && MAX_VAL_VREF_CODE >= MAX_DATA_PI_CODE && MAX_VAL_VREF_CODE >= MAX_VAL_PI_CODE && MAX_VAL_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_VAL_VREF_CODE :
+            (MAX_DATA_VREF_CODE >= MAX_DATA_PI_CODE && MAX_DATA_VREF_CODE >= MAX_VAL_PI_CODE && MAX_DATA_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_DATA_VREF_CODE :
+            (MAX_DATA_PI_CODE >= MAX_VAL_PI_CODE && MAX_DATA_PI_CODE >= MAX_DESKEW_CODE) ? MAX_DATA_PI_CODE :
+            (MAX_VAL_PI_CODE >= MAX_DESKEW_CODE) ? MAX_VAL_PI_CODE : MAX_DESKEW_CODE // Maximum code value (inclusive). Sets counter width.
     ) (
         // Clock, reset, and MBTRAIN state control
         input  logic        lclk,
         input  logic        rst_n,
-        // NOTE: is_ltsm_out_of_reset is generated INTERNALLY from state_n[0].
+        // NOTE: soft_rst_n is generated INTERNALLY from state_n_0.
         // It is NOT a port – the higher-level LTSM passes state_n instead.
         input  logic        mbtrain_en,
         output logic        mbtrain_done,
@@ -40,21 +46,20 @@ module wrapper_MBTRAIN #(
         output logic        ltsm_trainerror_req,
         output logic        ltsm_linkinit_req,
         output logic        ltsm_phyretrain_req,
-        output logic        ltsm_repair_req,
-        output logic        ltsm_speedidle_req,
+        // output logic        ltsm_repair_req,  <== Not used in mbtrain.
+        // output logic        ltsm_speedidle_req, <== Not used in mbtrain.
 
         input  logic        mbtrain_txselfcal_req,
         input  logic        mbtrain_speedidle_req,
-        input  logic        mbtrain_repair_req,
+        input  logic        mbtrain_repair_req   ,
 
-        // Timer inputs and combined timer enables
-        input  logic        timeout_8ms_occured,
         input  logic        analog_settle_time_done,
-        output logic        timeout_timer_en,
         output logic        analog_settle_timer_en,
 
         // Register-file / LTSM configuration
-        input  wire ltsm_state_n_pkg::state_n_e state_n [3:0],
+        input  wire ltsm_state_n_pkg::state_n_e state_n_0,
+        input  wire ltsm_state_n_pkg::state_n_e state_n_1,
+
         input  logic [2:0]  param_negotiated_max_speed,
         input  logic        is_continuous_clk_mode,
         input  logic        rf_cap_SPMW,
@@ -76,16 +81,16 @@ module wrapper_MBTRAIN #(
         output logic        local_sweep_en,
         output logic        partner_sweep_en,
         output logic [15:0] sweep_active_lanes,
-        output ltsm_state_n_pkg::state_n_e d2c_state_n,
+        // output ltsm_state_n_pkg::state_n_e d2c_state_n,
         input  logic        sweep_done,
-        input  logic [6:0]  sweep_swept_code,
-        input  wire logic [6:0] sweep_best_code [0:15],
-        input  logic [6:0]  sweep_min_eye_width,
+        input       logic [$clog2(MAX_CODE+1)-1:0] sweep_swept_code,
+        input  wire logic [$clog2(MAX_CODE+1)-1:0] sweep_best_code [0:15],
+        input       logic [$clog2(MAX_CODE+1)-1:0] sweep_min_eye_width,
 
         // External D2C point-test results
         input  logic [15:0] d2c_perlane_pass,
-        input  logic        d2c_aggr_pass,
-        input  logic        d2c_val_pass,
+        // NOTE: d2c_aggr_pass and d2c_val_pass are not consumed by any substate wrapper
+        // and have been removed from this port list per the implementation plan.
 
         // PHY controls driven by MBTRAIN substates
         output logic [2:0]  phy_negotiated_speed,
@@ -101,13 +106,13 @@ module wrapper_MBTRAIN #(
         output logic        phy_tx_decrement_shift,
         input  logic        phy_tx_tckn_shift_out_of_range,
 
-        output logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  phy_rx_valvref_ctrl,
+        output logic [$clog2(MAX_VAL_VREF_CODE+1)-1 :0] phy_rx_valvref_ctrl,
         output logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0] phy_rx_datavref_ctrl [0:15],
-        output logic [$clog2(MAX_VAL_PI_CODE+1)-1:0]    phy_tx_val_pi_phase_ctrl,
-        output logic [$clog2(MAX_DATA_PI_CODE+1)-1:0]   phy_tx_data_pi_phase_ctrl [0:15],
-        output logic [6:0]  phy_rx_deskew_ctrl [15:0],
-        output logic [2:0]  phy_tx_eq_preset_ctrl,
-        output logic        phy_tx_eq_preset_en,
+        output logic [$clog2(MAX_VAL_PI_CODE+1)-1   :0] phy_tx_val_pi_phase_ctrl,
+        output logic [$clog2(MAX_DATA_PI_CODE+1)-1  :0] phy_tx_data_pi_phase_ctrl [0:15],
+        output logic [$clog2(MAX_DESKEW_CODE+1)-1   :0] phy_rx_deskew_ctrl        [0:15],
+        output logic [2:0]                              phy_tx_eq_preset_ctrl,
+        output logic                                    phy_tx_eq_preset_en,
 
         // Selected substate mainband lane selectors
         output logic [1:0]  substate_mb_tx_clk_lane_sel,
@@ -137,28 +142,29 @@ module wrapper_MBTRAIN #(
         input  logic [63:0] rx_data_field
     );
 
+
     import ltsm_state_n_pkg::*;
 
     // =========================================================================
     // Internal Software Reset Generation
-    // is_ltsm_out_of_reset is generated here using state_n[0].
+    // soft_rst_n is generated here using state_n_0.
     // It deasserts when the LTSM enters RESET (so all substate FSMs soft-reset),
     // and asserts when the LTSM reaches SBINIT (unblocking all substate FSMs).
     // =========================================================================
-    logic is_ltsm_out_of_reset;
+    logic soft_rst_n;
     logic first_enter_flag;
 
     always_ff @(posedge lclk or negedge rst_n) begin : SOFT_RESET_GEN
         if (!rst_n) begin
-            is_ltsm_out_of_reset <= 1'b0;
+            soft_rst_n <= 1'b0;
             first_enter_flag     <= 1'b0;
-        end else if (state_n[0] == LOG_RESET && !first_enter_flag) begin
+        end else if (state_n_0 == LOG_RESET && !first_enter_flag) begin
             // First time we see RESET → assert soft-reset to all substates
-            is_ltsm_out_of_reset <= 1'b0;
+            soft_rst_n <= 1'b0;
             first_enter_flag     <= 1'b1;
-        end else if (state_n[0] == LOG_SBINIT && first_enter_flag) begin
+        end else if (state_n_0 == LOG_SBINIT && first_enter_flag) begin
             // LTSM has left RESET and entered SBINIT → release soft-reset
-            is_ltsm_out_of_reset <= 1'b1;
+            soft_rst_n <= 1'b1;
             first_enter_flag     <= 1'b0;
         end
     end
@@ -181,31 +187,57 @@ module wrapper_MBTRAIN #(
     localparam int unsigned SS_LINKSPEED        = 11;
     localparam int unsigned SS_REPAIR           = 12;
 
-    localparam int unsigned VAL_VREF_W  = $clog2(MAX_VAL_VREF_CODE  + 1);
-    localparam int unsigned DATA_VREF_W = $clog2(MAX_DATA_VREF_CODE + 1);
-    localparam int unsigned VAL_PI_W    = $clog2(MAX_VAL_PI_CODE    + 1);
-    localparam int unsigned DATA_PI_W   = $clog2(MAX_DATA_PI_CODE   + 1);
+    localparam int unsigned VAL_VREF_W    = $clog2(MAX_VAL_VREF_CODE  + 1);
+    localparam int unsigned DATA_VREF_W   = $clog2(MAX_DATA_VREF_CODE + 1);
+    localparam int unsigned VAL_PI_W      = $clog2(MAX_VAL_PI_CODE    + 1);
+    localparam int unsigned DATA_PI_W     = $clog2(MAX_DATA_PI_CODE   + 1);
+    localparam int unsigned DATA_DESKEW_W = $clog2(MAX_DESKEW_CODE    + 1);
+
 
     // Controller handshakes.
-    logic local_valvref_en,          local_valvref_done,          partner_valvref_en,          partner_valvref_done;
-    logic local_datavref_en,         local_datavref_done,         partner_datavref_en,         partner_datavref_done;
-    logic local_speedidle_en,        local_speedidle_done,        partner_speedidle_en,        partner_speedidle_done;
-    logic local_txselfcal_en,        local_txselfcal_done,        partner_txselfcal_en,        partner_txselfcal_done;
-    logic local_rxclkcal_en,         local_rxclkcal_done,         partner_rxclkcal_en,         partner_rxclkcal_done;
-    logic local_valtraincenter_en,   local_valtraincenter_done,   partner_valtraincenter_en,   partner_valtraincenter_done;
-    logic local_valtrainvref_en,     local_valtrainvref_done,     partner_valtrainvref_en,     partner_valtrainvref_done;
-    logic local_dtc1_en,             local_dtc1_done,             partner_dtc1_en,             partner_dtc1_done;
-    logic local_datatrainvref_en,    local_datatrainvref_done,    partner_datatrainvref_en,    partner_datatrainvref_done;
-    logic local_rxdeskew_en,         local_rxdeskew_done,         partner_rxdeskew_en,         partner_rxdeskew_done;
-    logic local_dtc2_en,             local_dtc2_done,             partner_dtc2_en,             partner_dtc2_done;
-    logic local_linkspeed_en,        local_linkspeed_done,        partner_linkspeed_en,        partner_linkspeed_done;
-    logic local_repair_en,           local_repair_done,           partner_repair_en,           partner_repair_done;
+    logic local_valvref_en       ,    partner_valvref_en       ;
+    logic local_datavref_en      ,    partner_datavref_en      ;
+    logic local_speedidle_en     ,    partner_speedidle_en     ;
+    logic local_txselfcal_en     ,    partner_txselfcal_en     ;
+    logic local_rxclkcal_en      ,    partner_rxclkcal_en      ;
+    logic local_valtraincenter_en,    partner_valtraincenter_en;
+    logic local_valtrainvref_en  ,    partner_valtrainvref_en  ;
+    logic local_dtc1_en          ,    partner_dtc1_en          ;
+    logic local_datatrainvref_en ,    partner_datatrainvref_en ;
+    logic local_rxdeskew_en      ,    partner_rxdeskew_en      ;
+    logic local_dtc2_en          ,    partner_dtc2_en          ;
+    logic local_linkspeed_en     ,    partner_linkspeed_en     ;
+    logic local_repair_en        ,    partner_repair_en        ;
 
-    // Per-substate requests and output bundles.
+    logic valvref_done_w       ;
+    logic datavref_done_w      ;
+    logic speedidle_done_w     ;
+    logic txselfcal_done_w     ;
+    logic rxclkcal_done_w      ;
+    logic valtraincenter_done_w;
+    logic valtrainvref_done_w  ;
+    logic dtc1_done_w          ;
+    logic datatrainvref_done_w ;
+    logic rxdeskew_done_w      ;
+    logic dtc2_done_w          ;
+    logic rxdeskew_dtc1_req    ;
+
+
+    logic linkspeed_done_w;
+    logic linkspeed_trainerror_req_w;
+
+    logic repair_done_w;
+    logic repair_trainerror_req_w;
+
+
+    // Per-substate combined trainerror request (each substate wrapper already ORs
+    // its local|partner trainerror flags internally before driving this array).
     logic [NUM_SUBSTATES-1:0] ss_active;
-    logic [NUM_SUBSTATES-1:0] ss_local_trainerror_req;
-    logic [NUM_SUBSTATES-1:0] ss_partner_trainerror_req;
-    logic [NUM_SUBSTATES-1:0] ss_timeout_timer_en;
+    logic [NUM_SUBSTATES-1:0] ss_trainerror_req;
+    // ss_analog_settle_timer_en: active for substates that use an analog-settle wait
+    // (SPEEDIDLE, TXSELFCAL, RXCLKCAL); all others are tied 1'b0 below.
+    // NOTE: ss_timeout_timer_en (8 ms MBTRAIN timeout) intentionally absent —
+    // the future LTSM controller reads current_mbtrain_substate for that purpose.
     logic [NUM_SUBSTATES-1:0] ss_analog_settle_timer_en;
     logic [NUM_SUBSTATES-1:0] ss_sweep_en;
     logic [NUM_SUBSTATES-1:0] ss_partner_sweep_en;
@@ -225,13 +257,16 @@ module wrapper_MBTRAIN #(
     logic [15:0] ss_tx_msginfo      [0:NUM_SUBSTATES-1];
     logic [63:0] ss_tx_data_field   [0:NUM_SUBSTATES-1];
 
-    // Common decoder outputs and lane-map degradation result.
+    // Common decoder outputs and lane-map info.
     logic        is_high_speed;
+    // active_rx_lanes: driven by wrapper_REPAIR's exposed output (from its internal
+    // unit_negotiated_lanes). Connected to sweep_active_lanes and wrapper_LINKSPEED.
     logic [15:0] active_rx_lanes;
-    // active_tx_lanes removed
     logic [15:0] linkspeed_success_lanes;
-    logic [2:0]  degraded_lane_map_code;
+    // degrade_feasible: from wrapper_REPAIR's exposed output → wrapper_LINKSPEED.width_degrade_feasible
     logic        degrade_feasible;
+    // degraded_lane_map_code is NOT declared here: wrapper_REPAIR computes it internally
+    // via its own unit_negotiated_lanes instance for the REPAIR FSMs.
 
     // Output/control signals that need arbitration or value retention.
     logic [2:0]  speedidle_phy_negotiated_speed;
@@ -243,25 +278,25 @@ module wrapper_MBTRAIN #(
     logic [4:0]  rxclkcal_phy_tx_tckn_shift;
     logic        rxclkcal_phy_tx_decrement_shift;
 
-    logic [VAL_VREF_W-1:0]  valvref_phy_rx_valvref_ctrl;
-    logic [VAL_VREF_W-1:0]  valtrainvref_phy_rx_valvref_ctrl;
-    logic [DATA_VREF_W-1:0] datavref_phy_rx_datavref_ctrl      [0:15];
-    logic [DATA_VREF_W-1:0] datatrainvref_phy_rx_datavref_ctrl [0:15];
-    logic [VAL_PI_W-1:0]    valtraincenter_phy_tx_val_pi_phase_ctrl;
-    logic [DATA_PI_W-1:0]   dtc1_phy_tx_data_pi_phase_ctrl     [0:15];
-    logic [DATA_PI_W-1:0]   dtc2_phy_tx_data_pi_phase_ctrl     [0:15];
-    logic [6:0]             rxdeskew_phy_rx_deskew_ctrl        [15:0];
-    logic [2:0]             rxdeskew_phy_tx_eq_preset_ctrl;
-    logic                   rxdeskew_phy_tx_eq_preset_en;
+    logic [VAL_VREF_W-1:0]    valvref_phy_rx_valvref_ctrl;
+    logic [VAL_VREF_W-1:0]    valtrainvref_phy_rx_valvref_ctrl;
+    logic [DATA_VREF_W-1:0]   datavref_phy_rx_datavref_ctrl      [0:15];
+    logic [DATA_VREF_W-1:0]   datatrainvref_phy_rx_datavref_ctrl [0:15];
+    logic [VAL_PI_W-1:0]      valtraincenter_phy_tx_val_pi_phase_ctrl;
+    logic [DATA_PI_W-1:0]     dtc1_phy_tx_data_pi_phase_ctrl     [0:15];
+    logic [DATA_PI_W-1:0]     dtc2_phy_tx_data_pi_phase_ctrl     [0:15];
+    logic [DATA_DESKEW_W-1:0] rxdeskew_phy_rx_deskew_ctrl        [0:15];
+    logic [2:0]               rxdeskew_phy_tx_eq_preset_ctrl;
+    logic                     rxdeskew_phy_tx_eq_preset_en;
 
     // Retained values keep externally visible PHY controls stable between substates.
-    logic [2:0]             phy_negotiated_speed_r;
-    logic [VAL_VREF_W-1:0]  phy_rx_valvref_ctrl_r;
-    logic [DATA_VREF_W-1:0] phy_rx_datavref_ctrl_r [0:15];
-    logic [VAL_PI_W-1:0]    phy_tx_val_pi_phase_ctrl_r;
-    logic [DATA_PI_W-1:0]   phy_tx_data_pi_phase_ctrl_r [0:15];
-    logic [6:0]             phy_rx_deskew_ctrl_r [15:0];
-    logic [2:0]             phy_tx_eq_preset_ctrl_r;
+
+    // logic [VAL_VREF_W-1:0]  phy_rx_valvref_ctrl_r;
+    // logic [DATA_VREF_W-1:0] phy_rx_datavref_ctrl_r [0:15];
+    // logic [VAL_PI_W-1:0]    phy_tx_val_pi_phase_ctrl_r;
+    // logic [DATA_PI_W-1:0]   phy_tx_data_pi_phase_ctrl_r [0:15];
+    // logic [6:0]             phy_rx_deskew_ctrl_r [15:0];
+    // logic [2:0]             phy_tx_eq_preset_ctrl_r;
 
     // Sliced versions of the shared 7-bit sweep bus for narrower substate wrappers.
     logic [VAL_VREF_W-1:0]  swept_val_vref_code;
@@ -272,7 +307,6 @@ module wrapper_MBTRAIN #(
     logic [DATA_VREF_W-1:0] best_data_vref_code [0:15];
     logic [VAL_PI_W-1:0]    best_val_pi_code    [0:15];
     logic [DATA_PI_W-1:0]   best_data_pi_code   [0:15];
-
 
     // ================================================================================================
     // 3. Input-only preparation logic
@@ -307,35 +341,31 @@ module wrapper_MBTRAIN #(
     assign ss_active[SS_REPAIR]         = local_repair_en         | partner_repair_en;
 
     logic trainerror_detected;
-    logic local_dtc1_loopback_req , partner_dtc1_loopback_req;
-    logic local_linkinit_route_req    ;
-    logic local_speedidle_route_req   ;
-    logic local_repair_route_req      ;
-    logic local_phyretrain_route_req  ;
-    logic local_repair_txselfcal_req  ;
-    logic partner_repair_txselfcal_req;
     logic repair_update_lane_mask     ;
 
-    logic partner_linkinit_route_req   ;
-    logic partner_speedidle_route_req  ;
-    logic partner_repair_route_req     ;
-    logic partner_phyretrain_route_req ;
+    logic linkspeed_linkinit_req   ;
+    logic linkspeed_speedidle_req  ;
+    logic linkspeed_repair_req     ;
+    logic linkspeed_phyretrain_req ;
+
 
     // Retention register: captures VALVREF's update_lane_mask decision at the
     // moment VALVREF completes (both Local and Partner done). This sticky value
     // is forwarded to wrapper_REPAIR which runs much later in the sequence.
     logic update_lane_mask_r;
 
-    assign trainerror_detected = |ss_local_trainerror_req | |ss_partner_trainerror_req;
+    assign trainerror_detected = |ss_trainerror_req;
 
     assign local_sweep_en     = |ss_sweep_en;
     assign partner_sweep_en   = |ss_partner_sweep_en;
     assign sweep_active_lanes = active_rx_lanes;
 
     always_ff @(posedge lclk or negedge rst_n) begin : UPDATE_LANE_MASK_RETAIN
-        if (!rst_n || !is_ltsm_out_of_reset)
+        if (!rst_n)
             update_lane_mask_r <= 1'b0;
-        else if (local_valvref_done && partner_valvref_done)
+        else if (!soft_rst_n)
+            update_lane_mask_r <= 1'b0;
+        else if (valvref_done_w)
             update_lane_mask_r <= ss_update_lane_mask[SS_VALVREF];
     end
     // repair_update_lane_mask is no longer a live OR of all substates;
@@ -346,132 +376,85 @@ module wrapper_MBTRAIN #(
     // 4. Common-file instantiations
     // ================================================================================================
     unit_MBTRAIN_ctrl u_MBTRAIN_ctrl (
-        .lclk                         (lclk),
-        .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .mbtrain_en                   (mbtrain_en),
-        .mbtrain_done                 (mbtrain_done),
-        .current_mbtrain_substate     (current_mbtrain_substate),
-        .trainerror_detected          (trainerror_detected),
-        .ltsm_trainerror_req          (ltsm_trainerror_req),
-        .ltsm_linkinit_req            (ltsm_linkinit_req),
-        .ltsm_phyretrain_req          (ltsm_phyretrain_req),
-        .ltsm_repair_req              (ltsm_repair_req),
-        .ltsm_speedidle_req           (ltsm_speedidle_req),
-        .mbtrain_txselfcal_req        (mbtrain_txselfcal_req),
-        .mbtrain_speedidle_req        (mbtrain_speedidle_req),
-        .mbtrain_repair_req           (mbtrain_repair_req),
-        .local_valvref_en             (local_valvref_en),
-        .local_valvref_done           (local_valvref_done),
-        .partner_valvref_en           (partner_valvref_en),
-        .partner_valvref_done         (partner_valvref_done),
-        .local_datavref_en            (local_datavref_en),
-        .local_datavref_done          (local_datavref_done),
-        .partner_datavref_en          (partner_datavref_en),
-        .partner_datavref_done        (partner_datavref_done),
-        .local_speedidle_en           (local_speedidle_en),
-        .local_speedidle_done         (local_speedidle_done),
-        .partner_speedidle_en         (partner_speedidle_en),
-        .partner_speedidle_done       (partner_speedidle_done),
-        .local_txselfcal_en           (local_txselfcal_en),
-        .local_txselfcal_done         (local_txselfcal_done),
-        .partner_txselfcal_en         (partner_txselfcal_en),
-        .partner_txselfcal_done       (partner_txselfcal_done),
-        .local_rxclkcal_en            (local_rxclkcal_en),
-        .local_rxclkcal_done          (local_rxclkcal_done),
-        .partner_rxclkcal_en          (partner_rxclkcal_en),
-        .partner_rxclkcal_done        (partner_rxclkcal_done),
-        .local_valtraincenter_en      (local_valtraincenter_en),
-        .local_valtraincenter_done    (local_valtraincenter_done),
-        .partner_valtraincenter_en    (partner_valtraincenter_en),
-        .partner_valtraincenter_done  (partner_valtraincenter_done),
-        .local_valtrainvref_en        (local_valtrainvref_en),
-        .local_valtrainvref_done      (local_valtrainvref_done),
-        .partner_valtrainvref_en      (partner_valtrainvref_en),
-        .partner_valtrainvref_done    (partner_valtrainvref_done),
-        .local_dtc1_en                (local_dtc1_en),
-        .local_dtc1_done              (local_dtc1_done),
-        .partner_dtc1_en              (partner_dtc1_en),
-        .partner_dtc1_done            (partner_dtc1_done),
-        .local_datatrainvref_en       (local_datatrainvref_en),
-        .local_datatrainvref_done     (local_datatrainvref_done),
-        .partner_datatrainvref_en     (partner_datatrainvref_en),
-        .partner_datatrainvref_done   (partner_datatrainvref_done),
-        .local_rxdeskew_en            (local_rxdeskew_en),
-        .local_rxdeskew_done          (local_rxdeskew_done),
-        .partner_rxdeskew_en          (partner_rxdeskew_en),
-        .partner_rxdeskew_done        (partner_rxdeskew_done),
-        .local_dtc1_loopback_req      (local_dtc1_loopback_req),
-        .partner_dtc1_loopback_req    (partner_dtc1_loopback_req),
-        .local_dtc2_en                (local_dtc2_en),
-        .local_dtc2_done              (local_dtc2_done),
-        .partner_dtc2_en              (partner_dtc2_en),
-        .partner_dtc2_done            (partner_dtc2_done),
-        .local_linkspeed_en           (local_linkspeed_en),
-        .local_linkspeed_done         (local_linkspeed_done),
-        .partner_linkspeed_en         (partner_linkspeed_en),
-        .partner_linkspeed_done       (partner_linkspeed_done),
-
+        .lclk                          (lclk),
+        .rst_n                         (rst_n),
+        .soft_rst_n                    (soft_rst_n),
+        .mbtrain_en                    (mbtrain_en),
+        .mbtrain_done                  (mbtrain_done),
+        .current_mbtrain_substate      (current_mbtrain_substate),
+        .trainerror_detected           (trainerror_detected),
+        .ltsm_trainerror_req           (ltsm_trainerror_req),
+        .ltsm_linkinit_req             (ltsm_linkinit_req),
+        .ltsm_phyretrain_req           (ltsm_phyretrain_req),
+        .mbtrain_txselfcal_req         (mbtrain_txselfcal_req),
+        .mbtrain_speedidle_req         (mbtrain_speedidle_req),
+        .mbtrain_repair_req            (mbtrain_repair_req),
+        .local_valvref_en              (local_valvref_en),
+        .partner_valvref_en            (partner_valvref_en),
+        .valvref_done                  (valvref_done_w),
+        .local_datavref_en             (local_datavref_en),
+        .partner_datavref_en           (partner_datavref_en),
+        .datavref_done                 (datavref_done_w),
+        .local_speedidle_en            (local_speedidle_en),
+        .partner_speedidle_en          (partner_speedidle_en),
+        .speedidle_done                (speedidle_done_w),
+        .local_txselfcal_en            (local_txselfcal_en),
+        .partner_txselfcal_en          (partner_txselfcal_en),
+        .txselfcal_done                (txselfcal_done_w),
+        .local_rxclkcal_en             (local_rxclkcal_en),
+        .partner_rxclkcal_en           (partner_rxclkcal_en),
+        .rxclkcal_done                 (rxclkcal_done_w),
+        .local_valtraincenter_en       (local_valtraincenter_en),
+        .partner_valtraincenter_en     (partner_valtraincenter_en),
+        .valtraincenter_done           (valtraincenter_done_w),
+        .local_valtrainvref_en         (local_valtrainvref_en),
+        .partner_valtrainvref_en       (partner_valtrainvref_en),
+        .valtrainvref_done             (valtrainvref_done_w),
+        .local_dtc1_en                 (local_dtc1_en),
+        .partner_dtc1_en               (partner_dtc1_en),
+        .dtc1_done                     (dtc1_done_w),
+        .local_datatrainvref_en        (local_datatrainvref_en),
+        .partner_datatrainvref_en      (partner_datatrainvref_en),
+        .datatrainvref_done            (datatrainvref_done_w),
+        .local_rxdeskew_en             (local_rxdeskew_en),
+        .partner_rxdeskew_en           (partner_rxdeskew_en),
+        .rxdeskew_done                 (rxdeskew_done_w),
+        .dtc1_loopback_req             (rxdeskew_dtc1_req),
+        .local_dtc2_en                 (local_dtc2_en),
+        .partner_dtc2_en               (partner_dtc2_en),
+        .dtc2_done                     (dtc2_done_w),
+        .local_linkspeed_en            (local_linkspeed_en),
+        .partner_linkspeed_en          (partner_linkspeed_en),
+        .linkspeed_done                (linkspeed_done_w),
 
         // LINKSPEED routing outputs (fed back to ctrl)
-        .local_linkinit_route_req     (local_linkinit_route_req    ),
-        .local_speedidle_route_req    (local_speedidle_route_req   ),
-        .local_repair_route_req       (local_repair_route_req      ),
-        .local_phyretrain_route_req   (local_phyretrain_route_req  ),
-        .partner_linkinit_route_req   (partner_linkinit_route_req  ),
-        .partner_speedidle_route_req  (partner_speedidle_route_req ),
-        .partner_repair_route_req     (partner_repair_route_req    ),
-        .partner_phyretrain_route_req (partner_phyretrain_route_req),
+        .linkspeed_linkinit_req        (linkspeed_linkinit_req),
+        .linkspeed_speedidle_req       (linkspeed_speedidle_req),
+        .linkspeed_repair_req          (linkspeed_repair_req),
+        .linkspeed_phyretrain_req      (linkspeed_phyretrain_req),
 
-        .local_repair_en              (local_repair_en),
-        .local_repair_done            (local_repair_done),
-        .partner_repair_en            (partner_repair_en),
-        .partner_repair_done          (partner_repair_done),
-        .local_repair_txselfcal_req   (local_repair_txselfcal_req),
-        .partner_repair_txselfcal_req (partner_repair_txselfcal_req)
+        .local_repair_en               (local_repair_en),
+        .partner_repair_en             (partner_repair_en),
+        .repair_done                   (repair_done_w)
     );
 
-    // Bug fix: use the REGISTERED speed value, not the combinational output port.
-    // During the SPEEDIDLE substate, phy_negotiated_speed (combinational) glitches
-    // as the FSM resolves. phy_negotiated_speed_r is stable after SPEEDIDLE completes
-    // and is safe to use as the is_high_speed configuration input for RXCLKCAL/RXDESKEW.
-    unit_negotiated_speed u_negotiated_speed (
-        .phy_negotiated_speed (phy_negotiated_speed_r),
-        .is_high_speed        (is_high_speed)
-    );
 
-    unit_negotiated_lanes u_negotiated_lanes (
-        .mb_rx_data_lane_mask      (mb_rx_data_lane_mask),
-        .mb_tx_data_lane_mask      (mb_tx_data_lane_mask),
-        .active_rx_lanes           (active_rx_lanes),
-        .active_tx_lanes           (),
-        .success_lanes             (linkspeed_success_lanes),
-        .rf_cap_SPMW               (rf_cap_SPMW),
-        .rf_ctrl_target_link_width (rf_ctrl_target_link_width),
-        .param_UCIe_S_x8           (param_UCIe_S_x8),
-        .degraded_lane_map_code    (degraded_lane_map_code),
-        .degrade_feasible          (degrade_feasible)
-    );
-
-    // ================================================================================================
+    // ===========================================================================================
     // 5. Substate instantiations in MBTRAIN order
-    // ================================================================================================
+    // ===========================================================================================
+
     wrapper_VALVREF #(
         .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE)
     ) u_VALVREF (
         .lclk                  (lclk),
         .rst_n                 (rst_n),
-        .is_ltsm_out_of_reset  (is_ltsm_out_of_reset),
-        .timeout_8ms_occured   (timeout_8ms_occured),
+        .soft_rst_n            (soft_rst_n),
         .local_valvref_en      (local_valvref_en),
-        .local_valvref_done    (local_valvref_done),
-        .local_trainerror_req  (ss_local_trainerror_req[SS_VALVREF]),
         .local_update_lane_mask(ss_update_lane_mask[SS_VALVREF]),
         .partner_valvref_en    (partner_valvref_en),
-        .partner_valvref_done  (partner_valvref_done),
-        .partner_trainerror_req(ss_partner_trainerror_req[SS_VALVREF]),
-        .timeout_timer_en      (ss_timeout_timer_en[SS_VALVREF]),
+        .valvref_done          (valvref_done_w),
+        .trainerror_req        (ss_trainerror_req[SS_VALVREF]),
         .phy_rx_valvref_ctrl   (valvref_phy_rx_valvref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_VALVREF]),
         .sweep_en              (ss_sweep_en[SS_VALVREF]),
@@ -502,16 +485,12 @@ module wrapper_MBTRAIN #(
     ) u_DATAVREF (
         .lclk                  (lclk),
         .rst_n                 (rst_n),
-        .is_ltsm_out_of_reset  (is_ltsm_out_of_reset),
-        .timeout_8ms_occured   (timeout_8ms_occured),
+        .soft_rst_n            (soft_rst_n),
         .local_datavref_en     (local_datavref_en),
-        .local_datavref_done   (local_datavref_done),
-        .local_trainerror_req  (ss_local_trainerror_req[SS_DATAVREF]),
         .local_update_lane_mask(ss_update_lane_mask[SS_DATAVREF]),
         .partner_datavref_en   (partner_datavref_en),
-        .partner_datavref_done (partner_datavref_done),
-        .partner_trainerror_req(ss_partner_trainerror_req[SS_DATAVREF]),
-        .timeout_timer_en      (ss_timeout_timer_en[SS_DATAVREF]),
+        .datavref_done         (datavref_done_w),
+        .trainerror_req        (ss_trainerror_req[SS_DATAVREF]),
         .phy_rx_datavref_ctrl  (datavref_phy_rx_datavref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_DATAVREF]),
         .sweep_en              (ss_sweep_en[SS_DATAVREF]),
@@ -539,18 +518,14 @@ module wrapper_MBTRAIN #(
     wrapper_SPEEDIDLE u_SPEEDIDLE (
         .lclk                    (lclk),
         .rst_n                   (rst_n),
-        .is_ltsm_out_of_reset    (is_ltsm_out_of_reset),
-        .timeout_8ms_occured     (timeout_8ms_occured),
+        .soft_rst_n              (soft_rst_n),
         .local_speedidle_en      (local_speedidle_en),
-        .local_speedidle_done    (local_speedidle_done),
-        .local_trainerror_req    (ss_local_trainerror_req[SS_SPEEDIDLE]),
         .partner_speedidle_en    (partner_speedidle_en),
-        .partner_speedidle_done  (partner_speedidle_done),
-        .partner_trainerror_req  (ss_partner_trainerror_req[SS_SPEEDIDLE]),
-        .timeout_timer_en        (ss_timeout_timer_en[SS_SPEEDIDLE]),
+        .speedidle_done          (speedidle_done_w),
+        .trainerror_req          (ss_trainerror_req[SS_SPEEDIDLE]),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_SPEEDIDLE]),
         .analog_settle_time_done (analog_settle_time_done),
-        .state_n                 (state_n),
+        .state_n_1               (state_n_1),
         .param_negotiated_max_speed(param_negotiated_max_speed),
         .phy_negotiated_speed    (speedidle_phy_negotiated_speed),
         .mb_tx_clk_lane_sel      (ss_mb_tx_clk_lane_sel[SS_SPEEDIDLE]),
@@ -574,15 +549,11 @@ module wrapper_MBTRAIN #(
     wrapper_TXSELFCAL u_TXSELFCAL (
         .lclk                    (lclk),
         .rst_n                   (rst_n),
-        .is_ltsm_out_of_reset    (is_ltsm_out_of_reset),
-        .timeout_8ms_occured     (timeout_8ms_occured),
+        .soft_rst_n              (soft_rst_n),
         .local_txselfcal_en      (local_txselfcal_en),
-        .local_txselfcal_done    (local_txselfcal_done),
-        .local_trainerror_req    (ss_local_trainerror_req[SS_TXSELFCAL]),
         .partner_txselfcal_en    (partner_txselfcal_en),
-        .partner_txselfcal_done  (partner_txselfcal_done),
-        .partner_trainerror_req  (ss_partner_trainerror_req[SS_TXSELFCAL]),
-        .timeout_timer_en        (ss_timeout_timer_en[SS_TXSELFCAL]),
+        .txselfcal_done          (txselfcal_done_w),
+        .trainerror_req          (ss_trainerror_req[SS_TXSELFCAL]),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_TXSELFCAL]),
         .analog_settle_time_done (analog_settle_time_done),
         .phy_tx_selfcal_en       (txselfcal_phy_tx_selfcal_en),
@@ -607,18 +578,13 @@ module wrapper_MBTRAIN #(
     wrapper_RXCLKCAL u_RXCLKCAL (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
-        .phy_negotiated_speed         (phy_negotiated_speed),
+        .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
         .local_rxclkcal_en            (local_rxclkcal_en),
-        .local_rxclkcal_done          (local_rxclkcal_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_RXCLKCAL]),
         .partner_rxclkcal_en          (partner_rxclkcal_en),
-        .partner_rxclkcal_done        (partner_rxclkcal_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_RXCLKCAL]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_RXCLKCAL]),
+        .rxclkcal_done                (rxclkcal_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_RXCLKCAL]),
         .analog_settle_timer_en       (ss_analog_settle_timer_en[SS_RXCLKCAL]),
         .analog_settle_time_done      (analog_settle_time_done),
         .phy_rx_clock_lock_en         (rxclkcal_phy_rx_clock_lock_en),
@@ -657,16 +623,12 @@ module wrapper_MBTRAIN #(
     ) u_VALTRAINCENTER (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .local_valtraincenter_en      (local_valtraincenter_en),
-        .local_valtraincenter_done    (local_valtraincenter_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_VALTRAINCENTER]),
         .local_update_lane_mask       (ss_update_lane_mask[SS_VALTRAINCENTER]),
         .partner_valtraincenter_en    (partner_valtraincenter_en),
-        .partner_valtraincenter_done  (partner_valtraincenter_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_VALTRAINCENTER]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_VALTRAINCENTER]),
+        .valtraincenter_done          (valtraincenter_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_VALTRAINCENTER]),
         .phy_tx_val_pi_phase_ctrl     (valtraincenter_phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINCENTER]),
         .sweep_en                     (ss_sweep_en[SS_VALTRAINCENTER]),
@@ -699,16 +661,12 @@ module wrapper_MBTRAIN #(
     ) u_VALTRAINVREF (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .local_valtrainvref_en        (local_valtrainvref_en),
-        .local_valtrainvref_done      (local_valtrainvref_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_VALTRAINVREF]),
         .local_update_lane_mask       (ss_update_lane_mask[SS_VALTRAINVREF]),
         .partner_valtrainvref_en      (partner_valtrainvref_en),
-        .partner_valtrainvref_done    (partner_valtrainvref_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_VALTRAINVREF]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_VALTRAINVREF]),
+        .valtrainvref_done            (valtrainvref_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_VALTRAINVREF]),
         .phy_rx_valvref_ctrl          (valtrainvref_phy_rx_valvref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINVREF]),
         .sweep_en                     (ss_sweep_en[SS_VALTRAINVREF]),
@@ -739,16 +697,12 @@ module wrapper_MBTRAIN #(
     ) u_DATATRAINCENTER1 (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .local_datatraincenter1_en    (local_dtc1_en),
-        .local_datatraincenter1_done  (local_dtc1_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_DTC1]),
+        .datatraincenter1_done        (dtc1_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_DTC1]),
         .local_update_lane_mask       (ss_update_lane_mask[SS_DTC1]),
         .partner_datatraincenter1_en  (partner_dtc1_en),
-        .partner_datatraincenter1_done(partner_dtc1_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_DTC1]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_DTC1]),
         .phy_tx_data_pi_phase_ctrl    (dtc1_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC1]),
         .sweep_en                     (ss_sweep_en[SS_DTC1]),
@@ -779,16 +733,12 @@ module wrapper_MBTRAIN #(
     ) u_DATATRAINVREF (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .local_datatrainvref_en       (local_datatrainvref_en),
-        .local_datatrainvref_done     (local_datatrainvref_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_DATATRAINVREF]),
+        .datatrainvref_done           (datatrainvref_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_DATATRAINVREF]),
         .local_update_lane_mask       (ss_update_lane_mask[SS_DATATRAINVREF]),
         .partner_datatrainvref_en     (partner_datatrainvref_en),
-        .partner_datatrainvref_done   (partner_datatrainvref_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_DATATRAINVREF]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_DATATRAINVREF]),
         .phy_rx_datavref_ctrl         (datatrainvref_phy_rx_datavref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DATATRAINVREF]),
         .sweep_en                     (ss_sweep_en[SS_DATATRAINVREF]),
@@ -813,32 +763,35 @@ module wrapper_MBTRAIN #(
         .rx_data_field                (rx_data_field)
     );
 
+    logic [DATA_DESKEW_W-1:0] swept_deskew_code_with_safe_width;
+    logic [DATA_DESKEW_W-1:0] best_deskew_code_with_safe_width [0:15];
+
+    assign swept_deskew_code_with_safe_width = sweep_swept_code[DATA_DESKEW_W-1:0];
+    for(lane = 0; lane < 16; lane++) begin
+        assign best_deskew_code_with_safe_width[lane] = sweep_best_code[lane][DATA_DESKEW_W-1:0];
+    end
+
     wrapper_RXDESKEW #(
         .MAX_DESKEW_CODE (MAX_DESKEW_CODE),
         .MIN_DESKEW_CODE (MIN_DESKEW_CODE)
     ) u_RXDESKEW (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
         .local_rxdeskew_en            (local_rxdeskew_en),
-        .local_rxdeskew_done          (local_rxdeskew_done),
-        .local_datatraincenter1_req   (local_dtc1_loopback_req),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_RXDESKEW]),
+        .rxdeskew_done                (rxdeskew_done_w),
+        .datatraincenter1_req         (rxdeskew_dtc1_req),
+        .trainerror_req               (ss_trainerror_req[SS_RXDESKEW]),
         .partner_rxdeskew_en          (partner_rxdeskew_en),
-        .partner_rxdeskew_done        (partner_rxdeskew_done),
-        .partner_datatraincenter1_req (partner_dtc1_loopback_req),                          // <==== See this
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_RXDESKEW]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_RXDESKEW]),
         .phy_rx_deskew_ctrl           (rxdeskew_phy_rx_deskew_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_RXDESKEW]),
         .phy_tx_eq_preset_ctrl        (rxdeskew_phy_tx_eq_preset_ctrl),
         .phy_tx_eq_preset_en          (rxdeskew_phy_tx_eq_preset_en),
         .sweep_en                     (ss_sweep_en[SS_RXDESKEW]),
-        .swept_code                   (sweep_swept_code),
-        .best_code                    (sweep_best_code),
+        .swept_code                   (swept_deskew_code_with_safe_width),
+        .best_code                    (best_deskew_code_with_safe_width),
         .min_eye_width                (sweep_min_eye_width),
         .sweep_done                   (sweep_done),
         .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_RXDESKEW]),
@@ -865,16 +818,12 @@ module wrapper_MBTRAIN #(
     ) u_DATATRAINCENTER2 (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .is_ltsm_out_of_reset         (is_ltsm_out_of_reset),
-        .timeout_8ms_occured          (timeout_8ms_occured),
+        .soft_rst_n                   (soft_rst_n),
         .local_datatraincenter2_en    (local_dtc2_en),
-        .local_datatraincenter2_done  (local_dtc2_done),
-        .local_trainerror_req         (ss_local_trainerror_req[SS_DTC2]),
+        .datatraincenter2_done        (dtc2_done_w),
+        .trainerror_req               (ss_trainerror_req[SS_DTC2]),
         .local_update_lane_mask       (ss_update_lane_mask[SS_DTC2]),
         .partner_datatraincenter2_en  (partner_dtc2_en),
-        .partner_datatraincenter2_done(partner_dtc2_done),
-        .partner_trainerror_req       (ss_partner_trainerror_req[SS_DTC2]),
-        .timeout_timer_en             (ss_timeout_timer_en[SS_DTC2]),
         .phy_tx_data_pi_phase_ctrl    (dtc2_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC2]),
         .sweep_en                     (ss_sweep_en[SS_DTC2]),
@@ -899,75 +848,59 @@ module wrapper_MBTRAIN #(
         .rx_data_field                (rx_data_field)
     );
 
-    logic linkspeed_done_w;
-    logic linkspeed_trainerror_req_w;
-
     wrapper_LINKSPEED u_LINKSPEED (
-        .lclk                         (lclk),
-        .rst_n                        (rst_n),
-        .soft_rst_n                   (is_ltsm_out_of_reset),
-        .is_high_speed                (is_high_speed),
-        .is_continuous_clk_mode       (is_continuous_clk_mode),
-        .local_linkspeed_en           (local_linkspeed_en),
-        .partner_linkspeed_en         (partner_linkspeed_en),
+        .lclk                          (lclk),
+        .rst_n                         (rst_n),
+        .soft_rst_n                    (soft_rst_n),
+        .is_high_speed                 (is_high_speed),
+        .is_continuous_clk_mode        (is_continuous_clk_mode),
+        .local_linkspeed_en            (local_linkspeed_en),
+        .partner_linkspeed_en          (partner_linkspeed_en),
 
-        .linkspeed_done               (linkspeed_done_w),
-        .trainerror_req               (linkspeed_trainerror_req_w),
+        .linkspeed_done                (linkspeed_done_w),
+        .trainerror_req                (linkspeed_trainerror_req_w),
 
-        .local_linkinit_req           (local_linkinit_route_req  ),
-        .local_speedidle_req          (local_speedidle_route_req ),
-        .local_repair_req             (local_repair_route_req    ),
-        .local_phyretrain_req         (local_phyretrain_route_req),
+        .linkspeed_linkinit_req        (linkspeed_linkinit_req),
+        .linkspeed_speedidle_req       (linkspeed_speedidle_req),
+        .linkspeed_repair_req          (linkspeed_repair_req),
+        .linkspeed_phyretrain_req      (linkspeed_phyretrain_req),
 
-        .partner_linkinit_req         (partner_linkinit_route_req  ),
-        .partner_speedidle_req        (partner_speedidle_route_req ),
-        .partner_repair_req           (partner_repair_route_req    ),
-        .partner_phyretrain_req       (partner_phyretrain_route_req),
-        .active_rx_lanes              (active_rx_lanes),
-        .width_degrade_feasible       (degrade_feasible),
-        .PHY_IN_RETRAIN               (PHY_IN_RETRAIN),
-        .params_changed               (params_changed),
-        .PHY_IN_RETRAIN_rst           (PHY_IN_RETRAIN_rst),
-        .busy_bit_rst                 (busy_bit_rst),
-        .local_sweep_en               (ss_sweep_en[SS_LINKSPEED]),
-        .partner_sweep_en             (ss_partner_sweep_en[SS_LINKSPEED]),
-        .d2c_perlane_pass             (d2c_perlane_pass),
-        .local_sweep_done             (sweep_done),
-        .linkspeed_success_lanes      (linkspeed_success_lanes),
-        .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_LINKSPEED]),
-        .mb_tx_data_lane_sel          (ss_mb_tx_data_lane_sel[SS_LINKSPEED]),
-        .mb_tx_val_lane_sel           (ss_mb_tx_val_lane_sel[SS_LINKSPEED]),
-        .mb_tx_trk_lane_sel           (ss_mb_tx_trk_lane_sel[SS_LINKSPEED]),
-        .mb_rx_clk_lane_sel           (ss_mb_rx_clk_lane_sel[SS_LINKSPEED]),
-        .mb_rx_data_lane_sel          (ss_mb_rx_data_lane_sel[SS_LINKSPEED]),
-        .mb_rx_val_lane_sel           (ss_mb_rx_val_lane_sel[SS_LINKSPEED]),
-        .mb_rx_trk_lane_sel           (ss_mb_rx_trk_lane_sel[SS_LINKSPEED]),
-        .tx_sb_msg_valid              (ss_tx_sb_msg_valid[SS_LINKSPEED]),
-        .tx_sb_msg                    (ss_tx_sb_msg[SS_LINKSPEED]),
-        .tx_msginfo                   (ss_tx_msginfo[SS_LINKSPEED]),
-        .tx_data_field                (ss_tx_data_field[SS_LINKSPEED]),
-        .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .active_rx_lanes               (active_rx_lanes),
+        .width_degrade_feasible        (degrade_feasible),
+        .PHY_IN_RETRAIN                (PHY_IN_RETRAIN),
+        .params_changed                (params_changed),
+        .PHY_IN_RETRAIN_rst            (PHY_IN_RETRAIN_rst),
+        .busy_bit_rst                  (busy_bit_rst),
+        .local_sweep_en                (ss_sweep_en[SS_LINKSPEED]),
+        .partner_sweep_en              (ss_partner_sweep_en[SS_LINKSPEED]),
+        .d2c_perlane_pass              (d2c_perlane_pass),
+        .local_sweep_done              (sweep_done),
+        .linkspeed_success_lanes       (linkspeed_success_lanes),
+        .mb_tx_clk_lane_sel            (ss_mb_tx_clk_lane_sel[SS_LINKSPEED]),
+        .mb_tx_data_lane_sel           (ss_mb_tx_data_lane_sel[SS_LINKSPEED]),
+        .mb_tx_val_lane_sel            (ss_mb_tx_val_lane_sel[SS_LINKSPEED]),
+        .mb_tx_trk_lane_sel            (ss_mb_tx_trk_lane_sel[SS_LINKSPEED]),
+        .mb_rx_clk_lane_sel            (ss_mb_rx_clk_lane_sel[SS_LINKSPEED]),
+        .mb_rx_data_lane_sel           (ss_mb_rx_data_lane_sel[SS_LINKSPEED]),
+        .mb_rx_val_lane_sel            (ss_mb_rx_val_lane_sel[SS_LINKSPEED]),
+        .mb_rx_trk_lane_sel            (ss_mb_rx_trk_lane_sel[SS_LINKSPEED]),
+        .tx_sb_msg_valid               (ss_tx_sb_msg_valid[SS_LINKSPEED]),
+        .tx_sb_msg                     (ss_tx_sb_msg[SS_LINKSPEED]),
+        .tx_msginfo                    (ss_tx_msginfo[SS_LINKSPEED]),
+        .tx_data_field                 (ss_tx_data_field[SS_LINKSPEED]),
+        .rx_sb_msg_valid               (rx_sb_msg_valid),
+        .rx_sb_msg                     (rx_sb_msg),
+        .rx_msginfo                    (rx_msginfo),
+        .rx_data_field                 (rx_data_field)
     );
-
-    assign local_linkspeed_done = linkspeed_done_w;
-    assign partner_linkspeed_done = linkspeed_done_w;
-    assign ss_local_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
-    assign ss_partner_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
-    assign ss_timeout_timer_en[SS_LINKSPEED] = local_linkspeed_en | partner_linkspeed_en;
-    logic repair_done_w;
-    logic repair_trainerror_req_w;
+    assign ss_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
 
     wrapper_REPAIR u_REPAIR (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
-        .soft_rst_n                   (is_ltsm_out_of_reset),
+        .soft_rst_n                   (soft_rst_n),
         .local_repair_en              (local_repair_en),
         .repair_done                  (repair_done_w),
-        .local_txselfcal_req          (local_repair_txselfcal_req),
-        .partner_txselfcal_req        (partner_repair_txselfcal_req),
         .trainerror_req               (repair_trainerror_req_w),
         .partner_repair_en            (partner_repair_en),
         .success_tx_lanes             (linkspeed_success_lanes),
@@ -976,6 +909,11 @@ module wrapper_MBTRAIN #(
         .param_UCIe_S_x8              (param_UCIe_S_x8),
         .mb_rx_data_lane_mask         (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask         (mb_tx_data_lane_mask),
+        // active_rx_lanes and degrade_feasible are exposed as outputs from wrapper_REPAIR
+        // (its internal unit_negotiated_lanes produces them). Consumed by u_LINKSPEED and
+        // sweep_active_lanes assignment above.
+        .active_rx_lanes              (active_rx_lanes),
+        .degrade_feasible             (degrade_feasible),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask     (mbinit_tx_data_lane_mask),
         .update_lane_mask             (repair_update_lane_mask),
@@ -997,11 +935,7 @@ module wrapper_MBTRAIN #(
         .rx_data_field                (rx_data_field)
     );
 
-    assign local_repair_done = repair_done_w;
-    assign partner_repair_done = repair_done_w;
-    assign ss_local_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
-    assign ss_partner_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
-    assign ss_timeout_timer_en[SS_REPAIR] = local_repair_en | partner_repair_en;
+    assign ss_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
 
     // Substates without analog-settle or sweep/update ports get explicit inactive values.
     assign ss_analog_settle_timer_en[SS_VALVREF]        = 1'b0;
@@ -1035,31 +969,10 @@ module wrapper_MBTRAIN #(
     // 6. Output Arbitration, Muxing, and Retained PHY Controls
     // ================================================================================================
 
-    // Combine substate timer enables (repair_update_lane_mask is driven from retention reg above)
-    assign timeout_timer_en        = |ss_timeout_timer_en;
+    // Combine substate analog-settle timer enables.
+    // NOTE: The 8 ms MBTRAIN-state timeout timer is NOT managed here.
+    // The future LTSM controller reads current_mbtrain_substate to control it.
     assign analog_settle_timer_en  = |ss_analog_settle_timer_en;
-    // Note: repair_update_lane_mask is already assigned above via update_lane_mask_r retention register.
-
-    // Arbitration for D2C State Selection
-    // Tells the external sweep engine which training substate we are currently in.
-    always_comb begin : D2C_STATE_SELECT
-        // Default: LOG_NOP = sweep engine is idle; prevents VALVREF-range
-        // configuration from leaking into non-sweep substates (SPEEDIDLE,
-        // TXSELFCAL, RXCLKCAL, REPAIR).
-        d2c_state_n = LOG_NOP;
-
-        if      (ss_active[SS_VALVREF])        d2c_state_n = LOG_MBTRAIN_VALVREF;
-        else if (ss_active[SS_DATAVREF])       d2c_state_n = LOG_MBTRAIN_DATAVREF;
-        else if (ss_active[SS_VALTRAINCENTER]) d2c_state_n = LOG_MBTRAIN_VALTRAINCENTER;
-        else if (ss_active[SS_VALTRAINVREF])   d2c_state_n = LOG_MBTRAIN_VALTRAINVREF;
-        else if (ss_active[SS_DTC1])           d2c_state_n = LOG_MBTRAIN_DATATRAINCENTER1;
-        else if (ss_active[SS_DATATRAINVREF])  d2c_state_n = LOG_MBTRAIN_DATATRAINVREF;
-        else if (ss_active[SS_RXDESKEW])       d2c_state_n = LOG_MBTRAIN_RXDESKEW;
-        else if (ss_active[SS_DTC2])           d2c_state_n = LOG_MBTRAIN_DATATRAINCENTER2;
-        else if (ss_active[SS_LINKSPEED])      d2c_state_n = LOG_MBTRAIN_LINKSPEED;
-        // All other active substates (SPEEDIDLE, TXSELFCAL, RXCLKCAL, REPAIR)
-        // do not use the sweep engine → stays LOG_NOP.
-    end
 
     // Selected Substate Output Muxing
     // Multiplexes MB lane selectors and SB TX messages from the active substate.
@@ -1104,150 +1017,99 @@ module wrapper_MBTRAIN #(
 
     // Retained PHY Output Registers
     // These registers capture and hold PHY settings found during training.
-    logic                 phy_tx_selfcal_en_r;
-    logic                 phy_rx_clock_lock_en_r;
-    logic                 phy_rx_track_lock_en_r;
-    logic                 phy_rx_phase_detector_en_r;
-    logic                 phy_tx_tckn_shift_en_r;
-    logic [4:0]           phy_tx_tckn_shift_r;
-    logic                 phy_tx_decrement_shift_r;
+    logic is_valtrainvref_entered;
+    logic is_dtvref_entered      ;
+    logic is_dtc1_entered        ;
+    logic is_dtc2_entered        ;
 
     always_ff @(posedge lclk or negedge rst_n) begin : RETAINED_PHY_OUTPUTS
         if (!rst_n) begin
-            phy_negotiated_speed_r       <= 3'b000;
-            phy_tx_selfcal_en_r          <= 1'b0;
-            phy_rx_clock_lock_en_r       <= 1'b0;
-            phy_rx_track_lock_en_r       <= 1'b0;
-            phy_rx_phase_detector_en_r   <= 1'b0;
-            phy_tx_tckn_shift_en_r       <= 1'b0;
-            phy_tx_tckn_shift_r          <= 5'd0;
-            phy_tx_decrement_shift_r     <= 1'b0;
-            phy_rx_valvref_ctrl_r        <= '0;
-            phy_tx_val_pi_phase_ctrl_r   <= '0;
-            phy_tx_eq_preset_ctrl_r      <= 3'b000;
-
-            for (int i = 0; i < 16; i++) begin
-                phy_rx_datavref_ctrl_r[i]      <= '0;
-                phy_tx_data_pi_phase_ctrl_r[i] <= '0;
-                phy_rx_deskew_ctrl_r[i]        <= 7'd0;
-            end
-        end else if (!is_ltsm_out_of_reset) begin
-            phy_negotiated_speed_r       <= 3'b000;
-            phy_tx_selfcal_en_r          <= 1'b0;
-            phy_rx_clock_lock_en_r       <= 1'b0;
-            phy_rx_track_lock_en_r       <= 1'b0;
-            phy_rx_phase_detector_en_r   <= 1'b0;
-            phy_tx_tckn_shift_en_r       <= 1'b0;
-            phy_tx_tckn_shift_r          <= 5'd0;
-            phy_tx_decrement_shift_r     <= 1'b0;
-            phy_rx_valvref_ctrl_r        <= '0;
-            phy_tx_val_pi_phase_ctrl_r   <= '0;
-            phy_tx_eq_preset_ctrl_r      <= 3'b000;
-
-            for (int i = 0; i < 16; i++) begin
-                phy_rx_datavref_ctrl_r[i]      <= '0;
-                phy_tx_data_pi_phase_ctrl_r[i] <= '0;
-                phy_rx_deskew_ctrl_r[i]        <= 7'd0;
-            end
-        end else begin
-            // Speed Negotiation
-            if (local_speedidle_done && partner_speedidle_done) begin
-                phy_negotiated_speed_r <= speedidle_phy_negotiated_speed;
-            end
-
-            // Self-Calibration
-            if (local_txselfcal_done && partner_txselfcal_done) begin
-                phy_tx_selfcal_en_r <= txselfcal_phy_tx_selfcal_en;
-            end
-
-            // Clock & Tracking Lock
-            if (local_rxclkcal_done && partner_rxclkcal_done) begin
-                phy_rx_clock_lock_en_r     <= rxclkcal_phy_rx_clock_lock_en;
-                phy_rx_track_lock_en_r     <= rxclkcal_phy_rx_track_lock_en;
-                phy_rx_phase_detector_en_r <= rxclkcal_phy_rx_phase_detector_en;
-                phy_tx_tckn_shift_en_r     <= rxclkcal_phy_tx_tckn_shift_en;
-                phy_tx_tckn_shift_r        <= rxclkcal_phy_tx_tckn_shift;
-                phy_tx_decrement_shift_r   <= rxclkcal_phy_tx_decrement_shift;
-            end
-
-            // Vref Training
-            if (local_valvref_done && partner_valvref_done) begin
-                phy_rx_valvref_ctrl_r <= valvref_phy_rx_valvref_ctrl;
-            end else if (local_valtrainvref_done && partner_valtrainvref_done) begin
-                phy_rx_valvref_ctrl_r <= valtrainvref_phy_rx_valvref_ctrl;
-            end
-
-            // PI Centering
-            if (local_valtraincenter_done && partner_valtraincenter_done) begin
-                phy_tx_val_pi_phase_ctrl_r <= valtraincenter_phy_tx_val_pi_phase_ctrl;
-            end
-
-            // EQ Preset Negotiation
-            if (local_rxdeskew_done && partner_rxdeskew_done && rxdeskew_phy_tx_eq_preset_en) begin
-                phy_tx_eq_preset_ctrl_r <= rxdeskew_phy_tx_eq_preset_ctrl;
-            end
-
-            // Per-Lane Controls
-            for (int i = 0; i < 16; i++) begin
-                if (local_datavref_done && partner_datavref_done) begin
-                    phy_rx_datavref_ctrl_r[i] <= datavref_phy_rx_datavref_ctrl[i];
-                end else if (local_datatrainvref_done && partner_datatrainvref_done) begin
-                    phy_rx_datavref_ctrl_r[i] <= datatrainvref_phy_rx_datavref_ctrl[i];
-                end
-
-                if (local_dtc1_done && partner_dtc1_done) begin
-                    phy_tx_data_pi_phase_ctrl_r[i] <= dtc1_phy_tx_data_pi_phase_ctrl[i];
-                end else if (local_dtc2_done && partner_dtc2_done) begin
-                    phy_tx_data_pi_phase_ctrl_r[i] <= dtc2_phy_tx_data_pi_phase_ctrl[i];
-                end
-
-                if (local_rxdeskew_done && partner_rxdeskew_done) begin
-                    phy_rx_deskew_ctrl_r[i] <= rxdeskew_phy_rx_deskew_ctrl[i];
-                end
-            end
+            // is_valvref_entered        <= 1'b0; <== Not needed
+            // is_datavref_entered       <= 1'b0; <== Not needed
+            // is_valtraincenter_entered <= 1'b0; <== Not needed
+            is_valtrainvref_entered <= 1'b0;
+            is_dtvref_entered       <= 1'b0;
+            is_dtc1_entered         <= 1'b0;
+            is_dtc2_entered         <= 1'b0;
+        end else if (!soft_rst_n) begin
+            // is_valvref_entered        <= 1'b0; <== Not needed
+            // is_datavref_entered       <= 1'b0; <== Not needed
+            // is_valtraincenter_entered <= 1'b0; <== Not needed
+            is_valtrainvref_entered <= 1'b0;
+            is_dtvref_entered       <= 1'b0;
+            is_dtc1_entered         <= 1'b0;
+            is_dtc2_entered         <= 1'b0;
+        end
+        // Vref Training
+        else if (current_mbtrain_substate == LOG_MBTRAIN_VALTRAINVREF) begin
+            // is_valvref_entered      <= 1'b0; <== Not needed
+            is_valtrainvref_entered <= 1'b1;
+        end
+        else if (current_mbtrain_substate == LOG_MBTRAIN_DATATRAINVREF) begin
+            // is_datavref_entered <= 1'b0; <== Not needed
+            is_dtvref_entered   <= 1'b1;
+        end
+        else if (current_mbtrain_substate == LOG_MBTRAIN_DATATRAINCENTER1) begin
+            is_dtc1_entered <= 1'b1;
+            is_dtc2_entered <= 1'b0;
+        end
+        else if (current_mbtrain_substate == LOG_MBTRAIN_DATATRAINCENTER2) begin
+            is_dtc1_entered <= 1'b0;
+            is_dtc2_entered <= 1'b1;
         end
     end
 
-    // PHY Output Selection Logic
-    // Muxes between current substate outputs (when active) and retained registers.
-    always_comb begin : PHY_OUTPUT_SELECT
-        phy_negotiated_speed       = ss_active[SS_SPEEDIDLE] ? speedidle_phy_negotiated_speed : phy_negotiated_speed_r;
-        phy_tx_selfcal_en          = ss_active[SS_TXSELFCAL] ? txselfcal_phy_tx_selfcal_en     : phy_tx_selfcal_en_r;
-        phy_rx_clock_lock_en       = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_rx_clock_lock_en  : phy_rx_clock_lock_en_r;
-        phy_rx_track_lock_en       = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_rx_track_lock_en  : phy_rx_track_lock_en_r;
-        phy_rx_phase_detector_en   = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_rx_phase_detector_en : phy_rx_phase_detector_en_r;
-        phy_tx_tckn_shift_en       = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_tx_tckn_shift_en  : phy_tx_tckn_shift_en_r;
-        phy_tx_tckn_shift          = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_tx_tckn_shift     : phy_tx_tckn_shift_r;
-        phy_tx_decrement_shift     = ss_active[SS_RXCLKCAL]  ? rxclkcal_phy_tx_decrement_shift : phy_tx_decrement_shift_r;
+// PHY Output Selection Logic
+// Muxes between current substate outputs (when active) and retained registers.
+    assign phy_negotiated_speed     = speedidle_phy_negotiated_speed   ;
+    assign phy_tx_selfcal_en        = txselfcal_phy_tx_selfcal_en      ;
+    assign phy_rx_clock_lock_en     = rxclkcal_phy_rx_clock_lock_en    ;
+    assign phy_rx_track_lock_en     = rxclkcal_phy_rx_track_lock_en    ;
+    assign phy_rx_phase_detector_en = rxclkcal_phy_rx_phase_detector_en;
+    assign phy_tx_tckn_shift_en     = rxclkcal_phy_tx_tckn_shift_en    ;
+    assign phy_tx_tckn_shift        = rxclkcal_phy_tx_tckn_shift       ;
+    assign phy_tx_decrement_shift   = rxclkcal_phy_tx_decrement_shift  ;
 
-        phy_rx_valvref_ctrl        = ss_active[SS_VALVREF]        ? valvref_phy_rx_valvref_ctrl        :
-            ss_active[SS_VALTRAINVREF]    ? valtrainvref_phy_rx_valvref_ctrl   :
-            phy_rx_valvref_ctrl_r;
-
-        phy_tx_val_pi_phase_ctrl   = ss_active[SS_VALTRAINCENTER] ? valtraincenter_phy_tx_val_pi_phase_ctrl :
-            phy_tx_val_pi_phase_ctrl_r;
-
-        phy_tx_eq_preset_ctrl      = ss_active[SS_RXDESKEW]       ? rxdeskew_phy_tx_eq_preset_ctrl :
-            phy_tx_eq_preset_ctrl_r;
-
-        phy_tx_eq_preset_en        = ss_active[SS_RXDESKEW]       ? rxdeskew_phy_tx_eq_preset_en   : 1'b0;
-
-        for (int i = 0; i < 16; i++) begin
-            phy_rx_datavref_ctrl[i] =
-                ss_active[SS_DATAVREF]       ? datavref_phy_rx_datavref_ctrl[i]       :
-                ss_active[SS_DATATRAINVREF]  ? datatrainvref_phy_rx_datavref_ctrl[i]  :
-                phy_rx_datavref_ctrl_r[i];
-
-            phy_tx_data_pi_phase_ctrl[i] =
-                ss_active[SS_DTC1]           ? dtc1_phy_tx_data_pi_phase_ctrl[i]       :
-                ss_active[SS_DTC2]           ? dtc2_phy_tx_data_pi_phase_ctrl[i]       :
-                phy_tx_data_pi_phase_ctrl_r[i];
-
-            phy_rx_deskew_ctrl[i] =
-                ss_active[SS_RXDESKEW]       ? rxdeskew_phy_rx_deskew_ctrl[i]         :
-                phy_rx_deskew_ctrl_r[i];
-        end
+    assign phy_rx_valvref_ctrl       = (!is_valtrainvref_entered)? valvref_phy_rx_valvref_ctrl : valtrainvref_phy_rx_valvref_ctrl;//Valvref is not needed in training mode
+    assign phy_tx_val_pi_phase_ctrl  = valtraincenter_phy_tx_val_pi_phase_ctrl;
+    for (genvar i = 0; i < 16; i++) begin : DATA_PI_CODE_Mux
+        assign phy_rx_datavref_ctrl[i] = (!is_dtvref_entered)? datavref_phy_rx_datavref_ctrl[i] : datatrainvref_phy_rx_datavref_ctrl[i];
+        assign phy_tx_data_pi_phase_ctrl[i] = (!is_dtc1_entered && !is_dtc2_entered)? MIN_DATA_PI_CODE[DATA_PI_W-1:0] :
+            (is_dtc1_entered)? dtc1_phy_tx_data_pi_phase_ctrl[i] : dtc2_phy_tx_data_pi_phase_ctrl[i];
     end
+    assign phy_rx_deskew_ctrl       = rxdeskew_phy_rx_deskew_ctrl;
+    assign phy_tx_eq_preset_ctrl    = rxdeskew_phy_tx_eq_preset_ctrl;
+    assign phy_tx_eq_preset_en      = rxdeskew_phy_tx_eq_preset_en;
+
+
+
+
+
+    // =============================================================================
+    // Speed encoding (per internal_ltsm_if.sv / UCIe Spec Table 4-1):
+    //   3'b000 →  4 GT/s
+    //   3'b001 →  8 GT/s
+    //   3'b010 → 12 GT/s
+    //   3'b011 → 16 GT/s
+    //   3'b100 → 24 GT/s
+    //   3'b101 → 32 GT/s   ← boundary (≤ 32 GT/s = "standard speed", > 32 GT/s = "high speed")
+    //   3'b110 → 48 GT/s   ← HIGH SPEED: requires EQ preset negotiation in RXDESKEW
+    //   3'b111 → 64 GT/s   ← HIGH SPEED
+    //
+    // The critical flag `is_high_speed` is used in RXDESKEW to determine whether
+    // EQ Preset negotiation (Step 2) is required, and whether the DTC1 arc loop
+    // and exit_to_DTC1 messages are enabled.
+    //
+    // Memory Reference:
+    //   See: target_implementation_technique/null/what_we_will_do_next/memory_for_RXDESKEW_local.md
+    //        Section 7 — unit_negotiated_speed.sv Design
+    // =========================================================================
+    // High-Speed Flag
+    // speed > 32 GT/s means encoding is 3'b110 (48 GT/s) or 3'b111 (64 GT/s)
+    // =========================================================================
+    localparam [2:0] SPEED_32G = 3'b101;
+    assign is_high_speed = (phy_negotiated_speed > SPEED_32G);
+
 
 endmodule
 

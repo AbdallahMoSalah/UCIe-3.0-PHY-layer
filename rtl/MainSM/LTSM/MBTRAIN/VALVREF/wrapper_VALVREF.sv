@@ -31,7 +31,7 @@ module wrapper_VALVREF #(
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        is_ltsm_out_of_reset,           // 0: Soft reset active; 1: Normal operation
+        input  logic        soft_rst_n,                     // 0: Soft reset active; 1: Normal operation
         output logic        valvref_done,                   // 0: In progress; 1: Sub-state completed
         output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry
 
@@ -138,7 +138,7 @@ module wrapper_VALVREF #(
         .rst_n                  (rst_n                        ),
         // LTSM Control Signals
         .valvref_en             (local_valvref_en             ),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset         ),
+        .soft_rst_n             (soft_rst_n                   ),
         .valvref_done           (local_valvref_done           ),
         .trainerror_req         (local_trainerror_req         ),
         .update_lane_mask       (local_update_lane_mask       ),
@@ -179,7 +179,7 @@ module wrapper_VALVREF #(
         .rst_n                  (rst_n                         ),
         // LTSM Control Signals
         .valvref_en             (partner_valvref_en            ),
-        .is_ltsm_out_of_reset   (is_ltsm_out_of_reset          ),
+        .soft_rst_n             (soft_rst_n                    ),
         .valvref_done           (partner_valvref_done          ),
         .trainerror_req         (partner_trainerror_req        ),
         // MB Lane Control Outputs

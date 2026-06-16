@@ -73,17 +73,22 @@ module wrapper_LINKSPEED (
         output logic        linkspeed_done,                    // 0: In progress; 1: Sub-state completed
         output logic        trainerror_req,                    // 1: Request exit to TRAINERROR
 
-        // Exit route requests from Local:
-        output logic        local_linkinit_req,                // 1: Request exit to LINKINIT
-        output logic        local_speedidle_req,               // 1: Request exit to MBTRAIN.SPEEDIDLE
-        output logic        local_repair_req,                  // 1: Request exit to MBTRAIN.REPAIR
-        output logic        local_phyretrain_req,              // 1: Request exit to PHYRETRAIN
+        // Exit route requests: (Note: we commented-out each local/partner outputs here and replaced each pair with one output port)
+        // output logic        local_linkinit_req,                // 1: Request exit to LINKINIT
+        // output logic        partner_linkinit_req,              // 1: Request exit to LINKINIT
+        output logic        linkspeed_linkinit_req ,              // 1: Request exit to LINKINIT
 
-        // Exit route requests from Partner:
-        output logic        partner_linkinit_req,              // 1: Request exit to LINKINIT
-        output logic        partner_speedidle_req,             // 1: Request exit to MBTRAIN.SPEEDIDLE
-        output logic        partner_repair_req,                // 1: Request exit to MBTRAIN.REPAIR
-        output logic        partner_phyretrain_req,            // 1: Request exit to PHYRETRAIN
+        // output logic        local_speedidle_req,               // 1: Request exit to MBTRAIN.SPEEDIDLE
+        // output logic        partner_speedidle_req,             // 1: Request exit to MBTRAIN.SPEEDIDLE
+        output logic        linkspeed_speedidle_req ,             // 1: Request exit to MBTRAIN.SPEEDIDLE
+
+        // output logic        local_repair_req,                  // 1: Request exit to MBTRAIN.REPAIR
+        // output logic        partner_repair_req,                // 1: Request exit to MBTRAIN.REPAIR
+        output logic        linkspeed_repair_req ,                // 1: Request exit to MBTRAIN.REPAIR
+
+        // output logic        local_phyretrain_req,              // 1: Request exit to PHYRETRAIN
+        // output logic        partner_phyretrain_req,            // 1: Request exit to PHYRETRAIN
+        output logic        linkspeed_phyretrain_req ,            // 1: Request exit to PHYRETRAIN
 
         // =========================================================================
         // Group 3: Lane & Width Configuration (Local FSM only)
@@ -142,6 +147,25 @@ module wrapper_LINKSPEED (
     // Internal Intermediate Wires
     // =========================================================================
 
+    // Exit route requests:
+
+    logic        local_linkinit_req    ;          // 1: Request exit to LINKINIT
+    logic        partner_linkinit_req  ;          // 1: Request exit to LINKINIT
+
+    logic        local_speedidle_req   ;          // 1: Request exit to MBTRAIN.SPEEDIDLE
+    logic        partner_speedidle_req ;          // 1: Request exit to MBTRAIN.SPEEDIDLE
+
+    logic        local_repair_req      ;          // 1: Request exit to MBTRAIN.REPAIR
+    logic        partner_repair_req    ;          // 1: Request exit to MBTRAIN.REPAIR
+
+    logic        local_phyretrain_req  ;          // 1: Request exit to PHYRETRAIN
+    logic        partner_phyretrain_req;          // 1: Request exit to PHYRETRAIN
+
+    assign linkspeed_linkinit_req   = local_linkinit_req   & partner_linkinit_req   ;
+    assign linkspeed_speedidle_req  = local_speedidle_req  & partner_speedidle_req  ;
+    assign linkspeed_repair_req     = local_repair_req     & partner_repair_req     ;
+    assign linkspeed_phyretrain_req = local_phyretrain_req & partner_phyretrain_req ;
+
     // Done and trainerror wires from substate FSMs:
     logic        local_linkspeed_done_w     ;
     logic        partner_linkspeed_done_w   ;
@@ -149,13 +173,13 @@ module wrapper_LINKSPEED (
     logic        partner_trainerror_req_w   ;
 
     // SB outputs from Local FSM:
-    logic        local_tx_sb_msg_valid     ;
+    logic        local_tx_sb_msg_valid    ;
     logic [7:0]  local_tx_sb_msg          ;
     logic [15:0] local_tx_msginfo         ;
     logic [63:0] local_tx_data_field      ;
 
     // SB outputs from Partner FSM:
-    logic        partner_tx_sb_msg_valid   ;
+    logic        partner_tx_sb_msg_valid  ;
     logic [7:0]  partner_tx_sb_msg        ;
     logic [15:0] partner_tx_msginfo       ;
     logic [63:0] partner_tx_data_field    ;

@@ -29,7 +29,7 @@
 // |                                           |           |   3'b011 = x16 full (lanes 0-15)         |
 // |                                           |           |   3'b100 = x4 low (lanes 0-3)            |
 // |                                           |           |   3'b101 = x4 mid-low (lanes 4-7)        |
-// | {MBTRAIN.REPAIR apply degrade resp}       | In  (RX)  | MsgInfo: 16'h0, Data: 64'h0 (pure ACK)  |
+// | {MBTRAIN.REPAIR apply degrade resp}       | In  (RX)  | MsgInfo: 16'h0, Data: 64'h0 (pure ACK)   |
 // | {MBTRAIN.REPAIR end req}                  | Out (TX)  | MsgInfo: 16'h0, Data: 64'h0              |
 // | {MBTRAIN.REPAIR end resp}                 | In  (RX)  | MsgInfo: 16'h0, Data: 64'h0              |
 // +-------------------------------------------+-----------+------------------------------------------+
@@ -44,7 +44,7 @@ module unit_REPAIR_local (
         input  logic        repair_en,
         input  logic        soft_rst_n,
         output logic        repair_done,
-        output logic        txselfcal_req,
+        // output logic        txselfcal_req,
         output logic        trainerror_req,
 
         // Width Degradation Input (our TX code, computed by unit_negotiated_lanes in the wrapper)
@@ -203,7 +203,6 @@ module unit_REPAIR_local (
     always_comb begin : OUTPUT_LOGIC
         // Defaults
         repair_done         = 1'b0;
-        txselfcal_req       = 1'b0;
         trainerror_req      = 1'b0;
 
         // Mainband defaults during REPAIR (spec §4.5.3.4.13):
@@ -272,7 +271,6 @@ module unit_REPAIR_local (
 
             REPAIR_LCL_TO_TXSELFCAL: begin
                 repair_done      = 1'b1;
-                txselfcal_req    = 1'b1;
             end
 
             REPAIR_LCL_TO_TRAINERROR: begin

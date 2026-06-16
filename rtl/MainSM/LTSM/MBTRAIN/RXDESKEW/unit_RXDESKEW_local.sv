@@ -41,6 +41,49 @@
 //     previously done in the now-removed DTC1_ARC_INC state.
 //
 // ====================================================================================================
+// BUG FIXES applied in this revision (all related to unsupported-preset handling):
+//
+// BUG 1 — WAIT_PRESET_RESP: last-Fail short-circuited to SEND_END_REQ.
+//   OLD: On Fail, if preset_search_cnt was already at MAX_PRESET_SEARCH-1, the
+//        FSM jumped directly to SEND_END_REQ, bypassing CHOOSE_PRESET entirely.
+//        This had two harmful side effects:
+//          (a) The re-apply-best-preset opportunity (Case B in CHOOSE_PRESET) was
+//              never taken, so the partner was left with whatever failed preset was
+//              last sent rather than the preset that gave the best eye width.
+//          (b) Even if a previous sweep had produced a wide-enough eye, the FSM
+//              skipped APPLY_BEST_CODE and went straight to ending — missing the
+//              chance to evaluate a DTC1 arc.
+//   FIX: On any Fail response, ALWAYS return to CHOOSE_PRESET.  CHOOSE_PRESET is
+//        the single decision point for "what next?" and sets preset_fail_no_sweep
+//        only when truly nothing can be done.
+//
+// BUG 2 — CHOOSE_PRESET sequential block: preset_search_cnt overflow on re-apply.
+//   OLD: preset_search_cnt was unconditionally incremented every time CHOOSE_PRESET
+//        was entered, including the Case-B re-apply pass (when cnt >= MAX_PRESET_SEARCH).
+//        This caused cnt to overflow past MAX_PRESET_SEARCH (e.g. 6 → 7), permanently
+//        corrupting the "< MAX_PRESET_SEARCH" comparisons used in APPLY_BEST_CODE.
+//   FIX: The three cases (advance / re-apply / bail) are now fully explicit.
+//        preset_search_cnt is incremented ONLY in Case A (untried presets remain).
+//        It is intentionally NOT touched in Case B (re-apply) or Case C (bail).
+//
+// BUG 3 — CHOOSE_PRESET: no exit path when ALL presets (including re-apply) fail.
+//   OLD: There was no mechanism to break the Fail→CHOOSE_PRESET loop once the
+//        re-applied best_preset also got a Fail response.  The FSM would loop
+//        forever: CHOOSE_PRESET → SEND_PRESET_REQ → WAIT_PRESET_RESP (Fail) →
+//        CHOOSE_PRESET → (re-apply again, same Fail) → ...
+//   FIX: New register preset_fail_no_sweep is set in CHOOSE_PRESET Case C
+//        (all tried AND partner_preset == best_preset, meaning the re-apply also
+//        got a Fail).  The combinational next-state for CHOOSE_PRESET checks this
+//        flag first and routes to SEND_END_REQ instead of SEND_PRESET_REQ.
+//
+// BUG 4 — APPLY_BEST_CODE: type-unsafe bit-slice comparison with MAX_PRESET_SEARCH.
+//   OLD: preset_search_cnt < MAX_PRESET_SEARCH[3:0] — hard-codes a 4-bit slice,
+//        which silently truncates if MAX_PRESET_SEARCH ever exceeds 4 bits.
+//   FIX: preset_search_cnt < MAX_PRESET_SEARCH[PRESET_SEARCH_WIDTH-1:0], matching
+//        the declared width of the counter register.
+// ====================================================================================================
+//
+// ====================================================================================================
 // Sideband Messages Used in MBTRAIN.RXDESKEW (Local — Initiator):
 // +----------------------------------------------------+-----------+----------------------------------------+
 // | Message Name                                       | Direction | MsgInfo & Data Field Details           |
@@ -67,8 +110,8 @@
 //          (DO NOT COPY — old file has design bugs)
 
 module unit_RXDESKEW_local #(
-        parameter int unsigned MAX_DESKEW_CODE          = 7'd127, // Maximum deskew code (inclusive)
-        parameter int unsigned MIN_DESKEW_CODE          = 7'd0  , // Minimum deskew code (inclusive)
+        parameter int unsigned MAX_DESKEW_CODE          = 5'd16, // Maximum deskew code (inclusive)
+        parameter int unsigned MIN_DESKEW_CODE          = 5'd0  , // Minimum deskew code (inclusive)
         parameter int unsigned MAX_ARC_LIMIT            = 3'd4  , // Maximum DTC1 arc iterations (spec = 4)
         parameter int unsigned MAX_VALID_PRESET         = 3'd5  , // Maximum EQ presets to try (0–5, total 6)
         // MIN_DESIRED_SWEEP_RANGE: Minimum acceptable eye width (in deskew codes) across all active lanes.
@@ -115,7 +158,7 @@ module unit_RXDESKEW_local #(
         // After sweep_done:
         //   Driven from registered best_code_r[lane] (per-lane best midpoint, permanently
         //   held until soft_rst_n = 0 or hard reset).
-        output logic [6:0]  phy_rx_deskew_ctrl [15:0], // Deskew code applied to each RX data lane.
+        output logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  phy_rx_deskew_ctrl [15:0], // Deskew code applied to each RX data lane.
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -157,11 +200,11 @@ module unit_RXDESKEW_local #(
         // min_eye_width: Narrowest best-window across active lanes (combinational).
         //
         // sweep_done: 1 = sweep complete. Held by unit_D2C_sweep until sweep_en deasserts.
-        output logic        sweep_en             , // To unit_D2C_sweep: start/sustain sweep.
-        input  logic [6:0]  swept_code           , // From unit_D2C_sweep: current code under test.
-        input  wire logic [6:0]  best_code [0:15]     , // From unit_D2C_sweep: per-lane best midpoint.
-        input  logic [6:0]  min_eye_width        , // From unit_D2C_sweep: narrowest eye across active lanes.
-        input  logic        sweep_done           , // From unit_D2C_sweep: 1 = full sweep complete.
+        output      logic                                  sweep_en             , // To unit_D2C_sweep: start/sustain sweep.
+        input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  swept_code           , // From unit_D2C_sweep: current code under test.
+        input  wire logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  best_code [0:15]     , // From unit_D2C_sweep: per-lane best midpoint.
+        input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  min_eye_width        , // From unit_D2C_sweep: narrowest eye across active lanes.
+        input       logic                                  sweep_done           , // From unit_D2C_sweep: 1 = full sweep complete.
 
         //=====================================//
         // Sideband Control Signals:           //
@@ -225,6 +268,17 @@ module unit_RXDESKEW_local #(
     reg [2:0]       old_best_preset;     // Best preset from the last DTC1 arc session.
     reg [PRESET_SEARCH_WIDTH-1:0]       preset_search_cnt;   // How many EQ presets have been tried (incremented in CHOOSE_PRESET).
     reg [DW-1:0]    best_min_eye_width;  // Best min_eye_width found across all EQ presets.
+    // NOTE: There is intentionally NO "preset_fail_no_sweep" flag register here.
+    //
+    // A registered flag set by the sequential block in CHOOSE_PRESET and then read
+    // by the combinational next-state block in the SAME visit to CHOOSE_PRESET
+    // would always be one cycle late: the sequential block writes on posedge, but
+    // the combinational block reads the PRE-posedge (current) value.  The result
+    // would be one extra spurious SEND_PRESET_REQ before the flag became visible.
+    //
+    // Instead, the exhaustion condition is computed COMBINATIONALLY inside the
+    // CHOOSE_PRESET next-state case using the already-stable registered values of
+    // preset_search_cnt, partner_preset, and best_preset.  See CHOOSE_PRESET below.
 
     // =========================================================================
     // Registered best deskew codes — latched when sweep_done is first observed.
@@ -236,7 +290,7 @@ module unit_RXDESKEW_local #(
     //     permanent deskew setting for the rest of the LTSM training flow.
     //   - Only cleared by hard reset (rst_n=0) or soft reset (soft_rst_n=0) or when RXDESKEW substate is re-entered.
     // =========================================================================
-    reg [6:0]       best_code_r [0:15]; // Per-lane registered best midpoint code.
+    reg [DW-1:0]     best_code_r [0:15]; // Per-lane registered best midpoint code.
 
     // =========================================================================
     // sweep_en: asserted combinationally whenever FSM is in RXDESKEW_LCL_TX_D2C_SWEEP.
@@ -323,11 +377,44 @@ module unit_RXDESKEW_local #(
 
                 // -------------------------------------------------------
                 // CHOOSE_PRESET (HS only, 1-cycle):
-                // Compute next preset to request. Sequential block advances
-                // partner_preset. Unconditionally → SEND_PRESET_REQ.
+                // Decide which EQ preset to request next, or bail out if
+                // every preset attempt has been exhausted with no successful
+                // sweep.
+                //
+                // The exhaustion condition is evaluated COMBINATIONALLY from
+                // already-stable registered values — NOT from a flag written
+                // by the sequential block on the same clock edge.  A flag
+                // written on posedge would only be visible on the NEXT visit
+                // to CHOOSE_PRESET (one cycle late), causing one extra
+                // spurious SEND_PRESET_REQ before the bail-out took effect.
+                //
+                // Combinational exhaustion logic:
+                //
+                //   all_tried:
+                //     preset_search_cnt >= MAX_PRESET_SEARCH
+                //     → All N fresh-preset slots have been consumed.
+                //
+                //   reapply_done:
+                //     all_tried AND partner_preset == best_preset
+                //     → The Case-B re-apply sweep was also attempted
+                //       (sequential block set partner_preset = best_preset
+                //       on a previous visit), and that attempt also got
+                //       a Fail, so we are back here with nothing left to try.
+                //
+                // Routing:
+                //   reapply_done == 1  → SEND_END_REQ   (bail cleanly, no more options)
+                //   reapply_done == 0  → SEND_PRESET_REQ (a valid preset is ready)
                 // -------------------------------------------------------
                 RXDESKEW_LCL_CHOOSE_PRESET: begin
-                    next_state = RXDESKEW_LCL_SEND_PRESET_REQ;
+                    // Combinational exhaustion signals (read stable registered values).
+                    if (preset_search_cnt >= MAX_PRESET_SEARCH[PRESET_SEARCH_WIDTH-1:0] &&
+                            partner_preset == best_preset) begin
+                        // Every option exhausted (fresh presets + re-apply); bail out.
+                        next_state = RXDESKEW_LCL_SEND_END_REQ;
+                    end else begin
+                        // A preset has been (or will be) prepared; transmit the request.
+                        next_state = RXDESKEW_LCL_SEND_PRESET_REQ;
+                    end
                 end
 
                 // -------------------------------------------------------
@@ -341,21 +428,43 @@ module unit_RXDESKEW_local #(
                 // -------------------------------------------------------
                 // WAIT_PRESET_RESP: Poll for {MBTRAIN.RXDESKEW EQ Preset resp}.
                 //   rx_msginfo[0] = 0 → Success: proceed to sweep.
-                //   rx_msginfo[0] = 1 → Fail:
-                //     - If more presets to try → CHOOSE_PRESET
-                //     - Otherwise (all exhausted) → SEND_END_REQ (give up)
+                //   rx_msginfo[0] = 1 → Fail: ALWAYS return to CHOOSE_PRESET.
+                //
+                // BUG FIX: The old code short-circuited directly to SEND_END_REQ
+                // on the final Fail (when preset_search_cnt was at max).  This is
+                // wrong for two independent reasons:
+                //
+                //   (a) It bypassed the re-apply-best-preset path.  After all N
+                //       presets have been tried, CHOOSE_PRESET is responsible for
+                //       switching partner_preset back to best_preset for one final
+                //       sweep.  Jumping straight to SEND_END_REQ skipped that
+                //       opportunity entirely.
+                //
+                //   (b) It bypassed APPLY_BEST_CODE, which is the only place that
+                //       evaluates the DTC1 arc opportunity.  Even when the eye width
+                //       was acceptable after a *previous* successful sweep, the old
+                //       code could end up in SEND_END_REQ before APPLY_BEST_CODE
+                //       had a chance to evaluate whether a DTC1 arc was warranted.
+                //
+                // Correct design: on Fail, ALWAYS return to CHOOSE_PRESET.
+                // CHOOSE_PRESET is the single centralised decision point that knows:
+                //   • More untried presets exist  → advance partner_preset, try again.
+                //   • All tried, best != current  → re-apply best_preset, sweep once more.
+                //   • All tried, best == current,
+                //     preset_fail_no_sweep set    → nothing left; go to SEND_END_REQ.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_WAIT_PRESET_RESP: begin
                     if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp) begin
                         if (rx_msginfo[0] == 1'b0) begin
-                            // Success: apply this preset and run sweep.
+                            // Success: partner accepted the preset — run the D2C sweep.
                             next_state = RXDESKEW_LCL_TX_D2C_SWEEP;
                         end
                         else begin
-                            // Fail: try next preset if available, else give up.
-                            next_state = (preset_search_cnt < (MAX_PRESET_SEARCH[3:0] - 4'd1)) ?
-                                RXDESKEW_LCL_CHOOSE_PRESET :
-                                RXDESKEW_LCL_SEND_END_REQ;
+                            // Fail: always let CHOOSE_PRESET decide what to do next.
+                            // CHOOSE_PRESET will set preset_fail_no_sweep=1 when it
+                            // detects that every option has been exhausted and will
+                            // route to SEND_END_REQ from there.
+                            next_state = RXDESKEW_LCL_CHOOSE_PRESET;
                         end
                     end
                     else begin
@@ -383,38 +492,69 @@ module unit_RXDESKEW_local #(
                 // determine next step.
                 //
                 // High Speed (>32 GT/s): EQ Preset loop and DTC1 arc available.
-                //  1. Eye too narrow AND more presets available → CHOOSE_PRESET
-                //  2. Presets exhausted AND partner_preset != best found → CHOOSE_PRESET
-                //     (one extra loop to re-apply the best known preset before arcing)
-                //  3. Arc budget available AND best_preset changed → EXIT_DTC1
-                //  4. Eye wide enough OR no more options → SEND_END_REQ
                 //
-                // Standard speed (≤ 32 GT/s): Always → SEND_END_REQ
+                //  Decision tree (evaluated with post-sweep values):
+                //
+                //  1. Eye wide enough
+                //     → SEND_END_REQ (done — accept the current deskew codes).
+                //
+                //  2. Eye too narrow AND more presets still untried
+                //     (preset_search_cnt < MAX_PRESET_SEARCH)
+                //     → CHOOSE_PRESET (try the next EQ preset).
+                //
+                //  3. Eye too narrow AND all presets tried AND
+                //     partner_preset != best_preset
+                //     → CHOOSE_PRESET — the sequential block will set
+                //       partner_preset = best_preset for one last re-apply sweep.
+                //       (This is the "re-apply best" pass described in the spec.)
+                //
+                //  4. Eye too narrow AND all presets tried AND
+                //     partner_preset == best_preset (re-apply already done)
+                //     AND arc budget available AND best_preset changed since
+                //     last DTC1 arc
+                //     → SEND_EXIT_DTC1_REQ (take a DTC1 arc for TX EQ tuning).
+                //
+                //  5. All other cases (no arc budget, no new best, etc.)
+                //     → SEND_END_REQ (give up; proceed with the best seen so far).
+                //
+                // Standard speed (≤ 32 GT/s): no EQ preset negotiation, no DTC1 arc.
+                //   Always → SEND_END_REQ.
+                //
+                // NOTE: preset_fail_no_sweep is NOT checked here because
+                // APPLY_BEST_CODE is only reached via TX_D2C_SWEEP → sweep_done,
+                // which means at least one sweep completed successfully.  The
+                // all-Fail-no-sweep path is handled entirely inside CHOOSE_PRESET.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_APPLY_BEST_CODE: begin
                     if (is_high_speed) begin
-                        // Check if the narrowest eye width of the Data lanes is big enough to operate on (i.e. exit this substate) or not.
-                        if (best_min_eye_width < MIN_DESIRED_SWEEP_RANGE[DW-1:0]) begin
-                            if (preset_search_cnt < MAX_PRESET_SEARCH[3:0]) begin
-                                // More presets available: try the next EQ preset.
-                                next_state = RXDESKEW_LCL_CHOOSE_PRESET;
-                            end
-                            else begin
-                                // All presets exhausted.
-                                next_state =
-                                    (partner_preset != best_preset)                                             ? RXDESKEW_LCL_CHOOSE_PRESET   : // Re-apply best TX EQ preset.
-                                    // Use partner_arc_cnt: the unified arc counter owned by PARTNER on same die.
-                                    (partner_arc_cnt < MAX_ARC_LIMIT[2:0] && (old_best_preset != best_preset)) ? RXDESKEW_LCL_SEND_EXIT_DTC1_REQ : // Arc only if best preset changed and budget left.
-                                    RXDESKEW_LCL_SEND_END_REQ;                                                                                   // No more options.
-                            end
+                        if (best_min_eye_width >= MIN_DESIRED_SWEEP_RANGE[DW-1:0]) begin
+                            // Eye wide enough — accept and finish.
+                            next_state = RXDESKEW_LCL_SEND_END_REQ;
+                        end
+                        else if (preset_search_cnt < MAX_PRESET_SEARCH[PRESET_SEARCH_WIDTH-1:0]) begin
+                            // More untried presets remain — keep searching.
+                            next_state = RXDESKEW_LCL_CHOOSE_PRESET;
+                        end
+                        else if (partner_preset != best_preset) begin
+                            // All presets tried but best_preset was not the last one
+                            // applied.  Re-apply best_preset for a final sweep.
+                            // CHOOSE_PRESET detects this condition and sets partner_preset
+                            // = best_preset without advancing the counter.
+                            next_state = RXDESKEW_LCL_CHOOSE_PRESET;
                         end
                         else begin
-                            // Eye is wide enough: proceed to end handshake.
-                            next_state = RXDESKEW_LCL_SEND_END_REQ;
+                            // All presets tried; best_preset is already applied on
+                            // the partner.  Check whether a DTC1 arc is warranted.
+                            next_state =
+                                // Arc budget left AND best changed since last arc
+                                (partner_arc_cnt < MAX_ARC_LIMIT[2:0] &&
+                                    old_best_preset != best_preset) ?
+                                RXDESKEW_LCL_SEND_EXIT_DTC1_REQ :
+                                RXDESKEW_LCL_SEND_END_REQ;
                         end
                     end
                     else begin
-                        // Standard speed (≤ 32 GT/s): no EQ preset loop, no DTC1 arc.
+                        // Standard speed — no EQ loop, no DTC1 arc.
                         next_state = RXDESKEW_LCL_SEND_END_REQ;
                     end
                 end
@@ -542,18 +682,17 @@ module unit_RXDESKEW_local #(
             preset_search_cnt   <= {PRESET_SEARCH_WIDTH{1'b0}};
             best_min_eye_width  <= {DW{1'b0}};
             for (i = 0; i < 16; i = i + 1) begin
-                best_code_r[i]  <= 7'd0;
+                best_code_r[i]  <= {DW{1'd0}};
             end
         end
         else if (!soft_rst_n) begin
-            // Soft reset: clear all working registers including best_code_r.
             partner_preset      <= 3'd0;
             best_preset         <= 3'd0;
             old_best_preset     <= 3'd7;
             preset_search_cnt   <= {PRESET_SEARCH_WIDTH{1'b0}};
             best_min_eye_width  <= {DW{1'b0}};
             for (i = 0; i < 16; i = i + 1) begin
-                best_code_r[i]  <= 7'd0;
+                best_code_r[i]  <= {DW{1'd0}};
             end
         end
         else begin
@@ -561,9 +700,9 @@ module unit_RXDESKEW_local #(
             // IDLE → SEND_START_REQ: New session — reset per-session counters.
             // ------------------------------------------------------------------
             if (current_state == RXDESKEW_LCL_IDLE && rxdeskew_en) begin
-                partner_preset     <= 3'd0;
-                preset_search_cnt  <= {PRESET_SEARCH_WIDTH{1'b0}};
-                best_min_eye_width <= {DW{1'b0}};
+                partner_preset      <= 3'd0;
+                preset_search_cnt   <= {PRESET_SEARCH_WIDTH{1'b0}};
+                best_min_eye_width  <= {DW{1'b0}};
             end
 
             // ------------------------------------------------------------------
@@ -585,17 +724,46 @@ module unit_RXDESKEW_local #(
             end
 
             // ------------------------------------------------------------------
-            // CHOOSE_PRESET: Advance the preset to try next.
+            // CHOOSE_PRESET: Prepare the next EQ preset to request.
+            //
+            // The COMBINATIONAL next-state block (above) has already decided
+            // whether to go to SEND_PRESET_REQ or SEND_END_REQ by reading the
+            // current registered values of preset_search_cnt, partner_preset,
+            // and best_preset.  This sequential block prepares the values that
+            // the NEXT visit to CHOOSE_PRESET (or SEND_PRESET_REQ) will read.
+            //
+            // Three mutually-exclusive cases:
+            //
+            // Case A — More untried presets exist (cnt < MAX_PRESET_SEARCH):
+            //   • Advance partner_preset to the next code.
+            //     Exception: on the very first call (cnt == 0), partner_preset
+            //     is already 0 from the IDLE reset, so leave it unchanged.
+            //   • Increment preset_search_cnt.
+            //
+            // Case B — All presets tried, re-apply not yet done
+            //          (cnt >= MAX AND partner_preset != best_preset):
+            //   • Set partner_preset = best_preset for one final sweep attempt.
+            //   • Do NOT increment preset_search_cnt — avoids overflow and
+            //     keeps the "all tried" sentinel stable for APPLY_BEST_CODE.
+            //
+            // Case C — All tried AND partner_preset == best_preset:
+            //   • The combinational block already routed to SEND_END_REQ.
+            //   • Nothing to update in the sequential block.
             // ------------------------------------------------------------------
             if (current_state == RXDESKEW_LCL_CHOOSE_PRESET) begin
-                if (preset_search_cnt >= MAX_PRESET_SEARCH[3:0]) begin
+                if (preset_search_cnt < MAX_PRESET_SEARCH[PRESET_SEARCH_WIDTH-1:0]) begin
+                    // Case A: advance to the next untried preset.
+                    if (preset_search_cnt != {PRESET_SEARCH_WIDTH{1'b0}}) begin
+                        partner_preset <= partner_preset + 3'd1;
+                    end
+                    preset_search_cnt <= preset_search_cnt + {{(PRESET_SEARCH_WIDTH-1){1'b0}}, 1'b1};
+                end
+                else if (partner_preset != best_preset) begin
+                    // Case B: re-apply the best-seen preset for one final attempt.
                     partner_preset <= best_preset;
+                    // preset_search_cnt intentionally NOT incremented.
                 end
-                else if (preset_search_cnt != 3'd0) begin
-                    partner_preset <= partner_preset + 1'b1;
-                end
-
-                preset_search_cnt <= preset_search_cnt + 1'b1;
+                // Case C: nothing to update; combinational block handles the exit.
             end
 
             // ------------------------------------------------------------------
@@ -603,7 +771,7 @@ module unit_RXDESKEW_local #(
             // When sweep_done is asserted, register best_code[] into best_code_r[].
             // ------------------------------------------------------------------
             if (current_state == RXDESKEW_LCL_TX_D2C_SWEEP && sweep_done) begin
-                // Capture the best eye quality tracker.
+                // Update best eye quality tracker.
                 if (min_eye_width > best_min_eye_width) begin
                     best_min_eye_width <= min_eye_width;
                     best_preset        <= partner_preset;

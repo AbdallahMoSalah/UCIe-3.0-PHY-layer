@@ -84,10 +84,10 @@ module unit_SPEEDIDLE_local (
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
             current_state                 <= SPEEDIDLE_LCL_IDLE;
-            internal_phy_negotiated_speed <= 3'b000;
+            internal_phy_negotiated_speed <= 3'b000; // 4 GT/s
         end else if (!soft_rst_n) begin
             current_state                 <= SPEEDIDLE_LCL_IDLE;
-            internal_phy_negotiated_speed <= 3'b000;
+            internal_phy_negotiated_speed <= 3'b000; // 4 GT/s
         end else begin
             current_state <= next_state;
 

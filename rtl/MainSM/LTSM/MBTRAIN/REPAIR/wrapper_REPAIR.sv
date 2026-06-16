@@ -26,8 +26,6 @@ module wrapper_REPAIR (
         // Local FSM Control
         input  logic        local_repair_en,
         output logic        repair_done,
-        output logic        local_txselfcal_req,
-        output logic        partner_txselfcal_req,
         output logic        trainerror_req,
 
         // Partner FSM Control
@@ -44,6 +42,13 @@ module wrapper_REPAIR (
         //   mb_rx_data_lane_mask: our RX lane mask (= Die B's TX code after decision logic)
         output logic [2:0]  mb_tx_data_lane_mask,
         output logic [2:0]  mb_rx_data_lane_mask,
+
+        // Decoded lane outputs from internal unit_negotiated_lanes.
+        // Exposed so wrapper_MBTRAIN can connect to them directly (active_rx_lanes →
+        // sweep_active_lanes + wrapper_LINKSPEED; degrade_feasible → wrapper_LINKSPEED)
+        // instead of instantiating a duplicate unit_negotiated_lanes at the top level.
+        output logic [15:0] active_rx_lanes,        // Active RX lane bitmask
+        output logic        degrade_feasible,        // 1 = valid degraded lane code is feasible
 
         // LTSM controller override: reload masks to initial values
         input  logic [2:0]  mbinit_rx_data_lane_mask,
@@ -112,11 +117,10 @@ module wrapper_REPAIR (
     logic        partner_mb_rx_val_lane_sel;
     logic        partner_mb_rx_trk_lane_sel;
 
-    // Outputs from unit_negotiated_lanes
-    logic [15:0] active_rx_lanes;
+    // Internal outputs from unit_negotiated_lanes (active_rx_lanes and degrade_feasible
+    // are now declared as module output ports above — not re-declared here).
     logic [15:0] active_tx_lanes;
     logic [2:0]  degraded_lane_map_code; // Our best TX degraded code (fed to both LOCAL and PARTNER)
-    logic        degrade_feasible;       // 1 = degraded_lane_map_code != 3'b000
     logic        is_x16_module;          // 1 = X16 full-width; 0 = X8 module (changes "all functional" meaning)
 
     // =========================================================================
@@ -148,7 +152,6 @@ module wrapper_REPAIR (
         .repair_en                  (local_repair_en),
         .soft_rst_n                 (soft_rst_n),
         .repair_done                (local_repair_done_w),
-        .txselfcal_req              (local_txselfcal_req),
         .trainerror_req             (local_trainerror_req_w),
         .degraded_tx_lane_map_code  (degraded_lane_map_code),
         .width_degrade_feasible     (degrade_feasible),
@@ -180,7 +183,6 @@ module wrapper_REPAIR (
         .repair_en                  (partner_repair_en),
         .soft_rst_n                 (soft_rst_n),
         .repair_done                (partner_repair_done_w),
-        .txselfcal_req              (partner_txselfcal_req),
         .trainerror_req             (partner_trainerror_req_w),
         .degraded_tx_lane_map_code  (degraded_lane_map_code),
         .width_degrade_feasible     (degrade_feasible),

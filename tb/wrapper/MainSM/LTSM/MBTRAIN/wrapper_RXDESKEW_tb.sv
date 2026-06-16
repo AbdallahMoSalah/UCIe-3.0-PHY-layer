@@ -137,7 +137,7 @@ module wrapper_RXDESKEW_tb;
             // Insert new inputs
             dut2ptn_msg_sr[0]  <= dut_if.tb_muxed_tx_sb_msg;
             if (corrupt_preset_val_dut2ptn && dut_if.tb_muxed_tx_sb_msg_valid && dut_if.tb_muxed_tx_sb_msg == MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req) begin
-                dut2ptn_info_sr[0] <= 16'h0006; // Corrupt to preset 6
+                dut2ptn_info_sr[0] <= 16'h0005; // Corrupt to preset 5
             end else begin
                 dut2ptn_info_sr[0] <= dut_if.tb_muxed_tx_msginfo;
             end
@@ -220,14 +220,14 @@ module wrapper_RXDESKEW_tb;
     logic [2:0]  dut_phy_tx_eq_preset_ctrl;
     logic        dut_phy_tx_eq_preset_en;
 
-    localparam int DESKEW_W = 7;
+    localparam int DESKEW_W = $clog2(MAX_DESKEW_CODE+1);
     wire [DESKEW_W-1:0] dut_swept_code_sliced;
     wire [DESKEW_W-1:0] dut_best_code_sliced [0:15];
     wire [DESKEW_W-1:0] dut_min_eye_width_sliced;
-    assign dut_swept_code_sliced = 7'(dut_if.swept_code);
-    assign dut_min_eye_width_sliced = 7'(dut_if.min_eye_width);
+    assign dut_swept_code_sliced = dut_if.swept_code;
+    assign dut_min_eye_width_sliced = dut_if.min_eye_width;
     for (genvar i = 0; i < 16; i++) begin
-        assign dut_best_code_sliced[i] = 7'(dut_if.best_code[i]);
+        assign dut_best_code_sliced[i] = dut_if.best_code[i];
     end
 
     wrapper_RXDESKEW #(
@@ -309,7 +309,7 @@ module wrapper_RXDESKEW_tb;
     wrapper_RXDESKEW #(
         .MAX_DESKEW_CODE(MAX_DESKEW_CODE),
         .MIN_DESKEW_CODE(MIN_DESKEW_CODE),
-        .MAX_VALID_PRESET(6)
+        .MAX_VALID_PRESET(5)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
@@ -764,9 +764,9 @@ module wrapper_RXDESKEW_tb;
         phy_negotiated_speed = 3'b111;
         is_continuous_clk_mode = 0;
 
-        // Force Die B's request to Die A to be 7 (which is > Die A's MAX_VALID_PRESET of 6) -> Expect Rejection
+        // Force Die B's request to Die A to be 7 (which is > Die A's MAX_VALID_PRESET of 5) -> Expect Rejection
         corrupt_preset_val = 1;
-        // Force Die A's request to Die B to be 6 (which is <= Die B's MAX_VALID_PRESET of 6) -> Expect Acceptance
+        // Force Die A's request to Die B to be 5 (which is <= Die B's MAX_VALID_PRESET of 5) -> Expect Acceptance
         corrupt_preset_val_dut2ptn = 1;
 
         dut_local_rxdeskew_en = 1;

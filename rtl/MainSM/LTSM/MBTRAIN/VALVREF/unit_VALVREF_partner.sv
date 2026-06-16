@@ -50,7 +50,7 @@ module unit_VALVREF_partner (
         // LTSM Control Signals:               //
         //=====================================//
         input  logic        valvref_en          , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
-        input  logic        is_ltsm_out_of_reset, // 0: Soft-reset active. 1: Normal.
+        input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valvref_done        , // 1: Sub-state completed; held until valvref_en = 0.
         output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
 
@@ -116,13 +116,13 @@ module unit_VALVREF_partner (
 
     // =========================================================================
     // Sequential FSM: state register
-    // Rule: rst_n (async) and is_ltsm_out_of_reset (sync) in SEPARATE branches.
+    // Rule: rst_n (async) and soft_rst_n (sync) in SEPARATE branches.
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
             current_state <= VALVREF_PTR_IDLE;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= VALVREF_PTR_IDLE;
         end
         else begin

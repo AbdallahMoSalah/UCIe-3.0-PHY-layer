@@ -5,12 +5,16 @@
 // architecture where each sub-state transition requires BOTH the Local (Initiator)
 // and Partner (Responder) FSMs on this die to report completion.
 //
+// NOTE: Each substate wrapper already combines its local+partner done flags internally
+// into a single `*_done` pulse. This controller therefore receives only one done
+// signal per substate (not separate local_*_done / partner_*_done).
+//
 // Sequence:
 //   1. VALVREF         (Rx Valid Lane Vref)
 //   2. DATAVREF        (Rx Data Lanes Vref)
 //   3. SPEEDIDLE       (Link Speed Negotiation)
 //   4. TXSELFCAL       (Tx Self-Calibration)
-//   5. RXSELFCAL       (I/Q & Clock Lock)
+//   5. RXCLKCAL        (I/Q & Clock Lock)
 //   6. VALTRAINCENTER  (Tx Valid PI Centering)
 //   7. VALTRAINVREF    (Rx Valid Vref Training)
 //   8. DATATRAINCENTER1(Tx Data PI Centering - Pass 1)
@@ -26,20 +30,18 @@ module unit_MBTRAIN_ctrl (
         // Clock and Reset
         input  logic        lclk,                           // LTSM clock domain
         input  logic        rst_n,                          // Async active-low reset
-        input  logic        is_ltsm_out_of_reset,           // Soft reset
+        input  logic        soft_rst_n,                     // Soft reset (deasserted during RESET/SBINIT)
 
         // LTSM Interface (to unit_LTSM_ctrl)
         input  logic        mbtrain_en,                     // MBTRAIN state enable
         output logic        mbtrain_done,                   // MBTRAIN state completion
-        output ltsm_state_n_pkg::state_n_e  current_mbtrain_substate,       // For RF logging
+        output ltsm_state_n_pkg::state_n_e  current_mbtrain_substate, // For RF logging / LTSM timeout
 
         // Global Interrupts / External Requests
         input  logic        trainerror_detected,            // OR of all sub-state trainerror_req outputs
         output logic        ltsm_trainerror_req,            // Request LTSM move to TRAINERROR
         output logic        ltsm_linkinit_req,              // Request LTSM move to LINKINIT
         output logic        ltsm_phyretrain_req,            // Request LTSM move to PHYRETRAIN
-        output logic        ltsm_repair_req,                // Request LTSM move to REPAIR (loop)
-        output logic        ltsm_speedidle_req,             // Request LTSM move to SPEEDIDLE (loop)
 
         // Entry Requests (from LTSM_ctrl on re-entry)
         input  logic        mbtrain_txselfcal_req,          // Re-enter at TXSELFCAL
@@ -48,94 +50,74 @@ module unit_MBTRAIN_ctrl (
 
         // Sub-state Handshakes: VALVREF
         output logic        local_valvref_en,
-        input  logic        local_valvref_done,
         output logic        partner_valvref_en,
-        input  logic        partner_valvref_done,
+        input  logic        valvref_done,
 
         // Sub-state Handshakes: DATAVREF
         output logic        local_datavref_en,
-        input  logic        local_datavref_done,
         output logic        partner_datavref_en,
-        input  logic        partner_datavref_done,
+        input  logic        datavref_done,
 
         // Sub-state Handshakes: SPEEDIDLE
         output logic        local_speedidle_en,
-        input  logic        local_speedidle_done,
         output logic        partner_speedidle_en,
-        input  logic        partner_speedidle_done,
+        input  logic        speedidle_done,
 
         // Sub-state Handshakes: TXSELFCAL
         output logic        local_txselfcal_en,
-        input  logic        local_txselfcal_done,
         output logic        partner_txselfcal_en,
-        input  logic        partner_txselfcal_done,
+        input  logic        txselfcal_done,
 
         // Sub-state Handshakes: RXCLKCAL
         output logic        local_rxclkcal_en,
-        input  logic        local_rxclkcal_done,
         output logic        partner_rxclkcal_en,
-        input  logic        partner_rxclkcal_done,
+        input  logic        rxclkcal_done,
 
         // Sub-state Handshakes: VALTRAINCENTER
         output logic        local_valtraincenter_en,
-        input  logic        local_valtraincenter_done,
         output logic        partner_valtraincenter_en,
-        input  logic        partner_valtraincenter_done,
+        input  logic        valtraincenter_done,
 
         // Sub-state Handshakes: VALTRAINVREF
         output logic        local_valtrainvref_en,
-        input  logic        local_valtrainvref_done,
         output logic        partner_valtrainvref_en,
-        input  logic        partner_valtrainvref_done,
+        input  logic        valtrainvref_done,
 
         // Sub-state Handshakes: DATATRAINCENTER1
         output logic        local_dtc1_en,
-        input  logic        local_dtc1_done,
         output logic        partner_dtc1_en,
-        input  logic        partner_dtc1_done,
+        input  logic        dtc1_done,
 
         // Sub-state Handshakes: DATATRAINVREF
         output logic        local_datatrainvref_en,
-        input  logic        local_datatrainvref_done,
         output logic        partner_datatrainvref_en,
-        input  logic        partner_datatrainvref_done,
+        input  logic        datatrainvref_done,
 
         // Sub-state Handshakes: RXDESKEW
-        output logic        local_rxdeskew_en        ,
-        input  logic        local_rxdeskew_done      ,
-        output logic        partner_rxdeskew_en      ,
-        input  logic        partner_rxdeskew_done    ,
-        input  logic        local_dtc1_loopback_req  , // From RXDESKEW to loop back to DTC1
-        input  logic        partner_dtc1_loopback_req, // From RXDESKEW to loop back to DTC1
+        output logic        local_rxdeskew_en,
+        output logic        partner_rxdeskew_en,
+        input  logic        rxdeskew_done,
+        input  logic        dtc1_loopback_req,              // From RXDESKEW: loop back to DTC1
 
         // Sub-state Handshakes: DATATRAINCENTER2
         output logic        local_dtc2_en,
-        input  logic        local_dtc2_done,
         output logic        partner_dtc2_en,
-        input  logic        partner_dtc2_done,
+        input  logic        dtc2_done,
 
         // Sub-state Handshakes: LINKSPEED
         output logic        local_linkspeed_en,
-        input  logic        local_linkspeed_done,
         output logic        partner_linkspeed_en,
-        input  logic        partner_linkspeed_done,
+        input  logic        linkspeed_done,
         // LINKSPEED routing outputs (fed back to ctrl)
-        input  logic        local_linkinit_route_req    ,
-        input  logic        local_speedidle_route_req   ,
-        input  logic        local_repair_route_req      ,
-        input  logic        local_phyretrain_route_req  ,
-        input  logic        partner_linkinit_route_req  ,
-        input  logic        partner_speedidle_route_req ,
-        input  logic        partner_repair_route_req    ,
-        input  logic        partner_phyretrain_route_req,
+        input  logic        linkspeed_linkinit_req  ,
+        input  logic        linkspeed_speedidle_req ,
+        input  logic        linkspeed_repair_req    ,
+        input  logic        linkspeed_phyretrain_req,
 
         // Sub-state Handshakes: REPAIR
         output logic        local_repair_en,
-        input  logic        local_repair_done,
         output logic        partner_repair_en,
-        input  logic        partner_repair_done,
-        input  logic        local_repair_txselfcal_req,      // From REPAIR to loop back to TXSELFCAL
-        input  logic        partner_repair_txselfcal_req       // From REPAIR to loop back to TXSELFCAL
+        input  logic        repair_done
     );
 
     import ltsm_state_n_pkg::*;
@@ -161,68 +143,46 @@ module unit_MBTRAIN_ctrl (
     mbtrain_substate_e current_state, next_state;
 
     // Registered Routing Requests
-    logic reg_linkinit_req, reg_phyretrain_req, reg_repair_req, reg_speedidle_req;
-
-    logic lcl_ptn_linkinit_route_req    ;
-    logic lcl_ptn_speedidle_route_req   ;
-    logic lcl_ptn_repair_route_req      ;
-    logic lcl_ptn_phyretrain_route_req  ;
-    logic lcl_ptn_repair_txselfcal_req  ;
-
-    assign lcl_ptn_linkinit_route_req   = local_linkinit_route_req   & partner_linkinit_route_req  ;
-    assign lcl_ptn_speedidle_route_req  = local_speedidle_route_req  & partner_speedidle_route_req ;
-    assign lcl_ptn_repair_route_req     = local_repair_route_req     & partner_repair_route_req    ;
-    assign lcl_ptn_phyretrain_route_req = local_phyretrain_route_req & partner_phyretrain_route_req;
-    assign lcl_ptn_repair_txselfcal_req = local_repair_txselfcal_req & partner_repair_txselfcal_req;
+    logic reg_linkinit_req, reg_phyretrain_req;
 
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             reg_linkinit_req   <= 1'b0;
             reg_phyretrain_req <= 1'b0;
-            reg_repair_req     <= 1'b0;
-            reg_speedidle_req  <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n || current_state == MBTRAIN_IDLE) begin
             reg_linkinit_req   <= 1'b0;
             reg_phyretrain_req <= 1'b0;
-            reg_repair_req     <= 1'b0;
-            reg_speedidle_req  <= 1'b0;
         end
-        else if (current_state == MBTRAIN_IDLE) begin
-            reg_linkinit_req   <= 1'b0;
-            reg_phyretrain_req <= 1'b0;
-            reg_repair_req     <= 1'b0;
-            reg_speedidle_req  <= 1'b0;
-        end
-        else if (current_state == LINKSPEED && local_linkspeed_done && partner_linkspeed_done) begin
-            reg_linkinit_req   <= lcl_ptn_linkinit_route_req  ;
-            reg_phyretrain_req <= lcl_ptn_phyretrain_route_req;
-            reg_repair_req     <= lcl_ptn_repair_route_req    ;
-            reg_speedidle_req  <= lcl_ptn_speedidle_route_req ;
+        else if (current_state == LINKSPEED && linkspeed_done) begin
+            reg_linkinit_req   <= linkspeed_linkinit_req;
+            reg_phyretrain_req <= linkspeed_phyretrain_req;
         end
     end
 
     // Assign registered requests to outputs
     assign ltsm_linkinit_req   = reg_linkinit_req;
     assign ltsm_phyretrain_req = reg_phyretrain_req;
-    assign ltsm_repair_req     = reg_repair_req;
-    assign ltsm_speedidle_req  = reg_speedidle_req;
+
+    logic is_mbtrain_on;
 
     // State Register
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            current_state <= MBTRAIN_IDLE;
+            current_state  <= MBTRAIN_IDLE;
+            is_mbtrain_on <= 1'b0;
         end
-        else if (!is_ltsm_out_of_reset) begin
+        else if (!soft_rst_n) begin
             current_state <= MBTRAIN_IDLE;
+            is_mbtrain_on <= 1'b0;
         end
-        else begin
-            if (!mbtrain_en) begin
-                current_state <= MBTRAIN_IDLE;
-            end
-            else begin
-                current_state <= next_state;
-            end
+        else if(mbtrain_en) begin
+            current_state <= next_state;
+            is_mbtrain_on <= 1'b1;
+        end
+        else if(is_mbtrain_on) begin
+            current_state <= MBTRAIN_IDLE;
+            is_mbtrain_on <= 1'b0;
         end
     end
 
@@ -254,7 +214,6 @@ module unit_MBTRAIN_ctrl (
             next_state          = MBTRAIN_DONE;
             if (current_state == MBTRAIN_DONE) begin
                 mbtrain_done = 1'b1;
-                if (!mbtrain_en) next_state = MBTRAIN_IDLE;
             end
         end
         else begin
@@ -272,55 +231,55 @@ module unit_MBTRAIN_ctrl (
                 VALVREF: begin
                     local_valvref_en   = 1'b1;
                     partner_valvref_en = 1'b1;
-                    if (local_valvref_done && partner_valvref_done) next_state = DATAVREF;
+                    if (valvref_done) next_state = DATAVREF;
                 end
 
                 DATAVREF: begin
                     local_datavref_en   = 1'b1;
                     partner_datavref_en = 1'b1;
-                    if (local_datavref_done && partner_datavref_done) next_state = SPEEDIDLE;
+                    if (datavref_done) next_state = SPEEDIDLE;
                 end
 
                 SPEEDIDLE: begin
                     local_speedidle_en   = 1'b1;
                     partner_speedidle_en = 1'b1;
-                    if (local_speedidle_done && partner_speedidle_done) next_state = TXSELFCAL;
+                    if (speedidle_done) next_state = TXSELFCAL;
                 end
 
                 TXSELFCAL: begin
                     local_txselfcal_en   = 1'b1;
                     partner_txselfcal_en = 1'b1;
-                    if (local_txselfcal_done && partner_txselfcal_done) next_state = RXCLKCAL;
+                    if (txselfcal_done) next_state = RXCLKCAL;
                 end
 
                 RXCLKCAL: begin
                     local_rxclkcal_en   = 1'b1;
                     partner_rxclkcal_en = 1'b1;
-                    if (local_rxclkcal_done && partner_rxclkcal_done) next_state = VALTRAINCENTER;
+                    if (rxclkcal_done) next_state = VALTRAINCENTER;
                 end
 
                 VALTRAINCENTER: begin
                     local_valtraincenter_en   = 1'b1;
                     partner_valtraincenter_en = 1'b1;
-                    if (local_valtraincenter_done && partner_valtraincenter_done) next_state = VALTRAINVREF;
+                    if (valtraincenter_done) next_state = VALTRAINVREF;
                 end
 
                 VALTRAINVREF: begin
                     local_valtrainvref_en   = 1'b1;
                     partner_valtrainvref_en = 1'b1;
-                    if (local_valtrainvref_done && partner_valtrainvref_done) next_state = DATATRAINCENTER1;
+                    if (valtrainvref_done) next_state = DATATRAINCENTER1;
                 end
 
                 DATATRAINCENTER1: begin
                     local_dtc1_en   = 1'b1;
                     partner_dtc1_en = 1'b1;
-                    if (local_dtc1_done && partner_dtc1_done) next_state = DATATRAINVREF;
+                    if (dtc1_done) next_state = DATATRAINVREF;
                 end
 
                 DATATRAINVREF: begin
                     local_datatrainvref_en   = 1'b1;
                     partner_datatrainvref_en = 1'b1;
-                    if (local_datatrainvref_done && partner_datatrainvref_done) next_state = RXDESKEW;
+                    if (datatrainvref_done) next_state = RXDESKEW;
                 end
 
                 RXDESKEW: begin
@@ -329,10 +288,10 @@ module unit_MBTRAIN_ctrl (
                     // Transition Logic:
                     // 1. Arc loop back to DTC1 takes precedence.
                     // 2. Normal completion moves to DTC2.
-                    if (local_dtc1_loopback_req & partner_dtc1_loopback_req) begin
+                    if (dtc1_loopback_req) begin
                         next_state = DATATRAINCENTER1;
                     end
-                    else if (local_rxdeskew_done && partner_rxdeskew_done) begin
+                    else if (rxdeskew_done) begin
                         next_state = DATATRAINCENTER2;
                     end
                 end
@@ -340,21 +299,21 @@ module unit_MBTRAIN_ctrl (
                 DATATRAINCENTER2: begin
                     local_dtc2_en   = 1'b1;
                     partner_dtc2_en = 1'b1;
-                    if (local_dtc2_done && partner_dtc2_done) next_state = LINKSPEED;
+                    if (dtc2_done) next_state = LINKSPEED;
                 end
 
                 LINKSPEED: begin
                     local_linkspeed_en   = 1'b1;
                     partner_linkspeed_en = 1'b1;
-                    if (local_linkspeed_done && partner_linkspeed_done) begin
+                    if (linkspeed_done) begin
                         // Routing decisions from LINKSPEED (next state only)
-                        if (lcl_ptn_linkinit_route_req || lcl_ptn_phyretrain_route_req) begin
+                        if (linkspeed_linkinit_req || linkspeed_phyretrain_req) begin
                             next_state = MBTRAIN_DONE;
                         end
-                        else if (lcl_ptn_speedidle_route_req) begin
+                        else if (linkspeed_speedidle_req) begin
                             next_state = SPEEDIDLE;
                         end
-                        else if (lcl_ptn_repair_route_req) begin
+                        else if (linkspeed_repair_req) begin
                             next_state = REPAIR;
                         end
                         else begin
@@ -367,11 +326,7 @@ module unit_MBTRAIN_ctrl (
                 REPAIR: begin
                     local_repair_en   = 1'b1;
                     partner_repair_en = 1'b1;
-                    if (local_repair_done && partner_repair_done) begin
-                        // Per Spec, REPAIR exits back to TXSELFCAL or SPEEDIDLE
-                        if (lcl_ptn_repair_txselfcal_req) next_state = TXSELFCAL;
-                        else                            next_state = SPEEDIDLE;
-                    end
+                    next_state        = (repair_done)? TXSELFCAL : REPAIR;
                 end
 
                 MBTRAIN_DONE: begin
@@ -388,7 +343,7 @@ module unit_MBTRAIN_ctrl (
         if (~rst_n) begin
             current_mbtrain_substate <= LOG_NOP;
         end
-        else if (~is_ltsm_out_of_reset) begin
+        else if (~soft_rst_n) begin
             current_mbtrain_substate <= LOG_NOP;
         end
         else if (!trainerror_detected & mbtrain_en) begin
@@ -407,7 +362,7 @@ module unit_MBTRAIN_ctrl (
                 DATATRAINCENTER2: current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINCENTER2;
                 LINKSPEED       : current_mbtrain_substate <= LOG_MBTRAIN_LINKSPEED       ;
                 REPAIR          : current_mbtrain_substate <= LOG_MBTRAIN_REPAIR          ;
-                MBTRAIN_DONE    : current_mbtrain_substate <= current_mbtrain_substate    ; // We want to keep this state refer to the last applied substate before MBTRAIN exit.
+                MBTRAIN_DONE    : current_mbtrain_substate <= current_mbtrain_substate    ; // Keep last substate for LTSM timeout reference.
                 default         : ;
             endcase
         end

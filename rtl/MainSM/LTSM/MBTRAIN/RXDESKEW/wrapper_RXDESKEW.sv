@@ -58,7 +58,7 @@ module wrapper_RXDESKEW #(
         // =========================================================================
         // Group 3: PHY Control Signals
         // =========================================================================
-        output logic [6:0]  phy_rx_deskew_ctrl [15:0],      // RX deskew phase interpolator codes
+        output logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  phy_rx_deskew_ctrl [15:0],      // RX deskew phase interpolator codes
         output logic        partner_sweep_en,               // 0: Partner not ready; 1: Partner holding MB for sweep
         output logic [2:0]  phy_tx_eq_preset_ctrl,          // 3-bit EQ preset code applied to TX PHY (0-5)
         output logic        phy_tx_eq_preset_en,            // 0: Hold current; 1: Apply EQ preset
@@ -66,11 +66,11 @@ module wrapper_RXDESKEW #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,                       // 0: Stop sweep; 1: Start/sustain D2C sweep
-        input  logic [6:0]  swept_code,                     // Current code being tested
-        input  wire logic [6:0]  best_code [0:15],               // Array of best deskew codes per lane
-        input  logic [6:0]  min_eye_width,                  // Narrowest eye width found across lanes
-        input  logic        sweep_done,                     // 0: Sweeping; 1: Sweep completed
+        output      logic                                  sweep_en,         // 0: Stop sweep; 1: Start/sustain D2C sweep
+        input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  swept_code,       // Current code being tested
+        input  wire logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  best_code [0:15], // Array of best deskew codes per lane
+        input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  min_eye_width,    // Narrowest eye width found across lanes
+        input       logic                                  sweep_done,       // 0: Sweeping; 1: Sweep completed
 
         // =========================================================================
         // Group 5: MB Signals (Mainband Control & Status)
