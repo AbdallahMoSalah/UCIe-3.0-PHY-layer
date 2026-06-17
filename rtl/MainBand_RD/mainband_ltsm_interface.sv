@@ -1,16 +1,13 @@
-module mainband_ltsm_interface
-(   
+module mainband_ltsm_interface #(
+    parameter int NUM_LANES = 16
+) (   
     output  logic                    i_mapper_en,
     output  logic [2:0]              i_width_deg_tx,
     output  logic [2:0]              i_width_deg_rx,
     output  logic [2:0]              i_lfsr_state,
     output  logic                    i_reversal_en,
     output  logic                    i_valid_pattern_en,
-    output  logic                    i_pll_en,//
-    output  logic [1:0]              i_pll_speed_sel,//
-    output  logic                    lclk_g,//
     output  logic                    i_clk_pattern_en,
-    output  logic                    i_clk_embedded_en,//
 
     output  logic [2:0]              i_state,
     output  logic                    demapper_en,
@@ -24,7 +21,7 @@ module mainband_ltsm_interface
     output  logic                    i_vcmp_mode,
     output  logic                    i_vcmp_clear,
     output  logic                    i_clk_detector_en,
-    output  logic [15:0]             i_rx_data_deser_en,
+    output  logic [NUM_LANES-1:0]    i_rx_data_deser_en,
     output  logic                    i_rx_valid_deser_en,
 
     input logic                    o_lfsr_tx_done,
@@ -33,14 +30,19 @@ module mainband_ltsm_interface
 
     input logic                    o_pcmp_done,
     input logic [NUM_LANES-1:0]    o_pcmp_per_lane_pass,
-    input logic [15:0]             o_pcmp_agg_err_cnt,
-    input logic                    o_pcmp_agg_error,
     input logic                    o_vcmp_done,
     input logic                    o_vcmp_pass,
     input logic                    o_valid_frame_error,
     input logic                    o_clk_p_pass,
     input logic                    o_clk_n_pass,
     input logic                    o_track_pass,
+
+
+
+
+
+
+    input logic [NUM_LANES-1:0] reg_lane_mask,
 //=========================================================================
 
 //=========================================================================
@@ -63,7 +65,7 @@ module mainband_ltsm_interface
     // =========================================================================
     // Unified Mainband Inputs
     // =========================================================================
-    output  logic [15:0] mb_rx_perlane_pass,
+    output  logic [NUM_LANES-1:0] mb_rx_perlane_pass,
     output  logic        mb_tx_pattern_count_done,
 
     // =========================================================================
@@ -80,9 +82,12 @@ module mainband_ltsm_interface
     output logic        repairclk_rckn_pass,
     output logic        repairclk_rckp_pass,
     output logic        repairval_RVLD_L_pass,
-    output logic        mb_rx_compare_done,
+    output logic        mb_rx_compare_done
 );
-    always_comb begin :
+
+    logic [NUM_LANES-1:0] internal_lane_mask;
+
+    always_comb begin
     //mapper and demapper
         i_mapper_en = active;
         demapper_en = active;
@@ -109,7 +114,7 @@ module mainband_ltsm_interface
             if (mb_tx_lfsr_rst)
                 i_lfsr_state = 3'b001; //Reset
             else if (mb_tx_pattern_en && mb_tx_pattern_setup[0]) begin
-                if (mb_tx_data_pattern_sel[0])
+                if (!mb_tx_data_pattern_sel[0])
                     i_lfsr_state = 3'b010; //PRBS Pattern
                 else
                     i_lfsr_state = 3'b011; //Per lane ID pattern
@@ -144,12 +149,12 @@ module mainband_ltsm_interface
     end
     
     always_comb begin : i_pcmp_iter_count_generator
-        if (mb_tx_data_pattern_sel[0]) begin
+        if (!mb_tx_data_pattern_sel[0]) begin
             i_pcmp_iter_count = 16'd128; //PRBS Pattern
-            i_pcmp_pattern_mode = 1'b1;
+            i_pcmp_pattern_mode = 1'b0; // LFSR pattern
         end else begin
             i_pcmp_iter_count = 16'd64; //Per lane ID pattern
-            i_pcmp_pattern_mode = 1'b0; 
+            i_pcmp_pattern_mode = 1'b1; // Per-lane ID pattern
         end
     end
 
@@ -168,14 +173,30 @@ module mainband_ltsm_interface
     end
 
     always_comb begin : deserializer_en_generator
-        case (mb_rx_data_lane_map)
-            3'b011: i_rx_data_deser_en = 16'hffff;
-            3'b001: i_rx_data_deser_en = 16'h00ff;
-            3'b010: i_rx_data_deser_en = 16'hff00;
-            3'b100: i_rx_data_deser_en = 16'h000f;
-            3'b101: i_rx_data_deser_en = 16'h00f0;
-            default: i_rx_data_deser_en = 16'h0000;
-        endcase 
+        if (mb_rx_data_en) begin
+            case (mb_rx_data_lane_map)
+                3'b011: i_rx_data_deser_en = 16'hffff;
+                3'b001: i_rx_data_deser_en = 16'h00ff;
+                3'b010: i_rx_data_deser_en = 16'hff00;
+                3'b100: i_rx_data_deser_en = 16'h000f;
+                3'b101: i_rx_data_deser_en = 16'h00f0;
+                default: i_rx_data_deser_en = 16'h0000;
+            endcase 
+        end else begin
+            i_rx_data_deser_en = 16'h0000;
+        end
         i_rx_valid_deser_en = mb_rx_valid_en;
+    end
+
+    always_comb begin : lane_mask_generator
+        case (mb_rx_data_lane_map)
+            3'b001:  internal_lane_mask = ~16'h00FF;
+            3'b010:  internal_lane_mask = ~16'hFF00;
+            3'b011:  internal_lane_mask = ~16'hFFFF;
+            3'b100:  internal_lane_mask = ~16'h000F;
+            3'b101:  internal_lane_mask = ~16'h00F0;
+            default: internal_lane_mask = 16'hFFFF;
+        endcase
+        i_pcmp_lane_mask = reg_lane_mask | internal_lane_mask;
     end
 endmodule

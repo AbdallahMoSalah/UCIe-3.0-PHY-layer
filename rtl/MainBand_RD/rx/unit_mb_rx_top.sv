@@ -194,7 +194,7 @@ module unit_mb_rx_top #(
         end
     endgenerate
 
-    assign o_data_valid = data_valid_lane[0];
+    assign o_data_valid = |data_valid_lane;
 
     // =========================================================================
     // 4. LFSR_RX : descramble + locally-generated reference (o_final_gene)
