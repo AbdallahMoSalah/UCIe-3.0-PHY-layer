@@ -39,7 +39,7 @@ import LTSM_state_pkg::*;
     input  logic        mbinit_done,
 
     output logic        mbtrain_en,
-    input  logic        mbtrain_done,   // pass-through: tied high in the wrapper
+    input  logic        mbtrain_done,
 
     output logic        linkinit_en,
     input  logic        linkinit_done,
@@ -52,6 +52,7 @@ import LTSM_state_pkg::*;
     // FSM takes NO action on them.
     input  logic        sbinit_error,
     input  logic        mbinit_error,
+    input  logic        mbtrain_error,   // <= MBTRAIN ltsm_trainerror_req
     input  logic        linkinit_error,
     input  logic        active_error,
 
