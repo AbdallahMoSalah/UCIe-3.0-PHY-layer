@@ -153,8 +153,8 @@ module MB_TX_TOP #(
     ) u_ClkDiv  (
     .i_ref_clk (o_pll_clk),
     .i_rst_n   (i_rst_n),
-    .i_clk_en  (1),
-    .i_div_ratio (16),
+    .i_clk_en  (1'b1),
+    .i_div_ratio (8'd16),
     .o_div_clk (o_mb_clk          )
     );
 
