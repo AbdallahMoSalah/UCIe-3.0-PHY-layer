@@ -71,7 +71,6 @@ module wrapper_LINKSPEED (
 
         // Combined outputs
         output logic        linkspeed_done,                    // 0: In progress; 1: Sub-state completed
-        output logic        trainerror_req,                    // 1: Request exit to TRAINERROR
 
         // Exit route requests: (Note: we commented-out each local/partner outputs here and replaced each pair with one output port)
         // output logic        local_linkinit_req,                // 1: Request exit to LINKINIT
@@ -169,8 +168,6 @@ module wrapper_LINKSPEED (
     // Done and trainerror wires from substate FSMs:
     logic        local_linkspeed_done_w     ;
     logic        partner_linkspeed_done_w   ;
-    logic        local_trainerror_req_w     ;
-    logic        partner_trainerror_req_w   ;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid    ;
@@ -219,7 +216,7 @@ module wrapper_LINKSPEED (
         .repair_req                     (local_repair_req              ), // Exit to REPAIR
         .linkinit_req                   (local_linkinit_req            ), // Exit to LINKINIT
         .phyretrain_req                 (local_phyretrain_req          ), // Exit to PHYRETRAIN
-        .trainerror_req                 (local_trainerror_req_w        ), // Exit to TRAINERROR
+        // .trainerror_req                 (), // Exit to TRAINERROR
         // Lane & Width Configuration
         .active_rx_lanes                (active_rx_lanes               ), // Active lane mask
         .width_degrade_feasible         (width_degrade_feasible        ), // Width degradation feasibility
@@ -274,7 +271,7 @@ module wrapper_LINKSPEED (
         .repair_req                     (partner_repair_req            ), // Exit to REPAIR
         .linkinit_req                   (partner_linkinit_req          ), // Exit to LINKINIT
         .phyretrain_req                 (partner_phyretrain_req        ), // Exit to PHYRETRAIN
-        .trainerror_req                 (partner_trainerror_req_w      ), // Exit to TRAINERROR
+        // .trainerror_req                 (), // Exit to TRAINERROR
         // MB Lane Control
         .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel    ), // Clock TX select
         .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel   ), // Data TX select
@@ -306,9 +303,8 @@ module wrapper_LINKSPEED (
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
 
-    // Consolidated terminal/status signals
+    // Combined terminal/status signals
     assign linkspeed_done = local_linkspeed_done_w & partner_linkspeed_done_w;
-    assign trainerror_req = local_trainerror_req_w | partner_trainerror_req_w;
 
     // ── Sideband TX Output Arbitration ───────────────────────────────────────
     // LOCAL has priority (Source A). PARTNER is secondary (Source B).

@@ -17,16 +17,13 @@
 // ====================================================================================================
 
 module wrapper_MBTRAIN #(
-        parameter int unsigned MAX_VAL_VREF_CODE  = 7'd16,
-        parameter int unsigned MIN_VAL_VREF_CODE  = 7'd1,
-        parameter int unsigned MAX_DATA_VREF_CODE = 7'd16,
-        parameter int unsigned MIN_DATA_VREF_CODE = 7'd1,
-        parameter int unsigned MAX_DATA_PI_CODE   = 6'd16,
-        parameter int unsigned MIN_DATA_PI_CODE   = 6'd1,
-        parameter int unsigned MAX_VAL_PI_CODE    = 6'd16,
-        parameter int unsigned MIN_VAL_PI_CODE    = 6'd1,
-        parameter int unsigned MAX_DESKEW_CODE    = 7'd16,
-        parameter int unsigned MIN_DESKEW_CODE    = 7'd1,
+        parameter int unsigned MAX_VAL_VREF_CODE  = 'd16,
+        parameter int unsigned MAX_DATA_VREF_CODE = 'd16,
+        parameter int unsigned MAX_DATA_PI_CODE   = 'd16,
+        parameter int unsigned MAX_VAL_PI_CODE    = 'd16,
+        parameter int unsigned MAX_DESKEW_CODE    = 'd16,
+        parameter int unsigned MIN_DATA_PI_CODE   = 'd1 ,
+        parameter int unsigned MIN_DESKEW_CODE    = 'd1 ,
 
         parameter int unsigned MAX_CODE =
             (MAX_VAL_VREF_CODE >= MAX_DATA_VREF_CODE && MAX_VAL_VREF_CODE >= MAX_DATA_PI_CODE && MAX_VAL_VREF_CODE >= MAX_VAL_PI_CODE && MAX_VAL_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_VAL_VREF_CODE :
@@ -106,8 +103,8 @@ module wrapper_MBTRAIN #(
         output logic        phy_tx_decrement_shift,
         input  logic        phy_tx_tckn_shift_out_of_range,
 
-        output logic [$clog2(MAX_VAL_VREF_CODE+1)-1 :0] phy_rx_valvref_ctrl,
-        output logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0] phy_rx_datavref_ctrl [0:15],
+        output logic [$clog2(MAX_VAL_VREF_CODE+1)-1 :0] phy_rx_val_vref_ctrl,
+        output logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0] phy_rx_data_vref_ctrl [0:15],
         output logic [$clog2(MAX_VAL_PI_CODE+1)-1   :0] phy_tx_val_pi_phase_ctrl,
         output logic [$clog2(MAX_DATA_PI_CODE+1)-1  :0] phy_tx_data_pi_phase_ctrl [0:15],
         output logic [$clog2(MAX_DESKEW_CODE+1)-1   :0] phy_rx_deskew_ctrl        [0:15],
@@ -444,17 +441,13 @@ module wrapper_MBTRAIN #(
     // ===========================================================================================
 
     wrapper_VALVREF #(
-        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE)
     ) u_VALVREF (
         .lclk                  (lclk),
         .rst_n                 (rst_n),
         .soft_rst_n            (soft_rst_n),
-        .local_valvref_en      (local_valvref_en),
-        .local_update_lane_mask(ss_update_lane_mask[SS_VALVREF]),
-        .partner_valvref_en    (partner_valvref_en),
+        .valvref_en            (ss_active[SS_VALVREF]),
         .valvref_done          (valvref_done_w),
-        .trainerror_req        (ss_trainerror_req[SS_VALVREF]),
         .phy_rx_valvref_ctrl   (valvref_phy_rx_valvref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_VALVREF]),
         .sweep_en              (ss_sweep_en[SS_VALVREF]),
@@ -474,23 +467,17 @@ module wrapper_MBTRAIN #(
         .tx_msginfo            (ss_tx_msginfo[SS_VALVREF]),
         .tx_data_field         (ss_tx_data_field[SS_VALVREF]),
         .rx_sb_msg_valid       (rx_sb_msg_valid),
-        .rx_sb_msg             (rx_sb_msg),
-        .rx_msginfo            (rx_msginfo),
-        .rx_data_field         (rx_data_field)
+        .rx_sb_msg             (rx_sb_msg)
     );
 
     wrapper_DATAVREF #(
-        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE (MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE)
     ) u_DATAVREF (
         .lclk                  (lclk),
         .rst_n                 (rst_n),
         .soft_rst_n            (soft_rst_n),
-        .local_datavref_en     (local_datavref_en),
-        .local_update_lane_mask(ss_update_lane_mask[SS_DATAVREF]),
-        .partner_datavref_en   (partner_datavref_en),
+        .datavref_en           (ss_active[SS_DATAVREF]),
         .datavref_done         (datavref_done_w),
-        .trainerror_req        (ss_trainerror_req[SS_DATAVREF]),
         .phy_rx_datavref_ctrl  (datavref_phy_rx_datavref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_DATAVREF]),
         .sweep_en              (ss_sweep_en[SS_DATAVREF]),
@@ -510,17 +497,14 @@ module wrapper_MBTRAIN #(
         .tx_msginfo            (ss_tx_msginfo[SS_DATAVREF]),
         .tx_data_field         (ss_tx_data_field[SS_DATAVREF]),
         .rx_sb_msg_valid       (rx_sb_msg_valid),
-        .rx_sb_msg             (rx_sb_msg),
-        .rx_msginfo            (rx_msginfo),
-        .rx_data_field         (rx_data_field)
+        .rx_sb_msg             (rx_sb_msg)
     );
 
     wrapper_SPEEDIDLE u_SPEEDIDLE (
         .lclk                    (lclk),
         .rst_n                   (rst_n),
         .soft_rst_n              (soft_rst_n),
-        .local_speedidle_en      (local_speedidle_en),
-        .partner_speedidle_en    (partner_speedidle_en),
+        .speedidle_en            (ss_active[SS_SPEEDIDLE]),
         .speedidle_done          (speedidle_done_w),
         .trainerror_req          (ss_trainerror_req[SS_SPEEDIDLE]),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_SPEEDIDLE]),
@@ -541,19 +525,15 @@ module wrapper_MBTRAIN #(
         .tx_msginfo              (ss_tx_msginfo[SS_SPEEDIDLE]),
         .tx_data_field           (ss_tx_data_field[SS_SPEEDIDLE]),
         .rx_sb_msg_valid         (rx_sb_msg_valid),
-        .rx_sb_msg               (rx_sb_msg),
-        .rx_msginfo              (rx_msginfo),
-        .rx_data_field           (rx_data_field)
+        .rx_sb_msg               (rx_sb_msg)
     );
 
     wrapper_TXSELFCAL u_TXSELFCAL (
         .lclk                    (lclk),
         .rst_n                   (rst_n),
         .soft_rst_n              (soft_rst_n),
-        .local_txselfcal_en      (local_txselfcal_en),
-        .partner_txselfcal_en    (partner_txselfcal_en),
+        .txselfcal_en            (ss_active[SS_TXSELFCAL]),
         .txselfcal_done          (txselfcal_done_w),
-        .trainerror_req          (ss_trainerror_req[SS_TXSELFCAL]),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_TXSELFCAL]),
         .analog_settle_time_done (analog_settle_time_done),
         .phy_tx_selfcal_en       (txselfcal_phy_tx_selfcal_en),
@@ -570,9 +550,7 @@ module wrapper_MBTRAIN #(
         .tx_msginfo              (ss_tx_msginfo[SS_TXSELFCAL]),
         .tx_data_field           (ss_tx_data_field[SS_TXSELFCAL]),
         .rx_sb_msg_valid         (rx_sb_msg_valid),
-        .rx_sb_msg               (rx_sb_msg),
-        .rx_msginfo              (rx_msginfo),
-        .rx_data_field           (rx_data_field)
+        .rx_sb_msg               (rx_sb_msg)
     );
 
     wrapper_RXCLKCAL u_RXCLKCAL (
@@ -581,8 +559,7 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
-        .local_rxclkcal_en            (local_rxclkcal_en),
-        .partner_rxclkcal_en          (partner_rxclkcal_en),
+        .rxclkcal_en                  (ss_active[SS_RXCLKCAL]),
         .rxclkcal_done                (rxclkcal_done_w),
         .trainerror_req               (ss_trainerror_req[SS_RXCLKCAL]),
         .analog_settle_timer_en       (ss_analog_settle_timer_en[SS_RXCLKCAL]),
@@ -613,22 +590,17 @@ module wrapper_MBTRAIN #(
         .tx_data_field                (ss_tx_data_field[SS_RXCLKCAL]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
         .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_msginfo                   (rx_msginfo)
     );
 
     wrapper_VALTRAINCENTER #(
-        .MAX_VAL_PI_CODE (MAX_VAL_PI_CODE),
-        .MIN_VAL_PI_CODE (MIN_VAL_PI_CODE)
+        .MAX_VAL_PI_CODE (MAX_VAL_PI_CODE)
     ) u_VALTRAINCENTER (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_valtraincenter_en      (local_valtraincenter_en),
-        .local_update_lane_mask       (ss_update_lane_mask[SS_VALTRAINCENTER]),
-        .partner_valtraincenter_en    (partner_valtraincenter_en),
+        .valtraincenter_en            (ss_active[SS_VALTRAINCENTER]),
         .valtraincenter_done          (valtraincenter_done_w),
-        .trainerror_req               (ss_trainerror_req[SS_VALTRAINCENTER]),
         .phy_tx_val_pi_phase_ctrl     (valtraincenter_phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINCENTER]),
         .sweep_en                     (ss_sweep_en[SS_VALTRAINCENTER]),
@@ -650,23 +622,17 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                   (ss_tx_msginfo[SS_VALTRAINCENTER]),
         .tx_data_field                (ss_tx_data_field[SS_VALTRAINCENTER]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_sb_msg                    (rx_sb_msg)
     );
 
     wrapper_VALTRAINVREF #(
-        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE)
     ) u_VALTRAINVREF (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_valtrainvref_en        (local_valtrainvref_en),
-        .local_update_lane_mask       (ss_update_lane_mask[SS_VALTRAINVREF]),
-        .partner_valtrainvref_en      (partner_valtrainvref_en),
+        .valtrainvref_en              (ss_active[SS_VALTRAINVREF]),
         .valtrainvref_done            (valtrainvref_done_w),
-        .trainerror_req               (ss_trainerror_req[SS_VALTRAINVREF]),
         .phy_rx_valvref_ctrl          (valtrainvref_phy_rx_valvref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINVREF]),
         .sweep_en                     (ss_sweep_en[SS_VALTRAINVREF]),
@@ -686,23 +652,17 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                   (ss_tx_msginfo[SS_VALTRAINVREF]),
         .tx_data_field                (ss_tx_data_field[SS_VALTRAINVREF]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_sb_msg                    (rx_sb_msg)
     );
 
     wrapper_DATATRAINCENTER1 #(
-        .MAX_DATA_PI_CODE (MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE (MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE (MAX_DATA_PI_CODE)
     ) u_DATATRAINCENTER1 (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_datatraincenter1_en    (local_dtc1_en),
+        .datatraincenter1_en          (ss_active[SS_DTC1]),
         .datatraincenter1_done        (dtc1_done_w),
-        .trainerror_req               (ss_trainerror_req[SS_DTC1]),
-        .local_update_lane_mask       (ss_update_lane_mask[SS_DTC1]),
-        .partner_datatraincenter1_en  (partner_dtc1_en),
         .phy_tx_data_pi_phase_ctrl    (dtc1_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC1]),
         .sweep_en                     (ss_sweep_en[SS_DTC1]),
@@ -722,23 +682,17 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                   (ss_tx_msginfo[SS_DTC1]),
         .tx_data_field                (ss_tx_data_field[SS_DTC1]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_sb_msg                    (rx_sb_msg)
     );
 
     wrapper_DATATRAINVREF #(
-        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE (MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE)
     ) u_DATATRAINVREF (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_datatrainvref_en       (local_datatrainvref_en),
+        .datatrainvref_en             (ss_active[SS_DATATRAINVREF]),
         .datatrainvref_done           (datatrainvref_done_w),
-        .trainerror_req               (ss_trainerror_req[SS_DATATRAINVREF]),
-        .local_update_lane_mask       (ss_update_lane_mask[SS_DATATRAINVREF]),
-        .partner_datatrainvref_en     (partner_datatrainvref_en),
         .phy_rx_datavref_ctrl         (datatrainvref_phy_rx_datavref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DATATRAINVREF]),
         .sweep_en                     (ss_sweep_en[SS_DATATRAINVREF]),
@@ -758,9 +712,7 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                   (ss_tx_msginfo[SS_DATATRAINVREF]),
         .tx_data_field                (ss_tx_data_field[SS_DATATRAINVREF]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_sb_msg                    (rx_sb_msg)
     );
 
     logic [DATA_DESKEW_W-1:0] swept_deskew_code_with_safe_width;
@@ -780,11 +732,10 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
-        .local_rxdeskew_en            (local_rxdeskew_en),
+        .rxdeskew_en                  (ss_active[SS_RXDESKEW]),
         .rxdeskew_done                (rxdeskew_done_w),
         .datatraincenter1_req         (rxdeskew_dtc1_req),
         .trainerror_req               (ss_trainerror_req[SS_RXDESKEW]),
-        .partner_rxdeskew_en          (partner_rxdeskew_en),
         .phy_rx_deskew_ctrl           (rxdeskew_phy_rx_deskew_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_RXDESKEW]),
         .phy_tx_eq_preset_ctrl        (rxdeskew_phy_tx_eq_preset_ctrl),
@@ -808,22 +759,17 @@ module wrapper_MBTRAIN #(
         .tx_data_field                (ss_tx_data_field[SS_RXDESKEW]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
         .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_msginfo                   (rx_msginfo)
     );
 
     wrapper_DATATRAINCENTER2 #(
-        .MAX_DATA_PI_CODE (MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE (MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE (MAX_DATA_PI_CODE)
     ) u_DATATRAINCENTER2 (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_datatraincenter2_en    (local_dtc2_en),
+        .datatraincenter2_en          (ss_active[SS_DTC2]),
         .datatraincenter2_done        (dtc2_done_w),
-        .trainerror_req               (ss_trainerror_req[SS_DTC2]),
-        .local_update_lane_mask       (ss_update_lane_mask[SS_DTC2]),
-        .partner_datatraincenter2_en  (partner_dtc2_en),
         .phy_tx_data_pi_phase_ctrl    (dtc2_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC2]),
         .sweep_en                     (ss_sweep_en[SS_DTC2]),
@@ -843,9 +789,7 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                   (ss_tx_msginfo[SS_DTC2]),
         .tx_data_field                (ss_tx_data_field[SS_DTC2]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
-        .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_sb_msg                    (rx_sb_msg)
     );
 
     wrapper_LINKSPEED u_LINKSPEED (
@@ -858,7 +802,6 @@ module wrapper_MBTRAIN #(
         .partner_linkspeed_en          (partner_linkspeed_en),
 
         .linkspeed_done                (linkspeed_done_w),
-        .trainerror_req                (linkspeed_trainerror_req_w),
 
         .linkspeed_linkinit_req        (linkspeed_linkinit_req),
         .linkspeed_speedidle_req       (linkspeed_speedidle_req),
@@ -893,30 +836,26 @@ module wrapper_MBTRAIN #(
         .rx_msginfo                    (rx_msginfo),
         .rx_data_field                 (rx_data_field)
     );
-    assign ss_trainerror_req[SS_LINKSPEED] = linkspeed_trainerror_req_w;
+    assign ss_trainerror_req[SS_LINKSPEED] = 1'b0;
 
     wrapper_REPAIR u_REPAIR (
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .local_repair_en              (local_repair_en),
+        .repair_en                    (ss_active[SS_REPAIR]),
         .repair_done                  (repair_done_w),
         .trainerror_req               (repair_trainerror_req_w),
-        .partner_repair_en            (partner_repair_en),
         .success_tx_lanes             (linkspeed_success_lanes),
         .rf_cap_SPMW                  (rf_cap_SPMW),
         .rf_ctrl_target_link_width    (rf_ctrl_target_link_width),
         .param_UCIe_S_x8              (param_UCIe_S_x8),
         .mb_rx_data_lane_mask         (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask         (mb_tx_data_lane_mask),
-        // active_rx_lanes and degrade_feasible are exposed as outputs from wrapper_REPAIR
-        // (its internal unit_negotiated_lanes produces them). Consumed by u_LINKSPEED and
-        // sweep_active_lanes assignment above.
         .active_rx_lanes              (active_rx_lanes),
         .degrade_feasible             (degrade_feasible),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask     (mbinit_tx_data_lane_mask),
-        .update_lane_mask             (repair_update_lane_mask),
+        .state_n_0                    (state_n_0),
         .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_REPAIR]),
         .mb_tx_data_lane_sel          (ss_mb_tx_data_lane_sel[SS_REPAIR]),
         .mb_tx_val_lane_sel           (ss_mb_tx_val_lane_sel[SS_REPAIR]),
@@ -931,8 +870,8 @@ module wrapper_MBTRAIN #(
         .tx_data_field                (ss_tx_data_field[SS_REPAIR]),
         .rx_sb_msg_valid              (rx_sb_msg_valid),
         .rx_sb_msg                    (rx_sb_msg),
-        .rx_msginfo                   (rx_msginfo),
-        .rx_data_field                (rx_data_field)
+        .rx_msginfo                   (rx_msginfo)
+        // .rx_data_field                (rx_data_field)
     );
 
     assign ss_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
@@ -1070,11 +1009,12 @@ module wrapper_MBTRAIN #(
     assign phy_tx_tckn_shift        = rxclkcal_phy_tx_tckn_shift       ;
     assign phy_tx_decrement_shift   = rxclkcal_phy_tx_decrement_shift  ;
 
-    assign phy_rx_valvref_ctrl       = (!is_valtrainvref_entered)? valvref_phy_rx_valvref_ctrl : valtrainvref_phy_rx_valvref_ctrl;//Valvref is not needed in training mode
+    assign phy_rx_val_vref_ctrl       = (!is_valtrainvref_entered)? valvref_phy_rx_valvref_ctrl : valtrainvref_phy_rx_valvref_ctrl;//Valvref is not needed in training mode
     assign phy_tx_val_pi_phase_ctrl  = valtraincenter_phy_tx_val_pi_phase_ctrl;
-    for (genvar i = 0; i < 16; i++) begin : DATA_PI_CODE_Mux
-        assign phy_rx_datavref_ctrl[i] = (!is_dtvref_entered)? datavref_phy_rx_datavref_ctrl[i] : datatrainvref_phy_rx_datavref_ctrl[i];
-        assign phy_tx_data_pi_phase_ctrl[i] = (!is_dtc1_entered && !is_dtc2_entered)? MIN_DATA_PI_CODE[DATA_PI_W-1:0] :
+    for (genvar i = 0; i < 16; i++) begin : DATA_PI_CODE_MUX
+        assign phy_rx_data_vref_ctrl[i] = (!is_dtvref_entered)? datavref_phy_rx_datavref_ctrl[i] : datatrainvref_phy_rx_datavref_ctrl[i];
+        assign phy_tx_data_pi_phase_ctrl[i] =
+            (!is_dtc1_entered && !is_dtc2_entered)? MIN_DATA_PI_CODE[DATA_PI_W-1:0] : // This condition happens at first entry of MBTRAIN
             (is_dtc1_entered)? dtc1_phy_tx_data_pi_phase_ctrl[i] : dtc2_phy_tx_data_pi_phase_ctrl[i];
     end
     assign phy_rx_deskew_ctrl       = rxdeskew_phy_rx_deskew_ctrl;

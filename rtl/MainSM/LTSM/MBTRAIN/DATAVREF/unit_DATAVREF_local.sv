@@ -38,8 +38,6 @@ module unit_DATAVREF_local #(
         input  logic        datavref_en         , // 0: Disable (→ IDLE). 1: Enable/start DATAVREF sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datavref_done       , // 1: Sub-state completed (held until datavref_en = 0).
-        output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
-        output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
 
         //=====================================//
         // PHY Vref Control:                   //
@@ -49,24 +47,12 @@ module unit_DATAVREF_local #(
         // After sweep_done: driven from registered best_code_r.
         output logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0] phy_rx_datavref_ctrl [0:15],
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        // Spec §4.5.3.4.2:
-        //   - Track TX: held low.
-        //   - Data TX: held low until D2C PT triggers pattern generation.
-        //   - Valid TX: held low.
-        //   - Clock TX: active (center-phase forwarded clock).
-        //   - Clock RX, Data RX, Valid RX: enabled.
-        //   - Track RX: permitted to be disabled.
-        // output logic [1:0]  mb_tx_clk_lane_sel  , // 01=Active (forwarded clock phase at center of UI)
-        // output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (will be muxed by sweep top/D2C PT)
-        // output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low
-        // output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled
-        output logic        mb_rx_data_lane_sel , // 1=Enabled
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled
+        // MB Lane Control: moved to wrapper_DATAVREF as static assigns
+        // (spec §4.5.3.4.2: RX CLK=en, DATA=en, VAL=en, TRK=0)
+        // output logic        mb_rx_clk_lane_sel  ,
+        // output logic        mb_rx_data_lane_sel ,
+        // output logic        mb_rx_val_lane_sel  ,
+        // output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -100,21 +86,21 @@ module unit_DATAVREF_local #(
     // =========================================================================
     // FSM State Encoding — SEND → WAIT pattern.
     // =========================================================================
-    localparam [3:0]
-    DATAVREF_LCL_IDLE           = 4'd0,  // Wait for datavref_en.
-    DATAVREF_LCL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.DATAVREF start req} for 1 cycle.
-    DATAVREF_LCL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.DATAVREF start resp}.
-    DATAVREF_LCL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done.
-    DATAVREF_LCL_APPLY_BEST     = 4'd4,  // 1-cycle pipeline stage
-    DATAVREF_LCL_SEND_END_REQ   = 4'd5,  // TX {MBTRAIN.DATAVREF end req} for 1 cycle.
-    DATAVREF_LCL_WAIT_END_RESP  = 4'd6,  // Wait for {MBTRAIN.DATAVREF end resp}.
-    DATAVREF_LCL_TO_SPEEDIDLE   = 4'd7,  // Terminal: datavref_done=1; wait for en deassert.
-    DATAVREF_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
+    localparam [2:0]
+    DATAVREF_LCL_IDLE           = 3'd0,  // Wait for datavref_en.
+    DATAVREF_LCL_SEND_START_REQ = 3'd1,  // TX {MBTRAIN.DATAVREF start req} for 1 cycle.
+    DATAVREF_LCL_WAIT_START_RESP= 3'd2,  // Wait for {MBTRAIN.DATAVREF start resp}.
+    DATAVREF_LCL_SWEEP          = 3'd3,  // Assert sweep_en; wait for sweep_done.
+    DATAVREF_LCL_APPLY_BEST     = 3'd4,  // 1-cycle pipeline stage
+    DATAVREF_LCL_SEND_END_REQ   = 3'd5,  // TX {MBTRAIN.DATAVREF end req} for 1 cycle.
+    DATAVREF_LCL_WAIT_END_RESP  = 3'd6,  // Wait for {MBTRAIN.DATAVREF end resp}.
+    DATAVREF_LCL_TO_SPEEDIDLE   = 3'd7;  // Terminal: datavref_done=1; wait for en deassert.
+    // DATAVREF_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
 
     // =========================================================================
     // FSM Registers
     // =========================================================================
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     // =========================================================================
     // Registered best Vref codes per lane.
@@ -122,8 +108,6 @@ module unit_DATAVREF_local #(
     // =========================================================================
     reg [VW-1:0] best_code_r [0:15];
 
-    // =========================================================================
-    // sweep_en: asserted combinationally whenever FSM is in DATAVREF_LCL_SWEEP.
     // =========================================================================
     // sweep_en: asserted combinationally whenever FSM is in DATAVREF_LCL_SWEEP.
     // =========================================================================
@@ -150,10 +134,7 @@ module unit_DATAVREF_local #(
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state; // Default: hold
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = DATAVREF_LCL_TO_TRAINERROR;
-        end
-        else if (!datavref_en) begin
+        if (!datavref_en) begin
             next_state = DATAVREF_LCL_IDLE;
         end
         else begin
@@ -222,9 +203,9 @@ module unit_DATAVREF_local #(
                 // ---------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // ---------------------------------------------------------
-                DATAVREF_LCL_TO_TRAINERROR: begin
-                    next_state = DATAVREF_LCL_TO_TRAINERROR;
-                end
+                // DATAVREF_LCL_TO_TRAINERROR: begin
+                //     next_state = DATAVREF_LCL_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = DATAVREF_LCL_IDLE;
@@ -263,27 +244,16 @@ module unit_DATAVREF_local #(
     always_comb begin : OUTPUT_COMB
         // --- Defaults: safe inactive values ---
         datavref_done    = 1'b0;
-        trainerror_req   = 1'b0;
-        update_lane_mask = 1'b0;
+        // trainerror_req   = 1'b0;
+        // update_lane_mask = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
         tx_sb_msg        = NOTHING;
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        // MB Lane defaults (spec §4.5.3.4.2):
-        //   Clock TX: active (center-phase forwarded clock).
-        //   Data TX, Valid TX, Track TX: held low.
-        //   Clock RX, Data RX, Valid RX: enabled.
-        //   Track RX: disabled.
-        // mb_tx_clk_lane_sel  = 2'b01; // Active center-phase forwarded clock
-        // mb_tx_data_lane_sel = 2'b00; // Held Low
-        // mb_tx_val_lane_sel  = 2'b00; // Held Low
-        // mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        mb_rx_data_lane_sel = 1'b1;  // Enabled
-        mb_rx_val_lane_sel  = 1'b1;  // Enabled
-        mb_rx_trk_lane_sel  = 1'b0;  // Disabled
+        // MB RX signals moved to wrapper as static assigns
+        // (mb_rx_clk/data/val=datavref_en, mb_rx_trk=0)
 
         case (current_state)
 
@@ -291,9 +261,7 @@ module unit_DATAVREF_local #(
             // IDLE: Watchdog off, RX disabled.
             // ---------------------------------------------------------
             DATAVREF_LCL_IDLE: begin
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
+                // MB signals handled in wrapper
             end
 
             // ---------------------------------------------------------
@@ -304,7 +272,7 @@ module unit_DATAVREF_local #(
                 tx_sb_msg        = MBTRAIN_DATAVREF_start_req;
                 tx_msginfo       = 16'h0;
                 tx_data_field    = 64'h0;
-                update_lane_mask = 1'b1;
+                // update_lane_mask = 1'b1;
             end
 
             // ---------------------------------------------------------
@@ -355,10 +323,10 @@ module unit_DATAVREF_local #(
             // ---------------------------------------------------------
             // TO_TRAINERROR (Terminal): trainerror_req=1.
             // ---------------------------------------------------------
-            DATAVREF_LCL_TO_TRAINERROR: begin
-                datavref_done    = 1'b1;
-                trainerror_req   = 1'b1;
-            end
+            // DATAVREF_LCL_TO_TRAINERROR: begin
+            //     datavref_done    = 1'b1;
+            //     trainerror_req   = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

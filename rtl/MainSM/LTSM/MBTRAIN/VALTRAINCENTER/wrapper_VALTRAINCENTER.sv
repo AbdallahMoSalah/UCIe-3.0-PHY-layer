@@ -18,11 +18,9 @@ module wrapper_VALTRAINCENTER #(
         // =========================================================================
         input  logic        soft_rst_n,
         output logic        valtraincenter_done,
-        output logic        trainerror_req,
 
         // Control & Status:
         input  logic        valtraincenter_en,
-        output logic        local_update_lane_mask,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -74,9 +72,7 @@ module wrapper_VALTRAINCENTER #(
 
     // Local/partner intermediate signals
     logic        local_valtraincenter_done_wire;
-    logic        local_trainerror_req_wire;
     logic        partner_valtraincenter_done_wire;
-    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -99,15 +95,8 @@ module wrapper_VALTRAINCENTER #(
         .valtraincenter_en              (valtraincenter_en),
         .soft_rst_n                     (soft_rst_n),
         .valtraincenter_done            (local_valtraincenter_done_wire),
-        .trainerror_req                 (local_trainerror_req_wire),
-        .update_lane_mask               (local_update_lane_mask),
         .phy_tx_val_pi_phase_ctrl       (phy_tx_val_pi_phase_ctrl),
-        .mb_tx_continuous_or_strobe_clk(mb_tx_continuous_or_strobe_clk),
-        .phy_negotiated_speed          (phy_negotiated_speed),
-        .mb_tx_clk_lane_sel             (mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (mb_tx_trk_lane_sel),
+        // MB signals moved to wrapper (incl. speed-dep CLK)
         .sweep_en                       (sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
@@ -118,8 +107,6 @@ module wrapper_VALTRAINCENTER #(
         .tx_data_field                  (local_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
         .rx_sb_msg                      (rx_sb_msg)
-        // .rx_msginfo                     (rx_msginfo),
-        // .rx_data_field                  (rx_data_field)
     );
 
     // Partner FSM Instance
@@ -129,11 +116,7 @@ module wrapper_VALTRAINCENTER #(
         .valtraincenter_en              (valtraincenter_en),
         .soft_rst_n                     (soft_rst_n),
         .valtraincenter_done            (partner_valtraincenter_done_wire),
-        .trainerror_req                 (partner_trainerror_req_wire),
-        .mb_rx_clk_lane_sel             (mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (mb_rx_trk_lane_sel),
+        // MB signals moved to wrapper as static assigns
         .partner_sweep_en               (partner_sweep_en),
         .tx_sb_msg_valid                (partner_tx_sb_msg_valid),
         .tx_sb_msg                      (partner_tx_sb_msg),
@@ -141,19 +124,33 @@ module wrapper_VALTRAINCENTER #(
         .tx_data_field                  (partner_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
         .rx_sb_msg                      (rx_sb_msg)
-        // .rx_msginfo                     (rx_msginfo),
-        // .rx_data_field                  (rx_data_field)
     );
 
     // Combine terminal signals
     assign valtraincenter_done = local_valtraincenter_done_wire & partner_valtraincenter_done_wire;
-    assign trainerror_req      = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband Arbitration
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
+
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.3 MBTRAIN.VALTRAINCENTER:
+    //   Local   (TX side): CLK TX active (speed-dep), VAL TX active (VALTRAIN), DATA/TRK TX=00.
+    //   Partner (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
+    //   wrapper_MBTRAIN ss_active already gates these when substate is not active.
+    // =========================================================================
+    // CLK TX: continuous/active (01) unless <=32GT/s strobe mode (00)
+    assign mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101)
+                                  ? 2'b00 : 2'b01;
+    assign mb_tx_data_lane_sel = 2'b00;
+    assign mb_tx_val_lane_sel  = 2'b01; // VALTRAIN pattern always active
+    assign mb_tx_trk_lane_sel  = 2'b00;
+    assign mb_rx_clk_lane_sel  = 1'b1;
+    assign mb_rx_data_lane_sel = 1'b1;
+    assign mb_rx_val_lane_sel  = 1'b1;
+    assign mb_rx_trk_lane_sel  = 1'b0;
 
 endmodule
 

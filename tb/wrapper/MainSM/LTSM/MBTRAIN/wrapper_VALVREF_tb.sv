@@ -225,7 +225,8 @@ module wrapper_VALVREF_tb;
     logic        dut_partner_trainerror_req;
     
     assign       dut_partner_valvref_done   = dut_local_valvref_done; 
-    assign       dut_partner_trainerror_req = dut_local_trainerror_req; 
+    assign       dut_partner_trainerror_req = 1'b0; 
+    assign       dut_local_trainerror_req   = 1'b0; 
     
     wrapper_VALVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
@@ -234,10 +235,8 @@ module wrapper_VALVREF_tb;
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
         .valvref_done                   (dut_local_valvref_done),
-        .trainerror_req                 (dut_local_trainerror_req),
 
         .valvref_en                     (dut_local_valvref_en),
-        .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
@@ -278,7 +277,8 @@ module wrapper_VALVREF_tb;
     logic        ptn_partner_trainerror_req;
     
     assign       ptn_partner_valvref_done   = ptn_local_valvref_done; 
-    assign       ptn_partner_trainerror_req = ptn_local_trainerror_req; 
+    assign       ptn_partner_trainerror_req = 1'b0; 
+    assign       ptn_local_trainerror_req   = 1'b0; 
 
     wrapper_VALVREF #(
         .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
@@ -287,10 +287,8 @@ module wrapper_VALVREF_tb;
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
         .valvref_done                   (ptn_local_valvref_done),
-        .trainerror_req                 (ptn_local_trainerror_req),
 
         .valvref_en                     (ptn_local_valvref_en),
-        .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
@@ -469,7 +467,7 @@ module wrapper_VALVREF_tb;
 
         fork
             begin
-                wait (u_dut.local_valvref_done || u_dut.local_trainerror_req);
+                wait (dut_local_valvref_done || dut_local_trainerror_req);
                 #(LCLK_PERIOD * 10);
             end
             begin
@@ -482,8 +480,8 @@ module wrapper_VALVREF_tb;
 
         // Verify FSM exits and calibrated midpoint code
         if (expect_datavref_dut) begin
-            if (!u_dut.local_valvref_done || u_dut.local_trainerror_req) begin
-                $display("# ERROR: Expected successful DATAVREF exit, but got local_done=%b, trainerror=%b", u_dut.local_valvref_done, u_dut.local_trainerror_req);
+            if (!dut_local_valvref_done || dut_local_trainerror_req) begin
+                $display("# ERROR: Expected successful DATAVREF exit, but got local_done=%b, trainerror=%b", dut_local_valvref_done, dut_local_trainerror_req);
                 fail_count++; $stop;
             end
 
@@ -503,8 +501,8 @@ module wrapper_VALVREF_tb;
             end
         end
 
-        if (expect_te_dut && !u_dut.local_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", u_dut.local_trainerror_req);
+        if (expect_te_dut && !dut_local_trainerror_req) begin
+            $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_local_trainerror_req);
             fail_count++; $stop;
         end
 
@@ -577,7 +575,7 @@ module wrapper_VALVREF_tb;
         assume_holes_after_quarter_eye_start = 0;
         dut_local_valvref_en = 1; ptn_local_valvref_en = 1;
         dut_partner_valvref_en = 1; ptn_partner_valvref_en = 1;
-        wait (u_dut.local_valvref_done);       // Wait for Run 1 sweep+handshake to complete
+        wait (dut_local_valvref_done);       // Wait for Run 1 sweep+handshake to complete
         #1000;
         dut_local_valvref_en = 0; ptn_local_valvref_en = 0;
         dut_partner_valvref_en = 0; ptn_partner_valvref_en = 0;
@@ -587,7 +585,7 @@ module wrapper_VALVREF_tb;
         dut_eye_start = 6; dut_eye_end = 12; ptn_eye_start = 6; ptn_eye_end = 12;
         dut_local_valvref_en = 1; ptn_local_valvref_en = 1;
         dut_partner_valvref_en = 1; ptn_partner_valvref_en = 1;
-        wait (u_dut.local_valvref_done);       // Wait for Run 2 sweep+handshake to complete
+        wait (dut_local_valvref_done);       // Wait for Run 2 sweep+handshake to complete
         #1000;
         if (u_dut.phy_rx_valvref_ctrl !== 7'd9) begin
             $display("# ERROR: Multi-run 2 Vref value mismatch! Got %0d, expected 9", u_dut.phy_rx_valvref_ctrl);
@@ -600,6 +598,8 @@ module wrapper_VALVREF_tb;
 
 
         // Scenario 7: Injected TRAINERROR from partner
+        // (Commented out because VALVREF removes global trainerror check and does not support trainerror)
+        /*
         run_scenario(
             .name("Scenario 6: Partner Injects TRAINERROR"),
             .d_start(3), .d_end(13),
@@ -608,6 +608,7 @@ module wrapper_VALVREF_tb;
             .expect_datavref_dut(0), .expect_te_dut(1),
             .suppress_sb(0), .inject_trainerror(1)
         );
+        */
 
         // =========================================================================
         // 8. Randomized Scenarios Block with Self-Checking
@@ -642,7 +643,7 @@ module wrapper_VALVREF_tb;
 
             fork
                 begin
-                    wait (u_dut.local_valvref_done || u_dut.local_trainerror_req);
+                    wait (dut_local_valvref_done || dut_local_trainerror_req);
                     #(LCLK_PERIOD * 10);
                 end
                 begin
@@ -654,7 +655,7 @@ module wrapper_VALVREF_tb;
             disable fork;
 
             // Verification
-            if (u_dut.local_trainerror_req) begin
+            if (dut_local_trainerror_req) begin
                 $display("# ERROR: Unexpected TRAINERROR in randomized test %0d!", i);
                 $stop;
             end

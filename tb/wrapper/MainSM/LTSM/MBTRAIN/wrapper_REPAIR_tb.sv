@@ -125,7 +125,8 @@ module wrapper_REPAIR_tb;
     logic        soft_rst_n = 1;
     logic [2:0]  mbinit_rx_data_lane_mask = 3'b000;
     logic [2:0]  mbinit_tx_data_lane_mask = 3'b000;
-    logic        update_lane_mask = 0;
+    ltsm_state_n_pkg::state_n_e dut_state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
+    ltsm_state_n_pkg::state_n_e ptn_state_n_0 = ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF;
 
     // unit_negotiated_lanes inputs (drive to control what degraded_tx_lane_map_code is)
     logic [15:0] dut_success_tx_lanes     = 16'h00FF;
@@ -143,12 +144,11 @@ module wrapper_REPAIR_tb;
     // =========================================================================
     // DUT (Die A) instance
     // =========================================================================
-    logic        dut_local_repair_en      = 0;
+    logic        dut_repair_en            = 0;
     logic        dut_repair_done;
-    logic        dut_local_txselfcal_req;
-    logic        dut_partner_txselfcal_req;
+    // logic        dut_local_txselfcal_req;
+    // logic        dut_partner_txselfcal_req;
     logic        dut_trainerror_req;
-    logic        dut_partner_repair_en    = 0;
     logic [2:0]  dut_mb_tx_data_lane_mask;
     logic [2:0]  dut_mb_rx_data_lane_mask;
 
@@ -156,12 +156,11 @@ module wrapper_REPAIR_tb;
         .lclk                       (lclk),
         .rst_n                      (rst_n),
         .soft_rst_n                 (soft_rst_n),
-        .local_repair_en            (dut_local_repair_en),
+        .repair_en                  (dut_repair_en),
         .repair_done                (dut_repair_done),
-        .local_txselfcal_req        (dut_local_txselfcal_req),
-        .partner_txselfcal_req      (dut_partner_txselfcal_req),
+        // .local_txselfcal_req        (dut_local_txselfcal_req),
+        // .partner_txselfcal_req      (dut_partner_txselfcal_req),
         .trainerror_req             (dut_trainerror_req),
-        .partner_repair_en          (dut_partner_repair_en),
         .success_tx_lanes           (dut_success_tx_lanes),
         // .success_rx_lanes_encoding  (dut_success_rx_enc),
         .rf_cap_SPMW                (dut_rf_cap_SPMW),
@@ -171,7 +170,7 @@ module wrapper_REPAIR_tb;
         .mb_rx_data_lane_mask       (dut_mb_rx_data_lane_mask),
         .mbinit_rx_data_lane_mask   (mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask   (mbinit_tx_data_lane_mask),
-        .update_lane_mask           (update_lane_mask),
+        .state_n_0                  (dut_state_n_0),
         .mb_tx_clk_lane_sel         (dut_if.mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel        (dut_if.mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel         (dut_if.mb_tx_val_lane_sel),
@@ -186,19 +185,18 @@ module wrapper_REPAIR_tb;
         .tx_data_field              (dut_if.tx_data_field),
         .rx_sb_msg_valid            (dut_if.rx_sb_msg_valid),
         .rx_sb_msg                  (dut_if.rx_sb_msg),
-        .rx_msginfo                 (dut_if.rx_msginfo),
-        .rx_data_field              (dut_if.rx_data_field)
+        .rx_msginfo                 (dut_if.rx_msginfo)
+        // .rx_data_field              (dut_if.rx_data_field)
     );
 
     // =========================================================================
     // PTN (Die B) instance
     // =========================================================================
-    logic        ptn_local_repair_en      = 0;
+    logic        ptn_repair_en            = 0;
     logic        ptn_repair_done;
-    logic        ptn_local_txselfcal_req;
-    logic        ptn_partner_txselfcal_req;
+    // logic        ptn_local_txselfcal_req;
+    // logic        ptn_partner_txselfcal_req;
     logic        ptn_trainerror_req;
-    logic        ptn_partner_repair_en    = 0;
     logic [2:0]  ptn_mb_tx_data_lane_mask;
     logic [2:0]  ptn_mb_rx_data_lane_mask;
 
@@ -206,12 +204,11 @@ module wrapper_REPAIR_tb;
         .lclk                       (lclk),
         .rst_n                      (rst_n),
         .soft_rst_n                 (soft_rst_n),
-        .local_repair_en            (ptn_local_repair_en),
+        .repair_en                  (ptn_repair_en),
         .repair_done                (ptn_repair_done),
-        .local_txselfcal_req        (ptn_local_txselfcal_req),
-        .partner_txselfcal_req      (ptn_partner_txselfcal_req),
+        // .local_txselfcal_req        (ptn_local_txselfcal_req),
+        // .partner_txselfcal_req      (ptn_partner_txselfcal_req),
         .trainerror_req             (ptn_trainerror_req),
-        .partner_repair_en          (ptn_partner_repair_en),
         .success_tx_lanes           (ptn_success_tx_lanes),
         // .success_rx_lanes_encoding  (ptn_success_rx_enc),
         .rf_cap_SPMW                (ptn_rf_cap_SPMW),
@@ -221,7 +218,7 @@ module wrapper_REPAIR_tb;
         .mb_rx_data_lane_mask       (ptn_mb_rx_data_lane_mask),
         .mbinit_rx_data_lane_mask   (mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask   (mbinit_tx_data_lane_mask),
-        .update_lane_mask           (update_lane_mask),
+        .state_n_0                  (ptn_state_n_0),
         .mb_tx_clk_lane_sel         (ptn_if.mb_tx_clk_lane_sel),
         .mb_tx_data_lane_sel        (ptn_if.mb_tx_data_lane_sel),
         .mb_tx_val_lane_sel         (ptn_if.mb_tx_val_lane_sel),
@@ -236,12 +233,12 @@ module wrapper_REPAIR_tb;
         .tx_data_field              (ptn_if.tx_data_field),
         .rx_sb_msg_valid            (ptn_if.rx_sb_msg_valid),
         .rx_sb_msg                  (ptn_if.rx_sb_msg),
-        .rx_msginfo                 (ptn_if.rx_msginfo),
-        .rx_data_field              (ptn_if.rx_data_field)
+        .rx_msginfo                 (ptn_if.rx_msginfo)
+        // .rx_data_field              (ptn_if.rx_data_field)
     );
 
-    assign dut_if.timeout_timer_en = dut_local_repair_en | dut_partner_repair_en;
-    assign ptn_if.timeout_timer_en = ptn_local_repair_en | ptn_partner_repair_en;
+    assign dut_if.timeout_timer_en = dut_repair_en;
+    assign ptn_if.timeout_timer_en = ptn_repair_en;
 
     // =========================================================================
     // Test infrastructure
@@ -294,10 +291,8 @@ module wrapper_REPAIR_tb;
         ptn_rf_cap_SPMW        = 1'b0;
         ptn_param_UCIe_S_x8    = 1'b0;
 
-        dut_local_repair_en   = 1;
-        dut_partner_repair_en = 1;
-        ptn_local_repair_en   = 1;
-        ptn_partner_repair_en = 1;
+        dut_repair_en         = 1;
+        ptn_repair_en         = 1;
 
         fork
             begin
@@ -319,30 +314,28 @@ module wrapper_REPAIR_tb;
         if (!expect_err) begin
             if (dut_mb_tx_data_lane_mask !== exp_dut_tx) begin
                 $display("# FAIL [%s]: DUT TX mask got 3'b%03b, expected 3'b%03b",
-                         name, dut_mb_tx_data_lane_mask, exp_dut_tx);
+                    name, dut_mb_tx_data_lane_mask, exp_dut_tx);
                 fail_test(name, "DUT TX mask mismatch"); return;
             end
             if (dut_mb_rx_data_lane_mask !== exp_dut_rx) begin
                 $display("# FAIL [%s]: DUT RX mask got 3'b%03b, expected 3'b%03b",
-                         name, dut_mb_rx_data_lane_mask, exp_dut_rx);
+                    name, dut_mb_rx_data_lane_mask, exp_dut_rx);
                 fail_test(name, "DUT RX mask mismatch"); return;
             end
             if (ptn_mb_tx_data_lane_mask !== exp_ptn_tx) begin
                 $display("# FAIL [%s]: PTN TX mask got 3'b%03b, expected 3'b%03b",
-                         name, ptn_mb_tx_data_lane_mask, exp_ptn_tx);
+                    name, ptn_mb_tx_data_lane_mask, exp_ptn_tx);
                 fail_test(name, "PTN TX mask mismatch"); return;
             end
             if (ptn_mb_rx_data_lane_mask !== exp_ptn_rx) begin
                 $display("# FAIL [%s]: PTN RX mask got 3'b%03b, expected 3'b%03b",
-                         name, ptn_mb_rx_data_lane_mask, exp_ptn_rx);
+                    name, ptn_mb_rx_data_lane_mask, exp_ptn_rx);
                 fail_test(name, "PTN RX mask mismatch"); return;
             end
         end
 
-        dut_local_repair_en   = 0;
-        dut_partner_repair_en = 0;
-        ptn_local_repair_en   = 0;
-        ptn_partner_repair_en = 0;
+        dut_repair_en         = 0;
+        ptn_repair_en         = 0;
         #(LCLK_PERIOD * 10);
         pass_test(name);
     endtask
@@ -496,43 +489,43 @@ module wrapper_REPAIR_tb;
         );
 
         // ------------------------------------------------------------------
-        // WATCHDOG TIMEOUT TEST
+        // WATCHDOG TIMEOUT TEST (Commented out per updated specifications)
         // ------------------------------------------------------------------
-        begin : watchdog_test
-            assert_reset();
-            dut_success_tx_lanes   = 16'h00FF;
-            // dut_success_rx_enc     = 3'b001;
-            dut_rf_ctrl_link_width = 4'h2;
-            dut_local_repair_en    = 1;
-            ptn_if.tb_suppress_rx_sb = 1;
-
-            fork
-                begin
-                    wait(dut_if.timeout_8ms_occured == 1);
-                    force dut_if.rx_sb_msg_valid = 1;
-                    force dut_if.rx_sb_msg = TRAINERROR_Entry_req;
-                    force dut_if.rx_msginfo = 16'h0;
-                    @(posedge lclk);
-                    release dut_if.rx_sb_msg_valid;
-                    release dut_if.rx_sb_msg;
-                    release dut_if.rx_msginfo;
-                end
-                begin
-                    wait(dut_trainerror_req);
-                    #(LCLK_PERIOD * 5);
-                end
-                begin
-                    #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
-                    $display("# ERROR [Watchdog]: Timeout guard fired!");
-                    $stop;
-                end
-            join_any
-            disable fork;
-
-            ptn_if.tb_suppress_rx_sb = 0;
-            dut_local_repair_en = 0;
-            pass_test("T14: Watchdog Timeout triggers TRAINERROR");
-        end
+        // begin : watchdog_test
+        //     assert_reset();
+        //     dut_success_tx_lanes   = 16'h00FF;
+        //     // dut_success_rx_enc     = 3'b001;
+        //     dut_rf_ctrl_link_width = 4'h2;
+        //     dut_repair_en          = 1;
+        //     ptn_if.tb_suppress_rx_sb = 1;
+        //
+        //     fork
+        //         begin
+        //             wait(dut_if.timeout_8ms_occured == 1);
+        //             force dut_if.rx_sb_msg_valid = 1;
+        //             force dut_if.rx_sb_msg = TRAINERROR_Entry_req;
+        //             force dut_if.rx_msginfo = 16'h0;
+        //             @(posedge lclk);
+        //             release dut_if.rx_sb_msg_valid;
+        //             release dut_if.rx_sb_msg;
+        //             release dut_if.rx_msginfo;
+        //         end
+        //         begin
+        //             wait(dut_trainerror_req);
+        //             #(LCLK_PERIOD * 5);
+        //         end
+        //         begin
+        //             #(TIMEOUT_CYCLES * LCLK_PERIOD * 2);
+        //             $display("# ERROR [Watchdog]: Timeout guard fired!");
+        //             $stop;
+        //         end
+        //     join_any
+        //     disable fork;
+        //
+        //     ptn_if.tb_suppress_rx_sb = 0;
+        //     dut_repair_en = 0;
+        //     pass_test("T14: Watchdog Timeout triggers TRAINERROR");
+        // end
 
         // ------------------------------------------------------------------
         // SUMMARY

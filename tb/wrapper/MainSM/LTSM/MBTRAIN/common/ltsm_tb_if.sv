@@ -83,7 +83,7 @@ interface ltsm_tb_if #(
 
     // Status from MB Macro to DUT
     logic        mb_tx_pattern_count_done;
-    logic        mb_rx_compare_done;
+    // logic        mb_rx_compare_done;
     logic [15:0] mb_rx_perlane_pass;
     logic        mb_rx_aggr_pass;
     logic        mb_rx_val_pass;
@@ -231,7 +231,7 @@ interface ltsm_tb_if #(
         output mb_tx_pattern_en, mb_tx_pattern_setup, mb_tx_iter_count, mb_tx_burst_count, mb_tx_idle_count,
         output mb_rx_compare_en, mb_rx_pattern_setup, mb_rx_iter_count, mb_rx_burst_count, mb_rx_idle_count,
 
-        input  mb_tx_pattern_count_done, mb_rx_compare_done, mb_rx_perlane_pass, mb_rx_aggr_pass, mb_rx_val_pass
+        input  mb_tx_pattern_count_done, mb_rx_perlane_pass, mb_rx_aggr_pass, mb_rx_val_pass
     );
 
 endinterface

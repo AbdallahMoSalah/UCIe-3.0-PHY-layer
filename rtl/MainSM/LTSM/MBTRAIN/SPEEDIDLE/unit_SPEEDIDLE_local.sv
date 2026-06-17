@@ -109,7 +109,7 @@ module unit_SPEEDIDLE_local (
     always_comb begin : NEXT_STATE_LOGIC
         next_state = current_state;
 
-        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) || (speed_degrade_error & speedidle_en)) begin
+        if (speed_degrade_error & speedidle_en) begin
             next_state = SPEEDIDLE_LCL_TO_TRAINERROR;
         end
         else if (~speedidle_en) begin

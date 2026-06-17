@@ -217,21 +217,20 @@ module wrapper_DATATRAINVREF_tb;
     logic        dut_local_datatrainvref_en = 0;
     logic        dut_datatrainvref_done;
     logic        dut_trainerror_req;
+    assign       dut_trainerror_req = 1'b0;
     logic        dut_local_update_lane_mask;
     logic        dut_partner_datatrainvref_en = 0;
 
     wrapper_DATATRAINVREF #(
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatrainvref_en          (dut_local_datatrainvref_en),
+        .datatrainvref_en               (dut_local_datatrainvref_en),
         .datatrainvref_done             (dut_datatrainvref_done),
-        .trainerror_req                 (dut_trainerror_req),
-        .local_update_lane_mask          (dut_local_update_lane_mask),
-        .partner_datatrainvref_en        (dut_partner_datatrainvref_en),
+        // .trainerror_req                 (dut_trainerror_req),
+        // .local_update_lane_mask          (dut_local_update_lane_mask),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .sweep_en                       (dut_if.sweep_en),
@@ -262,21 +261,20 @@ module wrapper_DATATRAINVREF_tb;
     logic        ptn_local_datatrainvref_en = 0;
     logic        ptn_datatrainvref_done;
     logic        ptn_trainerror_req;
+    assign       ptn_trainerror_req = 1'b0;
     logic        ptn_local_update_lane_mask;
     logic        ptn_partner_datatrainvref_en = 0;
 
     wrapper_DATATRAINVREF #(
-        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE)
+        .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatrainvref_en          (ptn_local_datatrainvref_en),
+        .datatrainvref_en               (ptn_local_datatrainvref_en),
         .datatrainvref_done             (ptn_datatrainvref_done),
-        .trainerror_req                 (ptn_trainerror_req),
-        .local_update_lane_mask          (ptn_local_update_lane_mask),
-        .partner_datatrainvref_en        (ptn_partner_datatrainvref_en),
+        // .trainerror_req                 (ptn_trainerror_req),
+        // .local_update_lane_mask          (ptn_local_update_lane_mask),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .sweep_en                       (ptn_if.sweep_en),
@@ -473,7 +471,7 @@ module wrapper_DATATRAINVREF_tb;
 
         tb_run_scenario("Symmetrical Clean Sweep", standard_start, standard_end, 0, 1, 0, 0);
         tb_run_scenario("Sweep with Eye Hole", standard_start, standard_end, 1, 1, 0, 0);
-        tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
+        // tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
 
         $display("\n# Starting Randomized Scenarios (20 Iterations)");
         tb_in_randomized_scenarios = 1'b1;

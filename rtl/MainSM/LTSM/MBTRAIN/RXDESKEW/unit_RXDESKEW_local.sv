@@ -110,10 +110,10 @@
 //          (DO NOT COPY — old file has design bugs)
 
 module unit_RXDESKEW_local #(
-        parameter int unsigned MAX_DESKEW_CODE          = 5'd16, // Maximum deskew code (inclusive)
-        parameter int unsigned MIN_DESKEW_CODE          = 5'd0  , // Minimum deskew code (inclusive)
-        parameter int unsigned MAX_ARC_LIMIT            = 3'd4  , // Maximum DTC1 arc iterations (spec = 4)
-        parameter int unsigned MAX_VALID_PRESET         = 3'd5  , // Maximum EQ presets to try (0–5, total 6)
+        parameter int unsigned MAX_DESKEW_CODE          = 'd16, // Maximum deskew code (inclusive)
+        parameter int unsigned MIN_DESKEW_CODE          = 'd0  , // Minimum deskew code (inclusive)
+        parameter int unsigned MAX_ARC_LIMIT            = 'd4  , // Maximum DTC1 arc iterations (spec = 4)
+        parameter int unsigned MAX_VALID_PRESET         = 'd5  , // Maximum EQ presets to try (0–5, total 6)
         // MIN_DESIRED_SWEEP_RANGE: Minimum acceptable eye width (in deskew codes) across all active lanes.
         // If best eye is narrower, Local tries another EQ preset.
         // Default: 75% of full code range.
@@ -163,21 +163,17 @@ module unit_RXDESKEW_local #(
         //=====================================//
         // MB Lane Control Outputs:            //
         //=====================================//
-        // Lane selection signals (all combinational from current_state)
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 00=Held Low / 01=Active (free-running fwd clk)
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low  / 01=Active
-        output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low  / 01=Active
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (track TX always held low in RXDESKEW)
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled  (clock RX always enabled per spec)
-        output logic        mb_rx_data_lane_sel , // 1=Enabled  (data RX enabled per spec)
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled  (valid RX enabled per spec)
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled (track RX not used here)
+        // MB RX signals moved to wrapper_RXDESKEW as static assigns:
+        // (spec §4.5.3.4.10: RX CLK=1, DATA=1, VAL=1, TRK=0)
+        // output logic        mb_rx_clk_lane_sel  ,
+        // output logic        mb_rx_data_lane_sel ,
+        // output logic        mb_rx_val_lane_sel  ,
+        // output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // Speed and Clock Mode:               //
         //=====================================//
         input  logic        is_high_speed         , // 1 = operating speed > 32 GT/s
-        input  logic        is_continuous_clk_mode, // 1 = partner uses continuous clock mode (not strobe)
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -217,9 +213,9 @@ module unit_RXDESKEW_local #(
 
         // SB RX:
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received from partner.
-        input  logic [7:0]  rx_sb_msg          , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo         , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field        // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg           ,
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field        // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
@@ -235,27 +231,27 @@ module unit_RXDESKEW_local #(
     // Single-FSM, SEND → WAIT pattern.
     // SEND states assert tx_sb_msg_valid for exactly 1 cycle, then move to WAIT.
     // =========================================================================
-    localparam [4:0]
-    RXDESKEW_LCL_IDLE               = 5'd0 , // Wait for rxdeskew_en.
-    RXDESKEW_LCL_SEND_START_REQ     = 5'd1 , // Assert {MBTRAIN.RXDESKEW start req} for 1 cycle.
-    RXDESKEW_LCL_WAIT_START_RESP    = 5'd2 , // Wait for {MBTRAIN.RXDESKEW start resp}.
-    RXDESKEW_LCL_CHOOSE_PRESET      = 5'd3 , // (High Speed only) Select next EQ preset to request (1-cycle logic).
-    RXDESKEW_LCL_SEND_PRESET_REQ    = 5'd4 , // (High Speed only) Assert {EQ Preset req} for 1 cycle.
-    RXDESKEW_LCL_WAIT_PRESET_RESP   = 5'd5 , // (High Speed only) Wait for {EQ Preset resp}.
-    RXDESKEW_LCL_TX_D2C_SWEEP       = 5'd6 , // Assert sweep_en to external unit_D2C_sweep; wait for sweep_done.
-    RXDESKEW_LCL_APPLY_BEST_CODE    = 5'd7 , // (1-cycle) Evaluate sweep result and decide next step.
-    RXDESKEW_LCL_SEND_EXIT_DTC1_REQ = 5'd8 , // (High Speed only) Assert {exit to DATATRAINCENTER1 req} for 1 cycle.
-    RXDESKEW_LCL_WAIT_EXIT_DTC1_RESP= 5'd9 , // (High Speed only) Wait for {exit to DATATRAINCENTER1 resp}.
-    RXDESKEW_LCL_SEND_END_REQ       = 5'd10, // Assert {MBTRAIN.RXDESKEW end req} for 1 cycle.
-    RXDESKEW_LCL_WAIT_END_RESP      = 5'd11, // Wait for {MBTRAIN.RXDESKEW end resp}.
-    RXDESKEW_LCL_TO_DTC2            = 5'd12, // Terminal: rxdeskew_done=1, exit to DTC2.
-    RXDESKEW_LCL_TO_DTC1            = 5'd13, // Terminal: datatraincenter1_req=1, arc to DTC1.
-    RXDESKEW_LCL_TO_TRAINERROR      = 5'd14; // Terminal: trainerror_req=1, TRAINERROR.
+    localparam [3:0]
+    RXDESKEW_LCL_IDLE               = 4'd0 , // Wait for rxdeskew_en.
+    RXDESKEW_LCL_SEND_START_REQ     = 4'd1 , // Assert {MBTRAIN.RXDESKEW start req} for 1 cycle.
+    RXDESKEW_LCL_WAIT_START_RESP    = 4'd2 , // Wait for {MBTRAIN.RXDESKEW start resp}.
+    RXDESKEW_LCL_CHOOSE_PRESET      = 4'd3 , // (High Speed only) Select next EQ preset to request (1-cycle logic).
+    RXDESKEW_LCL_SEND_PRESET_REQ    = 4'd4 , // (High Speed only) Assert {EQ Preset req} for 1 cycle.
+    RXDESKEW_LCL_WAIT_PRESET_RESP   = 4'd5 , // (High Speed only) Wait for {EQ Preset resp}.
+    RXDESKEW_LCL_TX_D2C_SWEEP       = 4'd6 , // Assert sweep_en to external unit_D2C_sweep; wait for sweep_done.
+    RXDESKEW_LCL_APPLY_BEST_CODE    = 4'd7 , // (1-cycle) Evaluate sweep result and decide next step.
+    RXDESKEW_LCL_SEND_EXIT_DTC1_REQ = 4'd8 , // (High Speed only) Assert {exit to DATATRAINCENTER1 req} for 1 cycle.
+    RXDESKEW_LCL_WAIT_EXIT_DTC1_RESP= 4'd9 , // (High Speed only) Wait for {exit to DATATRAINCENTER1 resp}.
+    RXDESKEW_LCL_SEND_END_REQ       = 4'd10, // Assert {MBTRAIN.RXDESKEW end req} for 1 cycle.
+    RXDESKEW_LCL_WAIT_END_RESP      = 4'd11, // Wait for {MBTRAIN.RXDESKEW end resp}.
+    RXDESKEW_LCL_TO_DTC2            = 4'd12, // Terminal: rxdeskew_done=1, exit to DTC2.
+    RXDESKEW_LCL_TO_DTC1            = 4'd13, // Terminal: datatraincenter1_req=1, arc to DTC1.
+    RXDESKEW_LCL_TO_TRAINERROR      = 4'd14; // Terminal: trainerror_req=1, TRAINERROR.
 
     // =========================================================================
     // FSM Registers
     // =========================================================================
-    reg [4:0] current_state, next_state;
+    reg [3:0] current_state, next_state;
 
     // EXIT to DTC1 request received
     reg       exit_to_dtc1_req_rcvd;
@@ -326,7 +322,7 @@ module unit_RXDESKEW_local #(
         //   1. Partner sent TRAINERROR_Entry_req
         //   2. Partner sent exit_to_DTC1 req AND arc count at maximum limit
         // ---------------------------------------------------------------
-        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
+        if (// (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
                 // partner_arc_cnt: use the PARTNER counter (owns the canonical arc count).
                 // When PARTNER's arc count already reached 4, this die's PARTNER will also
                 // reject the next arc req with TRAINERROR, so LOCAL pre-empts here.
@@ -349,7 +345,7 @@ module unit_RXDESKEW_local #(
                 // IDLE: Wait for rxdeskew_en assertion.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_IDLE: begin
-                    next_state = rxdeskew_en ? RXDESKEW_LCL_SEND_START_REQ : RXDESKEW_LCL_IDLE;
+                    next_state = RXDESKEW_LCL_SEND_START_REQ;
                 end
 
                 // -------------------------------------------------------
@@ -640,21 +636,21 @@ module unit_RXDESKEW_local #(
                 // TO_DTC2 (Terminal): rxdeskew_done=1.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_TO_DTC2: begin
-                    next_state = rxdeskew_en ? RXDESKEW_LCL_TO_DTC2 : RXDESKEW_LCL_IDLE;
+                    next_state = RXDESKEW_LCL_TO_DTC2;
                 end
 
                 // -------------------------------------------------------
                 // TO_DTC1 (Terminal): datatraincenter1_req=1.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_TO_DTC1: begin
-                    next_state = rxdeskew_en ? RXDESKEW_LCL_TO_DTC1 : RXDESKEW_LCL_IDLE;
+                    next_state = RXDESKEW_LCL_TO_DTC1;
                 end
 
                 // -------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // -------------------------------------------------------
                 RXDESKEW_LCL_TO_TRAINERROR: begin
-                    next_state = rxdeskew_en ? RXDESKEW_LCL_TO_TRAINERROR : RXDESKEW_LCL_IDLE;
+                    next_state = RXDESKEW_LCL_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -797,16 +793,7 @@ module unit_RXDESKEW_local #(
         tx_msginfo              = 16'h0000;
         tx_data_field           = 64'h0;
 
-        mb_rx_clk_lane_sel      = 1'b1;
-        mb_rx_data_lane_sel     = 1'b1;
-        mb_rx_val_lane_sel      = 1'b1;
-        mb_rx_trk_lane_sel      = 1'b0;
-        mb_tx_trk_lane_sel      = 2'b00;
-        mb_tx_data_lane_sel     = 2'b00;
-        mb_tx_val_lane_sel      = 2'b00;
-        // Clock TX: active (free-running) if high speed OR continuous clock mode;
-        //           held low if ≤ 32 GT/s AND strobe mode.
-        mb_tx_clk_lane_sel      = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+        // MB RX signals moved to wrapper as static assigns (CLK=1, DATA=1, VAL=1, TRK=0)
 
         case (current_state)
             RXDESKEW_LCL_IDLE: begin end
@@ -822,10 +809,7 @@ module unit_RXDESKEW_local #(
                 tx_msginfo      = {13'h0, partner_preset};
             end
             RXDESKEW_LCL_WAIT_PRESET_RESP: begin end
-            RXDESKEW_LCL_TX_D2C_SWEEP: begin
-                mb_tx_data_lane_sel = 2'b01;
-                mb_tx_val_lane_sel  = 2'b01;
-            end
+            RXDESKEW_LCL_TX_D2C_SWEEP: begin end
             RXDESKEW_LCL_APPLY_BEST_CODE: begin end
             RXDESKEW_LCL_SEND_EXIT_DTC1_REQ: begin
                 tx_sb_msg_valid = 1'b1;

@@ -25,8 +25,10 @@ module wrapper_D2C_PT_local (
         input  logic [15:0] d2c_idle_count,                 // Unsigned 16-bit idle duration in Unit Intervals (UI).
         input  logic [15:0] d2c_iter_count,                 // Unsigned 16-bit iteration count of burst-idle cycles.
         input  logic [1:0]  d2c_compare_setup,              // 00: Per-Lane comparison, 01: Aggregate, 10: Valid Lane, 11: Clock Lane.
+
         input  logic [11:0] cfg_max_err_thresh_perlane,     // Unsigned 12-bit max error threshold per lane from Register File.
         input  logic [15:0] cfg_max_err_thresh_aggr,        // Unsigned 16-bit max aggregate error threshold from Register File.
+
         output logic [15:0] d2c_perlane_pass,               // Per-lane error status; each bit=1 if that lane passed. (didn't excesse the threshold)
         output logic        d2c_aggr_pass,                  // 16-bit aggregate error count across all data lanes. (1: success, 0: failed)
         output logic        d2c_val_pass,                   // 1: No Valid Lane error, 0: Valid Lane pattern mismatch detected.
@@ -34,10 +36,10 @@ module wrapper_D2C_PT_local (
         // =========================================================================
         // Group 3: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
+        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated 11: Electrical Idle state.
+        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated 11: Electrical Idle state.
+        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated 11: Electrical Idle state.
+        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Driven Low, 01: Active pattern, 10: Tri-stated 11: Electrical Idle state.
         output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
         output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
         output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
@@ -69,7 +71,7 @@ module wrapper_D2C_PT_local (
         output logic [1:0]  mb_tx_data_pattern_sel,         // 00: LFSR, 01: Per-Lane ID, 10: Fixed All Zeros.
         output logic        mb_tx_val_pattern_sel,          // 0: VALTRAIN/functional, 1: Held Low.
         input  logic        mb_tx_pattern_count_done,       // 0: TX pattern generator is transmitting. 1: Completed all iterations.
-        input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
+        // input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.  <=======================================================================================================================================================================
         input  logic        mb_rx_aggr_pass,                // 1: Aggregate comparison passed (error count within threshold). 0: Failed.
         input  logic [15:0] mb_rx_perlane_pass,             // 16-bit status vector; each bit corresponds to an operational lane.
         input  logic        mb_rx_val_pass,                 // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
@@ -227,7 +229,7 @@ module wrapper_D2C_PT_local (
         .mb_rx_max_err_thresh_perlane   (rx_mb_rx_max_err_thresh_perlane), // Output per-lane max error threshold allowed
         .mb_rx_max_err_thresh_aggr      (rx_mb_rx_max_err_thresh_aggr), // Output aggregate max error threshold allowed
         .mb_rx_compare_setup            (rx_mb_rx_compare_setup      ), // Output comparison target mode
-        .mb_rx_compare_done             (mb_rx_compare_done          ), // Input comparison complete handshake status
+        // .mb_rx_compare_done             (mb_rx_compare_done          ), // Input comparison complete handshake status
         .mb_rx_aggr_pass                (mb_rx_aggr_pass             ), // Input aggregate pass feedback status
         .mb_rx_perlane_pass             (mb_rx_perlane_pass          ), // Input per-lane pass feedback status vector
         .mb_rx_val_pass                 (mb_rx_val_pass              ), // Input Valid Lane comparison pass status
@@ -247,9 +249,32 @@ module wrapper_D2C_PT_local (
     // 3rd: Multiplexing and Output Assignments (Latch-free Combination)
     // =========================================================================
     assign test_d2c_done    = tx_pt_en ? tx_test_d2c_done    : rx_test_d2c_done;
-    assign d2c_perlane_pass = tx_pt_en ? tx_d2c_perlane_pass : rx_d2c_perlane_pass;
-    assign d2c_aggr_pass    = tx_pt_en ? tx_d2c_aggr_pass    : rx_d2c_aggr_pass;
-    assign d2c_val_pass     = tx_pt_en ? tx_d2c_val_pass     : rx_d2c_val_pass;
+
+    logic [15:0] d2c_perlane_pass_r;
+    logic        d2c_aggr_pass_r;
+    logic        d2c_val_pass_r;
+
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin
+            d2c_perlane_pass_r <= 16'hFFFF;
+            d2c_aggr_pass_r    <= 1'b1;
+            d2c_val_pass_r     <= 1'b1;
+        end else begin
+            if (tx_pt_en) begin
+                d2c_perlane_pass_r <= tx_d2c_perlane_pass;
+                d2c_aggr_pass_r    <= tx_d2c_aggr_pass;
+                d2c_val_pass_r     <= tx_d2c_val_pass;
+            end else if (rx_pt_en) begin
+                d2c_perlane_pass_r <= rx_d2c_perlane_pass;
+                d2c_aggr_pass_r    <= rx_d2c_aggr_pass;
+                d2c_val_pass_r     <= rx_d2c_val_pass;
+            end
+        end
+    end
+
+    assign d2c_perlane_pass = d2c_perlane_pass_r;
+    assign d2c_aggr_pass    = d2c_aggr_pass_r;
+    assign d2c_val_pass     = d2c_val_pass_r;
 
     // SB outputs multiplexing:
     assign tx_sb_msg_valid  = tx_pt_en ? tx_tx_sb_msg_valid  : rx_tx_sb_msg_valid;

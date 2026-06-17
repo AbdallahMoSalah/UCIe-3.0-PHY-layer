@@ -23,19 +23,14 @@ module unit_VALTRAINVREF_partner (
         input  logic        valtrainvref_en     , // 0: Disable. 1: Enable/start sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valtrainvref_done   , // 1: Sub-state completed; held until valtrainvref_en = 0.
-        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
+        // output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        output logic [1:0]  mb_tx_clk_lane_sel  ,
-        output logic [1:0]  mb_tx_data_lane_sel ,
-        output logic [1:0]  mb_tx_val_lane_sel  ,
-        output logic [1:0]  mb_tx_trk_lane_sel  ,
-        output logic        mb_rx_clk_lane_sel  ,
-        output logic        mb_rx_data_lane_sel ,
-        output logic        mb_rx_val_lane_sel  ,
-        output logic        mb_rx_trk_lane_sel  ,
+        // MB TX Lane Control: moved to wrapper_VALTRAINVREF as static assigns
+        // (spec §4.5.3.4.6: CLK TX active, VAL TX active=VALTRAIN, DATA/TRK TX held low)
+        // output logic [1:0]  mb_tx_clk_lane_sel  ,
+        // output logic [1:0]  mb_tx_data_lane_sel ,
+        // output logic [1:0]  mb_tx_val_lane_sel  ,
+        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -51,24 +46,24 @@ module unit_VALTRAINVREF_partner (
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse (1 lclk) when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode from partner die.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
 
     // FSM State Encoding — WAIT → SEND pattern
-    localparam [3:0]
-    VALTRAINVREF_PTR_IDLE                = 4'd0,  // Wait for valtrainvref_en
-    VALTRAINVREF_PTR_WAIT_START_REQ      = 4'd1,  // Wait for {MBTRAIN.VALTRAINVREF start req}
-    VALTRAINVREF_PTR_SEND_START_RESP     = 4'd2,  // TX {MBTRAIN.VALTRAINVREF start resp}
-    VALTRAINVREF_PTR_WAIT_END_REQ        = 4'd3,  // Wait for {MBTRAIN.VALTRAINVREF end req}
-    VALTRAINVREF_PTR_SEND_END_RESP       = 4'd4,  // TX {MBTRAIN.VALTRAINVREF end resp}
-    VALTRAINVREF_PTR_TO_DATATRAINCENTER1 = 4'd5,  // Terminal: completed (next DTC1)
-    VALTRAINVREF_PTR_TO_TRAINERROR       = 4'd6;  // Terminal: error
+    localparam [2:0]
+    VALTRAINVREF_PTR_IDLE                = 3'd0,  // Wait for valtrainvref_en
+    VALTRAINVREF_PTR_WAIT_START_REQ      = 3'd1,  // Wait for {MBTRAIN.VALTRAINVREF start req}
+    VALTRAINVREF_PTR_SEND_START_RESP     = 3'd2,  // TX {MBTRAIN.VALTRAINVREF start resp}
+    VALTRAINVREF_PTR_WAIT_END_REQ        = 3'd3,  // Wait for {MBTRAIN.VALTRAINVREF end req}
+    VALTRAINVREF_PTR_SEND_END_RESP       = 3'd4,  // TX {MBTRAIN.VALTRAINVREF end resp}
+    VALTRAINVREF_PTR_TO_DATATRAINCENTER1 = 3'd5;  // Terminal: completed (next DTC1)
+    // VALTRAINVREF_PTR_TO_TRAINERROR       = 4'd6;  // Terminal: error
 
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC
         if (!rst_n) begin
@@ -85,16 +80,13 @@ module unit_VALTRAINVREF_partner (
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = VALTRAINVREF_PTR_TO_TRAINERROR;
-        end
-        else if (!valtrainvref_en) begin
+        if (!valtrainvref_en) begin
             next_state = VALTRAINVREF_PTR_IDLE;
         end
         else begin
             case (current_state)
                 VALTRAINVREF_PTR_IDLE: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_PTR_WAIT_START_REQ : VALTRAINVREF_PTR_IDLE;
+                    next_state = VALTRAINVREF_PTR_WAIT_START_REQ;
                 end
 
                 VALTRAINVREF_PTR_WAIT_START_REQ: begin
@@ -118,11 +110,7 @@ module unit_VALTRAINVREF_partner (
                 end
 
                 VALTRAINVREF_PTR_TO_DATATRAINCENTER1: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_PTR_TO_DATATRAINCENTER1 : VALTRAINVREF_PTR_IDLE;
-                end
-
-                VALTRAINVREF_PTR_TO_TRAINERROR: begin
-                    next_state = valtrainvref_en ? VALTRAINVREF_PTR_TO_TRAINERROR : VALTRAINVREF_PTR_IDLE;
+                    next_state = VALTRAINVREF_PTR_TO_DATATRAINCENTER1;
                 end
 
                 default: begin
@@ -134,7 +122,7 @@ module unit_VALTRAINVREF_partner (
 
     always_comb begin : OUTPUT_COMB
         valtrainvref_done = 1'b0;
-        trainerror_req    = 1'b0;
+        // trainerror_req    = 1'b0;
         partner_sweep_en  = 1'b0;
 
         tx_sb_msg_valid   = 1'b0;
@@ -142,22 +130,12 @@ module unit_VALTRAINVREF_partner (
         tx_msginfo        = 16'h0;
         tx_data_field     = 64'h0;
 
-        mb_tx_clk_lane_sel  = 2'b01; // Active center-phase clock TX
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b01; // Active Valid TX (VALTRAIN pattern)
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b1;
-        mb_rx_val_lane_sel  = 1'b1;
-        mb_rx_trk_lane_sel  = 1'b0;
+        // MB TX signals moved to wrapper as static assigns
+        // (mb_tx_clk/val=valtrainvref_en?01:00, mb_tx_data/trk=00)
 
         case (current_state)
             VALTRAINVREF_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_tx_val_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
+                // MB signals handled in wrapper
             end
 
             VALTRAINVREF_PTR_WAIT_START_REQ: begin
@@ -185,11 +163,6 @@ module unit_VALTRAINVREF_partner (
 
             VALTRAINVREF_PTR_TO_DATATRAINCENTER1: begin
                 valtrainvref_done = 1'b1;
-            end
-
-            VALTRAINVREF_PTR_TO_TRAINERROR: begin
-                valtrainvref_done = 1'b1;
-                trainerror_req    = 1'b1;
             end
 
             default: begin

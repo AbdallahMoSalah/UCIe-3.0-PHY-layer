@@ -70,7 +70,7 @@ module wrapper_D2C_PT_partner (
         output logic [1:0]  mb_tx_data_pattern_sel,         // 00: LFSR, 01: Per-Lane ID, 10: Fixed All Zeros.
         output logic        mb_tx_val_pattern_sel,          // 0: VALTRAIN/functional, 1: Held Low.
         input  logic        mb_tx_pattern_count_done,       // 0: TX pattern generator is transmitting. 1: Completed all iterations.
-        input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
+        // input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete. <==========================================================================================================================================================
         input  logic        mb_rx_aggr_pass,                // 1: Aggregate comparison passed (error count within threshold). 0: Failed.
         input  logic [15:0] mb_rx_perlane_pass,             // 16-bit status vector; each bit corresponds to an operational lane. If the bit=1 the lane passed, else failed.
         input  logic        mb_rx_val_pass,                 // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
@@ -164,7 +164,7 @@ module wrapper_D2C_PT_partner (
         .mb_rx_max_err_thresh_perlane   (tx_mb_rx_max_err_thresh_perlane), // Output per-lane max error threshold allowed
         .mb_rx_max_err_thresh_aggr      (tx_mb_rx_max_err_thresh_aggr), // Output aggregate max error threshold allowed
         .mb_rx_data_lane_mask           (mb_rx_data_lane_mask        ), // Input negotiated lanes mask cast from d2c_pattern_setup
-        .mb_rx_compare_done             (mb_rx_compare_done          ), // Input comparison complete handshake status
+        // .mb_rx_compare_done             (mb_rx_compare_done          ), // Input comparison complete handshake status
         .mb_rx_aggr_pass                (mb_rx_aggr_pass             ), // Input aggregate pass feedback status
         .mb_rx_perlane_pass             (mb_rx_perlane_pass          ), // Input per-lane pass feedback status vector
         .mb_rx_val_pass                 (mb_rx_val_pass              ), // Input Valid Lane comparison pass status

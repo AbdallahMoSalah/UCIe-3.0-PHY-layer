@@ -231,6 +231,7 @@ module wrapper_DATAVREF_tb;
 
     logic        dut_datavref_done;
     logic        dut_trainerror_req;
+    assign       dut_trainerror_req = 1'b0;
 
     wrapper_DATAVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
@@ -239,10 +240,8 @@ module wrapper_DATAVREF_tb;
         .rst_n                          (rst_n),
         .soft_rst_n                     (soft_rst_n),
         .datavref_en                    (dut_local_datavref_en),
-        .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .datavref_done                  (dut_datavref_done),
-        .trainerror_req                 (dut_trainerror_req),
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
@@ -273,11 +272,9 @@ module wrapper_DATAVREF_tb;
     // Die B Instantiation (PARTNER)
     // =========================================================================
     logic        ptn_local_datavref_en = 0;
-    logic        ptn_local_update_lane_mask;
     logic        ptn_partner_datavref_en = 0;
 
     logic        ptn_datavref_done;
-    logic        ptn_trainerror_req;
 
     wrapper_DATAVREF #(
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE)
@@ -286,10 +283,8 @@ module wrapper_DATAVREF_tb;
         .rst_n                          (rst_n),
         .soft_rst_n                     (soft_rst_n),
         .datavref_en                    (ptn_local_datavref_en),
-        .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .datavref_done                  (ptn_datavref_done),
-        .trainerror_req                 (ptn_trainerror_req),
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
@@ -642,6 +637,8 @@ module wrapper_DATAVREF_tb;
 
 
          */        // Scenario 7: Injected TRAINERROR from partner
+        // (Commented out because DATAVREF removes global trainerror check and does not support trainerror)
+        /*
         run_scenario(
             .name("Scenario 7: Partner Injects TRAINERROR"),
             .d_start(standard_start), .d_end(standard_end),
@@ -650,6 +647,7 @@ module wrapper_DATAVREF_tb;
             .expect_speedidle_dut(0), .expect_te_dut(1),
             .suppress_sb(0), .inject_trainerror(1)
         );
+        */
 
         // =========================================================================
         // 8. Randomized Scenarios Block with Self-Checking

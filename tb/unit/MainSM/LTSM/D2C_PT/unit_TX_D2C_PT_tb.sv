@@ -32,7 +32,7 @@ module unit_TX_D2C_PT_tb;
     //======================================================================
     reg        part_tx_pt_en=0;
     reg [2:0]  part_mb_rx_data_lane_mask=3'b011; // 011: Lanes 0-15
-    reg        part_mb_rx_compare_done=0;         // 0: Comparison in progress, 1: Comparison complete
+    // reg        part_mb_rx_compare_done=0;         // 0: Comparison in progress, 1: Comparison complete
     reg        part_mb_rx_aggr_pass=0;            // 1: Aggregate passed, 0: Failed
     reg [15:0] part_mb_rx_perlane_pass=0;         // Per-lane pass/fail bits
     reg        part_mb_rx_val_pass=0;             // 1: Valid matched, 0: Valid mismatch
@@ -214,7 +214,7 @@ module unit_TX_D2C_PT_tb;
         .mb_rx_max_err_thresh_perlane   (part_mb_rx_max_err_thresh_perlane_w),
         .mb_rx_max_err_thresh_aggr      (part_mb_rx_max_err_thresh_aggr_w),
         .mb_rx_data_lane_mask           (part_mb_rx_data_lane_mask),
-        .mb_rx_compare_done             (part_mb_rx_compare_done),
+        // .mb_rx_compare_done             (part_mb_rx_compare_done),
         .mb_rx_aggr_pass                (part_mb_rx_aggr_pass),
         .mb_rx_perlane_pass             (part_mb_rx_perlane_pass),
         .mb_rx_val_pass                 (part_mb_rx_val_pass),
@@ -313,25 +313,25 @@ module unit_TX_D2C_PT_tb;
 
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            part_mb_rx_compare_done <= 0;
+            // part_mb_rx_compare_done <= 0;
             part_burst_cnt<=0; part_idle_cnt<=0; part_iter_cnt<=0;
             part_compare_done_sent <= 0;
         end else if (part_mb_rx_compare_en_w) begin
-            part_mb_rx_compare_done <= 0;
+            // part_mb_rx_compare_done <= 0;
             if (part_iter_cnt < part_mb_rx_iter_count_w) begin
                 if (part_burst_cnt < part_mb_rx_burst_count_w) part_burst_cnt <= part_burst_cnt+1;
                 else if (part_idle_cnt < part_mb_rx_idle_count_w) part_idle_cnt <= part_idle_cnt+1;
                 else begin part_iter_cnt<=part_iter_cnt+1; part_burst_cnt<=0; part_idle_cnt<=0; end
             end else if (!part_compare_done_sent) begin
                 $display("[%0t] PARTNER TB: compare done, perlane_pass=%h", $time, tb_part_perlane_pass);
-                part_mb_rx_compare_done <= 1;
+                // part_mb_rx_compare_done <= 1;
                 part_mb_rx_perlane_pass <= tb_part_perlane_pass;
                 part_mb_rx_aggr_pass    <= tb_part_aggr_pass;
                 part_mb_rx_val_pass     <= tb_part_val_pass;
                 part_compare_done_sent  <= 1;
             end
         end else begin
-            part_mb_rx_compare_done <= 0;
+            // part_mb_rx_compare_done <= 0;
             part_burst_cnt<=0; part_idle_cnt<=0; part_iter_cnt<=0;
             part_compare_done_sent <= 0;
         end

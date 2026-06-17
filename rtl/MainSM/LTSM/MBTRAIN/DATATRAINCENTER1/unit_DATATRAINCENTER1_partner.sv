@@ -5,7 +5,7 @@
 // Role:
 //   - Waits for Request SB messages from the partner die's LOCAL FSM
 //   - Sends Response SB messages back to the partner die
-//   - Holds MB lanes in the correct posture while the partner's LOCAL die 
+//   - Holds MB lanes in the correct posture while the partner's LOCAL die
 //     performs its TX PI centering sweep.
 //
 // ====================================================================================================
@@ -36,19 +36,14 @@ module unit_DATATRAINCENTER1_partner (
         input  logic        datatraincenter1_en , // 0: Disable (→ IDLE immediately). 1: Enable sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datatraincenter1_done, // 1: Sub-state completed; held until datatraincenter1_en = 0.
-        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
+        // output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        output logic [1:0]  mb_tx_clk_lane_sel  , 
-        output logic [1:0]  mb_tx_data_lane_sel , 
-        output logic [1:0]  mb_tx_val_lane_sel  , 
-        output logic [1:0]  mb_tx_trk_lane_sel  , 
-        output logic        mb_rx_clk_lane_sel  , 
-        output logic        mb_rx_data_lane_sel , 
-        output logic        mb_rx_val_lane_sel  , 
-        output logic        mb_rx_trk_lane_sel  , 
+        // MB RX Lane Control: moved to wrapper_DATATRAINCENTER1 as static assigns
+        // (spec §4.5.3.4.8: RX CLK=1, DATA=1, VAL=1, TRK=0)
+        // output logic        mb_rx_clk_lane_sel  ,
+        // output logic        mb_rx_data_lane_sel ,
+        // output logic        mb_rx_val_lane_sel  ,
+        // output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -64,24 +59,24 @@ module unit_DATATRAINCENTER1_partner (
         output logic [63:0] tx_data_field       , // 64-bit data payload.
 
         input  logic        rx_sb_msg_valid     , // Pulse when a valid SB msg is received.
-        input  logic [7:0]  rx_sb_msg           , // Received MsgCode.
-        input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field         // Received 64-bit data payload.
+        input  logic [7:0]  rx_sb_msg             // Received MsgCode.
+        // input  logic [15:0] rx_msginfo          , // Received MsgInfo payload.
+        // input  logic [63:0] rx_data_field         // Received 64-bit data payload.
     );
 
     import UCIe_pkg::*;
 
     // FSM State Encoding
-    localparam [3:0]
-    DATATRAINCENTER1_PTR_IDLE                = 4'd0,  // Wait for en
-    DATATRAINCENTER1_PTR_WAIT_START_REQ      = 4'd1,  // Wait for {start req}
-    DATATRAINCENTER1_PTR_SEND_START_RESP     = 4'd2,  // TX {start resp}
-    DATATRAINCENTER1_PTR_WAIT_END_REQ        = 4'd3,  // Wait while Local sweeps
-    DATATRAINCENTER1_PTR_SEND_END_RESP       = 4'd4,  // TX {end resp}
-    DATATRAINCENTER1_PTR_TO_DATATRAINVREF    = 4'd5,  // Terminal: completed
-    DATATRAINCENTER1_PTR_TO_TRAINERROR       = 4'd6;  // Terminal: error
+    localparam [2:0]
+    DATATRAINCENTER1_PTR_IDLE                = 3'd0,  // Wait for en
+    DATATRAINCENTER1_PTR_WAIT_START_REQ      = 3'd1,  // Wait for {start req}
+    DATATRAINCENTER1_PTR_SEND_START_RESP     = 3'd2,  // TX {start resp}
+    DATATRAINCENTER1_PTR_WAIT_END_REQ        = 3'd3,  // Wait while Local sweeps
+    DATATRAINCENTER1_PTR_SEND_END_RESP       = 3'd4,  // TX {end resp}
+    DATATRAINCENTER1_PTR_TO_DATATRAINVREF    = 3'd5;  // Terminal: completed
+    // DATATRAINCENTER1_PTR_TO_TRAINERROR       = 4'd6;  // Terminal: error
 
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC_PTR
         if (!rst_n) begin
@@ -98,16 +93,13 @@ module unit_DATATRAINCENTER1_partner (
     always_comb begin : NEXT_STATE_PROC_PTR
         next_state = current_state;
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = DATATRAINCENTER1_PTR_TO_TRAINERROR;
-        end
-        else if (!datatraincenter1_en) begin
+        if (!datatraincenter1_en) begin
             next_state = DATATRAINCENTER1_PTR_IDLE;
         end
         else begin
             case (current_state)
                 DATATRAINCENTER1_PTR_IDLE: begin
-                    next_state = datatraincenter1_en ? DATATRAINCENTER1_PTR_WAIT_START_REQ : DATATRAINCENTER1_PTR_IDLE;
+                    next_state = DATATRAINCENTER1_PTR_WAIT_START_REQ;
                 end
 
                 DATATRAINCENTER1_PTR_WAIT_START_REQ: begin
@@ -131,12 +123,12 @@ module unit_DATATRAINCENTER1_partner (
                 end
 
                 DATATRAINCENTER1_PTR_TO_DATATRAINVREF: begin
-                    next_state = datatraincenter1_en ? DATATRAINCENTER1_PTR_TO_DATATRAINVREF : DATATRAINCENTER1_PTR_IDLE;
+                    next_state = DATATRAINCENTER1_PTR_TO_DATATRAINVREF;
                 end
 
-                DATATRAINCENTER1_PTR_TO_TRAINERROR: begin
-                    next_state = datatraincenter1_en ? DATATRAINCENTER1_PTR_TO_TRAINERROR : DATATRAINCENTER1_PTR_IDLE;
-                end
+                // DATATRAINCENTER1_PTR_TO_TRAINERROR: begin
+                //     next_state = DATATRAINCENTER1_PTR_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = DATATRAINCENTER1_PTR_IDLE;
@@ -147,7 +139,7 @@ module unit_DATATRAINCENTER1_partner (
 
     always_comb begin : OUTPUT_COMB_PTR
         datatraincenter1_done = 1'b0;
-        trainerror_req         = 1'b0;
+        // trainerror_req         = 1'b0;
         partner_sweep_en       = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -155,23 +147,10 @@ module unit_DATATRAINCENTER1_partner (
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        // MB lane defaults for partner die (RX die)
-        mb_tx_clk_lane_sel  = 2'b01; // Active center-phase forwarded clock
-        mb_tx_data_lane_sel = 2'b00; // Held Low
-        mb_tx_val_lane_sel  = 2'b00; // Held Low
-        mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        mb_rx_data_lane_sel = 1'b1;  // Enabled
-        mb_rx_val_lane_sel  = 1'b1;  // Enabled
-        mb_rx_trk_lane_sel  = 1'b0;  // Disabled
+        // MB RX signals moved to wrapper as static assigns (CLK=1, DATA=1, VAL=1, TRK=0)
 
         case (current_state)
-            DATATRAINCENTER1_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-            end
+            DATATRAINCENTER1_PTR_IDLE: begin end
 
             DATATRAINCENTER1_PTR_WAIT_START_REQ: begin
                 tx_sb_msg_valid = 1'b0;
@@ -200,10 +179,10 @@ module unit_DATATRAINCENTER1_partner (
                 datatraincenter1_done = 1'b1;
             end
 
-            DATATRAINCENTER1_PTR_TO_TRAINERROR: begin
-                datatraincenter1_done = 1'b1;
-                trainerror_req         = 1'b1;
-            end
+            // DATATRAINCENTER1_PTR_TO_TRAINERROR: begin
+            //     datatraincenter1_done = 1'b1;
+            //     trainerror_req        = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

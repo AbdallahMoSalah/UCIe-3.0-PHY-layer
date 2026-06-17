@@ -71,7 +71,7 @@ module wrapper_D2C_PT_tb;
     wire        req_mb_tx_val_pattern_sel;
 
     reg         req_mb_tx_pattern_count_done = 0;
-    reg         req_mb_rx_compare_done = 0;
+    // reg         req_mb_rx_compare_done = 0;
     reg         req_mb_rx_aggr_pass = 1;
     reg [15:0]  req_mb_rx_perlane_pass = 16'hFFFF;
     reg         req_mb_rx_val_pass = 1;
@@ -113,7 +113,7 @@ module wrapper_D2C_PT_tb;
     wire        resp_mb_tx_val_pattern_sel;
 
     reg         resp_mb_tx_pattern_count_done = 0;
-    reg         resp_mb_rx_compare_done = 0;
+    // reg         resp_mb_rx_compare_done = 0;
     reg         resp_mb_rx_aggr_pass = 1;
     reg [15:0]  resp_mb_rx_perlane_pass = 16'hFFFF;
     reg         resp_mb_rx_val_pass = 1;
@@ -173,7 +173,7 @@ module wrapper_D2C_PT_tb;
         .mb_tx_data_pattern_sel         (req_mb_tx_data_pattern_sel     ), // MB Tx data pattern select setup
         .mb_tx_val_pattern_sel          (req_mb_tx_val_pattern_sel      ), // MB Tx Valid pattern select setup
         .mb_tx_pattern_count_done       (req_mb_tx_pattern_count_done   ), // Input transmitter done status
-        .mb_rx_compare_done             (req_mb_rx_compare_done         ), // Input comparison complete status
+        // .mb_rx_compare_done             (req_mb_rx_compare_done         ), // Input comparison complete status
         .mb_rx_pattern_setup            (req_mb_rx_pattern_setup        ),
         .mb_rx_iter_count               (req_mb_rx_iter_count           ),
         .mb_rx_idle_count               (req_mb_rx_idle_count           ),
@@ -231,7 +231,7 @@ module wrapper_D2C_PT_tb;
         .mb_tx_data_pattern_sel         (resp_mb_tx_data_pattern_sel     ), // MB Tx data pattern select setup
         .mb_tx_val_pattern_sel          (resp_mb_tx_val_pattern_sel      ), // MB Tx Valid pattern select setup
         .mb_tx_pattern_count_done       (resp_mb_tx_pattern_count_done  ), // Input transmitter done status
-        .mb_rx_compare_done             (resp_mb_rx_compare_done        ), // Input comparison complete status
+        // .mb_rx_compare_done             (resp_mb_rx_compare_done        ), // Input comparison complete status
         .mb_rx_pattern_setup            (resp_mb_rx_pattern_setup       ),
         .mb_rx_iter_count               (resp_mb_rx_iter_count          ),
         .mb_rx_idle_count               (resp_mb_rx_idle_count          ),
@@ -331,11 +331,11 @@ module wrapper_D2C_PT_tb;
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             req_mb_tx_pattern_count_done  <= 0;
-            resp_mb_rx_compare_done       <= 0;
+            // resp_mb_rx_compare_done       <= 0;
             tx_mb_burst<=0; tx_mb_idle<=0; tx_mb_iter<=0; tx_done_sent<=0;
         end else if (tx_pt_en) begin
             req_mb_tx_pattern_count_done  <= 0;
-            resp_mb_rx_compare_done       <= 0;
+            // resp_mb_rx_compare_done       <= 0;
             if (req_mb_tx_pattern_en && resp_mb_rx_compare_en) begin
                 if (tx_mb_iter < d2c_iter_count) begin
                     if (tx_mb_burst < d2c_burst_count) tx_mb_burst <= tx_mb_burst + 1;
@@ -348,7 +348,7 @@ module wrapper_D2C_PT_tb;
                 end else if (!tx_done_sent) begin
                     if (tb_verbose) $display("[%0t] TX PT MB Model complete: perlane_pass=%h, aggr_pass=%b, val_pass=%b", $time, tb_perlane_pass, tb_aggr_pass, tb_val_pass);
                     req_mb_tx_pattern_count_done  <= 1; // 1-cycle pulse to Local
-                    resp_mb_rx_compare_done       <= 1; // 1-cycle pulse to Partner
+                    // resp_mb_rx_compare_done       <= 1; // 1-cycle pulse to Partner
                     resp_mb_rx_perlane_pass       <= tb_perlane_pass;
                     resp_mb_rx_aggr_pass          <= tb_aggr_pass;
                     resp_mb_rx_val_pass           <= tb_val_pass;
@@ -359,7 +359,7 @@ module wrapper_D2C_PT_tb;
             end
         end else begin
             req_mb_tx_pattern_count_done  <= 0;
-            resp_mb_rx_compare_done       <= 0;
+            // resp_mb_rx_compare_done       <= 0;
             tx_mb_burst<=0; tx_mb_idle<=0; tx_mb_iter<=0; tx_done_sent<=0;
         end
     end
@@ -367,11 +367,11 @@ module wrapper_D2C_PT_tb;
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
             resp_mb_tx_pattern_count_done <= 0;
-            req_mb_rx_compare_done        <= 0;
+            // req_mb_rx_compare_done        <= 0;
             rx_mb_burst<=0; rx_mb_idle<=0; rx_mb_iter<=0; rx_done_sent<=0;
         end else if (rx_pt_en) begin
             resp_mb_tx_pattern_count_done <= 0;
-            req_mb_rx_compare_done        <= 0;
+            // req_mb_rx_compare_done        <= 0;
             if (resp_mb_tx_pattern_en && req_mb_rx_compare_en) begin
                 if (rx_mb_iter < d2c_iter_count) begin
                     if (rx_mb_burst < d2c_burst_count) rx_mb_burst <= rx_mb_burst + 1;
@@ -384,7 +384,7 @@ module wrapper_D2C_PT_tb;
                 end else if (!rx_done_sent) begin
                     if (tb_verbose) $display("[%0t] RX PT MB Model complete: perlane_pass=%h, aggr_pass=%b, val_pass=%b", $time, tb_perlane_pass, tb_aggr_pass, tb_val_pass);
                     resp_mb_tx_pattern_count_done <= 1; // 1-cycle pulse to Partner
-                    req_mb_rx_compare_done        <= 1; // 1-cycle pulse to Local
+                    // req_mb_rx_compare_done        <= 1; // 1-cycle pulse to Local
                     req_mb_rx_perlane_pass        <= tb_perlane_pass;
                     req_mb_rx_aggr_pass           <= tb_aggr_pass;
                     req_mb_rx_val_pass            <= tb_val_pass;
@@ -395,7 +395,7 @@ module wrapper_D2C_PT_tb;
             end
         end else begin
             resp_mb_tx_pattern_count_done <= 0;
-            req_mb_rx_compare_done        <= 0;
+            // req_mb_rx_compare_done        <= 0;
             rx_mb_burst<=0; rx_mb_idle<=0; rx_mb_iter<=0; rx_done_sent<=0;
         end
     end

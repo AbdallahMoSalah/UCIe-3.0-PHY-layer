@@ -92,7 +92,7 @@ module unit_RX_D2C_PT_local (
         output logic [15:0] mb_rx_max_err_thresh_aggr   , // Drives aggregate max error threshold to RX comparison block.
         output logic [1:0]  mb_rx_compare_setup         , // 00: Per-Lane, 01: Aggregate, 10: Valid Lane, 11: Clock Lane comparison.
 
-        input  logic        mb_rx_compare_done          , // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
+        // input  logic        mb_rx_compare_done          , // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete. <=====================================================================================================================================================================================
         input  logic        mb_rx_aggr_pass             , // 16-bit cumulative error count from the RX comparison circuit.
         input  logic [15:0] mb_rx_perlane_pass          , // 16-bit status vector; each bit corresponds to an operational lane.
         input  logic        mb_rx_val_pass              , // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
@@ -187,7 +187,7 @@ module unit_RX_D2C_PT_local (
             d2c_perlane_pass_r <= 16'b0;
             d2c_aggr_pass_r    <= 1'b0 ;
             d2c_val_pass_r     <= 1'b0 ;
-        end else if (mb_rx_compare_done) begin
+        end else if (current_state == RX_PT_WAIT_COUNT_DONE_REQ && rx_sb_msg_valid && rx_sb_msg == Rx_Init_D_to_C_Tx_Count_Done_req) begin
             d2c_perlane_pass_r <= mb_rx_perlane_pass;
             d2c_aggr_pass_r    <= mb_rx_aggr_pass;
             d2c_val_pass_r     <= mb_rx_val_pass;

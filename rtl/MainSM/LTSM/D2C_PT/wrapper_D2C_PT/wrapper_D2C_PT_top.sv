@@ -93,9 +93,7 @@ module wrapper_D2C_PT_top(
 
         // These input signals are broadcasted to both of TX_D2C_PT and RX_D2C_PT FSMs.
         //     (ex: 'mb_tx_pattern_count_done' is broadcasted to both of unit_TX_D2C_PT_local   and unit_RX_D2C_PT_partner)
-        //     (ex: 'mb_rx_compare_done'       is broadcasted to both of unit_TX_D2C_PT_partner and unit_RX_D2C_PT_local  )
         input  logic        mb_tx_pattern_count_done,       // 0: TX pattern generator is transmitting. 1: Completed all iterations.
-        input  logic        mb_rx_compare_done,             // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
         input  logic        mb_rx_aggr_pass,                // 1: Aggregate comparison passed (error count within threshold). 0: Failed.
         input  logic [15:0] mb_rx_perlane_pass,             // 16-bit status vector; each bit corresponds to an operational lane.
         input  logic        mb_rx_val_pass,                 // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
@@ -287,7 +285,6 @@ module wrapper_D2C_PT_top(
         .mb_tx_val_pattern_sel          (loc_mb_tx_val_pattern_sel     ), // Local TX valid pattern selection.
         // Broadcast inputs (shared with both sub-wrappers):
         .mb_tx_pattern_count_done       (mb_tx_pattern_count_done      ), // 1: TX pattern generator completed all iterations.
-        .mb_rx_compare_done             (mb_rx_compare_done            ), // 1: RX comparison of all iterations complete.
         .mb_rx_aggr_pass                (mb_rx_aggr_pass               ), // 1: Aggregate comparison passed.
         .mb_rx_perlane_pass             (mb_rx_perlane_pass            ), // Per-lane pass vector.
         .mb_rx_val_pass                 (mb_rx_val_pass                ), // 1: Valid lane comparison passed.
@@ -355,7 +352,6 @@ module wrapper_D2C_PT_top(
         .mb_tx_val_pattern_sel          (ptn_mb_tx_val_pattern_sel     ), // Partner TX valid pattern selection.
         // Broadcast inputs (shared with both sub-wrappers):
         .mb_tx_pattern_count_done       (mb_tx_pattern_count_done      ), // 1: TX pattern generator completed all iterations.
-        .mb_rx_compare_done             (mb_rx_compare_done            ), // 1: RX comparison of all iterations complete.
         .mb_rx_aggr_pass                (mb_rx_aggr_pass               ), // 1: Aggregate comparison passed.
         .mb_rx_perlane_pass             (mb_rx_perlane_pass            ), // Per-lane pass vector.
         .mb_rx_val_pass                 (mb_rx_val_pass                ), // 1: Valid lane comparison passed.

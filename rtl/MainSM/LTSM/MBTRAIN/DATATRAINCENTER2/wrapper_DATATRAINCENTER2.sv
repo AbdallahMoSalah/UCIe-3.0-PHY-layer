@@ -4,26 +4,20 @@
 // It arbitrates their Sideband (SB) TX outputs and multiplexes their Mainband (MB) control outputs.
 
 module wrapper_DATATRAINCENTER2 #(
-        parameter int unsigned MAX_DATA_PI_CODE = 6'd63,
-        parameter int unsigned MIN_DATA_PI_CODE = 6'd0
+        parameter int unsigned MAX_DATA_PI_CODE = 'd16
     ) (
         // =========================================================================
         // Group 1: Clock and Reset Signals
         // =========================================================================
         input  logic        lclk,
         input  logic        rst_n,
+        input  logic        soft_rst_n,
 
         // =========================================================================
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
-        input  logic        soft_rst_n,
-
-        input  logic        local_datatraincenter2_en,
+        input  logic        datatraincenter2_en,
         output logic        datatraincenter2_done,
-        output logic        trainerror_req,
-        output logic        local_update_lane_mask,
-
-        input  logic        partner_datatraincenter2_en,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -60,17 +54,15 @@ module wrapper_DATATRAINCENTER2 #(
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
 
     logic        local_datatraincenter2_done_wire;
-    logic        local_trainerror_req_wire;
     logic        partner_datatraincenter2_done_wire;
-    logic        partner_trainerror_req_wire;
 
     logic        local_tx_sb_msg_valid ;
     logic [7:0]  local_tx_sb_msg      ;
@@ -82,44 +74,17 @@ module wrapper_DATATRAINCENTER2 #(
     logic [15:0] partner_tx_msginfo    ;
     logic [63:0] partner_tx_data_field ;
 
-    logic [1:0]  local_mb_tx_clk_lane_sel  ;
-    logic [1:0]  local_mb_tx_data_lane_sel ;
-    logic [1:0]  local_mb_tx_val_lane_sel  ;
-    logic [1:0]  local_mb_tx_trk_lane_sel  ;
-    logic        local_mb_rx_clk_lane_sel  ;
-    logic        local_mb_rx_data_lane_sel ;
-    logic        local_mb_rx_val_lane_sel  ;
-    logic        local_mb_rx_trk_lane_sel  ;
-
-    logic [1:0]  partner_mb_tx_clk_lane_sel  ;
-    logic [1:0]  partner_mb_tx_data_lane_sel ;
-    logic [1:0]  partner_mb_tx_val_lane_sel  ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel  ;
-    logic        partner_mb_rx_clk_lane_sel  ;
-    logic        partner_mb_rx_data_lane_sel ;
-    logic        partner_mb_rx_val_lane_sel  ;
-    logic        partner_mb_rx_trk_lane_sel  ;
 
     unit_DATATRAINCENTER2_local #(
-        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE(MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE)
     ) u_local (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .datatraincenter2_en            (local_datatraincenter2_en),
+        .datatraincenter2_en            (datatraincenter2_en),
         .soft_rst_n                     (soft_rst_n),
         .datatraincenter2_done          (local_datatraincenter2_done_wire),
-        .trainerror_req                 (local_trainerror_req_wire),
-        .update_lane_mask               (local_update_lane_mask),
         .phy_tx_data_pi_phase_ctrl      (phy_tx_data_pi_phase_ctrl),
-        .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (local_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (local_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (local_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (local_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel),
+        // MB TX signals moved to wrapper as static assigns
         .sweep_en                       (sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
@@ -129,73 +94,47 @@ module wrapper_DATATRAINCENTER2 #(
         .tx_msginfo                     (local_tx_msginfo),
         .tx_data_field                  (local_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
     );
 
     unit_DATATRAINCENTER2_partner u_partner (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .datatraincenter2_en            (partner_datatraincenter2_en),
+        .datatraincenter2_en            (datatraincenter2_en),
         .soft_rst_n                     (soft_rst_n),
         .datatraincenter2_done          (partner_datatraincenter2_done_wire),
-        .trainerror_req                 (partner_trainerror_req_wire),
-        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (partner_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (partner_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (partner_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (partner_mb_rx_trk_lane_sel),
+        // MB RX signals moved to wrapper as static assigns
         .partner_sweep_en               (partner_sweep_en),
         .tx_sb_msg_valid                (partner_tx_sb_msg_valid),
         .tx_sb_msg                      (partner_tx_sb_msg),
         .tx_msginfo                     (partner_tx_msginfo),
         .tx_data_field                  (partner_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
     );
 
     // Combine terminal signals
     assign datatraincenter2_done = local_datatraincenter2_done_wire & partner_datatraincenter2_done_wire;
-    assign trainerror_req        = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    always_comb begin : MB_OUTPUTS_MUX
-        if (partner_datatraincenter2_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel;
-            mb_tx_data_lane_sel = partner_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = partner_mb_tx_val_lane_sel;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel;
-        end
-        else begin
-            mb_tx_clk_lane_sel  = local_mb_tx_clk_lane_sel;
-            mb_tx_data_lane_sel = local_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = local_mb_tx_val_lane_sel;
-            mb_tx_trk_lane_sel  = local_mb_tx_trk_lane_sel;
-        end
-
-        if (local_datatraincenter2_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel;
-            mb_rx_data_lane_sel = local_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = local_mb_rx_val_lane_sel;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel;
-        end
-        else begin
-            mb_rx_clk_lane_sel  = partner_mb_rx_clk_lane_sel;
-            mb_rx_data_lane_sel = partner_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = partner_mb_rx_val_lane_sel;
-            mb_rx_trk_lane_sel  = partner_mb_rx_trk_lane_sel;
-        end
-    end
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.11 MBTRAIN.DATATRAINCENTER2:
+    //   Local   (TX side): CLK TX active (01), DATA/VAL/TRK TX held low.
+    //   Partner (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
+    //   wrapper_MBTRAIN ss_active gates these when substate is not active.
+    // =========================================================================
+    assign mb_tx_clk_lane_sel  = 2'b01;
+    assign mb_tx_data_lane_sel = 2'b00;
+    assign mb_tx_val_lane_sel  = 2'b00;
+    assign mb_tx_trk_lane_sel  = 2'b00;
+    assign mb_rx_clk_lane_sel  = 1'b1;
+    assign mb_rx_data_lane_sel = 1'b1;
+    assign mb_rx_val_lane_sel  = 1'b1;
+    assign mb_rx_trk_lane_sel  = 1'b0;
 
 endmodule
 

@@ -27,10 +27,10 @@
 // ====================================================================================================
 
 module wrapper_RXDESKEW #(
-        parameter int unsigned MAX_DESKEW_CODE          = 7'd16, // Maximum deskew code (inclusive)
-        parameter int unsigned MIN_DESKEW_CODE          = 7'd0 , // Minimum deskew code (inclusive)
-        parameter int unsigned MAX_ARC_LIMIT            = 3'd4 , // Maximum DTC1 arc iterations (spec = 4)
-        parameter int unsigned MAX_VALID_PRESET         = 4'd5 , // Valid TX EQ preset range limit
+        parameter int unsigned MAX_DESKEW_CODE          = 'd16, // Maximum deskew code (inclusive)
+        parameter int unsigned MIN_DESKEW_CODE          = 'd0 , // Minimum deskew code (inclusive)
+        parameter int unsigned MAX_ARC_LIMIT            = 'd4 , // Maximum DTC1 arc iterations (spec = 4)
+        parameter int unsigned MAX_VALID_PRESET         = 'd5 , // Valid TX EQ preset range limit
         parameter int unsigned MIN_DESIRED_SWEEP_RANGE  = (MAX_DESKEW_CODE - MIN_DESKEW_CODE + 1) * 75 / 100
     ) (
         // =========================================================================
@@ -46,14 +46,11 @@ module wrapper_RXDESKEW #(
         input  logic        is_high_speed,                  // 0: <= 32 GT/s; 1: > 32 GT/s
         input  logic        is_continuous_clk_mode,         // 0: Strobe mode; 1: Continuous clock mode
 
-        // Local FSM Control:
-        input  logic        local_rxdeskew_en,              // 0: Disable; 1: Enable Local RXDESKEW sequence
+        // FSM Control & Status:
+        input  logic        rxdeskew_en,                    // 0: Disable; 1: Enable RXDESKEW sequence
         output logic        rxdeskew_done,                  // 0: In progress; 1: Sub-state completed
         output logic        datatraincenter1_req,           // 0: No arc; 1: Request arc to DATATRAINCENTER1
         output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry
-
-        // Partner FSM Control:
-        input  logic        partner_rxdeskew_en,            // 0: Disable; 1: Enable Partner RXDESKEW sequence
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -94,8 +91,8 @@ module wrapper_RXDESKEW #(
 
         input  logic        rx_sb_msg_valid,                // 0: Invalid; 1: Valid 1-cycle RX sideband pulse
         input  logic [7:0]  rx_sb_msg,                      // Received Sideband MsgCode
-        input  logic [15:0] rx_msginfo,                     // Received Sideband MsgInfo payload
-        input  logic [63:0] rx_data_field                   // Received Sideband 64-bit Data payload
+        input  logic [15:0] rx_msginfo                      // Received Sideband MsgInfo payload
+        // input  logic [63:0] rx_data_field                   // Received Sideband 64-bit Data payload
     );
 
     import UCIe_pkg::*;
@@ -128,26 +125,6 @@ module wrapper_RXDESKEW #(
     logic [15:0] partner_tx_msginfo           ;
     logic [63:0] partner_tx_data_field        ;
 
-    // MB outputs from Local FSM:
-    logic [1:0]  local_mb_tx_clk_lane_sel     ;
-    logic [1:0]  local_mb_tx_data_lane_sel    ;
-    logic [1:0]  local_mb_tx_val_lane_sel     ;
-    logic [1:0]  local_mb_tx_trk_lane_sel     ;
-    logic        local_mb_rx_clk_lane_sel     ;
-    logic        local_mb_rx_data_lane_sel    ;
-    logic        local_mb_rx_val_lane_sel     ;
-    logic        local_mb_rx_trk_lane_sel     ;
-
-    // MB outputs from Partner FSM:
-    logic [1:0]  partner_mb_tx_clk_lane_sel   ;
-    logic [1:0]  partner_mb_tx_data_lane_sel  ;
-    logic [1:0]  partner_mb_tx_val_lane_sel   ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel   ;
-    logic        partner_mb_rx_clk_lane_sel   ;
-    logic        partner_mb_rx_data_lane_sel  ;
-    logic        partner_mb_rx_val_lane_sel   ;
-    logic        partner_mb_rx_trk_lane_sel   ;
-
 
     // =========================================================================
     // 1st: Port Mapping of unit_RXDESKEW_local
@@ -159,47 +136,31 @@ module wrapper_RXDESKEW #(
         .MAX_VALID_PRESET               (MAX_VALID_PRESET            ),
         .MIN_DESIRED_SWEEP_RANGE        (MIN_DESIRED_SWEEP_RANGE     )
     ) u_RXDESKEW_local (
-        // Clock and Reset Signals
-        .lclk                           (lclk                        ), // LTSM clock domain
-        .rst_n                          (rst_n                       ), // Active-low reset
-        // LTSM Control Signals
-        .rxdeskew_en                    (local_rxdeskew_en           ), // Enable Local RXDESKEW
-        .soft_rst_n                     (soft_rst_n                  ), // Soft reset control
-        .rxdeskew_done                  (local_rxdeskew_done_wire    ), // Sub-state done
-        .datatraincenter1_req           (local_datatraincenter1_req_wire), // Arc request to DTC1
-        .trainerror_req                 (local_trainerror_req_wire   ), // TRAINERROR exit request
-        .local_exit_dtc1_active         (local_exit_dtc1_active      ), // Committed to arc flag
+        .lclk                           (lclk                        ),
+        .rst_n                          (rst_n                       ),
+        .rxdeskew_en                    (rxdeskew_en                 ),
+        .soft_rst_n                     (soft_rst_n                  ),
+        .rxdeskew_done                  (local_rxdeskew_done_wire    ),
+        .datatraincenter1_req           (local_datatraincenter1_req_wire),
+        .trainerror_req                 (local_trainerror_req_wire   ),
+        .local_exit_dtc1_active         (local_exit_dtc1_active      ),
         .local_end_active               (local_end_active            ),
-        .partner_arc_cnt                (partner_arc_cnt_wire        ), // From Partner: unified arc count
-        // PHY Deskew Control
-        .phy_rx_deskew_ctrl             (phy_rx_deskew_ctrl          ), // Per-lane rx deskew settings
-        // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel    ), // Logical clock lane TX select
-        .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel   ), // Logical data lanes TX select
-        .mb_tx_val_lane_sel             (local_mb_tx_val_lane_sel    ), // Logical valid lane TX select
-        .mb_tx_trk_lane_sel             (local_mb_tx_trk_lane_sel    ), // Logical tracking lane TX select
-        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel    ), // Logical clock lane RX enable
-        .mb_rx_data_lane_sel            (local_mb_rx_data_lane_sel   ), // Logical data lanes RX enable
-        .mb_rx_val_lane_sel             (local_mb_rx_val_lane_sel    ), // Logical valid lane RX enable
-        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel    ), // Logical tracking lane RX enable
-        // Speed and Clock Mode
-        .is_high_speed                  (is_high_speed               ), // Speed > 32 GT/s
-        .is_continuous_clk_mode         (is_continuous_clk_mode      ), // continuous clock mode
-        // D2C Sweep Interface
-        .sweep_en                       (sweep_en                    ), // To unit_D2C_sweep: start sweep
-        .swept_code                     (swept_code                  ), // From D2C: swept code
-        .best_code                      (best_code                   ), // From D2C: best code array
-        .min_eye_width                  (min_eye_width               ), // From D2C: narrowest eye
-        .sweep_done                     (sweep_done                  ), // From D2C: sweep done
-        // Sideband Control Signals
-        .tx_sb_msg_valid                (local_tx_sb_msg_valid       ), // Sideband TX valid strobe
-        .tx_sb_msg                      (local_tx_sb_msg             ), // Sideband TX MsgCode
-        .tx_msginfo                     (local_tx_msginfo            ), // Sideband TX MsgInfo
-        .tx_data_field                  (local_tx_data_field         ), // Sideband TX data payload
-        .rx_sb_msg_valid                (rx_sb_msg_valid             ), // Sideband RX valid strobe
-        .rx_sb_msg                      (rx_sb_msg                   ), // Sideband RX MsgCode
-        .rx_msginfo                     (rx_msginfo                  ), // Sideband RX MsgInfo
-        .rx_data_field                  (rx_data_field               )  // Sideband RX data payload
+        .partner_arc_cnt                (partner_arc_cnt_wire        ),
+        .phy_rx_deskew_ctrl             (phy_rx_deskew_ctrl          ),
+        // MB RX signals moved to wrapper as static assigns
+        .is_high_speed                  (is_high_speed               ),
+        .sweep_en                       (sweep_en                    ),
+        .swept_code                     (swept_code                  ),
+        .best_code                      (best_code                   ),
+        .min_eye_width                  (min_eye_width               ),
+        .sweep_done                     (sweep_done                  ),
+        .tx_sb_msg_valid                (local_tx_sb_msg_valid       ),
+        .tx_sb_msg                      (local_tx_sb_msg             ),
+        .tx_msginfo                     (local_tx_msginfo            ),
+        .tx_data_field                  (local_tx_data_field         ),
+        .rx_sb_msg_valid                (rx_sb_msg_valid             ),
+        .rx_sb_msg                      (rx_sb_msg                   ),
+        .rx_msginfo                     (rx_msginfo                  )
     );
 
 
@@ -209,45 +170,29 @@ module wrapper_RXDESKEW #(
     unit_RXDESKEW_partner #(
         .MAX_VALID_PRESET               (MAX_VALID_PRESET            )
     ) u_RXDESKEW_partner (
-        // Clock and Reset Signals
-        .lclk                           (lclk                        ), // LTSM clock domain
-        .rst_n                          (rst_n                       ), // Active-low reset
-        // LTSM Control Signals
-        .rxdeskew_en                    (partner_rxdeskew_en         ), // Enable Partner RXDESKEW
-        .soft_rst_n                     (soft_rst_n                  ), // Soft reset control
-        .rxdeskew_done                  (partner_rxdeskew_done_wire  ), // Sub-state done
-        .datatraincenter1_req           (partner_datatraincenter1_req_wire), // Arc request to DTC1
-        .trainerror_req                 (partner_trainerror_req_wire ), // TRAINERROR exit request
-        .partner_sweep_en               (partner_sweep_en            ), // Partner sweep ready indicator
-        .partner_arc_cnt_out            (partner_arc_cnt_wire        ), // To Local: unified arc count
-        // Cross-die Coordination
-        .local_exit_dtc1_active         (local_exit_dtc1_active      ), // Coordination from Local FSM
+        .lclk                           (lclk                        ),
+        .rst_n                          (rst_n                       ),
+        .rxdeskew_en                    (rxdeskew_en                 ),
+        .soft_rst_n                     (soft_rst_n                  ),
+        .rxdeskew_done                  (partner_rxdeskew_done_wire  ),
+        .datatraincenter1_req           (partner_datatraincenter1_req_wire),
+        .trainerror_req                 (partner_trainerror_req_wire ),
+        .partner_sweep_en               (partner_sweep_en            ),
+        .partner_arc_cnt_out            (partner_arc_cnt_wire        ),
+        .local_exit_dtc1_active         (local_exit_dtc1_active      ),
         .local_arc_taken                (local_datatraincenter1_req_wire),
         .local_end_active               (local_end_active            ),
-        // PHY TX EQ Preset Control
-        .phy_tx_eq_preset_ctrl          (phy_tx_eq_preset_ctrl       ), // Applied Tx EQ preset
-        .phy_tx_eq_preset_en            (phy_tx_eq_preset_en         ), // Strobe to apply preset
-        // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel  ), // Logical clock lane TX select
-        .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel ), // Logical data lanes TX select
-        .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel  ), // Logical valid lane TX select
-        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel  ), // Logical tracking lane TX select
-        .mb_rx_clk_lane_sel             (partner_mb_rx_clk_lane_sel  ), // Logical clock lane RX enable
-        .mb_rx_data_lane_sel            (partner_mb_rx_data_lane_sel ), // Logical data lanes RX enable
-        .mb_rx_val_lane_sel             (partner_mb_rx_val_lane_sel  ), // Logical valid lane RX enable
-        .mb_rx_trk_lane_sel             (partner_mb_rx_trk_lane_sel  ), // Logical tracking lane RX enable
-        // Speed and Clock Mode Inputs
-        .is_high_speed                  (is_high_speed               ), // Speed > 32 GT/s
-        .is_continuous_clk_mode         (is_continuous_clk_mode      ), // continuous clock mode
-        // Sideband Control Signals
-        .tx_sb_msg_valid                (partner_tx_sb_msg_valid     ), // Sideband TX valid strobe
-        .tx_sb_msg                      (partner_tx_sb_msg           ), // Sideband TX MsgCode
-        .tx_msginfo                     (partner_tx_msginfo          ), // Sideband TX MsgInfo
-        .tx_data_field                  (partner_tx_data_field       ), // Sideband TX data payload
-        .rx_sb_msg_valid                (rx_sb_msg_valid             ), // Sideband RX valid strobe
-        .rx_sb_msg                      (rx_sb_msg                   ), // Sideband RX MsgCode
-        .rx_msginfo                     (rx_msginfo                  ), // Sideband RX MsgInfo
-        .rx_data_field                  (rx_data_field               )  // Sideband RX data payload
+        .phy_tx_eq_preset_ctrl          (phy_tx_eq_preset_ctrl       ),
+        .phy_tx_eq_preset_en            (phy_tx_eq_preset_en         ),
+        // MB TX signals moved to wrapper as static/conditional assigns
+        // Speed and clock-mode inputs consumed in wrapper assign below
+        .tx_sb_msg_valid                (partner_tx_sb_msg_valid     ),
+        .tx_sb_msg                      (partner_tx_sb_msg           ),
+        .tx_msginfo                     (partner_tx_msginfo          ),
+        .tx_data_field                  (partner_tx_data_field       ),
+        .rx_sb_msg_valid                (rx_sb_msg_valid             ),
+        .rx_sb_msg                      (rx_sb_msg                   ),
+        .rx_msginfo                     (rx_msginfo                  )
     );
 
 
@@ -261,47 +206,26 @@ module wrapper_RXDESKEW #(
     assign trainerror_req       = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband TX Output arbitration:
-    // Local FSM has priority: if local_tx_sb_msg_valid=1 it wins, otherwise partner drives the SB port.
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg     ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo    ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field ;
 
-    // MB Outputs MUX: independent routing for TX and RX MB lanes.
-    // This allows parallel MB TX/RX routing just like in wrapper_D2C_PT_top.
-    always_comb begin : MB_OUTPUTS_MUX
-        // MB TX source selection:
-        // If PARTNER RXDESKEW is    active --> It    drives the TX signals.
-        // If PARTNER RXDESKEW isn't active --> LOCAL drives the TX default values.
-        if (partner_rxdeskew_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel ;
-            mb_tx_data_lane_sel = partner_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = partner_mb_tx_val_lane_sel ;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel ;
-        end
-        else begin
-            mb_tx_clk_lane_sel  = local_mb_tx_clk_lane_sel   ;
-            mb_tx_data_lane_sel = local_mb_tx_data_lane_sel  ;
-            mb_tx_val_lane_sel  = local_mb_tx_val_lane_sel   ;
-            mb_tx_trk_lane_sel  = local_mb_tx_trk_lane_sel   ;
-        end
-
-        // MB RX source selection:
-        // If LOCAL RXDESKEW is    active --> It      drives the RX signals.
-        // If LOCAL RXDESKEW isn't active --> PARTNER drives the RX default values.
-        if (local_rxdeskew_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel   ;
-            mb_rx_data_lane_sel = local_mb_rx_data_lane_sel  ;
-            mb_rx_val_lane_sel  = local_mb_rx_val_lane_sel   ;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel   ;
-        end
-        else begin
-            mb_rx_clk_lane_sel  = partner_mb_rx_clk_lane_sel ;
-            mb_rx_data_lane_sel = partner_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = partner_mb_rx_val_lane_sel ;
-            mb_rx_trk_lane_sel  = partner_mb_rx_trk_lane_sel ;
-        end
-    end
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.10 MBTRAIN.RXDESKEW:
+    //   Local   (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
+    //   Partner (TX side): CLK TX=speed-dep, DATA/VAL/TRK TX=00.
+    //   wrapper_MBTRAIN ss_active gates these when substate is not active.
+    // =========================================================================
+    assign mb_rx_clk_lane_sel  = 1'b1;
+    assign mb_rx_data_lane_sel = 1'b1;
+    assign mb_rx_val_lane_sel  = 1'b1;
+    assign mb_rx_trk_lane_sel  = 1'b0;
+    // CLK TX: free-running if >32GT/s or continuous clock mode; else held low
+    assign mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+    assign mb_tx_data_lane_sel = 2'b00; // Held low while Local sweeps
+    assign mb_tx_val_lane_sel  = 2'b00; // Held low while Local sweeps
+    assign mb_tx_trk_lane_sel  = 2'b00; // Always held low per spec
 
 endmodule
 

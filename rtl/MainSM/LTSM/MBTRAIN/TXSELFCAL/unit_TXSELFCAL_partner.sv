@@ -28,17 +28,10 @@ module unit_TXSELFCAL_partner (
         input  logic        txselfcal_en,
         input  logic        soft_rst_n,
         output logic        txselfcal_done,
-        output logic        trainerror_req,
+        // output logic        trainerror_req,
 
-        // MB TX/RX Lane Control
-        // output logic [1:0]  mb_tx_clk_lane_sel,
-        // output logic [1:0]  mb_tx_data_lane_sel,
-        // output logic [1:0]  mb_tx_val_lane_sel,
-        // output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // MB TX/RX Lane Control: moved to wrapper as static assigns
+        // (spec §4.5.3.4.4: all TX tri-state, all RX disabled during TXSELFCAL)
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -55,12 +48,12 @@ module unit_TXSELFCAL_partner (
     import UCIe_pkg::*;
 
     // State encoding
-    typedef enum logic [2:0] {
-        TXSELFCAL_PTR_IDLE           = 3'd0,
-        TXSELFCAL_PTR_WAIT_REQ       = 3'd1,
-        TXSELFCAL_PTR_SEND_RESP      = 3'd2,
-        TXSELFCAL_PTR_DONE           = 3'd3,
-        TXSELFCAL_PTR_TO_TRAINERROR  = 3'd4
+    typedef enum logic [1:0] {
+        TXSELFCAL_PTR_IDLE           = 2'd0,
+        TXSELFCAL_PTR_WAIT_REQ       = 2'd1,
+        TXSELFCAL_PTR_SEND_RESP      = 2'd2,
+        TXSELFCAL_PTR_DONE           = 2'd3
+        // TXSELFCAL_PTR_TO_TRAINERROR  = 3'd4
     } state_t;
 
     state_t current_state, next_state;
@@ -80,11 +73,7 @@ module unit_TXSELFCAL_partner (
     always_comb begin : NEXT_STATE_LOGIC
         next_state = current_state;
 
-        // TRAINERROR Overrides
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = TXSELFCAL_PTR_TO_TRAINERROR;
-        end
-        else if (!txselfcal_en) begin
+        if (!txselfcal_en) begin
             next_state = TXSELFCAL_PTR_IDLE;
         end
         else begin
@@ -107,10 +96,6 @@ module unit_TXSELFCAL_partner (
                     next_state = TXSELFCAL_PTR_DONE;
                 end
 
-                TXSELFCAL_PTR_TO_TRAINERROR: begin
-                    next_state = TXSELFCAL_PTR_TO_TRAINERROR;
-                end
-
                 default: next_state = TXSELFCAL_PTR_IDLE;
             endcase
         end
@@ -120,14 +105,9 @@ module unit_TXSELFCAL_partner (
     always_comb begin : OUTPUT_LOGIC
         // Defaults
         txselfcal_done      = 1'b0;
-        trainerror_req      = 1'b0;
+        // trainerror_req      = 1'b0;
 
-        // Transmitters are held in tri-state (2'b10) during TXSELFCAL
-        mb_rx_clk_lane_sel  = 1'b0;
-        mb_rx_data_lane_sel = 1'b0;
-        mb_rx_val_lane_sel  = 1'b0;
-        mb_rx_trk_lane_sel  = 1'b0;
-
+        // MB signals removed — assigned statically in wrapper
         tx_sb_msg_valid     = 1'b0;
         tx_sb_msg           = NOTHING;
         tx_msginfo          = 16'h0;
@@ -149,11 +129,6 @@ module unit_TXSELFCAL_partner (
 
             TXSELFCAL_PTR_DONE: begin
                 txselfcal_done   = 1'b1;
-            end
-
-            TXSELFCAL_PTR_TO_TRAINERROR: begin
-                txselfcal_done   = 1'b1;
-                trainerror_req   = 1'b1;
             end
         endcase
     end

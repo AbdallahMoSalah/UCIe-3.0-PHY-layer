@@ -61,8 +61,6 @@ module unit_VALVREF_local #(
         input  logic        valvref_en          , // 0: Disable (→ IDLE). 1: Enable/start VALVREF sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valvref_done        , // 1: Sub-state completed (held until valvref_en = 0).
-        output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
-        output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
 
         //=====================================//
         // PHY Vref Control:                   //
@@ -72,23 +70,12 @@ module unit_VALVREF_local #(
         // After sweep_done: driven from registered best_code_r (Valid Lane = lane 0).
         output logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0] phy_rx_valvref_ctrl,
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        // Spec §4.5.3.4.1:
-        //   - All data lanes and Track TX: held low.
-        //   - Valid RX: enabled (we sample Valid lane pattern for Vref sweep).
-        //   - Clock RX: enabled.
-        //   - Clock TX: held differential low.
-        //   - Track RX: permitted to be disabled.
-        // output logic [1:0]  mb_tx_clk_lane_sel  , // 00=Held Low (spec: diff low during VALVREF)
-        // output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (spec: data lanes held low)
-        // output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low (spec: Local TX valid held low)
-        // output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (spec: track held low)
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled  (Clock RX always enabled)
-        output logic        mb_rx_data_lane_sel , // 0=Disabled (data lanes held low, no data RX)
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled  (Valid RX — we sample this)
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled (Track RX permitted to disable)
+        // MB Lane Control: moved to wrapper_VALVREF as static assigns
+        // (spec §4.5.3.4.1: RX CLK=en, RX DATA=0, RX VAL=en, RX TRK=0)
+        // output logic        mb_rx_clk_lane_sel  ,
+        // output logic        mb_rx_data_lane_sel ,
+        // output logic        mb_rx_val_lane_sel  ,
+        // output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -126,21 +113,21 @@ module unit_VALVREF_local #(
     // WAIT states:  poll rx_sb_msg until expected response arrives.
     // SWEEP state:  assert sweep_en, wait for sweep_done from unit_D2C_sweep.
     // =========================================================================
-    localparam [3:0]
-    VALVREF_LCL_IDLE           = 4'd0,  // Wait for valvref_en.
-    VALVREF_LCL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.VALVREF start req} for 1 cycle.
-    VALVREF_LCL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.VALVREF start resp}.
-    VALVREF_LCL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done.
-    VALVREF_LCL_APPLY_BEST     = 4'd4,  // 1-cycle: register best_code[0] → already done in seq.
-    VALVREF_LCL_SEND_END_REQ   = 4'd5,  // TX {MBTRAIN.VALVREF end req} for 1 cycle.
-    VALVREF_LCL_WAIT_END_RESP  = 4'd6,  // Wait for {MBTRAIN.VALVREF end resp}.
-    VALVREF_LCL_TO_DATAVREF    = 4'd7,  // Terminal: valvref_done=1; wait for en deassert.
-    VALVREF_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
+    localparam [2:0]
+    VALVREF_LCL_IDLE           = 3'd0,  // Wait for valvref_en.
+    VALVREF_LCL_SEND_START_REQ = 3'd1,  // TX {MBTRAIN.VALVREF start req} for 1 cycle.
+    VALVREF_LCL_WAIT_START_RESP= 3'd2,  // Wait for {MBTRAIN.VALVREF start resp}.
+    VALVREF_LCL_SWEEP          = 3'd3,  // Assert sweep_en; wait for sweep_done.
+    VALVREF_LCL_APPLY_BEST     = 3'd4,  // 1-cycle: register best_code[0] → already done in seq.
+    VALVREF_LCL_SEND_END_REQ   = 3'd5,  // TX {MBTRAIN.VALVREF end req} for 1 cycle.
+    VALVREF_LCL_WAIT_END_RESP  = 3'd6,  // Wait for {MBTRAIN.VALVREF end resp}.
+    VALVREF_LCL_TO_DATAVREF    = 3'd7;  // Terminal: valvref_done=1; wait for en deassert.
+    // VALVREF_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: trainerror_req=1; wait for en deassert.
 
     // =========================================================================
     // FSM Registers
     // =========================================================================
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     // =========================================================================
     // Registered best Vref code (Valid Lane = lane 0).
@@ -179,18 +166,11 @@ module unit_VALVREF_local #(
         next_state = current_state; // Default: hold
 
         // ------------------------------------------------------------------
-        // HIGHEST PRIORITY: TRAINERROR conditions.
-        // Source: Partner sent {TRAINERROR entry req}.
-        // ------------------------------------------------------------------
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = VALVREF_LCL_TO_TRAINERROR;
-        end
-        // ------------------------------------------------------------------
         // SECOND PRIORITY: valvref_en deassertion.
         // If the controller disables this substate, return to IDLE immediately.
         // (Applies to all non-terminal states).
         // ------------------------------------------------------------------
-        else if (!valvref_en) begin
+        if (!valvref_en) begin
             next_state = VALVREF_LCL_IDLE;
         end
         // ------------------------------------------------------------------
@@ -274,9 +254,9 @@ module unit_VALVREF_local #(
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // Hold until MBTRAIN_ctrl_local deasserts valvref_en.
                 // ---------------------------------------------------------
-                VALVREF_LCL_TO_TRAINERROR: begin
-                    next_state = VALVREF_LCL_TO_TRAINERROR;
-                end
+                // VALVREF_LCL_TO_TRAINERROR: begin
+                //     next_state = VALVREF_LCL_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = VALVREF_LCL_IDLE;
@@ -313,39 +293,19 @@ module unit_VALVREF_local #(
     always_comb begin : OUTPUT_COMB
         // --- Defaults: safe inactive values ---
         valvref_done     = 1'b0;
-        trainerror_req   = 1'b0;
-        update_lane_mask = 1'b0;
+        // trainerror_req   = 1'b0;
+        // update_lane_mask = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
         tx_sb_msg        = NOTHING;
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        // MB Lane defaults (spec §4.5.3.4.1):
-        //   Data lanes and Track TX: held low.
-        //   Clock TX: held differential low (simultaneous low for Quad clocking).
-        //   Clock RX: enabled.
-        //   Valid RX: enabled (we sample Valid Lane for Vref calibration).
-        //   Data RX: disabled (data lanes not used).
-        //   Track RX: disabled (permitted to disable per spec).
-        // mb_tx_clk_lane_sel  = 2'b00; // Held Low (diff low during VALVREF)
-        // mb_tx_data_lane_sel = 2'b00; // Held Low
-        // mb_tx_val_lane_sel  = 2'b00; // Held Low
-        // mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        mb_rx_data_lane_sel = 1'b0;  // Disabled (data lanes not tested in VALVREF)
-        mb_rx_val_lane_sel  = 1'b1;  // Enabled (Valid Lane is what we calibrate)
-        mb_rx_trk_lane_sel  = 1'b0;  // Disabled
+        // MB Lane signals moved to wrapper as static assigns
+        // (mb_rx_clk=valvref_en, mb_rx_val=valvref_en, mb_rx_data=0, mb_rx_trk=0)
 
         case (current_state)
-
-            // ---------------------------------------------------------
-            // IDLE: RX disabled in IDLE.
-            // ---------------------------------------------------------
-            VALVREF_LCL_IDLE: begin
-                mb_rx_clk_lane_sel  = 1'b0; // All RX disabled in IDLE
-                mb_rx_val_lane_sel  = 1'b0;
-            end
+            VALVREF_LCL_IDLE: begin  end
 
             // ---------------------------------------------------------
             // SEND_START_REQ: Transmit {MBTRAIN.VALVREF start req}.
@@ -357,7 +317,7 @@ module unit_VALVREF_local #(
                 tx_sb_msg        = MBTRAIN_VALVREF_start_req;
                 tx_msginfo       = 16'h0;
                 tx_data_field    = 64'h0;
-                update_lane_mask = 1'b1; // Capture lane mask at session start
+                // update_lane_mask = 1'b1; // Capture lane mask at session start
             end
 
             // ---------------------------------------------------------
@@ -410,10 +370,10 @@ module unit_VALVREF_local #(
             // ---------------------------------------------------------
             // TO_TRAINERROR (Terminal): Assert trainerror_req+valvref_done.
             // ---------------------------------------------------------
-            VALVREF_LCL_TO_TRAINERROR: begin
-                valvref_done     = 1'b1;
-                trainerror_req   = 1'b1;
-            end
+            // VALVREF_LCL_TO_TRAINERROR: begin
+            //     valvref_done     = 1'b1;
+            //     trainerror_req   = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

@@ -63,7 +63,7 @@
 module unit_RXDESKEW_partner #(
         // Valid TX EQ preset range: 0–5 (6 presets per UCIe 3.0 Table 5-7).
         // Any preset index outside [0, MAX_VALID_PRESET] is rejected (Fail response).
-        parameter int unsigned MAX_VALID_PRESET = 4'd5
+        parameter int unsigned MAX_VALID_PRESET = 'd5
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -115,26 +115,17 @@ module unit_RXDESKEW_partner #(
         //=====================================//
         // MB Lane Control Outputs:            //
         //=====================================//
-        // While acting as Partner during the Local's sweep:
-        //   - Data and Valid TX: held low   (partner does not transmit data during Local's sweep)
-        //   - Track TX: always held low     (spec §4.5.3.4.10)
-        //   - Clock TX: free-running if > 32 GT/s OR continuous clk mode; else held low
-        //   - Clock, Data, Valid RX: enabled (partner receives training data from Local)
-        //   - Track RX: disabled
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 00=Low, 01=Active (fwd clk), 10=Tri-state
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (always in partner during sweep)
-        output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low (always in partner during sweep)
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Always Held Low (spec)
-        output logic        mb_rx_clk_lane_sel  , // 1=Enabled (clock RX always enabled per spec)
-        output logic        mb_rx_data_lane_sel , // 1=Enabled (data RX enabled per spec)
-        output logic        mb_rx_val_lane_sel  , // 1=Enabled (valid RX enabled per spec)
-        output logic        mb_rx_trk_lane_sel  , // 0=Disabled (track RX not used)
+        // MB TX signals moved to wrapper_RXDESKEW as static/conditional assigns:
+        // (spec §4.5.3.4.10: CLK TX=speed-dep, DATA/VAL/TRK TX=00)
+        // Speed and clock-mode inputs also moved to wrapper.
+        // output logic [1:0]  mb_tx_clk_lane_sel  ,
+        // output logic [1:0]  mb_tx_data_lane_sel ,
+        // output logic [1:0]  mb_tx_val_lane_sel  ,
+        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
-        //=====================================//
-        // Speed and Clock Mode Inputs:        //
-        //=====================================//
-        input  logic        is_high_speed        , // 1 = speed > 32 GT/s
-        input  logic        is_continuous_clk_mode, // 1 = partner advertised continuous clock mode
+        // Speed and Clock Mode Inputs (moved to wrapper):
+        // input  logic        is_high_speed        ,
+        // input  logic        is_continuous_clk_mode,
 
         //=====================================//
         // Sideband Control Signals:           //
@@ -148,8 +139,8 @@ module unit_RXDESKEW_partner #(
         // SB RX:
         input  logic        rx_sb_msg_valid      , // Pulse (1 lclk) when a valid SB msg has been received.
         input  logic [7:0]  rx_sb_msg            , // Received MsgCode.
-        input  logic [15:0] rx_msginfo           , // Received MsgInfo payload.
-        input  logic [63:0] rx_data_field          // Received 64-bit data payload (unused here).
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field          // Received 64-bit data payload (unused here).
     );
 
     import UCIe_pkg::*;
@@ -233,7 +224,7 @@ module unit_RXDESKEW_partner #(
         // HIGHEST PRIORITY: TRAINERROR override.
         // Applies to all states except the terminal states (which already hold).
         // ------------------------------------------------------------------
-        if ((rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
+        if (// (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) ||
                 (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req && (dtc1_arc_cnt == 3'd4))) begin
             next_state = RXDESKEW_PTR_TO_TRAINERROR;
         end
@@ -253,7 +244,7 @@ module unit_RXDESKEW_partner #(
                 // IDLE: Wait for rxdeskew_en assertion, then go to WAIT_START_REQ.
                 // -------------------------------------------------------
                 RXDESKEW_PTR_IDLE: begin
-                    next_state = rxdeskew_en ? RXDESKEW_PTR_WAIT_START_REQ : RXDESKEW_PTR_IDLE;
+                    next_state = RXDESKEW_PTR_WAIT_START_REQ;
                 end
 
                 // -------------------------------------------------------
@@ -400,7 +391,7 @@ module unit_RXDESKEW_partner #(
                 // Hold until MBTRAIN_ctrl_partner deasserts rxdeskew_en.
                 // -------------------------------------------------------
                 RXDESKEW_PTR_TO_DTC2: begin
-                    next_state = rxdeskew_en ? RXDESKEW_PTR_TO_DTC2 : RXDESKEW_PTR_IDLE;
+                    next_state = RXDESKEW_PTR_TO_DTC2;
                 end
 
                 // -------------------------------------------------------
@@ -409,7 +400,7 @@ module unit_RXDESKEW_partner #(
                 // NOTE: dtc1_arc_cnt was already incremented in DTC1_ARC_INC.
                 // -------------------------------------------------------
                 RXDESKEW_PTR_TO_DTC1: begin
-                    next_state = rxdeskew_en ? RXDESKEW_PTR_TO_DTC1 : RXDESKEW_PTR_IDLE;
+                    next_state = RXDESKEW_PTR_TO_DTC1;
                 end
 
                 // -------------------------------------------------------
@@ -417,7 +408,7 @@ module unit_RXDESKEW_partner #(
                 // Hold until MBTRAIN_ctrl_partner deasserts rxdeskew_en.
                 // -------------------------------------------------------
                 RXDESKEW_PTR_TO_TRAINERROR: begin
-                    next_state = rxdeskew_en ? RXDESKEW_PTR_TO_TRAINERROR : RXDESKEW_PTR_IDLE;
+                    next_state = RXDESKEW_PTR_TO_TRAINERROR;
                 end
 
                 default: begin
@@ -527,42 +518,15 @@ module unit_RXDESKEW_partner #(
         tx_msginfo      = 16'h0000;
         tx_data_field   = 64'h0;
 
-        // MB Lane defaults for RXDESKEW partner (spec §4.5.3.4.10):
-        //   "When not performing actions relevant to this state:"
-        //   - Clock RX: enabled
-        //   - Data and Valid RX: enabled
-        //   - Track RX: disabled
-        //   - Data and Valid TX: held low (partner holds these low while Local sweeps)
-        //   - Track TX: always held low (spec)
-        //   - Clock TX: free-running if > 32 GT/s OR continuous clock mode; else held low
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b1;
-        mb_rx_val_lane_sel  = 1'b1;
-        mb_rx_trk_lane_sel  = 1'b0;
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_tx_data_lane_sel = 2'b00; // Held low while Local sweeps
-        mb_tx_val_lane_sel  = 2'b00; // Held low while Local sweeps
-        mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+        // MB TX signals moved to wrapper as static/conditional assigns
+        // (CLK TX: (is_high_speed || is_continuous_clk_mode) ? 01 : 00; DATA/VAL/TRK TX: 00)
 
         // ------------------------------------------------------------------
         // Per-state output overrides
         // ------------------------------------------------------------------
         case (current_state)
 
-            // -------------------------------------------------------
-            // IDLE: All MB lanes disabled, watchdog off.
-            // -------------------------------------------------------
-            RXDESKEW_PTR_IDLE: begin
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-                mb_rx_trk_lane_sel  = 1'b0;
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_tx_data_lane_sel = 2'b00;
-                mb_tx_val_lane_sel  = 2'b00;
-                mb_tx_trk_lane_sel  = 2'b00;
-            end
-
+            RXDESKEW_PTR_IDLE: begin end
             // -------------------------------------------------------
             // WAIT_START_REQ: No SB output. Watchdog active.
             // MB lanes at default posture.
@@ -590,8 +554,6 @@ module unit_RXDESKEW_partner #(
             RXDESKEW_PTR_WAIT_SWEEP_OR_REQ: begin
                 tx_sb_msg_valid  = 1'b0;
                 partner_sweep_en = 1'b1;
-                // MB lanes: default values apply (data/valid TX held low,
-                //           clock TX active if HS, all RX enabled).
             end
 
             // -------------------------------------------------------

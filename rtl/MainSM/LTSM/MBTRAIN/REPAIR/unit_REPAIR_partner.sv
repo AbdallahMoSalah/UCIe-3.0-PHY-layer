@@ -77,17 +77,19 @@ module unit_REPAIR_partner (
         input  logic [2:0]  mbinit_rx_data_lane_mask,   // Initial mask from LTSM controller
         output logic [2:0]  mb_tx_data_lane_mask,
         input  logic [2:0]  mbinit_tx_data_lane_mask,   // Initial mask from LTSM controller
-        input  logic        update_lane_mask,            // 1 = load mbinit values (override)
+        // input  logic        update_lane_mask,            // 1 = load mbinit values (override) <============================= todo: remove it...
+        input  ltsm_state_n_pkg::state_n_e state_n_0,
 
-        // MB TX/RX Lane Control
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // MB TX/RX Lane Control: moved to wrapper_REPAIR as static assigns
+        // (spec §4.5.3.4.13: CLK TX=01, DATA/VAL/TRK TX=00, CLK RX=1, DATA/VAL/TRK RX=0)
+        // output logic [1:0]  mb_tx_clk_lane_sel,
+        // output logic [1:0]  mb_tx_data_lane_sel,
+        // output logic [1:0]  mb_tx_val_lane_sel,
+        // output logic [1:0]  mb_tx_trk_lane_sel,
+        // output logic        mb_rx_clk_lane_sel,
+        // output logic        mb_rx_data_lane_sel,
+        // output logic        mb_rx_val_lane_sel,
+        // output logic        mb_rx_trk_lane_sel,
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -97,8 +99,8 @@ module unit_REPAIR_partner (
 
         input  logic        rx_sb_msg_valid,
         input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -152,26 +154,34 @@ module unit_REPAIR_partner (
     // =========================================================================
     // FSM State Register
     // =========================================================================
+    reg update_data_lane_mask_by_mbinit_result;
+
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
             current_state          <= REPAIR_PTR_IDLE;
             mb_rx_data_lane_mask_r <= 3'b000;
             mb_tx_data_lane_mask_r <= 3'b000;
             remote_local_tx_code_r <= 3'b000;
+            update_data_lane_mask_by_mbinit_result <= 1'b1;
         end else if (!soft_rst_n) begin
             current_state          <= REPAIR_PTR_IDLE;
             mb_rx_data_lane_mask_r <= 3'b000;
             mb_tx_data_lane_mask_r <= 3'b000;
             remote_local_tx_code_r <= 3'b000;
+            update_data_lane_mask_by_mbinit_result <= 1'b1;
         end else begin
-            current_state <= next_state;
+            if (repair_en || current_state != REPAIR_PTR_IDLE) begin
+                current_state <= next_state;
+            end
 
             // ------------------------------------------------------------------
             // LTSM controller override: reload initial masks (highest priority).
             // ------------------------------------------------------------------
-            if (update_lane_mask) begin
+            // if (update_lane_mask) begin // <========================================================= We should remove this signal replace it with state_n_0
+            if (state_n_0 == ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF && update_data_lane_mask_by_mbinit_result) begin
                 mb_rx_data_lane_mask_r <= mbinit_rx_data_lane_mask;
                 mb_tx_data_lane_mask_r <= mbinit_tx_data_lane_mask;
+                update_data_lane_mask_by_mbinit_result <= 1'b0;
             end
 
             // ------------------------------------------------------------------
@@ -231,9 +241,7 @@ module unit_REPAIR_partner (
         next_state = current_state;
 
         // TRAINERROR global overrides
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = REPAIR_PTR_TO_TRAINERROR;
-        end else if (!repair_en) begin
+        if (!repair_en) begin
             next_state = REPAIR_PTR_IDLE;
         end else begin
             case (current_state)
@@ -303,18 +311,7 @@ module unit_REPAIR_partner (
         repair_done         = 1'b0;
         trainerror_req      = 1'b0;
 
-        // Mainband Defaults during REPAIR (spec §4.5.3.4.13):
-        //   Track, Data, Valid TX held low (2'b00).
-        //   Clock TX held differential/simultaneous low (2'b01).
-        //   Clock RX enabled (1'b1), other RX disabled (1'b0).
-        mb_tx_clk_lane_sel  = 2'b01;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b00;
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b0;
-        mb_rx_val_lane_sel  = 1'b0;
-        mb_rx_trk_lane_sel  = 1'b0;
+        // MB signals moved to wrapper_REPAIR as static assigns
 
         tx_sb_msg_valid     = 1'b0;
         tx_sb_msg           = NOTHING;
@@ -322,16 +319,7 @@ module unit_REPAIR_partner (
         tx_data_field       = 64'h0;
 
         case (current_state)
-            REPAIR_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_tx_data_lane_sel = 2'b00;
-                mb_tx_val_lane_sel  = 2'b00;
-                mb_tx_trk_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-                mb_rx_trk_lane_sel  = 1'b0;
-            end
+            REPAIR_PTR_IDLE: begin end
 
             REPAIR_PTR_WAIT_INIT: begin
                 // Waiting for {MBTRAIN.REPAIR init req}

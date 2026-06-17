@@ -1,12 +1,10 @@
 // wrapper_VALTRAINVREF.sv — MBTRAIN.VALTRAINVREF Wrapper
 //
 // This module wraps both the Local (Initiator) and Partner (Responder) FSMs of the VALTRAINVREF substate.
-// It arbitrates their Sideband (SB) TX outputs and multiplexes their Mainband (MB) control outputs
-// depending on whether the Local or Partner FSM is currently driving the MB lanes.
+// It arbitrates their Sideband (SB) TX outputs and routes their Mainband (MB) control outputs directly.
 
 module wrapper_VALTRAINVREF #(
-        parameter int unsigned MAX_VAL_VREF_CODE = 7'd16,
-        parameter int unsigned MIN_VAL_VREF_CODE = 7'd1
+        parameter int unsigned MAX_VAL_VREF_CODE = 'd16
     ) (
         // =========================================================================
         // Group 1: Clock and Reset Signals
@@ -19,14 +17,10 @@ module wrapper_VALTRAINVREF #(
         // =========================================================================
         input  logic        soft_rst_n,
         output logic        valtrainvref_done,
-        output logic        trainerror_req,
+        // output logic        trainerror_req,
 
-        // Local FSM Control:
-        input  logic        local_valtrainvref_en,
-        output logic        local_update_lane_mask,
-
-        // Partner FSM Control:
-        input  logic        partner_valtrainvref_en,
+        // Control & Status:
+        input  logic        valtrainvref_en,
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -63,18 +57,16 @@ module wrapper_VALTRAINVREF #(
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
 
     // Local/partner intermediate signals
     logic        local_valtrainvref_done_wire;
-    logic        local_trainerror_req_wire;
     logic        partner_valtrainvref_done_wire;
-    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid ;
@@ -88,47 +80,15 @@ module wrapper_VALTRAINVREF #(
     logic [15:0] partner_tx_msginfo    ;
     logic [63:0] partner_tx_data_field ;
 
-    // MB outputs from Local FSM:
-    logic [1:0]  local_mb_tx_clk_lane_sel  ;
-    logic [1:0]  local_mb_tx_data_lane_sel ;
-    logic [1:0]  local_mb_tx_val_lane_sel  ;
-    logic [1:0]  local_mb_tx_trk_lane_sel  ;
-    logic        local_mb_rx_clk_lane_sel  ;
-    logic        local_mb_rx_data_lane_sel ;
-    logic        local_mb_rx_val_lane_sel  ;
-    logic        local_mb_rx_trk_lane_sel  ;
-
-    // MB outputs from Partner FSM:
-    logic [1:0]  partner_mb_tx_clk_lane_sel  ;
-    logic [1:0]  partner_mb_tx_data_lane_sel ;
-    logic [1:0]  partner_mb_tx_val_lane_sel  ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel  ;
-    logic        partner_mb_rx_clk_lane_sel  ;
-    logic        partner_mb_rx_data_lane_sel ;
-    logic        partner_mb_rx_val_lane_sel  ;
-    logic        partner_mb_rx_trk_lane_sel  ;
-
-    // Local FSM Instance
     unit_VALTRAINVREF_local #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
     ) u_local (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .valtrainvref_en                (local_valtrainvref_en),
+        .valtrainvref_en                (valtrainvref_en),
         .soft_rst_n                     (soft_rst_n),
         .valtrainvref_done              (local_valtrainvref_done_wire),
-        .trainerror_req                 (local_trainerror_req_wire),
-        .update_lane_mask               (local_update_lane_mask),
         .phy_rx_valvref_ctrl            (phy_rx_valvref_ctrl),
-        .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (local_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (local_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (local_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (local_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel),
         .sweep_en                       (sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
@@ -138,41 +98,27 @@ module wrapper_VALTRAINVREF #(
         .tx_msginfo                     (local_tx_msginfo),
         .tx_data_field                  (local_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
     );
 
-    // Partner FSM Instance
+    // Partner FSM Instance (Controls Transmitter Settings)
     unit_VALTRAINVREF_partner u_partner (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
-        .valtrainvref_en                (partner_valtrainvref_en),
+        .valtrainvref_en                (valtrainvref_en),
         .soft_rst_n                     (soft_rst_n),
         .valtrainvref_done              (partner_valtrainvref_done_wire),
-        .trainerror_req                 (partner_trainerror_req_wire),
-        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (partner_mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (partner_mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (partner_mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (partner_mb_rx_trk_lane_sel),
         .partner_sweep_en               (partner_sweep_en),
         .tx_sb_msg_valid                (partner_tx_sb_msg_valid),
         .tx_sb_msg                      (partner_tx_sb_msg),
         .tx_msginfo                     (partner_tx_msginfo),
         .tx_data_field                  (partner_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
     );
 
     // Combine terminal signals
     assign valtrainvref_done = local_valtrainvref_done_wire & partner_valtrainvref_done_wire;
-    assign trainerror_req      = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband Arbitration
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
@@ -180,35 +126,19 @@ module wrapper_VALTRAINVREF #(
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    // Mainband Multiplexing
-    always_comb begin : MB_OUTPUTS_MUX
-        if (partner_valtrainvref_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel;
-            mb_tx_data_lane_sel = partner_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = partner_mb_tx_val_lane_sel;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel;
-        end
-        else begin
-            mb_tx_clk_lane_sel  = local_mb_tx_clk_lane_sel;
-            mb_tx_data_lane_sel = local_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = local_mb_tx_val_lane_sel;
-            mb_tx_trk_lane_sel  = local_mb_tx_trk_lane_sel;
-        end
-
-        if (local_valtrainvref_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel;
-            mb_rx_data_lane_sel = local_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = local_mb_rx_val_lane_sel;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel;
-        end
-        else begin
-            mb_rx_clk_lane_sel  = partner_mb_rx_clk_lane_sel;
-            mb_rx_data_lane_sel = partner_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = partner_mb_rx_val_lane_sel;
-            mb_rx_trk_lane_sel  = partner_mb_rx_trk_lane_sel;
-        end
-    end
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.6 MBTRAIN.VALTRAINVREF:
+    //   Partner (TX side): CLK TX active, VAL TX active (VALTRAIN), DATA/TRK TX held low.
+    //   Local   (RX side): CLK/VAL RX enabled, DATA/TRK RX disabled.
+    //   All go to zero when valtrainvref_en=0.
+    // =========================================================================
+    assign mb_tx_clk_lane_sel  = 2'b01;
+    assign mb_tx_data_lane_sel = 2'b00;
+    assign mb_tx_val_lane_sel  = 2'b01;
+    assign mb_tx_trk_lane_sel  = 2'b00;
+    assign mb_rx_clk_lane_sel  = 1'b1 ;
+    assign mb_rx_data_lane_sel = 1'b0 ;
+    assign mb_rx_val_lane_sel  = 1'b1 ;
+    assign mb_rx_trk_lane_sel  = 1'b0 ;
 
 endmodule
-
-

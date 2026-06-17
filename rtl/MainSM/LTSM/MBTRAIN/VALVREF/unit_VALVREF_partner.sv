@@ -52,23 +52,18 @@ module unit_VALVREF_partner (
         input  logic        valvref_en          , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        valvref_done        , // 1: Sub-state completed; held until valvref_en = 0.
-        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state.
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        // Partner drives VALTRAIN on its Valid TX lane while Local sweeps.
-        // Clock TX: active (center-phase forwarded clock per spec).
-        // Data TX and Track TX: held low.
-        // All RX lanes: enabled (passive monitoring).
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 01=Active (center-phase forwarded clock)
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (data lanes unused in VALVREF)
-        output logic [1:0]  mb_tx_val_lane_sel  , // 01=Active (partner drives VALTRAIN pattern)
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low (spec: track held low)
-        // output logic        mb_rx_clk_lane_sel  , // 1=Enabled
-        // output logic        mb_rx_data_lane_sel , // 1=Enabled (passive)
-        // output logic        mb_rx_val_lane_sel  , // 1=Enabled (passive)
-        // output logic        mb_rx_trk_lane_sel  , // 0=Disabled (permitted per spec)
+        // MB TX Lane Control: moved to wrapper_VALVREF as static assigns
+        // (spec §4.5.3.4.1: Clock TX active, Valid TX active=VALTRAIN, Data/Track TX held low)
+        // output logic [1:0]  mb_tx_clk_lane_sel  ,
+        // output logic [1:0]  mb_tx_data_lane_sel ,
+        // output logic [1:0]  mb_tx_val_lane_sel  ,
+        // output logic [1:0]  mb_tx_trk_lane_sel  ,
+        // MB RX Lane Control: moved to wrapper_VALVREF as static assigns
+        // output logic        mb_rx_clk_lane_sel  ,
+        // output logic        mb_rx_data_lane_sel ,
+        // output logic        mb_rx_val_lane_sel  ,
+        // output logic        mb_rx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -100,19 +95,19 @@ module unit_VALVREF_partner (
     // WAIT states:  poll rx_sb_msg until the expected request arrives.
     // SEND states:  assert tx_sb_msg_valid for exactly 1 cycle, then transition.
     // =========================================================================
-    localparam [3:0]
-    VALVREF_PTR_IDLE            = 4'd0,  // Wait for valvref_en.
-    VALVREF_PTR_WAIT_START_REQ  = 4'd1,  // Wait for {MBTRAIN.VALVREF start req}.
-    VALVREF_PTR_SEND_START_RESP = 4'd2,  // TX {MBTRAIN.VALVREF start resp} for 1 cycle.
-    VALVREF_PTR_WAIT_END_REQ    = 4'd3,  // Wait while Local sweeps; wait for {end req}.
-    VALVREF_PTR_SEND_END_RESP   = 4'd4,  // TX {MBTRAIN.VALVREF end resp} for 1 cycle.
-    VALVREF_PTR_TO_DATAVREF     = 4'd5,  // Terminal: valvref_done=1; wait for en deassert.
-    VALVREF_PTR_TO_TRAINERROR   = 4'd6;  // Terminal: trainerror_req=1; wait for en deassert.
+    localparam [2:0]
+    VALVREF_PTR_IDLE            = 3'd0,  // Wait for valvref_en.
+    VALVREF_PTR_WAIT_START_REQ  = 3'd1,  // Wait for {MBTRAIN.VALVREF start req}.
+    VALVREF_PTR_SEND_START_RESP = 3'd2,  // TX {MBTRAIN.VALVREF start resp} for 1 cycle.
+    VALVREF_PTR_WAIT_END_REQ    = 3'd3,  // Wait while Local sweeps; wait for {end req}.
+    VALVREF_PTR_SEND_END_RESP   = 3'd4,  // TX {MBTRAIN.VALVREF end resp} for 1 cycle.
+    VALVREF_PTR_TO_DATAVREF     = 3'd5;  // Terminal: valvref_done=1; wait for en deassert.
+    // VALVREF_PTR_TO_TRAINERROR   = 3'd6;  // Terminal: trainerror_req=1; wait for en deassert.
 
     // =========================================================================
     // FSM Registers
     // =========================================================================
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     // =========================================================================
     // Sequential FSM: state register
@@ -134,28 +129,21 @@ module unit_VALVREF_partner (
     // Combinational Next-State Logic
     //
     // Priority:
-    //   1. HIGHEST: TRAINERROR conditions (Partner sent {TRAINERROR entry req}).
-    //   2. SECOND:  valvref_en deasserted → return to IDLE (from non-terminal states).
-    //   3. NORMAL:  per-state FSM transitions.
+    //   1. FIRST: valvref_en deasserted → return to IDLE.
+    //   2. SECOND: normal FSM transitions.
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state; // Default: hold
 
         // ------------------------------------------------------------------
-        // HIGHEST PRIORITY: TRAINERROR override.
-        // ------------------------------------------------------------------
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = VALVREF_PTR_TO_TRAINERROR;
-        end
-        // ------------------------------------------------------------------
-        // SECOND PRIORITY: valvref_en deasserted.
+        // FIRST PRIORITY: valvref_en deasserted.
         // Only applies to non-terminal states (terminal states gate on valvref_en below).
         // ------------------------------------------------------------------
-        else if (!valvref_en) begin
+        if (!valvref_en) begin
             next_state = VALVREF_PTR_IDLE;
         end
         // ------------------------------------------------------------------
-        // NORMAL FSM TRANSITIONS
+        // SECOND PRIORITY: normal FSM transitions.
         // ------------------------------------------------------------------
         else begin
             case (current_state)
@@ -221,9 +209,9 @@ module unit_VALVREF_partner (
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // Hold until MBTRAIN_ctrl_partner deasserts valvref_en.
                 // ---------------------------------------------------------
-                VALVREF_PTR_TO_TRAINERROR: begin
-                    next_state = VALVREF_PTR_TO_TRAINERROR;
-                end
+                // VALVREF_PTR_TO_TRAINERROR: begin
+                //     next_state = VALVREF_PTR_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = VALVREF_PTR_IDLE;
@@ -240,7 +228,7 @@ module unit_VALVREF_partner (
 
         // --- Defaults: safe inactive values ---
         valvref_done     = 1'b0;
-        trainerror_req   = 1'b0;
+        // trainerror_req   = 1'b0;
         partner_sweep_en = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -248,19 +236,11 @@ module unit_VALVREF_partner (
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        // MB Lane defaults for VALVREF partner (spec §4.5.3.4.1):
-        //   Partner drives center-phase forwarded clock on Clock TX.
-        //   Partner drives VALTRAIN pattern on Valid TX during sweep.
-        //   Data TX and Track TX: held low.
-        //   All RX: enabled (passive monitoring).
-        mb_tx_clk_lane_sel  = 2'b01; // Active: center-phase forwarded clock
-        mb_tx_data_lane_sel = 2'b00; // Held Low
-        mb_tx_val_lane_sel  = 2'b01; // Active: VALTRAIN pattern (driven by D2C_PT hardware)
-        mb_tx_trk_lane_sel  = 2'b00; // Held Low
-        // mb_rx_clk_lane_sel  = 1'b1;  // Enabled
-        // mb_rx_data_lane_sel = 1'b1;  // Enabled (passive)
-        // mb_rx_val_lane_sel  = 1'b1;  // Enabled (passive)
-        // mb_rx_trk_lane_sel  = 1'b0;  // Disabled
+        // MB TX defaults (moved to wrapper as static assigns)
+        // mb_tx_clk_lane_sel  = 2'b01;
+        // mb_tx_data_lane_sel = 2'b00;
+        // mb_tx_val_lane_sel  = 2'b01;
+        // mb_tx_trk_lane_sel  = 2'b00;
 
         case (current_state)
 
@@ -268,8 +248,7 @@ module unit_VALVREF_partner (
             // IDLE: All outputs at minimum activity.
             // ---------------------------------------------------------
             VALVREF_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_tx_val_lane_sel  = 2'b00;
+                // MB signals handled in wrapper
             end
 
             // ---------------------------------------------------------
@@ -321,10 +300,10 @@ module unit_VALVREF_partner (
             // ---------------------------------------------------------
             // TO_TRAINERROR (Terminal): Assert trainerror_req + valvref_done.
             // ---------------------------------------------------------
-            VALVREF_PTR_TO_TRAINERROR: begin
-                valvref_done     = 1'b1;
-                trainerror_req   = 1'b1;
-            end
+            // VALVREF_PTR_TO_TRAINERROR: begin
+            //     valvref_done     = 1'b1;
+            //     trainerror_req   = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

@@ -224,25 +224,24 @@ module wrapper_VALTRAINVREF_tb;
     logic        dut_local_update_lane_mask;
 
     logic        dut_partner_en = 0;
+    logic        dut_valtrainvref_en;
+    assign dut_valtrainvref_en = dut_local_en | dut_partner_en;
 
     logic        dut_valtrainvref_done;
     logic        dut_trainerror_req;
 
     wrapper_VALTRAINVREF #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
 
         .valtrainvref_done              (dut_valtrainvref_done),
-        .trainerror_req                 (dut_trainerror_req),
+        // .trainerror_req                 (dut_trainerror_req),
 
-        .local_valtrainvref_en          (dut_local_en),
-        .local_update_lane_mask         (dut_local_update_lane_mask),
-
-        .partner_valtrainvref_en        (dut_partner_en),
+        .valtrainvref_en                (dut_valtrainvref_en),
+        // .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
@@ -267,9 +266,7 @@ module wrapper_VALTRAINVREF_tb;
         .tx_data_field                  (dut_if.tx_data_field),
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
     );
 
     // =========================================================================
@@ -279,25 +276,24 @@ module wrapper_VALTRAINVREF_tb;
     logic        ptn_local_update_lane_mask;
 
     logic        ptn_partner_en = 0;
+    logic        ptn_valtrainvref_en;
+    assign ptn_valtrainvref_en = ptn_local_en | ptn_partner_en;
 
     logic        ptn_valtrainvref_done;
     logic        ptn_trainerror_req;
 
     wrapper_VALTRAINVREF #(
-        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE(MIN_VAL_VREF_CODE)
+        .MAX_VAL_VREF_CODE(MAX_VAL_VREF_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
 
         .valtrainvref_done              (ptn_valtrainvref_done),
-        .trainerror_req                 (ptn_trainerror_req),
+        // .trainerror_req                 (ptn_trainerror_req),
 
-        .local_valtrainvref_en          (ptn_local_en),
-        .local_update_lane_mask         (ptn_local_update_lane_mask),
-
-        .partner_valtrainvref_en        (ptn_partner_en),
+        .valtrainvref_en                (ptn_valtrainvref_en),
+        // .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
@@ -322,9 +318,7 @@ module wrapper_VALTRAINVREF_tb;
         .tx_data_field                  (ptn_if.tx_data_field),
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
     );
 
     // =========================================================================
@@ -623,7 +617,8 @@ module wrapper_VALTRAINVREF_tb;
         //     .suppress_sb(1), .inject_trainerror(0)
         // );
 
-        // Scenario 7: Injected TRAINERROR from partner
+        // Scenario 7: Partner Injects TRAINERROR (Commented out because trainerror is removed)
+        /*
         run_scenario(
             .name("Scenario 7: Partner Injects TRAINERROR"),
             .d_start(10), .d_end(20),
@@ -632,6 +627,7 @@ module wrapper_VALTRAINVREF_tb;
             .expect_done_dut(0), .expect_te_dut(1),
             .suppress_sb(0), .inject_trainerror(1)
         );
+        */
 
         // =========================================================================
         // 8. Randomized Scenarios Block with Self-Checking

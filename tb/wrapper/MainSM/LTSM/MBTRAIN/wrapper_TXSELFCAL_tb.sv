@@ -126,7 +126,7 @@ module wrapper_TXSELFCAL_tb;
         .soft_rst_n             (soft_rst_n),
         .txselfcal_en           (dut_local_txselfcal_en),
         .txselfcal_done         (dut_txselfcal_done),
-        .trainerror_req         (dut_trainerror_req),
+        // .trainerror_req         (dut_trainerror_req),
         .analog_settle_timer_en (dut_if.analog_settle_timer_en),
         .analog_settle_time_done(dut_if.analog_settle_time_done),
         .phy_tx_selfcal_en      (dut_phy_tx_selfcal_en),
@@ -159,7 +159,7 @@ module wrapper_TXSELFCAL_tb;
         .soft_rst_n             (soft_rst_n),
         .txselfcal_en           (ptn_local_txselfcal_en),
         .txselfcal_done         (ptn_txselfcal_done),
-        .trainerror_req         (ptn_trainerror_req),
+        // .trainerror_req         (ptn_trainerror_req),
         .analog_settle_timer_en (ptn_if.analog_settle_timer_en),
         .analog_settle_time_done(ptn_if.analog_settle_time_done),
         .phy_tx_selfcal_en      (ptn_phy_tx_selfcal_en),
@@ -214,7 +214,7 @@ module wrapper_TXSELFCAL_tb;
         disable fork;
 
         // Check assertions
-        if (!dut_txselfcal_done || dut_trainerror_req || !ptn_txselfcal_done) begin
+        if (!dut_txselfcal_done || !ptn_txselfcal_done) begin
             $display("# ERROR: Clean run failed!");
             $stop;
         end
@@ -234,7 +234,6 @@ module wrapper_TXSELFCAL_tb;
             2: return "TXSELFCAL_LCL_SEND_REQ";
             3: return "TXSELFCAL_LCL_WAIT_RESP";
             4: return "TXSELFCAL_LCL_TO_RXCLKCAL";
-            5: return "TXSELFCAL_LCL_TO_TRAINERROR";
             default: return "UNKNOWN";
         endcase
     endfunction
@@ -245,7 +244,6 @@ module wrapper_TXSELFCAL_tb;
             1: return "TXSELFCAL_PTR_WAIT_REQ";
             2: return "TXSELFCAL_PTR_SEND_RESP";
             3: return "TXSELFCAL_PTR_DONE";
-            4: return "TXSELFCAL_PTR_TO_TRAINERROR";
             default: return "UNKNOWN";
         endcase
     endfunction
@@ -340,7 +338,8 @@ module wrapper_TXSELFCAL_tb;
          pass_test("Scenario 2: Watchdog Timeout");
          */
 
-        // Scenario 3: Partner requesting trainerror
+        // Scenario 3: Partner requesting trainerror (Commented out because trainerror was removed)
+        /*
         assert_reset();
         dut_local_txselfcal_en = 1;
         #(LCLK_PERIOD * 5);
@@ -363,6 +362,7 @@ module wrapper_TXSELFCAL_tb;
         disable fork;
         dut_local_txselfcal_en = 0;
         pass_test("Scenario 3: Trainerror Injection");
+        */
 
         // Scenario 4: 50+ Randomized iterations
         $display("# Starting 60 Randomized iterations...");

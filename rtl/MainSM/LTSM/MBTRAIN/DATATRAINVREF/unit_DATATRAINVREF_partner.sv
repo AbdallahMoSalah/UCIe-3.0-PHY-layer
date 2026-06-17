@@ -37,19 +37,14 @@ module unit_DATATRAINVREF_partner (
         input  logic        datatrainvref_en    ,
         input  logic        soft_rst_n          ,
         output logic        datatrainvref_done  ,
-        output logic        trainerror_req      ,
+        // output logic        trainerror_req      ,
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        output logic [1:0]  mb_tx_clk_lane_sel  ,
-        output logic [1:0]  mb_tx_data_lane_sel ,
-        output logic [1:0]  mb_tx_val_lane_sel  ,
-        output logic [1:0]  mb_tx_trk_lane_sel  ,
-        output logic        mb_rx_clk_lane_sel  ,
-        output logic        mb_rx_data_lane_sel ,
-        output logic        mb_rx_val_lane_sel  ,
-        output logic        mb_rx_trk_lane_sel  ,
+        // MB TX Lane Control: moved to wrapper_DATATRAINVREF as static assigns
+        // (spec §4.5.3.4.9: CLK TX=01, DATA/VAL/TRK TX=00)
+        // output logic [1:0]  mb_tx_clk_lane_sel  ,
+        // output logic [1:0]  mb_tx_data_lane_sel ,
+        // output logic [1:0]  mb_tx_val_lane_sel  ,
+        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -73,16 +68,16 @@ module unit_DATATRAINVREF_partner (
     import UCIe_pkg::*;
 
     // FSM State Encoding
-    localparam [3:0]
-    DATATRAINVREF_PTR_IDLE            = 4'd0,
-    DATATRAINVREF_PTR_WAIT_START_REQ  = 4'd1,
-    DATATRAINVREF_PTR_SEND_START_RESP = 4'd2,
-    DATATRAINVREF_PTR_WAIT_END_REQ    = 4'd3,
-    DATATRAINVREF_PTR_SEND_END_RESP   = 4'd4,
-    DATATRAINVREF_PTR_TO_RXDESKEW     = 4'd5,
-    DATATRAINVREF_PTR_TO_TRAINERROR   = 4'd6;
+    localparam [2:0]
+    DATATRAINVREF_PTR_IDLE            = 3'd0,
+    DATATRAINVREF_PTR_WAIT_START_REQ  = 3'd1,
+    DATATRAINVREF_PTR_SEND_START_RESP = 3'd2,
+    DATATRAINVREF_PTR_WAIT_END_REQ    = 3'd3,
+    DATATRAINVREF_PTR_SEND_END_RESP   = 3'd4,
+    DATATRAINVREF_PTR_TO_RXDESKEW     = 3'd5;
+    // DATATRAINVREF_PTR_TO_TRAINERROR   = 3'd6;
 
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG_PROC_PTR
         if (!rst_n) begin
@@ -99,16 +94,13 @@ module unit_DATATRAINVREF_partner (
     always_comb begin : NEXT_STATE_PROC_PTR
         next_state = current_state;
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = DATATRAINVREF_PTR_TO_TRAINERROR;
-        end
-        else if (!datatrainvref_en) begin
+        if (!datatrainvref_en) begin
             next_state = DATATRAINVREF_PTR_IDLE;
         end
         else begin
             case (current_state)
                 DATATRAINVREF_PTR_IDLE: begin
-                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_WAIT_START_REQ : DATATRAINVREF_PTR_IDLE;
+                    next_state = DATATRAINVREF_PTR_WAIT_START_REQ;
                 end
 
                 DATATRAINVREF_PTR_WAIT_START_REQ: begin
@@ -132,12 +124,12 @@ module unit_DATATRAINVREF_partner (
                 end
 
                 DATATRAINVREF_PTR_TO_RXDESKEW: begin
-                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_TO_RXDESKEW : DATATRAINVREF_PTR_IDLE;
+                    next_state = DATATRAINVREF_PTR_TO_RXDESKEW;
                 end
 
-                DATATRAINVREF_PTR_TO_TRAINERROR: begin
-                    next_state = datatrainvref_en ? DATATRAINVREF_PTR_TO_TRAINERROR : DATATRAINVREF_PTR_IDLE;
-                end
+                // DATATRAINVREF_PTR_TO_TRAINERROR: begin
+                //     next_state = DATATRAINVREF_PTR_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = DATATRAINVREF_PTR_IDLE;
@@ -148,7 +140,7 @@ module unit_DATATRAINVREF_partner (
 
     always_comb begin : OUTPUT_COMB_PTR
         datatrainvref_done = 1'b0;
-        trainerror_req      = 1'b0;
+        // trainerror_req      = 1'b0;
         partner_sweep_en    = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -156,22 +148,10 @@ module unit_DATATRAINVREF_partner (
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        mb_tx_clk_lane_sel  = 2'b01;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b00;
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b1;
-        mb_rx_val_lane_sel  = 1'b1;
-        mb_rx_trk_lane_sel  = 1'b0;
+        // MB TX signals moved to wrapper as static assigns (CLK=01, DATA/VAL/TRK=00)
 
         case (current_state)
-            DATATRAINVREF_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-            end
+            DATATRAINVREF_PTR_IDLE: begin end
 
             DATATRAINVREF_PTR_WAIT_START_REQ: begin
                 tx_sb_msg_valid = 1'b0;
@@ -200,10 +180,10 @@ module unit_DATATRAINVREF_partner (
                 datatrainvref_done = 1'b1;
             end
 
-            DATATRAINVREF_PTR_TO_TRAINERROR: begin
-                datatrainvref_done = 1'b1;
-                trainerror_req      = 1'b1;
-            end
+            // DATATRAINVREF_PTR_TO_TRAINERROR: begin
+            //     datatrainvref_done = 1'b1;
+            //     trainerror_req      = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

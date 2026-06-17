@@ -37,22 +37,13 @@ module unit_DATAVREF_partner (
         input  logic        datavref_en         , // 0: Disable (→ IDLE immediately). 1: Enable/start sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
         output logic        datavref_done       , // 1: Sub-state completed; held until datavref_en = 0.
-        output logic        trainerror_req      , // 1: Fatal error — request TRAINERROR state. // 1: Enable 8ms watchdog. 0: Disable.
 
-        //=====================================//
-        // MB Lane Control Outputs:            //
-        //=====================================//
-        // Partner drives center-phase forwarded clock on Clock TX.
-        // All other TX held low (until D2C PT triggers pattern generation).
-        // RX lanes enabled for clock, data, valid.
-        output logic [1:0]  mb_tx_clk_lane_sel  , // 01=Active (center-phase forwarded clock)
-        output logic [1:0]  mb_tx_data_lane_sel , // 00=Held Low (will be driven active by D2C_PT)
-        output logic [1:0]  mb_tx_val_lane_sel  , // 00=Held Low
-        output logic [1:0]  mb_tx_trk_lane_sel  , // 00=Held Low
-        // output logic        mb_rx_clk_lane_sel  , // 1=Enabled
-        // output logic        mb_rx_data_lane_sel , // 1=Enabled
-        // output logic        mb_rx_val_lane_sel  , // 1=Enabled
-        // output logic        mb_rx_trk_lane_sel  , // 0=Disabled
+        // MB TX Lane Control: moved to wrapper_DATAVREF as static assigns
+        // (spec §4.5.3.4.2: CLK TX active, DATA/VAL/TRK TX held low)
+        // output logic [1:0]  mb_tx_clk_lane_sel  ,
+        // output logic [1:0]  mb_tx_data_lane_sel ,
+        // output logic [1:0]  mb_tx_val_lane_sel  ,
+        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //
@@ -81,19 +72,19 @@ module unit_DATAVREF_partner (
     // =========================================================================
     // FSM State Encoding
     // =========================================================================
-    localparam [3:0]
-    DATAVREF_PTR_IDLE            = 4'd0,  // Wait for datavref_en.
-    DATAVREF_PTR_WAIT_START_REQ  = 4'd1,  // Wait for {MBTRAIN.DATAVREF start req}.
-    DATAVREF_PTR_SEND_START_RESP = 4'd2,  // TX {MBTRAIN.DATAVREF start resp} for 1 cycle.
-    DATAVREF_PTR_WAIT_END_REQ    = 4'd3,  // Wait while Local sweeps; wait for {end req}.
-    DATAVREF_PTR_SEND_END_RESP   = 4'd4,  // TX {MBTRAIN.DATAVREF end resp} for 1 cycle.
-    DATAVREF_PTR_TO_SPEEDIDLE    = 4'd5,  // Terminal: datavref_done=1; wait for en deassert.
-    DATAVREF_PTR_TO_TRAINERROR   = 4'd6;  // Terminal: trainerror_req=1; wait for en deassert.
+    localparam [2:0]
+    DATAVREF_PTR_IDLE            = 3'd0,  // Wait for datavref_en.
+    DATAVREF_PTR_WAIT_START_REQ  = 3'd1,  // Wait for {MBTRAIN.DATAVREF start req}.
+    DATAVREF_PTR_SEND_START_RESP = 3'd2,  // TX {MBTRAIN.DATAVREF start resp} for 1 cycle.
+    DATAVREF_PTR_WAIT_END_REQ    = 3'd3,  // Wait while Local sweeps; wait for {end req}.
+    DATAVREF_PTR_SEND_END_RESP   = 3'd4,  // TX {MBTRAIN.DATAVREF end resp} for 1 cycle.
+    DATAVREF_PTR_TO_SPEEDIDLE    = 3'd5;  // Terminal: datavref_done=1; wait for en deassert.
+    // DATAVREF_PTR_TO_TRAINERROR   = 3'd6;  // Terminal: trainerror_req=1; wait for en deassert.
 
     // =========================================================================
     // FSM Registers
     // =========================================================================
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
 
     // =========================================================================
     // Sequential FSM: state register
@@ -116,10 +107,7 @@ module unit_DATAVREF_partner (
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state; // Default: hold
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = DATAVREF_PTR_TO_TRAINERROR;
-        end
-        else if (!datavref_en) begin
+        if (!datavref_en) begin
             next_state = DATAVREF_PTR_IDLE;
         end
         else begin
@@ -174,9 +162,9 @@ module unit_DATAVREF_partner (
                 // ---------------------------------------------------------
                 // TO_TRAINERROR (Terminal): trainerror_req=1.
                 // ---------------------------------------------------------
-                DATAVREF_PTR_TO_TRAINERROR: begin
-                    next_state = DATAVREF_PTR_TO_TRAINERROR;
-                end
+                // DATAVREF_PTR_TO_TRAINERROR: begin
+                //     next_state = DATAVREF_PTR_TO_TRAINERROR;
+                // end
 
                 default: begin
                     next_state = DATAVREF_PTR_IDLE;
@@ -192,7 +180,7 @@ module unit_DATAVREF_partner (
 
         // --- Defaults: safe inactive values ---
         datavref_done    = 1'b0;
-        trainerror_req   = 1'b0;
+        // trainerror_req   = 1'b0;
         partner_sweep_en = 1'b0;
 
         tx_sb_msg_valid  = 1'b0;
@@ -200,17 +188,16 @@ module unit_DATAVREF_partner (
         tx_msginfo       = 16'h0;
         tx_data_field    = 64'h0;
 
-        mb_tx_clk_lane_sel  = 2'b01; // Active center-phase forwarded clock
-        mb_tx_data_lane_sel = 2'b00; // Held Low (will be driven active by D2C_PT)
-        mb_tx_val_lane_sel  = 2'b00; // Held Low
-        mb_tx_trk_lane_sel  = 2'b00; // Held Low
+        // MB TX signals moved to wrapper as static assigns
+        // (mb_tx_clk=datavref_en?01:00, mb_tx_data/val/trk=00)
+
         case (current_state)
 
             // ---------------------------------------------------------
             // IDLE: All outputs at minimum activity. Watchdog off.
             // ---------------------------------------------------------
             DATAVREF_PTR_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
+                // MB signals handled in wrapper
             end
 
             // ---------------------------------------------------------
@@ -258,10 +245,10 @@ module unit_DATAVREF_partner (
             // ---------------------------------------------------------
             // TO_TRAINERROR (Terminal): trainerror_req=1.
             // ---------------------------------------------------------
-            DATAVREF_PTR_TO_TRAINERROR: begin
-                datavref_done     = 1'b1;
-                trainerror_req   = 1'b1;
-            end
+            // DATAVREF_PTR_TO_TRAINERROR: begin
+            //     datavref_done     = 1'b1;
+            //     trainerror_req   = 1'b1;
+            // end
 
             default: begin
                 tx_sb_msg_valid = 1'b0;

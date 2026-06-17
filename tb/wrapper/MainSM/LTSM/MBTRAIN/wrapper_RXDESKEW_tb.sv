@@ -214,8 +214,10 @@ module wrapper_RXDESKEW_tb;
     logic        dut_partner_datatraincenter1_req;
     logic        dut_partner_trainerror_req;
 
+    wire         dut_rxdeskew_en = dut_local_rxdeskew_en | dut_partner_rxdeskew_en;
+
     logic        dut_timeout_timer_en;
-    logic [6:0]  dut_phy_rx_deskew_ctrl [15:0];
+    logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  dut_phy_rx_deskew_ctrl [15:0];
     logic        dut_partner_sweep_en;
     logic [2:0]  dut_phy_tx_eq_preset_ctrl;
     logic        dut_phy_tx_eq_preset_en;
@@ -241,12 +243,11 @@ module wrapper_RXDESKEW_tb;
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
-        .local_rxdeskew_en              (dut_local_rxdeskew_en),
+        .rxdeskew_en                    (dut_rxdeskew_en),
         .rxdeskew_done                  (dut_rxdeskew_done),
         .datatraincenter1_req           (dut_datatraincenter1_req),
         .trainerror_req                 (dut_trainerror_req),
 
-        .partner_rxdeskew_en            (dut_partner_rxdeskew_en),
         .phy_rx_deskew_ctrl             (dut_phy_rx_deskew_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .phy_tx_eq_preset_ctrl          (dut_phy_tx_eq_preset_ctrl),
@@ -274,8 +275,8 @@ module wrapper_RXDESKEW_tb;
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
         .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_msginfo                     (dut_if.rx_msginfo)
+        // .rx_data_field                  (dut_if.rx_data_field)
     );
 
     // =========================================================================
@@ -291,8 +292,10 @@ module wrapper_RXDESKEW_tb;
     logic        ptn_partner_datatraincenter1_req;
     logic        ptn_partner_trainerror_req;
 
+    wire         ptn_rxdeskew_en = ptn_local_rxdeskew_en | ptn_partner_rxdeskew_en;
+
     logic        ptn_timeout_timer_en;
-    logic [6:0]  ptn_phy_rx_deskew_ctrl [15:0];
+    logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  ptn_phy_rx_deskew_ctrl [15:0];
     logic        ptn_partner_sweep_en;
     logic [2:0]  ptn_phy_tx_eq_preset_ctrl;
     logic        ptn_phy_tx_eq_preset_en;
@@ -317,12 +320,11 @@ module wrapper_RXDESKEW_tb;
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
-        .local_rxdeskew_en              (ptn_local_rxdeskew_en),
+        .rxdeskew_en                    (ptn_rxdeskew_en),
         .rxdeskew_done                  (ptn_rxdeskew_done),
         .datatraincenter1_req           (ptn_datatraincenter1_req),
         .trainerror_req                 (ptn_trainerror_req),
 
-        .partner_rxdeskew_en            (ptn_partner_rxdeskew_en),
         .phy_rx_deskew_ctrl             (ptn_phy_rx_deskew_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .phy_tx_eq_preset_ctrl          (ptn_phy_tx_eq_preset_ctrl),
@@ -350,8 +352,8 @@ module wrapper_RXDESKEW_tb;
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
         .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_msginfo                     (ptn_if.rx_msginfo)
+        // .rx_data_field                  (ptn_if.rx_data_field)
     );
 
     // =========================================================================
@@ -719,45 +721,9 @@ module wrapper_RXDESKEW_tb;
             .expect_dtc2_dut(0), .expect_dtc1_dut(1), .expect_te_dut(0)
         );
 
-        // Scenario 9: High Speed, Partner requesting TRAINERROR
+        // Scenario 8: High Speed, Invalid preset requested by partner (rejected)
         $display("# =========================================================");
-        $display("# Starting Scenario 8: Partner Requesting TRAINERROR");
-        $display("# =========================================================");
-        assert_reset();
-        is_high_speed = 1;
-        phy_negotiated_speed = 3'b111;
-        is_continuous_clk_mode = 0;
-
-        dut_local_rxdeskew_en = 1;
-        ptn_local_rxdeskew_en = 1;
-        dut_partner_rxdeskew_en = 1;
-        ptn_partner_rxdeskew_en = 1;
-
-        repeat (100) @(posedge lclk);
-        // Inject TRAINERROR from Partner B via injection registers
-        tb_ptn_inject_valid = 1;
-        tb_ptn_inject_msg = TRAINERROR_Entry_req;
-        tb_ptn_inject_info = 16'h0;
-        @(posedge lclk);
-        tb_ptn_inject_valid = 0;
-
-        wait (dut_trainerror_req);
-        #1000;
-        if (!dut_trainerror_req) begin
-            $display("# ERROR: Expected TRAINERROR entry response!");
-            $stop;
-        end
-
-        dut_local_rxdeskew_en = 0;
-        ptn_local_rxdeskew_en = 0;
-        dut_partner_rxdeskew_en = 0;
-        ptn_partner_rxdeskew_en = 0;
-        #10000;
-        $display("# Scenario 8 Passed!\n");
-
-        // Scenario 9: High Speed, Invalid preset requested by partner (rejected)
-        $display("# =========================================================");
-        $display("# Starting Scenario 9: Invalid Preset Rejected");
+        $display("# Starting Scenario 8: Invalid Preset Rejected");
         $display("# =========================================================");
         assert_reset();
         is_high_speed = 1;
@@ -788,7 +754,7 @@ module wrapper_RXDESKEW_tb;
         dut_partner_rxdeskew_en = 0;
         ptn_partner_rxdeskew_en = 0;
         #10000;
-        $display("# Scenario 9 Passed!\n");
+        $display("# Scenario 8 Passed!\n");
 
         // =========================================================================
         // 9. Randomized Scenarios Block with Self-Checking

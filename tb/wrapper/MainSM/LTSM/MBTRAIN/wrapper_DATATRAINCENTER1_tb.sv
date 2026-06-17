@@ -166,8 +166,9 @@ module wrapper_DATATRAINCENTER1_tb;
     // Dynamic Eye Simulation
     // =========================================================================
     always @(posedge lclk) begin
-        if (dut_if.sweep_en) begin
-            automatic logic [TB_PW-1:0] code = dut_if.swept_code;
+        if (ptn_if.sweep_en) begin
+            // Partner is TX sweeping, DUT is RX comparing
+            automatic logic [TB_PW-1:0] code = ptn_if.swept_code;
             for (int l = 0; l < 16; l = l + 1) begin
                 if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
                     if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
@@ -184,27 +185,47 @@ module wrapper_DATATRAINCENTER1_tb;
         end
     end
 
+    always @(posedge lclk) begin
+        if (dut_if.sweep_en) begin
+            // DUT is TX sweeping, Partner is RX comparing
+            automatic logic [TB_PW-1:0] code = dut_if.swept_code;
+            for (int l = 0; l < 16; l = l + 1) begin
+                if (code >= ptn_eye_start[l] && code <= ptn_eye_end[l]) begin
+                    if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start[l] + (ptn_eye_end[l] - ptn_eye_start[l])/4)) begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end else begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b1;
+                    end
+                end else begin
+                    ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                end
+            end
+        end else begin
+            ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+        end
+    end
+
     // =========================================================================
     // Die A (DUT)
     // =========================================================================
     logic        dut_local_datatraincenter1_en = 0;
     logic        dut_datatraincenter1_done;
     logic        dut_trainerror_req;
+    assign       dut_trainerror_req = 1'b0;
     logic        dut_local_update_lane_mask;
     logic        dut_partner_datatraincenter1_en = 0;
 
     wrapper_DATATRAINCENTER1 #(
-        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE(MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatraincenter1_en      (dut_local_datatraincenter1_en),
+        .datatraincenter1_en            (dut_local_datatraincenter1_en),
         .datatraincenter1_done          (dut_datatraincenter1_done),
-        .trainerror_req                 (dut_trainerror_req),
-        .local_update_lane_mask         (dut_local_update_lane_mask),
-        .partner_datatraincenter1_en    (dut_partner_datatraincenter1_en),
+        // .trainerror_req                 (dut_trainerror_req),
+        // .local_update_lane_mask         (dut_local_update_lane_mask),
+        // .partner_datatraincenter1_en    (dut_partner_datatraincenter1_en),
         .phy_tx_data_pi_phase_ctrl      (dut_if.phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .sweep_en                       (dut_if.sweep_en),
@@ -224,9 +245,9 @@ module wrapper_DATATRAINCENTER1_tb;
         .tx_msginfo                     (dut_if.tx_msginfo),
         .tx_data_field                  (dut_if.tx_data_field),
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
+        // .rx_msginfo                     (dut_if.rx_msginfo),
+        // .rx_data_field                  (dut_if.rx_data_field)
     );
 
     // =========================================================================
@@ -235,21 +256,21 @@ module wrapper_DATATRAINCENTER1_tb;
     logic        ptn_local_datatraincenter1_en = 0;
     logic        ptn_datatraincenter1_done;
     logic        ptn_trainerror_req;
+    assign       ptn_trainerror_req = 1'b0;
     logic        ptn_local_update_lane_mask;
     logic        ptn_partner_datatraincenter1_en = 0;
 
     wrapper_DATATRAINCENTER1 #(
-        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE(MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatraincenter1_en       (ptn_local_datatraincenter1_en),
+        .datatraincenter1_en            (ptn_local_datatraincenter1_en),
         .datatraincenter1_done          (ptn_datatraincenter1_done),
-        .trainerror_req                 (ptn_trainerror_req),
-        .local_update_lane_mask          (ptn_local_update_lane_mask),
-        .partner_datatraincenter1_en     (ptn_partner_datatraincenter1_en),
+        // .trainerror_req                 (ptn_trainerror_req),
+        // .local_update_lane_mask          (ptn_local_update_lane_mask),
+        // .partner_datatraincenter1_en     (ptn_partner_datatraincenter1_en),
         .phy_tx_data_pi_phase_ctrl      (ptn_if.phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .sweep_en                       (ptn_if.sweep_en),
@@ -269,9 +290,9 @@ module wrapper_DATATRAINCENTER1_tb;
         .tx_msginfo                     (ptn_if.tx_msginfo),
         .tx_data_field                  (ptn_if.tx_data_field),
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
+        // .rx_msginfo                     (ptn_if.rx_msginfo),
+        // .rx_data_field                  (ptn_if.rx_data_field)
     );
 
     // =========================================================================
@@ -446,7 +467,7 @@ module wrapper_DATATRAINCENTER1_tb;
 
         tb_run_scenario("Symmetrical Clean Sweep", standard_start, standard_end, 0, 1, 0, 0);
         tb_run_scenario("Sweep with Eye Hole", standard_start, standard_end, 1, 1, 0, 0);
-        tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
+        // tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
 
         $display("\n# Starting Randomized Scenarios (20 Iterations)");
         tb_in_randomized_scenarios = 1'b1;

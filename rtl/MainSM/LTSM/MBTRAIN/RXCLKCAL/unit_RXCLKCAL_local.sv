@@ -16,7 +16,6 @@
 // ====================================================================================================
 
 module unit_RXCLKCAL_local
-    import UCIe_pkg::*;
     (
         // Clock and Reset
         input  logic        lclk,
@@ -58,6 +57,7 @@ module unit_RXCLKCAL_local
         input  logic [7:0]  rx_sb_msg
         // input  logic [15:0] rx_msginfo
     );
+    import UCIe_pkg::*;
 
     // ============================================================================
     // State Encoding
@@ -94,11 +94,7 @@ module unit_RXCLKCAL_local
     always_comb begin
         next_state = current_state;
 
-        // Global Error Override
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = RXCLKCAL_LCL_TO_TRAINERROR;
-        end
-        else if (!rxclkcal_en) begin
+        if (!rxclkcal_en) begin
             next_state = RXCLKCAL_LCL_IDLE;
         end
         else begin

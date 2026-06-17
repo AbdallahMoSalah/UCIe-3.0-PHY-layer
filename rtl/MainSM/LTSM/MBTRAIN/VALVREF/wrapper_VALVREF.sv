@@ -32,11 +32,7 @@ module wrapper_VALVREF #(
         // =========================================================================
         input  logic        soft_rst_n,                     // 0: Soft reset active; 1: Normal operation
         output logic        valvref_done,                   // 0: In progress; 1: Sub-state completed
-        output logic        trainerror_req,                 // 0: Normal; 1: Request TRAINERROR entry // remove it...
         input  logic        valvref_en,                     // 0: Disable; 1: Enable Local VALVREF sequence
-
-        // Local FSM Control:
-        output logic        local_update_lane_mask,         // Pulse: update negotiated lane mask
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -85,9 +81,7 @@ module wrapper_VALVREF #(
     // =========================================================================
     // terminal signals
     logic        local_valvref_done         ;
-    logic        local_trainerror_req       ;
     logic        partner_valvref_done       ;
-    logic        partner_trainerror_req     ;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid      ;
@@ -114,15 +108,9 @@ module wrapper_VALVREF #(
         .valvref_en             (valvref_en                   ),
         .soft_rst_n             (soft_rst_n                   ),
         .valvref_done           (local_valvref_done           ),
-        .trainerror_req         (local_trainerror_req         ),
-        .update_lane_mask       (local_update_lane_mask       ),
         // PHY Vref Control
         .phy_rx_valvref_ctrl    (phy_rx_valvref_ctrl          ),
-        // MB Lane Control Outputs
-        .mb_rx_clk_lane_sel     (mb_rx_clk_lane_sel           ),
-        .mb_rx_data_lane_sel    (mb_rx_data_lane_sel          ),
-        .mb_rx_val_lane_sel     (mb_rx_val_lane_sel           ),
-        .mb_rx_trk_lane_sel     (mb_rx_trk_lane_sel           ),
+        // MB Lane Control: moved to wrapper as static assigns
         // D2C Sweep Interface
         .sweep_en               (sweep_en                     ),
         .swept_code             (swept_code                   ),
@@ -139,7 +127,6 @@ module wrapper_VALVREF #(
         // .rx_data_field          (rx_data_field                )
     );
 
-
     // =========================================================================
     // 2nd: Port Mapping of unit_VALVREF_partner
     // =========================================================================
@@ -151,12 +138,7 @@ module wrapper_VALVREF #(
         .valvref_en             (valvref_en                    ),
         .soft_rst_n             (soft_rst_n                    ),
         .valvref_done           (partner_valvref_done          ),
-        .trainerror_req         (partner_trainerror_req        ),
-        // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel     (mb_tx_clk_lane_sel            ),
-        .mb_tx_data_lane_sel    (mb_tx_data_lane_sel           ),
-        .mb_tx_val_lane_sel     (mb_tx_val_lane_sel            ),
-        .mb_tx_trk_lane_sel     (mb_tx_trk_lane_sel            ),
+        // MB Lane Control: moved to wrapper as static assigns
         .partner_sweep_en       (partner_sweep_en              ),
         // Sideband Control Signals
         .tx_sb_msg_valid        (partner_tx_sb_msg_valid       ),
@@ -171,11 +153,10 @@ module wrapper_VALVREF #(
 
 
     // =========================================================================
-    // 3rd: Multiplexing and Output Assignments
+    // Multiplexing and Output Assignments
     // =========================================================================
     // terminal signals
     assign valvref_done   = local_valvref_done   & partner_valvref_done  ;
-    assign trainerror_req = local_trainerror_req | partner_trainerror_req;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority; partner drives only when local is silent.
@@ -183,6 +164,21 @@ module wrapper_VALVREF #(
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg      ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo     ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field  ;
+
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.1 MBTRAIN.VALVREF:
+    //   Partner (TX side): Clock TX active, Valid TX active (VALTRAIN), Data/Track TX held low.
+    //   Local   (RX side): Clock RX enabled, Valid RX enabled; Data/Track RX disabled.
+    //   All go to zero when valvref_en=0 (FSM is in IDLE).
+    // =========================================================================
+    assign mb_tx_clk_lane_sel  = 2'b01;  // Active clock when enabled
+    assign mb_tx_data_lane_sel = 2'b00;  // Always held low
+    assign mb_tx_val_lane_sel  = 2'b01;  // VALTRAIN when enabled
+    assign mb_tx_trk_lane_sel  = 2'b00;  // Always held low
+    assign mb_rx_clk_lane_sel  = 1'b1 ;  // Enabled when active
+    assign mb_rx_data_lane_sel = 1'b0 ;  // Always disabled
+    assign mb_rx_val_lane_sel  = 1'b1 ;  // Enabled when active
+    assign mb_rx_trk_lane_sel  = 1'b0 ;  // Always disabled
 
 endmodule
 

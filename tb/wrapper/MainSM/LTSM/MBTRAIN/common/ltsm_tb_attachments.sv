@@ -168,9 +168,9 @@ module ltsm_tb_attachments #(
     wire [15:0] effective_target_burst = (target_burst == 4096) ? MB_DELAY : target_burst;
 
 
-    wire mb_tx_pattern_count_done = (iter_counter == target_iter && (intf.tb_wait_timeout == 0)) ? 1'b1 : 1'b0;
+    wire mb_tx_pattern_count_done = (iter_counter >= target_iter && (intf.tb_wait_timeout == 0)) ? 1'b1 : 1'b0;
 
-    reg         mb_rx_compare_done;
+    // reg         mb_rx_compare_done;
     reg  [15:0] mb_rx_perlane_pass;
     reg          mb_rx_val_pass;
     wire         mb_rx_aggr_pass = ~(|intf.tb_aggr_err);
@@ -180,21 +180,21 @@ module ltsm_tb_attachments #(
             burst_counter      <= 0;
             idle_counter       <= 0;
             iter_counter       <= 0;
-            mb_rx_compare_done <= 0;
+            // mb_rx_compare_done <= 0;
             mb_rx_perlane_pass <= 16'hFFFF;
             mb_rx_val_pass     <= 1'b1;
             tb_partner_test_d2c_done_en <= 0;
             tb_partner_test_d2c_done    <= 0;
         end
         else begin
-            if(real_mb_tx_pattern_en || local_rx_pt_en) begin
-                if(burst_counter != effective_target_burst && iter_counter != target_iter) begin
+            if(real_mb_tx_pattern_en || local_rx_pt_en || partner_tx_pt_en || partner_rx_pt_en) begin
+                if(burst_counter < effective_target_burst && iter_counter < target_iter) begin
                     burst_counter <= burst_counter + 1;
                 end
-                else if(idle_counter != target_idle && iter_counter != target_iter) begin
+                else if(idle_counter < target_idle && iter_counter < target_iter) begin
                     idle_counter <= idle_counter + 1;
                 end
-                else if(iter_counter != target_iter) begin
+                else if(iter_counter < target_iter) begin
                     iter_counter  <= iter_counter + 1;
                     burst_counter <= 0;
                     idle_counter  <= 0;
@@ -207,17 +207,17 @@ module ltsm_tb_attachments #(
             end
 
             if(mb_tx_pattern_count_done == 1'b1) begin
-                mb_rx_compare_done <= 1'b1;
+                // mb_rx_compare_done <= 1'b1;
                 mb_rx_perlane_pass <= intf.tb_force_perlane_pass;
                 mb_rx_val_pass     <= intf.tb_force_val_pass;
             end
             else begin
-                mb_rx_compare_done <= 1'b0;
+                // mb_rx_compare_done <= 1'b0;
             end
         end
     end
 
-    assign intf.mb_rx_compare_done       = mb_rx_compare_done;
+    // assign intf.mb_rx_compare_done       = mb_rx_compare_done;
     assign intf.mb_tx_pattern_count_done = mb_tx_pattern_count_done;
     assign intf.mb_rx_perlane_pass       = mb_rx_perlane_pass;
     assign intf.mb_rx_val_pass           = mb_rx_val_pass;
@@ -292,6 +292,18 @@ module ltsm_tb_attachments #(
     // =========================================================================
     // 3. Instantiate unit_D2C_sweep
     // =========================================================================
+    reg [15:0] held_d2c_perlane_pass;
+    reg        held_d2c_val_pass;
+    always @(posedge intf.lclk or negedge intf.rst_n) begin
+        if (!intf.rst_n) begin
+            held_d2c_perlane_pass <= 16'hFFFF;
+            held_d2c_val_pass     <= 1'b1;
+        end else if (intf.local_test_d2c_done) begin
+            held_d2c_perlane_pass <= intf.d2c_perlane_pass;
+            held_d2c_val_pass     <= intf.d2c_val_pass;
+        end
+    end
+
     unit_D2C_sweep #(
         .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
@@ -314,8 +326,8 @@ module ltsm_tb_attachments #(
 
         .local_test_d2c_done  (intf.local_test_d2c_done),
         .partner_test_d2c_done(intf.partner_test_d2c_done),
-        .d2c_perlane_pass     (intf.d2c_perlane_pass),
-        .d2c_val_pass         (intf.d2c_val_pass),
+        .d2c_perlane_pass     (held_d2c_perlane_pass),
+        .d2c_val_pass         (held_d2c_val_pass),
 
         .local_tx_pt_en       (local_tx_pt_en),
         .local_rx_pt_en       (local_rx_pt_en),
@@ -407,7 +419,7 @@ module ltsm_tb_attachments #(
         .mb_tx_val_pattern_sel      (mb_tx_val_pattern_sel),
 
         .mb_tx_pattern_count_done   (mb_tx_pattern_count_done),
-        .mb_rx_compare_done         (mb_rx_compare_done),
+        // .mb_rx_compare_done         (mb_rx_compare_done),
         .mb_rx_aggr_pass            (mb_rx_aggr_pass),
         .mb_rx_perlane_pass         (mb_rx_perlane_pass),
         .mb_rx_val_pass             (mb_rx_val_pass),

@@ -15,7 +15,6 @@ module wrapper_TXSELFCAL (
         input  logic        soft_rst_n,
         input  logic        txselfcal_en,
         output logic        txselfcal_done,
-        output logic        trainerror_req,
 
         // Timer Control
         output logic        analog_settle_timer_en,
@@ -49,8 +48,6 @@ module wrapper_TXSELFCAL (
     // Internal wires
     logic        local_txselfcal_done_wire;
     logic        partner_txselfcal_done_wire;
-    logic        local_trainerror_req_wire;
-    logic        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM
     logic        local_tx_sb_msg_valid;
@@ -71,14 +68,10 @@ module wrapper_TXSELFCAL (
         .txselfcal_en           (txselfcal_en),
         .soft_rst_n             (soft_rst_n),
         .txselfcal_done         (local_txselfcal_done_wire),
-        .trainerror_req         (local_trainerror_req_wire),
         .analog_settle_timer_en (analog_settle_timer_en),
         .analog_settle_time_done(analog_settle_time_done),
         .phy_tx_selfcal_en      (phy_tx_selfcal_en  ),
-        .mb_tx_clk_lane_sel     (mb_tx_clk_lane_sel ),
-        .mb_tx_data_lane_sel    (mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel     (mb_tx_val_lane_sel ),
-        .mb_tx_trk_lane_sel     (mb_tx_trk_lane_sel ),
+        // MB signals removed from sub-module — assigned statically in wrapper
         .tx_sb_msg_valid        (local_tx_sb_msg_valid),
         .tx_sb_msg              (local_tx_sb_msg),
         .tx_msginfo             (local_tx_msginfo),
@@ -96,11 +89,7 @@ module wrapper_TXSELFCAL (
         .txselfcal_en           (txselfcal_en),
         .soft_rst_n             (soft_rst_n),
         .txselfcal_done         (partner_txselfcal_done_wire),
-        .trainerror_req         (partner_trainerror_req_wire),
-        .mb_rx_clk_lane_sel     (mb_rx_clk_lane_sel ),
-        .mb_rx_data_lane_sel    (mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel     (mb_rx_val_lane_sel ),
-        .mb_rx_trk_lane_sel     (mb_rx_trk_lane_sel ),
+        // MB signals removed from sub-module — assigned statically in wrapper
         .tx_sb_msg_valid        (partner_tx_sb_msg_valid),
         .tx_sb_msg              (partner_tx_sb_msg),
         .tx_msginfo             (partner_tx_msginfo),
@@ -113,12 +102,26 @@ module wrapper_TXSELFCAL (
 
     // Combined outputs logic
     assign txselfcal_done = local_txselfcal_done_wire & partner_txselfcal_done_wire;
-    assign trainerror_req = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // SB TX output arbitration (Local FSM has priority)
     assign tx_sb_msg_valid = local_tx_sb_msg_valid | partner_tx_sb_msg_valid;
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
+
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.4 MBTRAIN.TXSELFCAL:
+    //   "Data, Clock, Valid, and Track Transmitters are tri-stated."
+    //   "Data, Clock, Valid, and Track Receivers are permitted to be disabled."
+    // These values are constant regardless of FSM state.
+    // =========================================================================
+    assign mb_tx_clk_lane_sel  = 2'b10; // Tri-state
+    assign mb_tx_data_lane_sel = 2'b10; // Tri-state
+    assign mb_tx_val_lane_sel  = 2'b10; // Tri-state
+    assign mb_tx_trk_lane_sel  = 2'b10; // Tri-state
+    assign mb_rx_clk_lane_sel  = 1'b0;  // Disabled
+    assign mb_rx_data_lane_sel = 1'b0;  // Disabled
+    assign mb_rx_val_lane_sel  = 1'b0;  // Disabled
+    assign mb_rx_trk_lane_sel  = 1'b0;  // Disabled
 
 endmodule

@@ -88,7 +88,7 @@ module unit_TX_D2C_PT_partner (
         input  logic [2:0]  mb_rx_data_lane_mask       , // 000: None, 001: Lanes 0-7, 010: Lanes 8-15, 011: Lanes 0-15, 100: Lanes 0-3, 101: Lanes 4-7.
 
         // RX Status/Errors inputs:
-        input  logic        mb_rx_compare_done         , // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
+        // input  logic        mb_rx_compare_done         , // 0: Comparison in progress. 1: Comparison of configured pattern iterations is complete.
         input  logic        mb_rx_aggr_pass            , // 1: Aggregate comparison passed (error count within threshold). 0: Failed.
         input  logic [15:0] mb_rx_perlane_pass         , // 16-bit status vector; each bit corresponds to an operational lane. If the bit=1 the lane passed, else failed.
         input  logic        mb_rx_val_pass             , // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
@@ -111,9 +111,9 @@ module unit_TX_D2C_PT_partner (
     import UCIe_pkg::*;
 
     localparam [3:0]
-    TX_PT_IDLE                = 4'h0,
-    TX_PT_WAIT_START_REQ      = 4'h1,
-    TX_PT_SEND_START_RESP     = 4'h2,
+    TX_PT_IDLE               = 4'h0,
+    TX_PT_WAIT_START_REQ     = 4'h1,
+    TX_PT_SEND_START_RESP    = 4'h2,
     TX_PT_WAIT_CLR_ERR_REQ   = 4'h3,
     TX_PT_SEND_CLR_ERR_RESP  = 4'h4,
     TX_PT_WAIT_RESULTS_REQ   = 4'h5,
@@ -226,7 +226,7 @@ module unit_TX_D2C_PT_partner (
             mb_rx_pattern_setup_r          <= {1'b0, |rx_data_field[5:3], |rx_data_field[2:0]};
             decoded_lfsr_en_r              <= (rx_data_field[2:0] == 3'h0); // 0h: LFSR pattern
         end
-        else if (mb_rx_compare_done) begin
+        else if (current_state == TX_PT_WAIT_RESULTS_REQ && rx_sb_msg == Tx_Init_D_to_C_results_req && rx_sb_msg_valid) begin
             d2c_perlane_pass_r <= mb_rx_perlane_pass;
             d2c_aggr_pass_r    <= mb_rx_aggr_pass;
             d2c_val_pass_r     <= mb_rx_val_pass;

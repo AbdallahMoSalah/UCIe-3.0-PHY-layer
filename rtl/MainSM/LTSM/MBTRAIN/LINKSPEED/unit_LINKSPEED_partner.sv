@@ -83,7 +83,6 @@ module unit_LINKSPEED_partner (
         output logic        repair_req,            // 1: Exit to MBTRAIN.REPAIR.
         output logic        linkinit_req,          // 1: Exit to LINKINIT.
         output logic        phyretrain_req,        // 1: Exit to PHYRETRAIN.
-        output logic        trainerror_req,        // 1: Exit to TRAINERROR.
 
         //=====================================//
         // MB Lane Control Outputs:            //
@@ -164,8 +163,7 @@ module unit_LINKSPEED_partner (
         LINKSPEED_PTR_TO_LINKINIT             = 4'd10, // linkspeed_done=1, linkinit_req=1.
         LINKSPEED_PTR_TO_REPAIR               = 4'd11, // linkspeed_done=1, repair_req=1.
         LINKSPEED_PTR_TO_SPEEDIDLE            = 4'd12, // linkspeed_done=1, speedidle_req=1.
-        LINKSPEED_PTR_TO_PHYRETRAIN           = 4'd13, // linkspeed_done=1, phyretrain_req=1.
-        LINKSPEED_PTR_TO_TRAINERROR           = 4'd14  // linkspeed_done=1, trainerror_req=1.
+        LINKSPEED_PTR_TO_PHYRETRAIN           = 4'd13  // linkspeed_done=1, phyretrain_req=1.
     } linkspeed_ptr_state_e;
 
     linkspeed_ptr_state_e current_state, next_state;
@@ -210,12 +208,8 @@ module unit_LINKSPEED_partner (
     //   P3:           Normal FSM case transitions
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
-        // P1: TRAINERROR — highest priority.
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = LINKSPEED_PTR_TO_TRAINERROR;
-        end
         // P2: Session teardown.
-        else if (!linkspeed_en) begin
+        if (!linkspeed_en) begin
             next_state = LINKSPEED_PTR_IDLE;
         end
         // P3: Normal transitions.
@@ -224,8 +218,7 @@ module unit_LINKSPEED_partner (
 
                 // ────────────────────────────────────────────────────────────
                 LINKSPEED_PTR_IDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_WAIT_START_REQ
-                        : LINKSPEED_PTR_IDLE;
+                    next_state = LINKSPEED_PTR_WAIT_START_REQ;
                 end
 
                 // ────────────────────────────────────────────────────────────
@@ -326,19 +319,16 @@ module unit_LINKSPEED_partner (
                 // Terminal states: hold until linkspeed_en deasserts.
                 // ────────────────────────────────────────────────────────────
                 LINKSPEED_PTR_TO_LINKINIT: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_TO_LINKINIT : LINKSPEED_PTR_IDLE;
+                    next_state = LINKSPEED_PTR_TO_LINKINIT;
                 end
                 LINKSPEED_PTR_TO_REPAIR: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_TO_REPAIR : LINKSPEED_PTR_IDLE;
+                    next_state = LINKSPEED_PTR_TO_REPAIR;
                 end
                 LINKSPEED_PTR_TO_SPEEDIDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_TO_SPEEDIDLE : LINKSPEED_PTR_IDLE;
+                    next_state = LINKSPEED_PTR_TO_SPEEDIDLE;
                 end
                 LINKSPEED_PTR_TO_PHYRETRAIN: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_TO_PHYRETRAIN : LINKSPEED_PTR_IDLE;
-                end
-                LINKSPEED_PTR_TO_TRAINERROR: begin
-                    next_state = linkspeed_en ? LINKSPEED_PTR_TO_TRAINERROR : LINKSPEED_PTR_IDLE;
+                    next_state = LINKSPEED_PTR_TO_PHYRETRAIN;
                 end
 
                 default: next_state = LINKSPEED_PTR_IDLE;
@@ -362,7 +352,6 @@ module unit_LINKSPEED_partner (
         repair_req       = 1'b0;
         linkinit_req     = 1'b0;
         phyretrain_req   = 1'b0;
-        trainerror_req   = 1'b0;
         partner_sweep_en = 1'b0;
 
         // ── MB RX defaults (always enabled per spec §4.5.3.4.12) ──
@@ -470,11 +459,6 @@ module unit_LINKSPEED_partner (
             LINKSPEED_PTR_TO_PHYRETRAIN: begin
                 linkspeed_done   = 1'b1;
                 phyretrain_req   = 1'b1;
-            end
-
-            LINKSPEED_PTR_TO_TRAINERROR: begin
-                linkspeed_done   = 1'b1;
-                trainerror_req   = 1'b1;
             end
 
             default: ; // All defaults apply.

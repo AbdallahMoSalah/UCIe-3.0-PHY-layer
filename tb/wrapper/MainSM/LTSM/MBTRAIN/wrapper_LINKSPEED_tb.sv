@@ -11,7 +11,7 @@ module wrapper_LINKSPEED_tb;
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
     parameter MB_DELAY             = 10     ; // Representing 128 lclk + 2 lclk delay
     parameter TIMEOUT_CYCLES       = 1_000_000;
-    parameter bit ENABLE_RAND_LOG  = 1'b0; // 1: display details of randomized scenarios in terminal; 0: suppress
+    parameter bit ENABLE_RAND_LOG  = 1'b1; // 1: display details of randomized scenarios in terminal; 0: suppress
 
     // =========================================================================
     // Clock and Reset Signals
@@ -159,17 +159,13 @@ module wrapper_LINKSPEED_tb;
     // =========================================================================
     logic        dut_local_linkspeed_en = 0;
     logic        dut_linkspeed_done;
-    logic        dut_local_linkinit_req;
-    logic        dut_local_speedidle_req;
-    logic        dut_local_repair_req;
-    logic        dut_local_phyretrain_req;
-    logic        dut_trainerror_req;
+    logic        dut_linkspeed_linkinit_req;
+    logic        dut_linkspeed_speedidle_req;
+    logic        dut_linkspeed_repair_req;
+    logic        dut_linkspeed_phyretrain_req;
+    logic        dut_trainerror_req = 1'b0;
 
     logic        dut_partner_linkspeed_en = 0;
-    logic        dut_partner_linkinit_req;
-    logic        dut_partner_speedidle_req;
-    logic        dut_partner_repair_req;
-    logic        dut_partner_phyretrain_req;
 
     logic        dut_PHY_IN_RETRAIN_rst;
     logic        dut_busy_bit_rst;
@@ -197,17 +193,12 @@ module wrapper_LINKSPEED_tb;
         .partner_linkspeed_en           (dut_partner_linkspeed_en),
 
         .linkspeed_done                 (dut_linkspeed_done),
-        .trainerror_req                 (dut_trainerror_req),
+        // .trainerror_req                 (),
 
-        .local_linkinit_req             (dut_local_linkinit_req),
-        .local_speedidle_req            (dut_local_speedidle_req),
-        .local_repair_req               (dut_local_repair_req),
-        .local_phyretrain_req           (dut_local_phyretrain_req),
-
-        .partner_linkinit_req           (dut_partner_linkinit_req),
-        .partner_speedidle_req          (dut_partner_speedidle_req),
-        .partner_repair_req             (dut_partner_repair_req),
-        .partner_phyretrain_req         (dut_partner_phyretrain_req),
+        .linkspeed_linkinit_req         (dut_linkspeed_linkinit_req),
+        .linkspeed_speedidle_req        (dut_linkspeed_speedidle_req),
+        .linkspeed_repair_req           (dut_linkspeed_repair_req),
+        .linkspeed_phyretrain_req       (dut_linkspeed_phyretrain_req),
 
         .active_rx_lanes                (dut_active_rx_lanes),
         .width_degrade_feasible         (dut_if.degrade_feasible),
@@ -249,17 +240,13 @@ module wrapper_LINKSPEED_tb;
     // =========================================================================
     logic        ptn_local_linkspeed_en = 0;
     logic        ptn_linkspeed_done;
-    logic        ptn_local_linkinit_req;
-    logic        ptn_local_speedidle_req;
-    logic        ptn_local_repair_req;
-    logic        ptn_local_phyretrain_req;
-    logic        ptn_trainerror_req;
+    logic        ptn_linkspeed_linkinit_req;
+    logic        ptn_linkspeed_speedidle_req;
+    logic        ptn_linkspeed_repair_req;
+    logic        ptn_linkspeed_phyretrain_req;
+    logic        ptn_trainerror_req = 1'b0;
 
     logic        ptn_partner_linkspeed_en = 0;
-    logic        ptn_partner_linkinit_req;
-    logic        ptn_partner_speedidle_req;
-    logic        ptn_partner_repair_req;
-    logic        ptn_partner_phyretrain_req;
 
     logic        ptn_PHY_IN_RETRAIN_rst;
     logic        ptn_busy_bit_rst;
@@ -275,17 +262,12 @@ module wrapper_LINKSPEED_tb;
         .partner_linkspeed_en           (ptn_partner_linkspeed_en),
 
         .linkspeed_done                 (ptn_linkspeed_done),
-        .trainerror_req                 (ptn_trainerror_req),
+        // .trainerror_req                 (),
 
-        .local_linkinit_req             (ptn_local_linkinit_req),
-        .local_speedidle_req            (ptn_local_speedidle_req),
-        .local_repair_req               (ptn_local_repair_req),
-        .local_phyretrain_req           (ptn_local_phyretrain_req),
-
-        .partner_linkinit_req           (ptn_partner_linkinit_req),
-        .partner_speedidle_req          (ptn_partner_speedidle_req),
-        .partner_repair_req             (ptn_partner_repair_req),
-        .partner_phyretrain_req         (ptn_partner_phyretrain_req),
+        .linkspeed_linkinit_req         (ptn_linkspeed_linkinit_req),
+        .linkspeed_speedidle_req        (ptn_linkspeed_speedidle_req),
+        .linkspeed_repair_req           (ptn_linkspeed_repair_req),
+        .linkspeed_phyretrain_req       (ptn_linkspeed_phyretrain_req),
 
         .active_rx_lanes                (ptn_active_rx_lanes),
         .width_degrade_feasible         (ptn_if.degrade_feasible),
@@ -608,27 +590,27 @@ module wrapper_LINKSPEED_tb;
             .suppress_sb(0), .inject_trainerror(0)
         );
 
-        // ------------------------------------------------------------------
-        // T6: 8 ms timeout → TRAINERROR
-        // ------------------------------------------------------------------
-        run_scenario(
-            .name("Scenario 6: Watchdog 8ms Timeout -> TRAINERROR"),
-            .hs(1), .cont_clk(0), .d2c_pass_mask(16'hFFFF),
-            .phy_in_retrain(0), .params_changed(0), .active_rx_lanes(16'hFFFF),
-            .expect_linkinit(0), .expect_repair(0), .expect_speedidle(0), .expect_phyretrain(0), .expect_trainerror(1),
-            .suppress_sb(1), .inject_trainerror(0) // Suppress SB to force timeout
-        );
-
-        // ------------------------------------------------------------------
-        // T7: TRAINERROR_Entry_req → TRAINERROR
-        // ------------------------------------------------------------------
-        run_scenario(
-            .name("Scenario 7: TRAINERROR_Entry_req received -> TRAINERROR"),
-            .hs(1), .cont_clk(0), .d2c_pass_mask(16'hFFFF),
-            .phy_in_retrain(0), .params_changed(0), .active_rx_lanes(16'hFFFF),
-            .expect_linkinit(0), .expect_repair(0), .expect_speedidle(0), .expect_phyretrain(0), .expect_trainerror(1),
-            .suppress_sb(0), .inject_trainerror(1) // Inject TRAINERROR_Entry_req
-        );
+        // // ------------------------------------------------------------------
+        // // T6: 8 ms timeout → TRAINERROR
+        // // ------------------------------------------------------------------
+        // run_scenario(
+        //     .name("Scenario 6: Watchdog 8ms Timeout -> TRAINERROR"),
+        //     .hs(1), .cont_clk(0), .d2c_pass_mask(16'hFFFF),
+        //     .phy_in_retrain(0), .params_changed(0), .active_rx_lanes(16'hFFFF),
+        //     .expect_linkinit(0), .expect_repair(0), .expect_speedidle(0), .expect_phyretrain(0), .expect_trainerror(1),
+        //     .suppress_sb(1), .inject_trainerror(0) // Suppress SB to force timeout
+        // );
+        // 
+        // // ------------------------------------------------------------------
+        // // T7: TRAINERROR_Entry_req → TRAINERROR
+        // // ------------------------------------------------------------------
+        // run_scenario(
+        //     .name("Scenario 7: TRAINERROR_Entry_req received -> TRAINERROR"),
+        //     .hs(1), .cont_clk(0), .d2c_pass_mask(16'hFFFF),
+        //     .phy_in_retrain(0), .params_changed(0), .active_rx_lanes(16'hFFFF),
+        //     .expect_linkinit(0), .expect_repair(0), .expect_speedidle(0), .expect_phyretrain(0), .expect_trainerror(1),
+        //     .suppress_sb(0), .inject_trainerror(1) // Inject TRAINERROR_Entry_req
+        // );
 
         // ------------------------------------------------------------------
         // T8: Cross-die abandon (LOCAL succeeds, PARTNER errors)
@@ -725,10 +707,10 @@ module wrapper_LINKSPEED_tb;
                 $display("# Config  : hs=%b, cont_clk=%b, d2c_pass_mask=%h, phy_in_retrain=%b, params_changed=%b, active_rx_lanes=%h",
                     hs_rnd, clk_mode_rnd, rand_pass_mask, rand_phy_retrain, rand_params_changed, 16'hFFFF);
                 $display("# Expected: linkinit=%b, repair=%b, speedidle=%b, phyretrain=%b, trainerror=0",
-                    (!rand_errors && (!rand_phy_retrain || !rand_params_changed)),
-                    (rand_errors && rand_degrade_feasible),
-                    (rand_errors && !rand_degrade_feasible),
-                    (!rand_errors && rand_phy_retrain && rand_params_changed));
+                    (!(rand_phy_retrain && rand_params_changed) && !rand_errors),
+                    (!(rand_phy_retrain && rand_params_changed) && rand_errors && rand_degrade_feasible),
+                    (!(rand_phy_retrain && rand_params_changed) && rand_errors && !rand_degrade_feasible),
+                    (rand_phy_retrain && rand_params_changed));
                 $display("# =========================================================");
             end
 
@@ -764,7 +746,7 @@ module wrapper_LINKSPEED_tb;
             disable fork;
 
             // Verify FSM exits on Die A
-            if (!rand_errors && rand_phy_retrain && rand_params_changed) begin
+            if (rand_phy_retrain && rand_params_changed) begin
                 if (!u_dut.local_phyretrain_req) begin
                     $display("# ERROR: Expected PHYRETRAIN in random test %0d", i); fail_count++; $stop;
                 end

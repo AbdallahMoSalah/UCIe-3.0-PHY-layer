@@ -89,11 +89,7 @@ module unit_RXCLKCAL_partner
     always_comb begin
         next_state = current_state;
 
-        // Global Error Override
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = RXCLKCAL_PTR_TO_TRAINERROR;
-        end
-        else if (!rxclkcal_en) begin
+        if (!rxclkcal_en) begin
             next_state = RXCLKCAL_PTR_IDLE;
         end
         else begin

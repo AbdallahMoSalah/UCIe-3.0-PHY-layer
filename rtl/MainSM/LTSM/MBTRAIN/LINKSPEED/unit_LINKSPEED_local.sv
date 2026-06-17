@@ -80,7 +80,6 @@ module unit_LINKSPEED_local (
         output logic        repair_req,           // 1: Request transition to MBTRAIN.REPAIR.
         output logic        linkinit_req,         // 1: Request transition to LINKINIT.
         output logic        phyretrain_req,       // 1: Request transition to PHYRETRAIN.
-        output logic        trainerror_req,       // 1: Request transition to TRAINERROR.
 
         //=====================================//
         // Lane & Width Degrade Inputs:        //
@@ -212,8 +211,7 @@ module unit_LINKSPEED_local (
         LINKSPEED_LCL_TO_LINKINIT            = 5'd17, // linkspeed_done=1, linkinit_req=1.
         LINKSPEED_LCL_TO_REPAIR              = 5'd18, // linkspeed_done=1, repair_req=1.
         LINKSPEED_LCL_TO_SPEEDIDLE           = 5'd19, // linkspeed_done=1, speedidle_req=1.
-        LINKSPEED_LCL_TO_PHYRETRAIN          = 5'd20, // linkspeed_done=1, phyretrain_req=1.
-        LINKSPEED_LCL_TO_TRAINERROR          = 5'd21  // linkspeed_done=1, trainerror_req=1.
+        LINKSPEED_LCL_TO_PHYRETRAIN          = 5'd20  // linkspeed_done=1, phyretrain_req=1.
     } linkspeed_lcl_state_e;
 
     linkspeed_lcl_state_e current_state, next_state;
@@ -295,12 +293,8 @@ module unit_LINKSPEED_local (
     //   responding to the remote LOCAL's requests (hierarchy.md §6).
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
-        // P1: TRAINERROR — highest priority, overrides everything.
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = LINKSPEED_LCL_TO_TRAINERROR;
-        end
         // P2: Session teardown.
-        else if (!linkspeed_en) begin
+        if (!linkspeed_en) begin
             next_state = LINKSPEED_LCL_IDLE;
         end
         // P3: Normal FSM transitions.
@@ -458,19 +452,16 @@ module unit_LINKSPEED_local (
                 // Terminal states: hold until linkspeed_en deasserts.
                 // ────────────────────────────────────────────────────────────
                 LINKSPEED_LCL_TO_LINKINIT: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_LINKINIT : LINKSPEED_LCL_IDLE;
+                    next_state = LINKSPEED_LCL_TO_LINKINIT;
                 end
                 LINKSPEED_LCL_TO_REPAIR: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_REPAIR : LINKSPEED_LCL_IDLE;
+                    next_state = LINKSPEED_LCL_TO_REPAIR;
                 end
                 LINKSPEED_LCL_TO_SPEEDIDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_SPEEDIDLE : LINKSPEED_LCL_IDLE;
+                    next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
                 end
                 LINKSPEED_LCL_TO_PHYRETRAIN: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_PHYRETRAIN : LINKSPEED_LCL_IDLE;
-                end
-                LINKSPEED_LCL_TO_TRAINERROR: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_TO_TRAINERROR : LINKSPEED_LCL_IDLE;
+                    next_state = LINKSPEED_LCL_TO_PHYRETRAIN;
                 end
 
                 default: next_state = LINKSPEED_LCL_IDLE;
@@ -525,7 +516,6 @@ module unit_LINKSPEED_local (
         repair_req          = 1'b0;
         linkinit_req        = 1'b0;
         phyretrain_req      = 1'b0;
-        trainerror_req      = 1'b0;
         // NOTE: PHY_IN_RETRAIN_rst is driven by its own dedicated block (PHY_IN_RETRAIN_RST_PROC).
 
         // ── MB Rx defaults (always enabled per spec) ──
@@ -639,11 +629,6 @@ module unit_LINKSPEED_local (
             LINKSPEED_LCL_TO_PHYRETRAIN: begin
                 linkspeed_done   = 1'b1;
                 phyretrain_req   = 1'b1;
-            end
-
-            LINKSPEED_LCL_TO_TRAINERROR: begin
-                linkspeed_done   = 1'b1;
-                trainerror_req   = 1'b1;
             end
 
             default: ; // All defaults apply.

@@ -6,17 +6,17 @@ module wrapper_DATATRAINCENTER2_tb;
     // =========================================================================
     // 1. Parameters for Fast and Configurable Testbench Running
     // =========================================================================
-    parameter LCLK_PERIOD          = 1*1000 ; 
-    parameter ANALOG_SETTLE_CYCLES = 10     ; 
+    parameter LCLK_PERIOD          = 1*1000 ;
+    parameter ANALOG_SETTLE_CYCLES = 10     ;
     parameter MIN_DATA_PI_CODE     = 6'D0   ;
-    parameter MAX_DATA_PI_CODE     = 6'D20  ; 
-    parameter SB_DELAY             = 2      ; 
-    parameter MB_DELAY             = 10     ; 
+    parameter MAX_DATA_PI_CODE     = 6'D20  ;
+    parameter SB_DELAY             = 2      ;
+    parameter MB_DELAY             = 10     ;
 
     localparam integer TB_CYCLES_PER_CODE = ANALOG_SETTLE_CYCLES + (MB_DELAY + 1) * MB_DELAY + 15 + 8 * SB_DELAY;
     localparam integer TB_SWEEP_CYCLES    = (MAX_DATA_PI_CODE - MIN_DATA_PI_CODE + 1) * TB_CYCLES_PER_CODE;
     parameter TB_TIMEOUT_CYCLES           = 8 * (TB_SWEEP_CYCLES + SB_DELAY * 10);
-    parameter bit ENABLE_RAND_LOG         = 1'b0; 
+    parameter bit ENABLE_RAND_LOG         = 1'b0;
 
     // =========================================================================
     // Clock and Reset Signals
@@ -171,7 +171,7 @@ module wrapper_DATATRAINCENTER2_tb;
             for (int l = 0; l < 16; l = l + 1) begin
                 if (code >= dut_eye_start[l] && code <= dut_eye_end[l]) begin
                     if (assume_holes_after_quarter_eye_start && (code == dut_eye_start[l] + (dut_eye_end[l] - dut_eye_start[l])/4)) begin
-                        dut_if.tb_force_perlane_pass[l] <= 1'b0; 
+                        dut_if.tb_force_perlane_pass[l] <= 1'b0;
                     end else begin
                         dut_if.tb_force_perlane_pass[l] <= 1'b1;
                     end
@@ -184,27 +184,46 @@ module wrapper_DATATRAINCENTER2_tb;
         end
     end
 
+    always @(posedge lclk) begin
+        if (ptn_if.sweep_en) begin
+            automatic logic [TB_PW-1:0] code = ptn_if.swept_code;
+            for (int l = 0; l < 16; l = l + 1) begin
+                if (code >= ptn_eye_start[l] && code <= ptn_eye_end[l]) begin
+                    if (assume_holes_after_quarter_eye_start && (code == ptn_eye_start[l] + (ptn_eye_end[l] - ptn_eye_start[l])/4)) begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                    end else begin
+                        ptn_if.tb_force_perlane_pass[l] <= 1'b1;
+                    end
+                end else begin
+                    ptn_if.tb_force_perlane_pass[l] <= 1'b0;
+                end
+            end
+        end else begin
+            ptn_if.tb_force_perlane_pass <= 16'hFFFF;
+        end
+    end
+
     // =========================================================================
     // Die A (DUT)
     // =========================================================================
     logic        dut_local_datatraincenter2_en = 0;
     logic        dut_datatraincenter2_done;
-    logic        dut_trainerror_req;
-    logic        dut_local_update_lane_mask;
+    logic        dut_trainerror_req = 1'b0;
+    logic        dut_local_update_lane_mask = 1'b0;
     logic        dut_partner_datatraincenter2_en = 0;
 
+    wire         dut_datatraincenter2_en = dut_local_datatraincenter2_en | dut_partner_datatraincenter2_en;
+
     wrapper_DATATRAINCENTER2 #(
-        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE(MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE)
     ) u_dut (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatraincenter2_en       (dut_local_datatraincenter2_en),
+        .datatraincenter2_en            (dut_datatraincenter2_en),
         .datatraincenter2_done          (dut_datatraincenter2_done),
-        .trainerror_req                 (dut_trainerror_req),
-        .local_update_lane_mask          (dut_local_update_lane_mask),
-        .partner_datatraincenter2_en     (dut_partner_datatraincenter2_en),
+        // .trainerror_req                 (),
+        // .local_update_lane_mask          (),
         .phy_tx_data_pi_phase_ctrl      (dut_if.phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
         .sweep_en                       (dut_if.sweep_en),
@@ -224,9 +243,9 @@ module wrapper_DATATRAINCENTER2_tb;
         .tx_msginfo                     (dut_if.tx_msginfo),
         .tx_data_field                  (dut_if.tx_data_field),
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
+        // .rx_msginfo                     (dut_if.rx_msginfo),
+        // .rx_data_field                  (dut_if.rx_data_field)
     );
 
     // =========================================================================
@@ -235,20 +254,20 @@ module wrapper_DATATRAINCENTER2_tb;
     logic        ptn_local_datatraincenter2_en = 0;
     logic        ptn_partner_datatraincenter2_en = 0;
     logic        ptn_datatraincenter2_done;
-    logic        ptn_trainerror_req;
+    logic        ptn_trainerror_req = 1'b0;
+
+    wire         ptn_datatraincenter2_en = ptn_local_datatraincenter2_en | ptn_partner_datatraincenter2_en;
 
     wrapper_DATATRAINCENTER2 #(
-        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE),
-        .MIN_DATA_PI_CODE(MIN_DATA_PI_CODE)
+        .MAX_DATA_PI_CODE(MAX_DATA_PI_CODE)
     ) u_ptn (
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (tb_is_ltsm_out_of_reset),
-        .local_datatraincenter2_en       (ptn_local_datatraincenter2_en),
+        .datatraincenter2_en            (ptn_datatraincenter2_en),
         .datatraincenter2_done          (ptn_datatraincenter2_done),
-        .trainerror_req                 (ptn_trainerror_req),
-        .local_update_lane_mask          (),
-        .partner_datatraincenter2_en     (ptn_partner_datatraincenter2_en),
+        // .trainerror_req                 (),
+        // .local_update_lane_mask          (),
         .phy_tx_data_pi_phase_ctrl      (ptn_if.phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
         .sweep_en                       (ptn_if.sweep_en),
@@ -268,9 +287,9 @@ module wrapper_DATATRAINCENTER2_tb;
         .tx_msginfo                     (ptn_if.tx_msginfo),
         .tx_data_field                  (ptn_if.tx_data_field),
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
+        // .rx_msginfo                     (ptn_if.rx_msginfo),
+        // .rx_data_field                  (ptn_if.rx_data_field)
     );
 
     // =========================================================================
@@ -332,7 +351,7 @@ module wrapper_DATATRAINCENTER2_tb;
         dut_if.tb_verbose            = 0;
         dut_if.tb_wait_timeout       = 0;
         dut_if.tb_aggr_err           = 0;
-        dut_if.mb_rx_data_lane_mask  = 3'b011; 
+        dut_if.mb_rx_data_lane_mask  = 3'b011;
         dut_if.mb_tx_data_lane_mask  = 3'b011;
         dut_if.cfg_max_err_thresh_perlane = 10;
         dut_if.cfg_max_err_thresh_aggr    = 20;
@@ -382,11 +401,7 @@ module wrapper_DATATRAINCENTER2_tb;
         ptn_partner_datatraincenter2_en = 1;
 
         if (inject_trainerror) begin
-            repeat(100) @(posedge lclk);
-            tb_ptn_inject_valid = 1;
-            tb_ptn_inject_msg = TRAINERROR_Entry_req;
-            @(posedge lclk);
-            tb_ptn_inject_valid = 0;
+            // trainerror injection removed since it is no longer supported in FSM next-state logic
         end
 
         fork
@@ -445,7 +460,7 @@ module wrapper_DATATRAINCENTER2_tb;
 
         tb_run_scenario("Symmetrical Clean Sweep", standard_start, standard_end, 0, 1, 0, 0);
         tb_run_scenario("Sweep with Eye Hole", standard_start, standard_end, 1, 1, 0, 0);
-        tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
+        // tb_run_scenario("Partner Injects TRAINERROR", standard_start, standard_end, 0, 0, 0, 1);
 
         $display("\n# Starting Randomized Scenarios (20 Iterations)");
         tb_in_randomized_scenarios = 1'b1;
@@ -475,6 +490,17 @@ module wrapper_DATATRAINCENTER2_tb;
         $display("\nPASSED: %0d | FAILED: %0d", tb_success_count, tb_fail_count);
         $stop;
     end
+
+    // always @(posedge lclk) begin
+    //     if (dut_if.sweep_en && dut_if.swept_code == 5) begin
+    //         $display("T=%0d ps: swept_code=5, sweep_state=%0d, local_sweep_en=%b, local_test_d2c_done=%b, d2c_perlane_pass=%h, best_lo[0]=%0d, best_hi[0]=%0d, found_pass[0]=%b, zone_valid[0]=%b, zone_min_r[0]=%0d",
+    //             $realtime(), dut_attach.u_D2C_sweep.current_state,
+    //             dut_attach.u_D2C_sweep.local_sweep_en, dut_attach.u_D2C_sweep.local_test_d2c_done,
+    //             dut_attach.u_D2C_sweep.d2c_perlane_pass,
+    //             dut_attach.u_D2C_sweep.best_lo[0], dut_attach.u_D2C_sweep.best_hi[0],
+    //             dut_attach.u_D2C_sweep.found_pass[0], dut_attach.u_D2C_sweep.zone_valid[0], dut_attach.u_D2C_sweep.zone_min_r[0]);
+    //     end
+    // end
 
 endmodule
 

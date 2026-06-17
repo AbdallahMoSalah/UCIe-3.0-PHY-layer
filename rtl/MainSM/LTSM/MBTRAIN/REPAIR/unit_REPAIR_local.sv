@@ -51,15 +51,16 @@ module unit_REPAIR_local (
         input  logic [2:0]  degraded_tx_lane_map_code, // Our best TX degraded lane code
         input  logic        width_degrade_feasible,     // 1 = our TX code is valid (!= 3'b000)
 
-        // MB TX/RX Lane Control
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // MB TX/RX Lane Control: moved to wrapper_REPAIR as static assigns
+        // (spec §4.5.3.4.13: CLK TX=01, DATA/VAL/TRK TX=00, CLK RX=1, DATA/VAL/TRK RX=0)
+        // output logic [1:0]  mb_tx_clk_lane_sel,
+        // output logic [1:0]  mb_tx_data_lane_sel,
+        // output logic [1:0]  mb_tx_val_lane_sel,
+        // output logic [1:0]  mb_tx_trk_lane_sel,
+        // output logic        mb_rx_clk_lane_sel,
+        // output logic        mb_rx_data_lane_sel,
+        // output logic        mb_rx_val_lane_sel,
+        // output logic        mb_rx_trk_lane_sel,
 
         // Sideband Control Signals
         output logic        tx_sb_msg_valid,
@@ -69,8 +70,8 @@ module unit_REPAIR_local (
 
         input  logic        rx_sb_msg_valid,
         input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -128,9 +129,7 @@ module unit_REPAIR_local (
         next_state = current_state;
 
         // TRAINERROR global overrides
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = REPAIR_LCL_TO_TRAINERROR;
-        end else if (!repair_en) begin
+        if (!repair_en) begin
             next_state = REPAIR_LCL_IDLE;
         end else begin
             case (current_state)
@@ -205,18 +204,7 @@ module unit_REPAIR_local (
         repair_done         = 1'b0;
         trainerror_req      = 1'b0;
 
-        // Mainband defaults during REPAIR (spec §4.5.3.4.13):
-        //   Track, Data, Valid TX held low (2'b00).
-        //   Clock TX held differential/simultaneous low (2'b01).
-        //   Clock RX enabled (1'b1), other RX disabled (1'b0).
-        mb_tx_clk_lane_sel  = 2'b01;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b00;
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b0;
-        mb_rx_val_lane_sel  = 1'b0;
-        mb_rx_trk_lane_sel  = 1'b0;
+        // MB signals moved to wrapper_REPAIR as static assigns
 
         tx_sb_msg_valid     = 1'b0;
         tx_sb_msg           = NOTHING;
@@ -224,16 +212,7 @@ module unit_REPAIR_local (
         tx_data_field       = 64'h0;
 
         case (current_state)
-            REPAIR_LCL_IDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;
-                mb_tx_data_lane_sel = 2'b00;
-                mb_tx_val_lane_sel  = 2'b00;
-                mb_tx_trk_lane_sel  = 2'b00;
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-                mb_rx_trk_lane_sel  = 1'b0;
-            end
+            REPAIR_LCL_IDLE: begin end
 
             REPAIR_LCL_SEND_INIT: begin
                 tx_sb_msg_valid = 1'b1;

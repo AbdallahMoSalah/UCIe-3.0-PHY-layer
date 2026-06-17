@@ -237,10 +237,10 @@ module wrapper_VALTRAINCENTER_tb;
         .soft_rst_n                     (is_ltsm_out_of_reset),
 
         .valtraincenter_done            (dut_valtraincenter_done),
-        .trainerror_req                 (dut_trainerror_req),
+        // .trainerror_req                 (dut_trainerror_req),
 
         .valtraincenter_en              (dut_valtraincenter_en),
-        .local_update_lane_mask         (dut_local_update_lane_mask),
+        // .local_update_lane_mask         (dut_local_update_lane_mask),
 
         .phy_tx_val_pi_phase_ctrl       (dut_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
@@ -293,10 +293,10 @@ module wrapper_VALTRAINCENTER_tb;
         .soft_rst_n                     (is_ltsm_out_of_reset),
 
         .valtraincenter_done            (ptn_valtraincenter_done),
-        .trainerror_req                 (ptn_trainerror_req),
+        // .trainerror_req                 (ptn_trainerror_req),
 
         .valtraincenter_en              (ptn_valtraincenter_en),
-        .local_update_lane_mask         (ptn_local_update_lane_mask),
+        // .local_update_lane_mask         (ptn_local_update_lane_mask),
 
         .phy_tx_val_pi_phase_ctrl       (ptn_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
@@ -626,7 +626,8 @@ module wrapper_VALTRAINCENTER_tb;
         //     .suppress_sb(1), .inject_trainerror(0)
         // );
 
-        // Scenario 7: Injected TRAINERROR from partner
+        // Scenario 7: Partner Injects TRAINERROR (Commented out because trainerror is removed)
+        /*
         run_scenario(
             .name("Scenario 7: Partner Injects TRAINERROR"),
             .d_start(2), .d_end(12),
@@ -635,6 +636,7 @@ module wrapper_VALTRAINCENTER_tb;
             .expect_done_dut(0), .expect_te_dut(1),
             .suppress_sb(0), .inject_trainerror(1)
         );
+        */
 
         // =========================================================================
         // 8. Randomized Scenarios Block with Self-Checking

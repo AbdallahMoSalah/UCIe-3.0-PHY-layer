@@ -30,7 +30,7 @@
 // ====================================================================================================
 
 module unit_VALTRAINCENTER_local #(
-        parameter int unsigned MAX_VAL_PI_CODE = 7'd16
+        parameter int unsigned MAX_VAL_PI_CODE = 'd16
     ) (
         //=====================================//
         // Clock and Reset Signals:            //
@@ -43,25 +43,18 @@ module unit_VALTRAINCENTER_local #(
         //=====================================//
         input  logic        valtraincenter_en   , // 0: Disable (→ IDLE). 1: Enable/start VALTRAINCENTER sequence.
         input  logic        soft_rst_n          , // 0: Soft-reset active. 1: Normal.
-        output logic        valtraincenter_done , // 1: Sub-state completed (held until valtraincenter_en = 0).
-        output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
-        output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
+        output logic        valtraincenter_done, // 1: Sub-state completed (held until valtraincenter_en = 0).
+        // output logic        trainerror_req      , // 1: Fatal error — requesting TRAINERROR state.
+        // output logic        update_lane_mask    , // 1: Pulse on entry to SEND_START_REQ to update lane mask.
 
         //=====================================//
         // PHY PI Phase Control:               //
         //=====================================//
         output logic [$clog2(MAX_VAL_PI_CODE+1)-1:0] phy_tx_val_pi_phase_ctrl,
 
-        //=====================================//
-        // MB Lane Control Configuration:       //
-        //=====================================//
-        input  logic        mb_tx_continuous_or_strobe_clk,
-        input  logic [2:0]  phy_negotiated_speed          ,
-
-        output logic [1:0]  mb_tx_clk_lane_sel  ,
-        output logic [1:0]  mb_tx_data_lane_sel ,
-        output logic [1:0]  mb_tx_val_lane_sel  ,
-        output logic [1:0]  mb_tx_trk_lane_sel  ,
+        // MB Lane Control: moved to wrapper_VALTRAINCENTER as static assigns
+        // (spec §4.5.3.4.3: TX CLK=speed-dep, TX VAL=01, TX DATA/TRK=00)
+        // Speed-dependent CLK and config inputs also moved to wrapper.
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -90,18 +83,18 @@ module unit_VALTRAINCENTER_local #(
     localparam int unsigned VW = $clog2(MAX_VAL_PI_CODE + 1);
 
     // FSM State Encoding — SEND → WAIT pattern
-    localparam [3:0]
-    VALTRAINCENTER_LCL_IDLE           = 4'd0,  // Wait for valtraincenter_en
-    VALTRAINCENTER_LCL_SEND_START_REQ = 4'd1,  // TX {MBTRAIN.VALTRAINCENTER start req}
-    VALTRAINCENTER_LCL_WAIT_START_RESP= 4'd2,  // Wait for {MBTRAIN.VALTRAINCENTER start resp}
-    VALTRAINCENTER_LCL_SWEEP          = 4'd3,  // Assert sweep_en; wait for sweep_done
-    VALTRAINCENTER_LCL_APPLY_BEST     = 4'd4,  // 1-cycle best midpoint stability stage
-    VALTRAINCENTER_LCL_SEND_DONE_REQ  = 4'd5,  // TX {MBTRAIN.VALTRAINCENTER done req}
-    VALTRAINCENTER_LCL_WAIT_DONE_RESP = 4'd6,  // Wait for {MBTRAIN.VALTRAINCENTER done resp}
-    VALTRAINCENTER_LCL_TO_VALTRAINVREF= 4'd7,  // Terminal: completed
-    VALTRAINCENTER_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: error
+    localparam [2:0]
+    VALTRAINCENTER_LCL_IDLE           = 3'd0,  // Wait for valtraincenter_en
+    VALTRAINCENTER_LCL_SEND_START_REQ = 3'd1,  // TX {MBTRAIN.VALTRAINCENTER start req}
+    VALTRAINCENTER_LCL_WAIT_START_RESP= 3'd2,  // Wait for {MBTRAIN.VALTRAINCENTER start resp}
+    VALTRAINCENTER_LCL_SWEEP          = 3'd3,  // Assert sweep_en; wait for sweep_done
+    VALTRAINCENTER_LCL_APPLY_BEST     = 3'd4,  // 1-cycle best midpoint stability stage
+    VALTRAINCENTER_LCL_SEND_DONE_REQ  = 3'd5,  // TX {MBTRAIN.VALTRAINCENTER done req}
+    VALTRAINCENTER_LCL_WAIT_DONE_RESP = 3'd6,  // Wait for {MBTRAIN.VALTRAINCENTER done resp}
+    VALTRAINCENTER_LCL_TO_VALTRAINVREF= 3'd7;  // Terminal: completed
+    // VALTRAINCENTER_LCL_TO_TRAINERROR  = 4'd8;  // Terminal: error
 
-    reg [3:0] current_state, next_state;
+    reg [2:0] current_state, next_state;
     reg [VW-1:0] best_code_r;
 
     assign sweep_en = (current_state == VALTRAINCENTER_LCL_SWEEP);
@@ -121,10 +114,7 @@ module unit_VALTRAINCENTER_local #(
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 
-        if (rx_sb_msg_valid && rx_sb_msg == TRAINERROR_Entry_req) begin
-            next_state = VALTRAINCENTER_LCL_TO_TRAINERROR;
-        end
-        else if (!valtraincenter_en) begin
+        if (!valtraincenter_en) begin
             next_state = VALTRAINCENTER_LCL_IDLE;
         end
         else begin
@@ -165,10 +155,6 @@ module unit_VALTRAINCENTER_local #(
                     next_state = VALTRAINCENTER_LCL_TO_VALTRAINVREF;
                 end
 
-                VALTRAINCENTER_LCL_TO_TRAINERROR: begin
-                    next_state = VALTRAINCENTER_LCL_TO_TRAINERROR;
-                end
-
                 default: begin
                     next_state = VALTRAINCENTER_LCL_IDLE;
                 end
@@ -192,34 +178,25 @@ module unit_VALTRAINCENTER_local #(
 
     always_comb begin : OUTPUT_COMB
         valtraincenter_done = 1'b0;
-        trainerror_req      = 1'b0;
-        update_lane_mask    = 1'b0;
+        // trainerror_req      = 1'b0;
+        // update_lane_mask    = 1'b0;
 
         tx_sb_msg_valid     = 1'b0;
         tx_sb_msg           = NOTHING;
         tx_msginfo          = 16'h0;
         tx_data_field       = 64'h0;
 
-        // Default MB lane select behaviors based on spec for VALTRAINCENTER active states.
-        // During active training/gating actions, clock TX must be active center-phase (2'b01)
-        // and Valid TX must be active pattern (2'b01).
-        mb_tx_clk_lane_sel  = 2'b01;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b01; // Active valid lane TX
-        mb_tx_trk_lane_sel  = 2'b00;
+        // MB TX signals moved to wrapper as static/conditional assigns
 
         case (current_state)
-            VALTRAINCENTER_LCL_IDLE: begin
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
-                mb_tx_val_lane_sel  = 2'b00;
-            end
+            VALTRAINCENTER_LCL_IDLE: begin  end
 
             VALTRAINCENTER_LCL_SEND_START_REQ: begin
                 tx_sb_msg_valid  = 1'b1;
                 tx_sb_msg        = MBTRAIN_VALTRAINCENTER_start_req;
                 tx_msginfo       = 16'h0;
                 tx_data_field    = 64'h0;
-                update_lane_mask = 1'b1;
+                // update_lane_mask = 1'b1;
             end
 
             VALTRAINCENTER_LCL_WAIT_START_RESP: begin
@@ -247,13 +224,6 @@ module unit_VALTRAINCENTER_local #(
 
             VALTRAINCENTER_LCL_TO_VALTRAINVREF: begin
                 valtraincenter_done = 1'b1;
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
-            end
-
-            VALTRAINCENTER_LCL_TO_TRAINERROR: begin
-                valtraincenter_done = 1'b1;
-                trainerror_req      = 1'b1;
-                mb_tx_clk_lane_sel  = (mb_tx_continuous_or_strobe_clk && phy_negotiated_speed <= 3'b101) ? 2'b00 : 2'b01;
             end
 
             default: begin

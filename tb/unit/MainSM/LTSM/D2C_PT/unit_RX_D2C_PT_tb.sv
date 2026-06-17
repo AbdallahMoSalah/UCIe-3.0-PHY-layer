@@ -35,7 +35,7 @@ module unit_RX_D2C_PT_tb;
     reg [15:0] cfg_max_err_thresh_aggr=0;         // Aggregate max error threshold
 
     // MB RX comparison result inputs (new *_pass polarity):
-    reg        req_mb_rx_compare_done=0;          // 0: In progress, 1: Comparison complete
+    // reg        req_mb_rx_compare_done=0;          // 0: In progress, 1: Comparison complete
     reg        req_mb_rx_aggr_pass=1;             // 1: Aggregate passed, 0: Aggregate failed
     reg [15:0] req_mb_rx_perlane_pass=16'hFFFF;  // Per-lane pass bits (1=pass per lane)
     reg        req_mb_rx_val_pass=1;              // 1: Valid Lane matched, 0: mismatch detected
@@ -191,7 +191,7 @@ module unit_RX_D2C_PT_tb;
         .mb_rx_compare_setup        (req_mb_rx_compare_setup_w),   // 00: Per-Lane, 01: Aggregate
 
         // MB RX comparison result inputs (new *_pass polarity):
-        .mb_rx_compare_done (req_mb_rx_compare_done),          // 0: In progress, 1: Done
+        // .mb_rx_compare_done (req_mb_rx_compare_done),          // 0: In progress, 1: Done
         .mb_rx_aggr_pass    (req_mb_rx_aggr_pass),             // 1: Aggregate passed
         .mb_rx_perlane_pass (req_mb_rx_perlane_pass),          // Per-lane pass bits
         .mb_rx_val_pass     (req_mb_rx_val_pass),              // 1: Valid Lane matched
@@ -319,24 +319,24 @@ module unit_RX_D2C_PT_tb;
 
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            req_mb_rx_compare_done <= 0;
+            // req_mb_rx_compare_done <= 0;
             req_burst<=0; req_idle<=0; req_iter<=0; req_done_sent<=0;
         end else if (req_mb_rx_compare_en_w) begin
-            req_mb_rx_compare_done <= 0;
+            // req_mb_rx_compare_done <= 0;
             if (req_iter < d2c_iter_count) begin
                 if (req_burst < d2c_burst_count) req_burst <= req_burst+1;
                 else if (req_idle < d2c_idle_count) req_idle <= req_idle+1;
                 else begin req_iter<=req_iter+1; req_burst<=0; req_idle<=0; end
             end else if (!req_done_sent) begin
                 $display("[%0t] REQ TB model: compare done, perlane_pass=%h", $time, tb_req_perlane_pass);
-                req_mb_rx_compare_done <= 1;
+                // req_mb_rx_compare_done <= 1;
                 req_mb_rx_perlane_pass <= tb_req_perlane_pass;
                 req_mb_rx_aggr_pass    <= tb_req_aggr_pass;
                 req_mb_rx_val_pass     <= tb_req_val_pass;
                 req_done_sent          <= 1;
             end
         end else begin
-            req_mb_rx_compare_done <= 0;
+            // req_mb_rx_compare_done <= 0;
             req_burst<=0; req_idle<=0; req_iter<=0; req_done_sent<=0;
         end
     end

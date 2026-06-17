@@ -122,7 +122,7 @@ module wrapper_D2C_PT_top_tb;
 
     // Macro status signals (inputs to Die 0)
     reg         dut_mb_tx_pattern_count_done = 0;
-    reg         dut_mb_rx_compare_done       = 0;
+    // reg         dut_mb_rx_compare_done       = 0;
     reg         dut_mb_rx_aggr_pass          = 1;
     reg [15:0]  dut_mb_rx_perlane_pass       = 16'hFFFF;
     reg         dut_mb_rx_val_pass           = 1;
@@ -188,7 +188,7 @@ module wrapper_D2C_PT_top_tb;
 
     // Macro status signals (inputs to Die 1)
     reg         ptn_mb_tx_pattern_count_done = 0;
-    reg         ptn_mb_rx_compare_done       = 0;
+    // reg         ptn_mb_rx_compare_done       = 0;
     reg         ptn_mb_rx_aggr_pass          = 1;
     reg [15:0]  ptn_mb_rx_perlane_pass       = 16'hFFFF;
     reg         ptn_mb_rx_val_pass           = 1;
@@ -265,7 +265,7 @@ module wrapper_D2C_PT_top_tb;
         .mb_tx_data_pattern_sel         (dut_mb_tx_data_pattern_sel    ),
         .mb_tx_val_pattern_sel          (dut_mb_tx_val_pattern_sel     ),
         .mb_tx_pattern_count_done       (dut_mb_tx_pattern_count_done  ),
-        .mb_rx_compare_done             (dut_mb_rx_compare_done        ),
+        // .mb_rx_compare_done             (dut_mb_rx_compare_done        ),
         .mb_rx_aggr_pass                (dut_mb_rx_aggr_pass           ),
         .mb_rx_perlane_pass             (dut_mb_rx_perlane_pass        ),
         .mb_rx_val_pass                 (dut_mb_rx_val_pass            ),
@@ -340,7 +340,7 @@ module wrapper_D2C_PT_top_tb;
         .mb_tx_data_pattern_sel         (ptn_mb_tx_data_pattern_sel    ),
         .mb_tx_val_pattern_sel          (ptn_mb_tx_val_pattern_sel     ),
         .mb_tx_pattern_count_done       (ptn_mb_tx_pattern_count_done  ),
-        .mb_rx_compare_done             (ptn_mb_rx_compare_done        ),
+        // .mb_rx_compare_done             (ptn_mb_rx_compare_done        ),
         .mb_rx_aggr_pass                (ptn_mb_rx_aggr_pass           ),
         .mb_rx_perlane_pass             (ptn_mb_rx_perlane_pass        ),
         .mb_rx_val_pass                 (ptn_mb_rx_val_pass            ),
@@ -450,13 +450,13 @@ module wrapper_D2C_PT_top_tb;
     reg     dut_rx_done_sent=0;
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            dut_mb_rx_compare_done <= 0;
+            // dut_mb_rx_compare_done <= 0;
             dut_mb_rx_perlane_pass <= 16'hFFFF;
             dut_mb_rx_aggr_pass    <= 1;
             dut_mb_rx_val_pass     <= 1;
             dut_rx_burst<=0; dut_rx_idle<=0; dut_rx_iter<=0; dut_rx_done_sent<=0;
         end else if (dut_mb_rx_compare_en) begin
-            dut_mb_rx_compare_done <= 0;
+            // dut_mb_rx_compare_done <= 0;
             if (dut_rx_iter < dut_mb_rx_iter_count) begin
                 if (dut_rx_burst < dut_mb_rx_burst_count) dut_rx_burst <= dut_rx_burst + 1;
                 else if (dut_rx_idle < dut_mb_rx_idle_count) dut_rx_idle <= dut_rx_idle + 1;
@@ -467,14 +467,14 @@ module wrapper_D2C_PT_top_tb;
                 end
             end else if (!dut_rx_done_sent) begin
                 if (tb_verbose) $display("[%0t] DUT RX Macro: comparison done", $time);
-                dut_mb_rx_compare_done <= 1;
+                // dut_mb_rx_compare_done <= 1;
                 dut_mb_rx_perlane_pass <= tb_perlane_pass;
                 dut_mb_rx_aggr_pass    <= tb_aggr_pass;
                 dut_mb_rx_val_pass     <= tb_val_pass;
                 dut_rx_done_sent <= 1;
             end
         end else begin
-            dut_mb_rx_compare_done <= 0;
+            // dut_mb_rx_compare_done <= 0;
             dut_rx_burst<=0; dut_rx_idle<=0; dut_rx_iter<=0; dut_rx_done_sent<=0;
         end
     end
@@ -511,13 +511,13 @@ module wrapper_D2C_PT_top_tb;
     reg     ptn_rx_done_sent=0;
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
-            ptn_mb_rx_compare_done <= 0;
+            // ptn_mb_rx_compare_done <= 0;
             ptn_mb_rx_perlane_pass <= 16'hFFFF;
             ptn_mb_rx_aggr_pass    <= 1;
             ptn_mb_rx_val_pass     <= 1;
             ptn_rx_burst<=0; ptn_rx_idle<=0; ptn_rx_iter<=0; ptn_rx_done_sent<=0;
         end else if (ptn_mb_rx_compare_en) begin
-            ptn_mb_rx_compare_done <= 0;
+            // ptn_mb_rx_compare_done <= 0;
             if (ptn_rx_iter < ptn_mb_rx_iter_count) begin
                 if (ptn_rx_burst < ptn_mb_rx_burst_count) ptn_rx_burst <= ptn_rx_burst + 1;
                 else if (ptn_rx_idle < ptn_mb_rx_idle_count) ptn_rx_idle <= ptn_rx_idle + 1;
@@ -528,14 +528,14 @@ module wrapper_D2C_PT_top_tb;
                 end
             end else if (!ptn_rx_done_sent) begin
                 if (tb_verbose) $display("[%0t] PTN RX Macro: comparison done", $time);
-                ptn_mb_rx_compare_done <= 1;
+                // ptn_mb_rx_compare_done <= 1;
                 ptn_mb_rx_perlane_pass <= tb_perlane_pass;
                 ptn_mb_rx_aggr_pass    <= tb_aggr_pass;
                 ptn_mb_rx_val_pass     <= tb_val_pass;
                 ptn_rx_done_sent <= 1;
             end
         end else begin
-            ptn_mb_rx_compare_done <= 0;
+            // ptn_mb_rx_compare_done <= 0;
             ptn_rx_burst<=0; ptn_rx_idle<=0; ptn_rx_iter<=0; ptn_rx_done_sent<=0;
         end
     end

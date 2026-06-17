@@ -22,12 +22,8 @@ module wrapper_DATAVREF #(
         input  logic        soft_rst_n,                      // 0: Soft reset active; 1: Normal operation
         input  logic        datavref_en,               // 0: Disable; 1: Enable Local DATAVREF sequence
 
-        // Local FSM Control:
-        output logic        local_update_lane_mask,         // Pulse: update negotiated lane mask
-
         // Combined outputs
         output logic        datavref_done,                  // 0: In progress; 1: Completed
-        output logic        trainerror_req,                  // 0: Normal; 1: Request TRAINERROR entry
 
         // =========================================================================
         // Group 3: PHY Control Signals
@@ -76,8 +72,6 @@ module wrapper_DATAVREF #(
     // =========================================================================
     wire        local_datavref_done_wire;
     wire        partner_datavref_done_wire;
-    wire        local_trainerror_req_wire;
-    wire        partner_trainerror_req_wire;
 
     // SB outputs from Local FSM:
     logic        local_tx_sb_msg_valid;
@@ -104,15 +98,9 @@ module wrapper_DATAVREF #(
         .datavref_en            (datavref_en                  ),
         .soft_rst_n             (soft_rst_n                   ),
         .datavref_done          (local_datavref_done_wire     ),
-        .trainerror_req         (local_trainerror_req_wire    ),
-        .update_lane_mask       (local_update_lane_mask       ),
         // PHY Vref Control
         .phy_rx_datavref_ctrl   (phy_rx_datavref_ctrl         ),
-        // MB Lane Control Outputs
-        .mb_rx_clk_lane_sel     (mb_rx_clk_lane_sel           ),
-        .mb_rx_data_lane_sel    (mb_rx_data_lane_sel          ),
-        .mb_rx_val_lane_sel     (mb_rx_val_lane_sel           ),
-        .mb_rx_trk_lane_sel     (mb_rx_trk_lane_sel           ),
+        // MB Lane Control: moved to wrapper as static assigns
         // D2C Sweep Interface
         .sweep_en               (sweep_en                     ),
         .swept_code             (swept_code                   ),
@@ -140,12 +128,7 @@ module wrapper_DATAVREF #(
         .datavref_en            (datavref_en                   ),
         .soft_rst_n             (soft_rst_n                    ),
         .datavref_done          (partner_datavref_done_wire    ),
-        .trainerror_req         (partner_trainerror_req_wire   ),
-        // MB Lane Control Outputs
-        .mb_tx_clk_lane_sel     (mb_tx_clk_lane_sel            ),
-        .mb_tx_data_lane_sel    (mb_tx_data_lane_sel           ),
-        .mb_tx_val_lane_sel     (mb_tx_val_lane_sel            ),
-        .mb_tx_trk_lane_sel     (mb_tx_trk_lane_sel            ),
+        // MB Lane Control: moved to wrapper as static assigns
         .partner_sweep_en       (partner_sweep_en              ),
         // Sideband Control Signals
         .tx_sb_msg_valid        (partner_tx_sb_msg_valid       ),
@@ -162,9 +145,8 @@ module wrapper_DATAVREF #(
     // 3rd: Multiplexing and Output Assignments
     // =========================================================================
 
-    // Combined done and trainerror logic:
+    // Combined done logic:
     assign datavref_done  = local_datavref_done_wire & partner_datavref_done_wire;
-    assign trainerror_req = local_trainerror_req_wire | partner_trainerror_req_wire;
 
     // Sideband TX Output arbitration:
     // Local FSM has priority; partner drives only when local is silent.
@@ -172,6 +154,21 @@ module wrapper_DATAVREF #(
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg      ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo     ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field  ;
+
+    // =========================================================================
+    // MB Lane Assignments — Static per spec §4.5.3.4.2 MBTRAIN.DATAVREF:
+    //   Partner (TX side): CLK TX active, DATA/VAL/TRK TX held low.
+    //   Local   (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
+    //   All go to zero when datavref_en=0 (FSM is in IDLE).
+    // =========================================================================
+    assign mb_tx_clk_lane_sel  = 2'b01; // Active clock when enabled
+    assign mb_tx_data_lane_sel = 2'b00; // Always held low
+    assign mb_tx_val_lane_sel  = 2'b00; // Always held low
+    assign mb_tx_trk_lane_sel  = 2'b00; // Always held low
+    assign mb_rx_clk_lane_sel  = 1'b1 ; // Enabled when active
+    assign mb_rx_data_lane_sel = 1'b1 ; // Enabled when active
+    assign mb_rx_val_lane_sel  = 1'b1 ; // Enabled when active
+    assign mb_rx_trk_lane_sel  = 1'b0 ; // Always disabled
 
 endmodule
 
