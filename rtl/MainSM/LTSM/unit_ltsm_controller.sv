@@ -31,6 +31,9 @@ import LTSM_state_pkg::*;
     // ---------------------------------------------------------------- handshakes
     output logic        reset_en,
     input  logic        reset_done,
+    input  state_n_e    mbinit_state_n,
+    input  state_n_e    mbtrain_state_n,
+    output state_n_e    current_ltsm_state_n,
 
     output logic        sbinit_en,
     input  logic        sbinit_done,
@@ -55,6 +58,12 @@ import LTSM_state_pkg::*;
     input  logic        mbtrain_error,   // <= MBTRAIN ltsm_trainerror_req
     input  logic        linkinit_error,
     input  logic        active_error,
+
+    // ---------------------------------------------------------------- ACTIVE exit
+    // Reserved: ACTIVE resolves the next LTSM state (PHYRETRAIN / L1 / L2 /
+    // TRAINERROR) here. Wired now; the FSM acts on it in a later step (ACTIVE is
+    // terminal in Step 1).
+    input  ltsm_ctrl_state_e active_next_ltsm_state,
 
     // ---------------------------------------------------------------- status
     output LTSM_state_e current_ltsm_state,
@@ -111,6 +120,112 @@ import LTSM_state_pkg::*;
             default: ;
         endcase
     end
+
+    // =============================================================================
+    // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
+    // =============================================================================
+    always_comb begin
+        case (current_state)
+            CTRL_RESET:      current_log_state = LOG_RESET;
+            CTRL_SBINIT:     current_log_state = LOG_SBINIT;
+            CTRL_MBINIT:     current_log_state = mbinit_state_n;
+            CTRL_MBTRAIN:    current_log_state = mbtrain_state_n;
+            CTRL_LINKINIT:   current_log_state = LOG_LINKINIT;
+            CTRL_ACTIVE:     current_log_state = LOG_ACTIVE;
+            //CTRL_PHYRETRAIN: current_log_state = LOG_PHYRETRAIN;
+            //CTRL_L1, CTRL_L2: current_log_state = LOG_L1_L2;
+            //CTRL_TRAINERROR: current_log_state = LOG_TRAINERROR;
+            // Handshake sub-phases log as TRAINERROR; this also restarts the
+            // shared watchdog on entry (fresh 8 ms for the handshake) and avoids
+            // a duplicate log shift when CTRL_TRAINERROR is finally reached.
+            default:             current_log_state = LOG_RESET;
+        endcase
+    end
+
+    logic [7:0] log0_state_n_reg;
+    logic [7:0] log0_state_n_minus_1_reg;
+    logic [7:0] log0_state_n_minus_2_reg;
+    logic [7:0] log1_state_n_minus_3_reg;
+
+    logic log0_state_n_valid_reg;
+    logic log0_state_n_minus_1_valid_reg;
+    logic log0_state_n_minus_2_valid_reg;
+    logic log1_state_n_minus_3_valid_reg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            log0_state_n_reg         <= 8'h00;
+            log0_state_n_minus_1_reg <= 8'h00;
+            log0_state_n_minus_2_reg <= 8'h00;
+            log1_state_n_minus_3_reg <= 8'h00;
+
+            log0_state_n_valid_reg         <= 1'b0;
+            log0_state_n_minus_1_valid_reg <= 1'b0;
+            log0_state_n_minus_2_valid_reg <= 1'b0;
+            log1_state_n_minus_3_valid_reg <= 1'b0;
+        end else begin
+            log0_state_n_valid_reg         <= 1'b0;
+            log0_state_n_minus_1_valid_reg <= 1'b0;
+            log0_state_n_minus_2_valid_reg <= 1'b0;
+            log1_state_n_minus_3_valid_reg <= 1'b0;
+
+            if (current_log_state != log0_state_n_reg[4:0]) begin
+                log0_state_n_reg         <= {3'b0, current_log_state};
+                log0_state_n_minus_1_reg <= log0_state_n_reg;
+                log0_state_n_minus_2_reg <= log0_state_n_minus_1_reg;
+                log1_state_n_minus_3_reg <= log0_state_n_minus_2_reg;
+
+                log0_state_n_valid_reg         <= 1'b1;
+                log0_state_n_minus_1_valid_reg <= 1'b1;
+                log0_state_n_minus_2_valid_reg <= 1'b1;
+                log1_state_n_minus_3_valid_reg <= 1'b1;
+            end
+        end
+    end
+
+    assign current_ltsm_state_n = current_log_state;
+
+    assign log0_state_n         = log0_state_n_reg;
+    assign log0_state_n_minus_1 = log0_state_n_minus_1_reg;
+    assign log0_state_n_minus_2 = log0_state_n_minus_2_reg;
+    assign log1_state_n_minus_3 = log1_state_n_minus_3_reg;
+
+    assign log0_state_n_valid         = log0_state_n_valid_reg;
+    assign log0_state_n_minus_1_valid = log0_state_n_minus_1_valid_reg;
+    assign log0_state_n_minus_2_valid = log0_state_n_minus_2_valid_reg;
+    assign log1_state_n_minus_3_valid = log1_state_n_minus_3_valid_reg;
+
+    // Dynamically evaluate log0_width_degrade and log0_lane_reversal
+    always_comb begin
+        log0_width_degrade = 1'b0;
+        if (reg_Max_Link_Width_cap == 3'b000) begin // Local max width capability x16
+            if (reg_Link_Width_enable_status == 4'h1 || reg_Link_Width_enable_status == 4'h0) begin
+                log0_width_degrade = 1'b1;
+            end
+        end else if (reg_Max_Link_Width_cap == 3'b111) begin // Local max width capability x8
+            if (reg_Link_Width_enable_status == 4'h0) begin
+                log0_width_degrade = 1'b1;
+            end
+        end
+    end
+
+    assign log0_lane_reversal = mb_lane_reversal_req;
+
+    logic log0_lane_reversal_valid_reg;
+    logic log0_width_degrade_valid_reg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            log0_lane_reversal_valid_reg <= 1'b0;
+            log0_width_degrade_valid_reg <= 1'b0;
+        end else begin
+            log0_lane_reversal_valid_reg <= (next_state != current_state);
+            log0_width_degrade_valid_reg <= (next_state != current_state);
+        end
+    end
+
+    assign log0_lane_reversal_valid = log0_lane_reversal_valid_reg;
+    assign log0_width_degrade_valid = log0_width_degrade_valid_reg;
 
     // =========================================================================
     // CURRENT-STATE STATUS ENUM

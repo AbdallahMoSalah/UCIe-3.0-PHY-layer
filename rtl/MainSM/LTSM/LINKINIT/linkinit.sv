@@ -10,15 +10,15 @@ module linkinit(
     input logic clk,
     input logic rst_n,
     input RDI_state rdi_state_sts,      // Status from RDI State Machine
-    input timeout_expired,               // Signal indicating timer has reached limit
     input Linkinit_enable,               // Enable signal to start initialization
     input start_ucie_link_training,      // Trigger for link training (error condition here)
 
     output logic linkinit_done,          // Asserted when link is successfully active
-    output logic timeout_rst_n,          // Reset signal for the external timeout counter
-    output logic enable_timeout,         // Enable signal for the external timeout counter
     output logic linkinit_error          // Asserted when an error or timeout occurs
 );
+    // NOTE: the 8 ms state watchdog is owned by the ltsm_controller (shared
+    // timer, enabled while in LINKINIT). This block no longer drives its own
+    // timeout counter — the controller handles the timeout / TRAINERROR path.
 
 // State definitions
 typedef enum logic [2:0] {
@@ -46,31 +46,26 @@ always @(*) begin
     // Default values to prevent unintended latches during synthesis
     ns             = cs;
     linkinit_done  = 1'b0;
-    timeout_rst_n  = 1'b1; // Reset is active low, default to inactive
-    enable_timeout = 1'b0;
     linkinit_error = 1'b0;
 
     case (cs)
         // IDLE: Waiting for the enable signal to start initialization
         idle: begin
             if (Linkinit_enable) begin
-                ns             = wait_for_rdi_active;
-                timeout_rst_n  = 1'b0; // Pulse reset to clear external timer
-                enable_timeout = 1'b1;
+                ns = wait_for_rdi_active;
             end
         end
 
-        // WAIT_FOR_RDI_ACTIVE: Monitoring RDI status and timeout conditions
+        // WAIT_FOR_RDI_ACTIVE: Monitoring RDI status (8 ms timeout owned by
+        // the ltsm_controller now)
         wait_for_rdi_active: begin
-            enable_timeout = 1'b1;
-            
             // Success: RDI reports Active state
-            if (rdi_state_sts == Active) begin 
+            if (rdi_state_sts == Active) begin
                 ns            = idle;
                 linkinit_done = 1'b1;
             end
-            // Failure: Timeout reached or external training trigger detected
-            else if (timeout_expired || start_ucie_link_training) begin
+            // Failure: explicit re-training trigger detected
+            else if (start_ucie_link_training) begin
                 ns             = link_error;
                 linkinit_error = 1'b1;
             end
