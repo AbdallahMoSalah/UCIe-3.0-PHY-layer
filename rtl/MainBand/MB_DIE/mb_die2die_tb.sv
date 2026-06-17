@@ -79,6 +79,11 @@ module mb_die2die_tb;
     logic                  i_mapper_en;
     logic [2:0]            i_lfsr_state;
     logic                  tb_reversal_en = 1'b0;
+    logic                  reverse_lanes_0to1 = 1'b0;
+    logic                  reverse_lanes_1to0 = 1'b0;
+    logic                  die0_reversal_en = 1'b0;
+    logic                  die1_reversal_en = 1'b0;
+    logic                  tb_asymmetric_mode = 1'b0;
     logic                  i_valid_pattern_en;
     logic                  i_clk_pattern_en, i_clk_embedded_en;
     logic                  i_clk_detector_en;
@@ -139,8 +144,8 @@ module mb_die2die_tb;
 
     always_comb begin
         for (int i = 0; i < NUM_LANES; i = i + 1) begin
-            d1_to_d0_data[i] = reverse_lanes ? d1_TD_P[NUM_LANES-1-i] : d1_TD_P[i];
-            d0_to_d1_data[i] = reverse_lanes ? d0_TD_P[NUM_LANES-1-i] : d0_TD_P[i];
+            d1_to_d0_data[i] = reverse_lanes_1to0 ? d1_TD_P[NUM_LANES-1-i] : d1_TD_P[i];
+            d0_to_d1_data[i] = reverse_lanes_0to1 ? d0_TD_P[NUM_LANES-1-i] : d0_TD_P[i];
         end
     end
 
@@ -153,7 +158,7 @@ module mb_die2die_tb;
         .lp_data(lp_data0), .i_mapper_en(i_mapper_en), .i_lp_irdy(lp_irdy), .i_lp_valid(lp_valid0),
         .o_mapper_ready(pl_trdy0),
         .i_width_deg_tx(die0_width_deg_tx), .i_lfsr_state(i_lfsr_state),
-        .i_reversal_en(tb_reversal_en), .i_active_state_entered(active_now),
+        .i_reversal_en(die0_reversal_en), .i_active_state_entered(active_now),
         .i_valid_pattern_en(i_valid_pattern_en),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
         .o_lfsr_tx_done(o_lfsr_tx_done0), .o_valid_done(o_valid_done0), .o_clk_done(o_clk_done0),
@@ -180,7 +185,7 @@ module mb_die2die_tb;
         .lp_data(lp_data1), .i_mapper_en(i_mapper_en), .i_lp_irdy(lp_irdy), .i_lp_valid(lp_valid1),
         .o_mapper_ready(pl_trdy1),
         .i_width_deg_tx(die1_width_deg_tx), .i_lfsr_state(i_lfsr_state),
-        .i_reversal_en(tb_reversal_en), .i_active_state_entered(active_now),
+        .i_reversal_en(die1_reversal_en), .i_active_state_entered(active_now),
         .i_valid_pattern_en(i_valid_pattern_en),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
         .o_lfsr_tx_done(o_lfsr_tx_done1), .o_valid_done(o_valid_done1), .o_clk_done(o_clk_done1),
@@ -234,6 +239,12 @@ module mb_die2die_tb;
         @(negedge o_pll_clk0); i_rst_n = 0;
         lp_data0='0; lp_data1='0; lp_irdy=0; lp_valid=0; i_mapper_en=0;
         i_lfsr_state=ST_IDLE; i_valid_pattern_en=0;
+        if (!tb_asymmetric_mode) begin
+            die0_reversal_en = tb_reversal_en;
+            die1_reversal_en = tb_reversal_en;
+            reverse_lanes_0to1 = reverse_lanes;
+            reverse_lanes_1to0 = reverse_lanes;
+        end
         i_clk_pattern_en=0; i_clk_detector_en=0; i_clk_embedded_en=embedded_clk;
         i_max_err_valid=12'd0; i_enable_cons=0; i_enable_128=0; i_enable_detector=0;
         i_max_err_per_lane=16'd0; i_max_err_agg=16'd0;
@@ -761,6 +772,40 @@ module mb_die2die_tb;
             reverse_lanes=0; tb_reversal_en=0;
             die0_width_deg_tx=WIDTH_DEG_ALL; die0_width_deg_rx=WIDTH_DEG_ALL;
             die1_width_deg_tx=WIDTH_DEG_ALL; die1_width_deg_rx=WIDTH_DEG_ALL;
+        end
+
+        // 4) Asymmetric Lane Reversal Scenario
+        // Link 0->1 is reversed (channel swaps lanes), Link 1->0 is straight (normal).
+        // Since reversal is corrected on TX:
+        // - die0 TX needs reversal enabled (die0_reversal_en = 1)
+        // - die1 TX does not need reversal (die1_reversal_en = 0)
+        // This configuration should FAIL in MainBand because it does RX-side swaps.
+        begin
+            bit asymmetric_ok;
+            $display("\n===============================================================");
+            $display("  RUNNING ASYMMETRIC REVERSAL SCENARIO (MainBand Expected: FAIL)");
+            $display("===============================================================");
+            tb_asymmetric_mode = 1'b1;
+            reverse_lanes_0to1 = 1'b1;
+            reverse_lanes_1to0 = 1'b0;
+            die0_reversal_en = 1'b1;
+            die1_reversal_en = 1'b0;
+
+            run_fulltraining_happy_scenario(asymmetric_ok);
+
+            tb_asymmetric_mode = 1'b0;
+            reverse_lanes_0to1 = 1'b0;
+            reverse_lanes_1to0 = 1'b0;
+            die0_reversal_en = 1'b0;
+            die1_reversal_en = 1'b0;
+
+            if (!asymmetric_ok) begin
+                scenarios_pass++;
+                $display("  [SCENARIO PASS] asymmetric_reversal_scenario failed as expected on MainBand (RTL mismatch with RD).");
+            end else begin
+                scenarios_fail++;
+                $error("  [SCENARIO FAIL] asymmetric_reversal_scenario PASSED unexpectedly on MainBand!");
+            end
         end
 
         $display("\n=========================================================");

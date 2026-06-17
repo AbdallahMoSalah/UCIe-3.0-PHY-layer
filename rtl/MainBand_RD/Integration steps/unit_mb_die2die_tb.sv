@@ -114,6 +114,11 @@ module unit_mb_die2die_tb;
 
     logic                  reverse_lanes = 1'b0;
     logic                  tb_reversal_en = 1'b0;
+    logic                  reverse_lanes_0to1 = 1'b0;
+    logic                  reverse_lanes_1to0 = 1'b0;
+    logic                  die0_reversal_en = 1'b0;
+    logic                  die1_reversal_en = 1'b0;
+    logic                  tb_asymmetric_mode = 1'b0;
     logic [NUM_LANES-1:0]  d1_to_d0_data;
     logic [NUM_LANES-1:0]  d0_to_d1_data;
 
@@ -141,8 +146,8 @@ module unit_mb_die2die_tb;
 
     always_comb begin
         for (int i = 0; i < NUM_LANES; i = i + 1) begin
-            d1_to_d0_data[i] = reverse_lanes ? d1_TD_P[NUM_LANES - 1 - i] : d1_TD_P[i];
-            d0_to_d1_data[i] = reverse_lanes ? d0_TD_P[NUM_LANES - 1 - i] : d0_TD_P[i];
+            d1_to_d0_data[i] = reverse_lanes_1to0 ? d1_TD_P[NUM_LANES - 1 - i] : d1_TD_P[i];
+            d0_to_d1_data[i] = reverse_lanes_0to1 ? d0_TD_P[NUM_LANES - 1 - i] : d0_TD_P[i];
         end
     end
 
@@ -154,7 +159,7 @@ module unit_mb_die2die_tb;
         .i_rst_n(i_rst_n),
         .lp_data(lp_data0), .lp_irdy(lp_irdy), .lp_valid(lp_valid0), .pl_trdy(pl_trdy0),
         .i_mapper_en(i_mapper_en), .i_width_deg_tx(die0_width_deg_tx), .i_width_deg_rx(die0_width_deg_rx), .i_lfsr_state(i_lfsr_state),
-        .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
+        .i_reversal_en(die0_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
         .i_state(i_lfsr_state), .demapper_en(demapper_en),
@@ -163,7 +168,8 @@ module unit_mb_die2die_tb;
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
         .i_pcmp_clear(i_pcmp_clear),
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
-        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en), .i_deser_en(i_deser_en),
+        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
+        .i_rx_data_deser_en({NUM_LANES{i_deser_en}}), .i_rx_valid_deser_en(i_deser_en),
         // RX in <- die1 TX
         .i_RD_P(d1_to_d0_data), .i_RVLD_P(d1_TVLD_P), .i_RCKP_P(d1_TCKP_P), .i_RCKN_P(d1_TCKN_P), .i_RTRK_P(d1_TTRK_P),
         // TX out -> die1 RX
@@ -185,7 +191,7 @@ module unit_mb_die2die_tb;
         .i_rst_n(i_rst_n),
         .lp_data(lp_data1), .lp_irdy(lp_irdy), .lp_valid(lp_valid1), .pl_trdy(pl_trdy1),
         .i_mapper_en(i_mapper_en), .i_width_deg_tx(die1_width_deg_tx), .i_width_deg_rx(die1_width_deg_rx), .i_lfsr_state(i_lfsr_state),
-        .i_reversal_en(i_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
+        .i_reversal_en(die1_reversal_en), .i_valid_pattern_en(i_valid_pattern_en),
         .i_pll_en(i_pll_en), .i_pll_speed_sel(i_pll_speed_sel), .lclk_g(lclk_g),
         .i_clk_pattern_en(i_clk_pattern_en), .i_clk_embedded_en(i_clk_embedded_en),
         .i_state(i_lfsr_state), .demapper_en(demapper_en),
@@ -194,7 +200,8 @@ module unit_mb_die2die_tb;
         .i_pcmp_iter_count(i_pcmp_iter_count), .i_pcmp_pattern_mode(i_pcmp_pattern_mode),
         .i_pcmp_clear(i_pcmp_clear),
         .i_vcmp_enable(i_vcmp_enable), .i_vcmp_mode(i_vcmp_mode), .i_vcmp_thr(i_vcmp_thr),
-        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en), .i_deser_en(i_deser_en),
+        .i_vcmp_clear(i_vcmp_clear), .i_clk_detector_en(i_clk_detector_en),
+        .i_rx_data_deser_en({NUM_LANES{i_deser_en}}), .i_rx_valid_deser_en(i_deser_en),
         // RX in <- die0 TX
         .i_RD_P(d0_to_d1_data), .i_RVLD_P(d0_TVLD_P), .i_RCKP_P(d0_TCKP_P), .i_RCKN_P(d0_TCKN_P), .i_RTRK_P(d0_TTRK_P),
         // TX out -> die0 RX
@@ -232,7 +239,13 @@ module unit_mb_die2die_tb;
         @(negedge o_pll_clk0); i_rst_n = 0;
         i_deser_en = 0;
         lp_data0='0; lp_data1='0; lp_irdy=0; lp_valid=0; i_mapper_en=0;
-        i_lfsr_state=LFSR_IDLE; i_reversal_en=tb_reversal_en; i_valid_pattern_en=0;
+        i_lfsr_state=LFSR_IDLE; i_valid_pattern_en=0;
+        if (!tb_asymmetric_mode) begin
+            die0_reversal_en = tb_reversal_en;
+            die1_reversal_en = tb_reversal_en;
+            reverse_lanes_0to1 = reverse_lanes;
+            reverse_lanes_1to0 = reverse_lanes;
+        end
         i_clk_pattern_en=0; i_clk_detector_en=0; i_clk_embedded_en=embedded_clk;
         i_rx_mode=RXMODE_DATA;
         i_pcmp_enable=0; i_pcmp_mode=0; i_pcmp_pattern_mode=0; i_pcmp_clear=0;
@@ -1197,6 +1210,41 @@ module unit_mb_die2die_tb;
             die0_width_deg_rx = WIDTH_DEG_ALL;
             die1_width_deg_tx = WIDTH_DEG_ALL;
             die1_width_deg_rx = WIDTH_DEG_ALL;
+        end
+
+        // 4) Asymmetric Lane Reversal Scenario
+        // Link 0->1 is reversed (channel swaps lanes), Link 1->0 is straight (normal).
+        // Since reversal is corrected on TX:
+        // - die0 TX needs reversal enabled (die0_reversal_en = 1)
+        // - die1 TX does not need reversal (die1_reversal_en = 0)
+        // This configuration should PASS in MainBand_RD.
+        begin
+            bit asymmetric_ok;
+            $display("\n===============================================================");
+            $display("  RUNNING ASYMMETRIC REVERSAL SCENARIO (MainBand_RD Expected: PASS)");
+            $display("===============================================================");
+            tb_asymmetric_mode = 1'b1;
+            reverse_lanes_0to1 = 1'b1;
+            reverse_lanes_1to0 = 1'b0;
+            die0_reversal_en = 1'b1;
+            die1_reversal_en = 1'b0;
+
+            run_fulltraining_happy_scenario(asymmetric_ok);
+
+            tb_asymmetric_mode = 1'b0;
+            reverse_lanes_0to1 = 1'b0;
+            reverse_lanes_1to0 = 1'b0;
+            die0_reversal_en = 1'b0;
+            die1_reversal_en = 1'b0;
+
+            if (asymmetric_ok) begin
+                scenarios_pass++;
+                $display("  [SCENARIO PASS] asymmetric_reversal_scenario passed successfully.");
+            end else begin
+                scenarios_fail++;
+                $error("  [SCENARIO FAIL] asymmetric_reversal_scenario FAILED!");
+                $fatal(1, "Aborting simulation due to unexpected failure.");
+            end
         end
 
         $display("\n=========================================================");

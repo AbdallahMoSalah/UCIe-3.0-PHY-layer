@@ -11,7 +11,7 @@
 # =============================================================================
 
 # ── Two-die wrapper + testbench ──────────────────────────────────────────────
-rtl/MainBand/MB_DIE/mb_die.sv
+rtl/MainBand/MB_TOP/mb_die.sv
 rtl/MainBand/MB_DIE/mb_die2die_tb.sv
 
 # ── TX path ──────────────────────────────────────────────────────────────────
