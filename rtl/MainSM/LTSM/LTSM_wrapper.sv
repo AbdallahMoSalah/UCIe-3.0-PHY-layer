@@ -204,6 +204,73 @@ module LTSM_wrapper #(
     logic timeout_timer_en, timer_rst_n;
 
     // =========================================================================
+    // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
+    // =========================================================================
+    state_n_e    mbtrain_current_substate;
+    logic        mbtrain_ltsm_trainerror_req;
+    logic        mbtrain_ltsm_linkinit_req;   // observe only (LINKINIT exit = mbtrain_done)
+    logic        mbtrain_ltsm_phyretrain_req;
+
+    logic        mbtrain_local_sweep_en;
+    logic        mbtrain_partner_sweep_en;
+    logic [15:0] mbtrain_sweep_active_lanes;
+
+    logic [1:0]  mbtrain_sub_tx_clk_lane_sel, mbtrain_sub_tx_data_lane_sel;
+    logic [1:0]  mbtrain_sub_tx_val_lane_sel, mbtrain_sub_tx_trk_lane_sel;
+    logic        mbtrain_sub_rx_clk_lane_sel, mbtrain_sub_rx_data_lane_sel;
+    logic        mbtrain_sub_rx_val_lane_sel, mbtrain_sub_rx_trk_lane_sel;
+
+    logic        mbtrain_rxclkcal_tx_pattern_en;
+    logic [2:0]  mbtrain_rxclkcal_tx_pattern_setup;
+    logic [1:0]  mbtrain_rxclkcal_tx_clk_pattern_sel;
+
+    logic        mbtrain_tx_sb_msg_valid;
+    logic [7:0]  mbtrain_tx_sb_msg;
+    logic [15:0] mbtrain_tx_msginfo;
+    logic [63:0] mbtrain_tx_data_field;
+
+    logic [2:0]  mbtrain_mb_rx_data_lane_mask;   // observe only in this step
+    logic [2:0]  mbtrain_mb_tx_data_lane_mask;
+
+    // MBTRAIN PHY analog control outputs — kept INTERNAL (mainband model ignores
+    // analog codes; exposed here only for waveform observability).
+    logic [2:0]  mbtrain_phy_negotiated_speed;
+    logic        mbtrain_phy_tx_selfcal_en;
+    logic        mbtrain_phy_rx_clock_lock_en, mbtrain_phy_rx_track_lock_en;
+    logic        mbtrain_phy_rx_phase_detector_en;
+    logic        mbtrain_phy_tx_tckn_shift_en, mbtrain_phy_tx_decrement_shift;
+    logic [4:0]  mbtrain_phy_tx_tckn_shift;
+    logic        mbtrain_PHY_IN_RETRAIN_rst, mbtrain_busy_bit_rst;
+
+    // Shared sweep-engine results (wrapper_D2C_sweep -> consumers).
+    // Width = $clog2(MAX_CODE+1); MAX_CODE=2 (shrunk ranges) -> 2 bits.
+    logic        d2c_sweep_done;
+    logic [1:0]  d2c_swept_code;
+    wire  [1:0]  d2c_best_code [0:15];
+    wire  [1:0]  d2c_min_eye_width;
+
+    // Shared D2C sweep-engine muxed inputs (MBINIT vs MBTRAIN)
+    logic        sweep_local_en, sweep_partner_en;
+    logic [15:0] sweep_active_lanes_mux;
+
+    // wrapper_MBTRAIN state_n_0 entry-context. Per the verified MBTRAIN contract,
+    // state_n_0 must read LOG_RESET / LOG_SBINIT during init (drives the internal
+    // soft_rst_n) and LOG_MBTRAIN_VALVREF throughout MBTRAIN (REPAIR.partner gates
+    // its mbinit-lane-mask update on this). It is NOT a live substate tracker.
+    state_n_e    mbtrain_state_n_0;
+
+    // MBTRAIN analog-settle timer
+    localparam int unsigned MBTRAIN_SETTLE_DELAY = 16;
+    logic        mbtrain_analog_settle_timer_en;
+    logic        mbtrain_analog_settle_time_done;
+    logic [$clog2(MBTRAIN_SETTLE_DELAY+1)-1:0] mbtrain_settle_cnt;
+
+    // Latched lane masks (driven by MBINIT; declared early for MBTRAIN use)
+    logic [2:0]  mb_rx_data_lane_mask_reg;
+    logic [2:0]  mb_tx_data_lane_mask_reg;
+    logic [15:0] active_lanes;
+
+    // =========================================================================
     // SBINIT sideband TX wires
     // =========================================================================
     logic     sbinit_tx_valid;
@@ -299,7 +366,7 @@ module LTSM_wrapper #(
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
     // =========================================================================
     state_n_e mbtrain_state_n;
-    assign mbtrain_state_n = LOG_NOP;
+    assign mbtrain_state_n = mbtrain_current_substate;
 
     state_n_e current_log_state;
     always_comb begin
@@ -378,21 +445,54 @@ module LTSM_wrapper #(
     assign d2cpt_compare_setup     = mbinit_d2c_compare_setup;
     assign d2cpt_rx_data_lane_mask = mbinit_rx_data_lane_mask;
 
-    // True while the D2C point test owns the mainband (MBINIT.REPAIRMB)
+    // True while the shared D2C sweep engine owns the mainband — either the
+    // MBINIT.REPAIRMB point test or a MBTRAIN sweep substate (muxed enables).
     logic d2c_active;
-    assign d2c_active = d2cpt_local_tx_pt_en | d2cpt_partner_tx_pt_en;
+    assign d2c_active = sweep_local_en | sweep_partner_en;
 
     // =========================================================================
-    // MBTRAIN / PHYRETRAIN / L1 / L2 / TRAINERROR PASS-THROUGH
+    // PHYRETRAIN / L1 / L2 / TRAINERROR PASS-THROUGH
     // =========================================================================
-    // These states are not instantiated. They are implemented as pass-throughs
-    // by tying the done output directly to the enable input.
-    assign mbtrain_done             = mbtrain_en;
-    assign current_mbtrain_substate = LOG_NOP;
+    // These states are not instantiated yet. They are implemented as pass-throughs
+    // by tying the done output directly to the enable input. MBTRAIN is now a REAL
+    // block (wrapper_MBTRAIN below); it is no longer a pass-through.
     assign phyretrain_done          = phyretrain_en;
     assign l1_done                  = l1_en;
     assign l2_done                  = l2_en;
     assign trainerror_done          = trainerror_en;
+
+    // =========================================================================
+    // MBTRAIN block / shared-sweep wiring  (declarations are up top)
+    // =========================================================================
+    // wrapper_D2C_sweep already drives local_test_d2c_done off its sweep_done port.
+    assign local_test_d2c_done = d2c_sweep_done;
+
+    // MBTRAIN analog-settle timer (mirrors unit_analog_settle_timer)
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) mbtrain_settle_cnt <= '0;
+        else if (mbtrain_analog_settle_timer_en) begin
+            if (mbtrain_settle_cnt < MBTRAIN_SETTLE_DELAY)
+                mbtrain_settle_cnt <= mbtrain_settle_cnt + 1'b1;
+        end else mbtrain_settle_cnt <= '0;
+    end
+    assign mbtrain_analog_settle_time_done =
+        (mbtrain_settle_cnt == MBTRAIN_SETTLE_DELAY) && mbtrain_analog_settle_timer_en;
+
+    // Shared D2C sweep-engine input mux (MBINIT.REPAIRMB vs MBTRAIN). MBINIT and
+    // MBTRAIN are never active simultaneously, so the single wrapper_D2C_sweep is
+    // shared: enables/active-lanes come from MBTRAIN while in MBTRAIN, else MBINIT.
+    assign sweep_local_en   = (current_ltsm_state == MBTRAIN) ? mbtrain_local_sweep_en
+                                                              : d2cpt_local_tx_pt_en;
+    assign sweep_partner_en = (current_ltsm_state == MBTRAIN) ? mbtrain_partner_sweep_en
+                                                              : d2cpt_partner_tx_pt_en;
+    assign sweep_active_lanes_mux = (current_ltsm_state == MBTRAIN) ? mbtrain_sweep_active_lanes
+                                                                    : active_lanes;
+
+    always_comb begin
+        if      (current_ltsm_state == RESET)  mbtrain_state_n_0 = LOG_RESET;
+        else if (current_ltsm_state == SBINIT) mbtrain_state_n_0 = LOG_SBINIT;
+        else                                   mbtrain_state_n_0 = LOG_MBTRAIN_VALVREF;
+    end
 
     // =========================================================================
     // CONTROLLER
@@ -408,6 +508,7 @@ module LTSM_wrapper #(
         .mbinit_done         (mbinit_done),
         .mbtrain_en          (mbtrain_en),
         .mbtrain_done        (mbtrain_done),
+        .mbtrain_phyretrain_req (mbtrain_ltsm_phyretrain_req),
         .linkinit_en         (linkinit_en),
         .linkinit_done       (linkinit_done),
         .active_en           (active_en),
@@ -422,7 +523,7 @@ module LTSM_wrapper #(
         // Per-state errors (reserved — TRAINERROR handshake wired in a later step)
         .sbinit_error        (sbinit_error),
         .mbinit_error        (mbinit_error),
-        .mbtrain_error       (1'b0),                  // MBTRAIN not integrated in Step 1
+        .mbtrain_error       (mbtrain_ltsm_trainerror_req),
         .linkinit_error      (linkinit_error),
         .active_error        (active_error),
         // ACTIVE-resolved next state (reserved — drives ACTIVE exit in a later step)
@@ -569,7 +670,7 @@ module LTSM_wrapper #(
         .d2c_iter_count       (mbinit_d2c_iter_count),
         .d2c_perlane_pass     (d2c_perlane_pass),
         .local_test_d2c_done  (local_test_d2c_done),
-        .partner_test_d2c_done(partner_test_d2c_done),
+        .partner_test_d2c_done(local_test_d2c_done),
 
         .sb_rx_valid     (sb_rx_valid),
         .sb_rx_msg_id    (sb_rx_msg_id),
@@ -604,8 +705,124 @@ module LTSM_wrapper #(
     );
 
     // =========================================================================
-    // 4. MBTRAIN — not integrated in Step 1 (see MBTRAIN PASS-THROUGH above)
+    // 4. MBTRAIN (real block) — shares the single wrapper_D2C_sweep above
     // =========================================================================
+    // Sweep code ranges left at wrapper defaults so the swept/best code widths
+    // match the (default-parameterised) wrapper_D2C_sweep instance above.
+    //
+    // Config sourcing (flagged for review):
+    //   * param_negotiated_max_speed <= reg_Target_Link_Speed_ctrl[2:0]
+    //   * is_continuous_clk_mode     <= 1'b0  (strobed clock, matches verified MBTRAIN TB)
+    //   * rf_cap_SPMW                <= SPMW
+    //   * rf_ctrl_target_link_width  <= reg_Target_Link_Width_ctrl
+    //   * param_UCIe_S_x8            <= reg_phy_x8_mode_ctrl
+    //   * PHY_IN_RETRAIN / params_changed tied 0 (no external retrain yet)
+    //   * mbtrain_*_req re-entry inputs tied 0 (PHYRETRAIN/L1/L2 re-enter at VALVREF)
+    wrapper_MBTRAIN #(
+        // Must match the wrapper_D2C_sweep ranges above so swept/best code widths agree.
+        .MAX_VAL_VREF_CODE  (2),
+        .MAX_DATA_VREF_CODE (2),
+        .MAX_DATA_PI_CODE   (2), .MIN_DATA_PI_CODE (0),
+        .MAX_VAL_PI_CODE    (2),
+        .MAX_DESKEW_CODE    (2), .MIN_DESKEW_CODE  (0)
+    ) u_mbtrain (
+        .lclk                       (clk),
+        .rst_n                      (rst_n),
+
+        .mbtrain_en                 (mbtrain_en),
+        .mbtrain_done               (mbtrain_done),
+        .current_mbtrain_substate   (mbtrain_current_substate),
+
+        .ltsm_trainerror_req        (mbtrain_ltsm_trainerror_req),
+        .ltsm_linkinit_req          (mbtrain_ltsm_linkinit_req),
+        .ltsm_phyretrain_req        (mbtrain_ltsm_phyretrain_req),
+
+        // Re-entry selectors (future PHYRETRAIN/L1/L2 paths) — normal entry for now
+        .mbtrain_txselfcal_req      (1'b0),
+        .mbtrain_speedidle_req      (1'b0),
+        .mbtrain_repair_req         (1'b0),
+
+        .analog_settle_time_done    (mbtrain_analog_settle_time_done),
+        .analog_settle_timer_en     (mbtrain_analog_settle_timer_en),
+
+        // Entry-context (static), per verified MBTRAIN contract — see above.
+        // state_n_1 = DATAVREF selects the normal first-pass SPEEDIDLE entry
+        // (re-entry from PHYRETRAIN/L1/L2 is not wired yet, so always normal).
+        .state_n_0                  (mbtrain_state_n_0),
+        .state_n_1                  (LOG_MBTRAIN_DATAVREF),
+
+        .param_negotiated_max_speed (reg_Target_Link_Speed_ctrl[2:0]),
+        .is_continuous_clk_mode     (1'b0),
+        .rf_cap_SPMW                (SPMW),
+        .rf_ctrl_target_link_width  (reg_Target_Link_Width_ctrl),
+        .param_UCIe_S_x8            (reg_phy_x8_mode_ctrl),
+
+        .PHY_IN_RETRAIN             (1'b0),
+        .params_changed             (1'b0),
+        .PHY_IN_RETRAIN_rst         (mbtrain_PHY_IN_RETRAIN_rst),
+        .busy_bit_rst               (mbtrain_busy_bit_rst),
+
+        .mbinit_rx_data_lane_mask   (mb_rx_data_lane_mask_reg),
+        .mbinit_tx_data_lane_mask   (mb_tx_data_lane_mask_reg),
+        .mb_rx_data_lane_mask       (mbtrain_mb_rx_data_lane_mask),
+        .mb_tx_data_lane_mask       (mbtrain_mb_tx_data_lane_mask),
+
+        // Shared D2C sweep engine (wrapper_D2C_sweep above)
+        .local_sweep_en             (mbtrain_local_sweep_en),
+        .partner_sweep_en           (mbtrain_partner_sweep_en),
+        .sweep_active_lanes         (mbtrain_sweep_active_lanes),
+        .sweep_done                 (d2c_sweep_done),
+        .sweep_swept_code           (d2c_swept_code),
+        .sweep_best_code            (d2c_best_code),
+        .sweep_min_eye_width        (d2c_min_eye_width),
+
+        .d2c_perlane_pass           (d2c_perlane_pass),
+
+        // PHY analog controls — kept internal (mainband model ignores them)
+        .phy_negotiated_speed       (mbtrain_phy_negotiated_speed),
+        .phy_tx_selfcal_en          (mbtrain_phy_tx_selfcal_en),
+        .phy_rx_clock_lock_en       (mbtrain_phy_rx_clock_lock_en),
+        .phy_rx_track_lock_en       (mbtrain_phy_rx_track_lock_en),
+        .phy_rx_phase_detector_en   (mbtrain_phy_rx_phase_detector_en),
+
+        .phy_rx_tckn_shift          (5'd0),
+        .phy_rx_decrement_shift     (1'b0),
+        .phy_tx_tckn_shift_en       (mbtrain_phy_tx_tckn_shift_en),
+        .phy_tx_tckn_shift          (mbtrain_phy_tx_tckn_shift),
+        .phy_tx_decrement_shift     (mbtrain_phy_tx_decrement_shift),
+        .phy_tx_tckn_shift_out_of_range (1'b0),
+
+        .phy_rx_val_vref_ctrl       (),
+        .phy_rx_data_vref_ctrl      (),
+        .phy_tx_val_pi_phase_ctrl   (),
+        .phy_tx_data_pi_phase_ctrl  (),
+        .phy_rx_deskew_ctrl         (),
+        .phy_tx_eq_preset_ctrl      (),
+        .phy_tx_eq_preset_en        (),
+
+        // Mainband lane selectors (routed by the mainband mux during MBTRAIN)
+        .substate_mb_tx_clk_lane_sel  (mbtrain_sub_tx_clk_lane_sel),
+        .substate_mb_tx_data_lane_sel (mbtrain_sub_tx_data_lane_sel),
+        .substate_mb_tx_val_lane_sel  (mbtrain_sub_tx_val_lane_sel),
+        .substate_mb_tx_trk_lane_sel  (mbtrain_sub_tx_trk_lane_sel),
+        .substate_mb_rx_clk_lane_sel  (mbtrain_sub_rx_clk_lane_sel),
+        .substate_mb_rx_data_lane_sel (mbtrain_sub_rx_data_lane_sel),
+        .substate_mb_rx_val_lane_sel  (mbtrain_sub_rx_val_lane_sel),
+        .substate_mb_rx_trk_lane_sel  (mbtrain_sub_rx_trk_lane_sel),
+
+        .rxclkcal_mb_tx_pattern_en      (mbtrain_rxclkcal_tx_pattern_en),
+        .rxclkcal_mb_tx_pattern_setup   (mbtrain_rxclkcal_tx_pattern_setup),
+        .rxclkcal_mb_tx_clk_pattern_sel (mbtrain_rxclkcal_tx_clk_pattern_sel),
+
+        .substate_tx_sb_msg_valid   (mbtrain_tx_sb_msg_valid),
+        .substate_tx_sb_msg         (mbtrain_tx_sb_msg),
+        .substate_tx_msginfo        (mbtrain_tx_msginfo),
+        .substate_tx_data_field     (mbtrain_tx_data_field),
+
+        .rx_sb_msg_valid            (sb_rx_valid),
+        .rx_sb_msg                  (sb_rx_msg_8),
+        .rx_msginfo                 (sb_rx_MsgInfo)
+    );
 
     // =========================================================================
     // 5. LINKINIT
@@ -636,32 +853,45 @@ module LTSM_wrapper #(
     // =========================================================================
     // 7. D2C POINT-TEST WRAPPER (real, shared MBINIT/MBTRAIN)
     // =========================================================================
-    wrapper_D2C_PT_top u_d2c (
+    always_comb begin
+        case (mb_rx_data_lane_mask_reg)
+            3'b011:  active_lanes = 16'hFFFF;
+            3'b001:  active_lanes = 16'h00FF;
+            3'b010:  active_lanes = 16'hFF00;
+            3'b100:  active_lanes = 16'h000F;
+            3'b101:  active_lanes = 16'h00F0;
+            default: active_lanes = 16'hFFFF;
+        endcase
+    end
+
+    wrapper_D2C_sweep #(
+        // Sweep ranges shrunk to the minimum so the full 13-substate MBTRAIN run
+        // fits the integration TB's per-scenario lclk budget. Codes are inert in
+        // this TB (the mainband model ignores analog codes), so range size only
+        // affects sim time, not functional coverage of the training sequence.
+        .MAX_VAL_VREF_CODE  (2), .MIN_VAL_VREF_CODE  (1),
+        .MAX_DATA_VREF_CODE (2), .MIN_DATA_VREF_CODE (1),
+        .MAX_DATA_PI_CODE   (2), .MIN_DATA_PI_CODE   (0),
+        .MAX_VAL_PI_CODE    (2), .MIN_VAL_PI_CODE    (0),
+        .MAX_DESKEW_CODE    (2), .MIN_DESKEW_CODE    (0)
+    ) u_d2c (
         .lclk  (clk),
         .rst_n (rst_n),
 
-        .mb_rx_data_lane_mask (d2cpt_rx_data_lane_mask),
+        .active_lanes         (sweep_active_lanes_mux),
+        .state_n              (current_log_state),
+        .mb_rx_data_lane_mask (mb_rx_data_lane_mask_reg),
 
-        .local_test_d2c_done   (local_test_d2c_done),
-        .partner_test_d2c_done (partner_test_d2c_done),
+        .sweep_done            (d2c_sweep_done),
         .d2c_perlane_pass      (d2c_perlane_pass),
-        .d2c_aggr_pass         (d2c_aggr_pass),
         .d2c_val_pass          (d2c_val_pass),
+        .swept_code            (d2c_swept_code),
+        .best_code             (d2c_best_code),
+        .min_eye_width         (d2c_min_eye_width),
 
-        .local_tx_pt_en   (d2cpt_local_tx_pt_en),
-        .partner_tx_pt_en (d2cpt_partner_tx_pt_en),
-        .local_rx_pt_en   (d2cpt_local_rx_pt_en),
-        .partner_rx_pt_en (d2cpt_partner_rx_pt_en),
+        .local_sweep_en       (sweep_local_en),
+        .partner_sweep_en     (sweep_partner_en),
 
-        .d2c_clk_sampling     (d2cpt_clk_sampling),
-        .d2c_pattern_setup    (d2cpt_pattern_setup),
-        .d2c_data_pattern_sel (d2cpt_data_pattern_sel),
-        .d2c_val_pattern_sel  (d2cpt_val_pattern_sel),
-        .d2c_pattern_mode     (d2cpt_pattern_mode),
-        .d2c_burst_count      (d2cpt_burst_count),
-        .d2c_idle_count       (d2cpt_idle_count),
-        .d2c_iter_count       (d2cpt_iter_count),
-        .d2c_compare_setup    (d2cpt_compare_setup),
         .cfg_max_err_thresh_perlane (cfg_max_err_thresh_perlane),
         .cfg_max_err_thresh_aggr    (cfg_max_err_thresh_aggr),
 
@@ -673,6 +903,7 @@ module LTSM_wrapper #(
         .mb_rx_clk_lane_sel  (d2c_mb_rx_clk_lane_sel),
         .mb_rx_val_lane_sel  (d2c_mb_rx_val_lane_sel),
         .mb_rx_data_lane_sel (d2c_mb_rx_data_lane_sel),
+        
         .mb_tx_pattern_en    (d2c_mb_tx_pattern_en),
         .mb_tx_pattern_setup (d2c_mb_tx_pattern_setup),
         .mb_rx_pattern_setup (d2c_mb_rx_pattern_setup),
@@ -741,7 +972,22 @@ module LTSM_wrapper #(
                     sb_tx_data_Field = mbinit_tx_data_Field;
                 end
             end
-            default: ; // RESET / MBTRAIN / LINKINIT / ACTIVE: no SB TX in Step 1
+            MBTRAIN: begin
+                // Substate handshake messages take priority; otherwise the shared
+                // D2C sweep engine's point-test messages own the SB bus.
+                if (mbtrain_tx_sb_msg_valid) begin
+                    sb_tx_valid      = 1'b1;
+                    sb_tx_msg_id     = msg_no_e'(mbtrain_tx_sb_msg);
+                    sb_tx_MsgInfo    = mbtrain_tx_msginfo;
+                    sb_tx_data_Field = mbtrain_tx_data_field;
+                end else if (d2c_tx_sb_msg_valid) begin
+                    sb_tx_valid      = 1'b1;
+                    sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
+                    sb_tx_MsgInfo    = d2c_tx_msginfo;
+                    sb_tx_data_Field = d2c_tx_data_field;
+                end
+            end
+            default: ; // RESET / LINKINIT / ACTIVE: no SB TX
         endcase
     end
 
@@ -840,6 +1086,21 @@ module LTSM_wrapper #(
             
 
         end
+        else if (current_ltsm_state == MBTRAIN) begin
+            // No sweep running (d2c_active handled above): the active MBTRAIN
+            // substate owns the MB lane selectors; RXCLKCAL owns the clk pattern.
+            mb_tx_clk_lane_sel    = mbtrain_sub_tx_clk_lane_sel;
+            mb_tx_data_lane_sel   = mbtrain_sub_tx_data_lane_sel;
+            mb_tx_val_lane_sel    = mbtrain_sub_tx_val_lane_sel;
+            mb_tx_trk_lane_sel    = mbtrain_sub_tx_trk_lane_sel;
+            mb_rx_clk_lane_sel    = mbtrain_sub_rx_clk_lane_sel;
+            mb_rx_data_lane_sel   = mbtrain_sub_rx_data_lane_sel;
+            mb_rx_val_lane_sel    = mbtrain_sub_rx_val_lane_sel;
+            mb_rx_trk_lane_sel    = mbtrain_sub_rx_trk_lane_sel;
+            mb_tx_pattern_en      = mbtrain_rxclkcal_tx_pattern_en;
+            mb_tx_pattern_setup   = mbtrain_rxclkcal_tx_pattern_setup;
+            mb_tx_clk_pattern_sel = mbtrain_rxclkcal_tx_clk_pattern_sel;
+        end
         else if (current_ltsm_state == ACTIVE) begin
             mb_rx_val_lane_sel     = 1'b1;
             mb_rx_data_lane_sel    = 1'b1;
@@ -849,8 +1110,6 @@ module LTSM_wrapper #(
     // =========================================================================
     // SEQUENTIAL LATCHING & LOOKAHEAD FOR MBINIT OUTPUTS
     // =========================================================================
-    logic [2:0] mb_rx_data_lane_mask_reg;
-    logic [2:0] mb_tx_data_lane_mask_reg;
     logic       mb_lane_reversal_req_reg;
 
     logic        reg_Clock_Phase_enable_status_reg;

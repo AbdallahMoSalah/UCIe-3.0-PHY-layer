@@ -40,6 +40,10 @@ import LTSM_state_pkg::*;
 
     output logic        mbtrain_en,
     input  logic        mbtrain_done,
+    // MBTRAIN-resolved exit request (from wrapper_MBTRAIN.ltsm_phyretrain_req).
+    // LINKINIT exit is implied by mbtrain_done; TRAINERROR exit arrives via
+    // mbtrain_error (wrapper_MBTRAIN.ltsm_trainerror_req).
+    input  logic        mbtrain_phyretrain_req,
 
     output logic        linkinit_en,
     input  logic        linkinit_done,
@@ -118,8 +122,9 @@ import LTSM_state_pkg::*;
                 CTRL_MBINIT:   if (mbinit_error)       next_state = CTRL_TRAINERROR;
                                else if (mbinit_done)   next_state = CTRL_MBTRAIN;
                                
-                CTRL_MBTRAIN:  if (mbtrain_error)      next_state = CTRL_TRAINERROR;
-                               else if (mbtrain_done)  next_state = CTRL_LINKINIT;
+                CTRL_MBTRAIN:  if (mbtrain_error)            next_state = CTRL_TRAINERROR;
+                               else if (mbtrain_phyretrain_req) next_state = CTRL_PHYRETRAIN;
+                               else if (mbtrain_done)        next_state = CTRL_LINKINIT;
                                
                 CTRL_LINKINIT: if (linkinit_error)     next_state = CTRL_TRAINERROR;
                                else if (linkinit_done) next_state = CTRL_ACTIVE;

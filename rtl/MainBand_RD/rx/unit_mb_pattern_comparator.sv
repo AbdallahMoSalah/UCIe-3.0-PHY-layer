@@ -242,6 +242,11 @@ module unit_mb_pattern_comparator #(
 
                 // ---------------------------------------------------------
                 S_DONE: begin
+                    // synopsys translate_off
+                    if (!o_done)
+                        $display("CMPDONE T=%0t %m: FINAL o_per_lane_pass=%h lane_mask=%h pattern_mode=%b iter=%0d",
+                                 $time, o_per_lane_pass, i_lane_mask, i_pattern_mode, i_iteration_count);
+                    // synopsys translate_on
                     o_done <= 1'b1;
                     // Aggregate result: Pass if error count is within threshold.
                     o_aggregate_error <= (o_aggregate_error_counter > i_max_error_threshold_aggregate);

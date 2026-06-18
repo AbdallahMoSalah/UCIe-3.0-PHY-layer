@@ -107,7 +107,10 @@ module wrapper_D2C_sweep #(
     //   0: sweep is in progress (or FSM is idle / not yet started).
     //   1: full code sweep complete; best_code[] and min_eye_width are valid.
     output logic        sweep_done,
-
+    
+    //pass 
+    output logic [15:0] d2c_perlane_pass,
+    output logic  d2c_val_pass,
     // =========================================================================
     // Group 3: PHY Code Output (to PHY control registers)
     // =========================================================================
@@ -309,6 +312,9 @@ module wrapper_D2C_sweep #(
     logic [15:0] w_d2c_idle_count      ; // Unsigned 16-bit idle duration in UI.
     logic [15:0] w_d2c_iter_count      ; // Unsigned 16-bit iteration count of burst-idle cycles.
     logic [1:0]  w_d2c_compare_setup   ; // 00: Per-Lane, 01: Aggregate, 10: Valid Lane, 11: Clk.
+
+    assign d2c_perlane_pass = w_d2c_perlane_pass;
+    assign d2c_val_pass = w_d2c_val_pass;
 
     // =========================================================================
     // Instantiation 1: unit_D2C_sweep
