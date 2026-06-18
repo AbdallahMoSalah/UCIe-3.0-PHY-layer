@@ -245,9 +245,9 @@ module wrapper_VALTRAINCENTER_tb;
         .phy_tx_val_pi_phase_ctrl       (dut_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
-        .sweep_en                       (dut_if.sweep_en),
+        .local_sweep_en                       (dut_if.sweep_en),
         .swept_code                     (dut_swept_code_sliced),
-        .best_code                      (dut_best_code_sliced),
+        .best_code                      (dut_best_code_sliced[0]),
         .sweep_done                     (dut_if.sweep_done),
 
         .mb_tx_continuous_or_strobe_clk(1'b0),
@@ -301,9 +301,9 @@ module wrapper_VALTRAINCENTER_tb;
         .phy_tx_val_pi_phase_ctrl       (ptn_if.phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
-        .sweep_en                       (ptn_if.sweep_en),
+        .local_sweep_en                 (ptn_if.sweep_en),
         .swept_code                     (ptn_swept_code_sliced),
-        .best_code                      (ptn_best_code_sliced),
+        .best_code                      (ptn_best_code_sliced[0]),
         .sweep_done                     (ptn_if.sweep_done),
 
         .mb_tx_continuous_or_strobe_clk(1'b0),

@@ -63,7 +63,7 @@ module wrapper_RXDESKEW #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output      logic                                  sweep_en,         // 0: Stop sweep; 1: Start/sustain D2C sweep
+        output      logic                                  local_sweep_en,         // 0: Stop sweep; 1: Start/sustain D2C sweep
         input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  swept_code,       // Current code being tested
         input  wire logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  best_code [0:15], // Array of best deskew codes per lane
         input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  min_eye_width,    // Narrowest eye width found across lanes
@@ -149,7 +149,7 @@ module wrapper_RXDESKEW #(
         .phy_rx_deskew_ctrl             (phy_rx_deskew_ctrl          ),
         // MB RX signals moved to wrapper as static assigns
         .is_high_speed                  (is_high_speed               ),
-        .sweep_en                       (sweep_en                    ),
+        .sweep_en                       (local_sweep_en              ),
         .swept_code                     (swept_code                  ),
         .best_code                      (best_code                   ),
         .min_eye_width                  (min_eye_width               ),

@@ -246,9 +246,9 @@ module wrapper_VALTRAINVREF_tb;
         .phy_rx_valvref_ctrl            (dut_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
-        .sweep_en                       (dut_if.sweep_en),
+        .local_sweep_en                 (dut_if.sweep_en),
         .swept_code                     (dut_swept_code_sliced),
-        .best_code                      (dut_best_code_sliced),
+        .best_code                      (dut_best_code_sliced[0]),
         .sweep_done                     (dut_if.sweep_done),
 
         .mb_tx_clk_lane_sel             (dut_if.mb_tx_clk_lane_sel),
@@ -298,9 +298,9 @@ module wrapper_VALTRAINVREF_tb;
         .phy_rx_valvref_ctrl            (ptn_if.phy_rx_valvref_ctrl[VREF_W-1:0]),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
-        .sweep_en                       (ptn_if.sweep_en),
+        .local_sweep_en                 (ptn_if.sweep_en),
         .swept_code                     (ptn_swept_code_sliced),
-        .best_code                      (ptn_best_code_sliced),
+        .best_code                      (ptn_best_code_sliced[0]),
         .sweep_done                     (ptn_if.sweep_done),
 
         .mb_tx_clk_lane_sel             (ptn_if.mb_tx_clk_lane_sel),

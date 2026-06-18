@@ -81,8 +81,8 @@ module unit_VALVREF_local #(
         // D2C Sweep Interface:                //
         //=====================================//
         output logic        sweep_en            , // 1: Assert to external unit_D2C_sweep to start/hold sweep.
-        input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  swept_code          , // Current Vref code under test (from unit_D2C_sweep).
-        input  wire logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code [0:15]    , // Per-lane best midpoints (lane 0 = Valid Lane).
+        input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  swept_code    , // Current Vref code under test (from unit_D2C_sweep).
+        input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code     , // Per-lane best midpoint.
         input  logic        sweep_done          , // 1: Full sweep complete (from unit_D2C_sweep).
 
         //=====================================//
@@ -282,7 +282,7 @@ module unit_VALVREF_local #(
         else begin
             // Capture best_code for the Valid Lane (lane index 0) when sweep finishes.
             if (current_state == VALVREF_LCL_SWEEP && sweep_done) begin
-                best_code_r <= best_code[0][VW-1:0];
+                best_code_r <= best_code;
             end
         end
     end

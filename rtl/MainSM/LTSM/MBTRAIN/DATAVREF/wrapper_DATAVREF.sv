@@ -34,7 +34,7 @@ module wrapper_DATAVREF #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,                       // 0: Stop sweep; 1: Start/sustain D2C sweep
+        output logic        local_sweep_en,                       // 0: Stop sweep; 1: Start/sustain D2C sweep
         input  logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0]  swept_code,                     // Current Vref code being tested
         input  wire logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0]  best_code [0:15],          // Per-lane best Vref midpoints
         input  logic        sweep_done,                     // 0: Sweeping; 1: Sweep completed
@@ -102,7 +102,7 @@ module wrapper_DATAVREF #(
         .phy_rx_datavref_ctrl   (phy_rx_datavref_ctrl         ),
         // MB Lane Control: moved to wrapper as static assigns
         // D2C Sweep Interface
-        .sweep_en               (sweep_en                     ),
+        .sweep_en               (local_sweep_en               ),
         .swept_code             (swept_code                   ),
         .best_code              (best_code                    ),
         .sweep_done             (sweep_done                   ),

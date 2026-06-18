@@ -30,7 +30,7 @@ module wrapper_DATATRAINCENTER1 #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,
+        output logic        local_sweep_en,
         input  logic [$clog2(MAX_DATA_PI_CODE+1)-1:0]  swept_code,
         input  wire logic [$clog2(MAX_DATA_PI_CODE+1)-1:0]  best_code [0:15],
         input  logic        sweep_done,
@@ -86,7 +86,7 @@ module wrapper_DATATRAINCENTER1 #(
         .datatraincenter1_done          (local_datatraincenter1_done_wire),
         .phy_tx_data_pi_phase_ctrl      (phy_tx_data_pi_phase_ctrl),
         // MB TX signals moved to wrapper as static assigns
-        .sweep_en                       (sweep_en),
+        .sweep_en                       (local_sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
         .sweep_done                     (sweep_done),

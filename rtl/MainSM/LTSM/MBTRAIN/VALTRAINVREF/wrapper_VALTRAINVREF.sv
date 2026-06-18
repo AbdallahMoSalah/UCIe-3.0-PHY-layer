@@ -31,9 +31,9 @@ module wrapper_VALTRAINVREF #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,
+        output logic        local_sweep_en,
         input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  swept_code,
-        input  wire logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code [0:15],
+        input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code,                      // Per-lane best midpoint.
         input  logic        sweep_done,
 
         // =========================================================================
@@ -89,7 +89,7 @@ module wrapper_VALTRAINVREF #(
         .soft_rst_n                     (soft_rst_n),
         .valtrainvref_done              (local_valtrainvref_done_wire),
         .phy_rx_valvref_ctrl            (phy_rx_valvref_ctrl),
-        .sweep_en                       (sweep_en),
+        .sweep_en                       (local_sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
         .sweep_done                     (sweep_done),

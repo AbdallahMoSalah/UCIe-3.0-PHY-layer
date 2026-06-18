@@ -42,7 +42,7 @@ module unit_VALTRAINVREF_local #(
         //=====================================//
         output logic        sweep_en            , // 1: Assert to start/hold sweep.
         input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0] swept_code          , // Current Vref code under test.
-        input  wire logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0] best_code [0:15]    , // Per-lane best midpoints.
+        input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code     , // Per-lane best midpoint.
         input  logic        sweep_done          , // 1: Full sweep complete.
 
         //=====================================//
@@ -152,7 +152,7 @@ module unit_VALTRAINVREF_local #(
         end
         else begin
             if (current_state == VALTRAINVREF_LCL_SWEEP && sweep_done) begin
-                best_code_r <= best_code[0][VW-1:0];
+                best_code_r <= best_code;
             end
         end
     end

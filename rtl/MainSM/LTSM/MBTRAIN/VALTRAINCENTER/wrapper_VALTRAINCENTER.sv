@@ -31,9 +31,9 @@ module wrapper_VALTRAINCENTER #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,
+        output logic        local_sweep_en,
         input  logic [$clog2(MAX_VAL_PI_CODE+1)-1:0]  swept_code,
-        input  wire logic [$clog2(MAX_VAL_PI_CODE+1)-1:0]  best_code [0:15],
+        input  logic [$clog2(MAX_VAL_PI_CODE+1)-1:0]  best_code , // Per-lane best midpoint.
         input  logic        sweep_done,
 
         // =========================================================================
@@ -97,7 +97,7 @@ module wrapper_VALTRAINCENTER #(
         .valtraincenter_done            (local_valtraincenter_done_wire),
         .phy_tx_val_pi_phase_ctrl       (phy_tx_val_pi_phase_ctrl),
         // MB signals moved to wrapper (incl. speed-dep CLK)
-        .sweep_en                       (sweep_en),
+        .sweep_en                       (local_sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
         .sweep_done                     (sweep_done),

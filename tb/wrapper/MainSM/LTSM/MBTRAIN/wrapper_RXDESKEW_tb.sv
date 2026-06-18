@@ -253,7 +253,7 @@ module wrapper_RXDESKEW_tb;
         .phy_tx_eq_preset_ctrl          (dut_phy_tx_eq_preset_ctrl),
         .phy_tx_eq_preset_en            (dut_phy_tx_eq_preset_en),
 
-        .sweep_en                       (dut_if.sweep_en),
+        .local_sweep_en                 (dut_if.sweep_en),
         .swept_code                     (dut_swept_code_sliced),
         .best_code                      (dut_best_code_sliced),
         .min_eye_width                  (dut_min_eye_width_sliced),
@@ -330,7 +330,7 @@ module wrapper_RXDESKEW_tb;
         .phy_tx_eq_preset_ctrl          (ptn_phy_tx_eq_preset_ctrl),
         .phy_tx_eq_preset_en            (ptn_phy_tx_eq_preset_en),
 
-        .sweep_en                       (ptn_if.sweep_en),
+        .local_sweep_en                 (ptn_if.sweep_en),
         .swept_code                     (ptn_swept_code_sliced),
         .best_code                      (ptn_best_code_sliced),
         .min_eye_width                  (ptn_min_eye_width_sliced),

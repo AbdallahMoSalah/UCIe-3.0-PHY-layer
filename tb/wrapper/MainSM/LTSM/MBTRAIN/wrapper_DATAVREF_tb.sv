@@ -245,7 +245,7 @@ module wrapper_DATAVREF_tb;
         .phy_rx_datavref_ctrl           (dut_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (dut_if.partner_sweep_en),
 
-        .sweep_en                       (dut_if.sweep_en),
+        .local_sweep_en                 (dut_if.sweep_en),
         .swept_code                     (dut_swept_code_sliced),
         .best_code                      (dut_best_code_sliced),
         .sweep_done                     (dut_if.sweep_done),
@@ -288,7 +288,7 @@ module wrapper_DATAVREF_tb;
         .phy_rx_datavref_ctrl           (ptn_if.phy_rx_datavref_ctrl),
         .partner_sweep_en               (ptn_if.partner_sweep_en),
 
-        .sweep_en                       (ptn_if.sweep_en),
+        .local_sweep_en                 (ptn_if.sweep_en),
         .swept_code                     (ptn_swept_code_sliced),
         .best_code                      (ptn_best_code_sliced),
         .sweep_done                     (ptn_if.sweep_done),

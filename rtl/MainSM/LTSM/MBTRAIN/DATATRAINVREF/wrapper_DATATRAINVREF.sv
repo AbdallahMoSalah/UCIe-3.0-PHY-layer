@@ -29,7 +29,7 @@ module wrapper_DATATRAINVREF #(
         // =========================================================================
         // Group 4: D2C Sweep Interface (For Local FSM)
         // =========================================================================
-        output logic        sweep_en,
+        output logic        local_sweep_en,
         input  logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0]  swept_code,
         input  wire logic [$clog2(MAX_DATA_VREF_CODE+1)-1:0]  best_code [0:15],
         input  logic        sweep_done,
@@ -65,7 +65,7 @@ module wrapper_DATATRAINVREF #(
     logic        local_datatrainvref_done_wire;
     logic        partner_datatrainvref_done_wire;
 
-    logic        local_tx_sb_msg_valid ;
+    logic        local_tx_sb_msg_valid;
     logic [7:0]  local_tx_sb_msg      ;
     logic [15:0] local_tx_msginfo     ;
     logic [63:0] local_tx_data_field  ;
@@ -85,7 +85,7 @@ module wrapper_DATATRAINVREF #(
         .datatrainvref_done             (local_datatrainvref_done_wire),
         .phy_rx_datavref_ctrl           (phy_rx_datavref_ctrl),
         // MB RX signals moved to wrapper as static assigns
-        .sweep_en                       (sweep_en),
+        .sweep_en                       (local_sweep_en),
         .swept_code                     (swept_code),
         .best_code                      (best_code),
         .sweep_done                     (sweep_done),
