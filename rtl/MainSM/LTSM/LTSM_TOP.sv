@@ -38,7 +38,7 @@ module LTSM_TOP #(
     // Status / observability
     // =========================================================================
     output LTSM_state_e current_ltsm_state,
-    output state_n_e    current_mbtrain_substate,
+    output state_n_e    current_ltsm_state_n,
     output logic        mbinit_error,
     output logic        active_error,
     output logic        timeout_8ms_occured,
@@ -142,6 +142,7 @@ module LTSM_TOP #(
     output logic                 i_clk_detector_en,
     output logic [NUM_LANES-1:0] i_rx_data_deser_en,
     output logic                 i_rx_valid_deser_en,
+    output logic                 i_clk_embedded_en,
 
     // =========================================================================
     // unit_mb_die-facing RESULT inputs (to the interface)
@@ -156,6 +157,7 @@ module LTSM_TOP #(
     input  logic                 o_valid_frame_error,
     input  logic                 o_clk_p_pass,
     input  logic                 o_clk_n_pass,
+    input  logic                 i_aggr_err,
     input  logic                 o_track_pass
 );
 
@@ -186,9 +188,12 @@ module LTSM_TOP #(
     logic        w_repairclk_rckn_pass;
     logic        w_repairclk_rckp_pass;
     logic        w_repairval_RVLD_L_pass;
+    logic        w_aggr_err;
 
     // derived interface inputs
     wire         w_active = (current_ltsm_state == ACTIVE);
+    wire         w_mb_rx_vcomp_mode = !(current_ltsm_state == MBINIT);
+    wire         w_clk_embedded_en = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
 
     // =========================================================================
     // LTSM
@@ -200,7 +205,7 @@ module LTSM_TOP #(
         .rst_n (rst_n),
 
         .current_ltsm_state       (current_ltsm_state),
-        .current_mbtrain_substate (current_mbtrain_substate),
+        .current_ltsm_state_n     (current_ltsm_state_n),
         .mbinit_error             (mbinit_error),
         .active_error             (active_error),
         .timeout_8ms_occured      (timeout_8ms_occured),
@@ -288,7 +293,7 @@ module LTSM_TOP #(
         .mb_rx_perlane_pass      (w_mb_rx_perlane_pass),
         .mb_tx_pattern_count_done(w_mb_tx_pattern_count_done),
         .mb_rx_compare_done      (w_mb_rx_compare_done),
-        .mb_rx_aggr_pass         (1'b1),                       // [ASSUMPTION] interface has no aggregate
+        .mb_rx_aggr_pass         (w_aggr_err),                       // [ASSUMPTION] interface has no aggregate
         .mb_rx_val_pass          (w_repairval_RVLD_L_pass),    // = vcmp pass
         .repairclk_rtrk_pass     (w_repairclk_rtrk_pass),
         .repairclk_rckn_pass     (w_repairclk_rckn_pass),
@@ -324,6 +329,7 @@ module LTSM_TOP #(
         .i_clk_detector_en  (i_clk_detector_en),
         .i_rx_data_deser_en (i_rx_data_deser_en),
         .i_rx_valid_deser_en(i_rx_valid_deser_en),
+        .i_clk_embedded_en  (i_clk_embedded_en),
 
         // die-facing results in
         .o_lfsr_tx_done      (o_lfsr_tx_done),
@@ -337,6 +343,7 @@ module LTSM_TOP #(
         .o_clk_p_pass        (o_clk_p_pass),
         .o_clk_n_pass        (o_clk_n_pass),
         .o_track_pass        (o_track_pass),
+        .i_aggr_err          (i_aggr_err),
 
         .reg_lane_mask (reg_lane_mask),
 
@@ -350,6 +357,7 @@ module LTSM_TOP #(
         .clear_error_req       (w_clear_error_req),
         .mb_rx_data_lane_map   (w_mb_rx_data_lane_mask),
         .mb_tx_data_lane_map   (w_mb_tx_data_lane_mask),
+        .mb_clk_embedded_en    (w_clk_embedded_en),
 
         // LTSM status out
         .mb_rx_perlane_pass      (w_mb_rx_perlane_pass),
@@ -360,13 +368,14 @@ module LTSM_TOP #(
         .active               (w_active),
         .mb_tx_lfsr_rst       (w_mb_tx_lfsr_rst),
         .mb_rx_lfsr_rst       (w_mb_rx_lfsr_rst),
-        .mb_rx_vcomp_mode     (w_mb_rx_pattern_mode),         // [ASSUMPTION]
+        .mb_rx_vcomp_mode     (w_mb_rx_vcomp_mode),
         .mb_rx_data_en        (w_mb_rx_data_lane_sel),
         .mb_rx_valid_en       (w_mb_rx_val_lane_sel),
         .repairclk_rtrk_pass  (w_repairclk_rtrk_pass),
         .repairclk_rckn_pass  (w_repairclk_rckn_pass),
         .repairclk_rckp_pass  (w_repairclk_rckp_pass),
         .repairval_RVLD_L_pass(w_repairval_RVLD_L_pass),
+        .mb_aggr_err          (w_aggr_err),
         .mb_rx_compare_done   (w_mb_rx_compare_done)
     );
 

@@ -8,6 +8,7 @@ module mainband_ltsm_interface #(
     output  logic                    i_reversal_en,
     output  logic                    i_valid_pattern_en,
     output  logic                    i_clk_pattern_en,
+    output  logic                    i_clk_embedded_en,
 
     output  logic [2:0]              i_state,
     output  logic                    demapper_en,
@@ -36,6 +37,7 @@ module mainband_ltsm_interface #(
     input logic                    o_clk_p_pass,
     input logic                    o_clk_n_pass,
     input logic                    o_track_pass,
+    input logic                    i_aggr_err,
 
 
 
@@ -62,6 +64,8 @@ module mainband_ltsm_interface #(
     input logic [2:0]  mb_rx_data_lane_map,
     input logic [2:0]  mb_tx_data_lane_map,
 
+    input logic        mb_clk_embedded_en,
+
     // =========================================================================
     // Unified Mainband Inputs
     // =========================================================================
@@ -82,6 +86,7 @@ module mainband_ltsm_interface #(
     output logic        repairclk_rckn_pass,
     output logic        repairclk_rckp_pass,
     output logic        repairval_RVLD_L_pass,
+    output logic        mb_aggr_err,
     output logic        mb_rx_compare_done
 );
 
@@ -105,6 +110,9 @@ module mainband_ltsm_interface #(
         repairclk_rckp_pass = o_clk_p_pass;
         repairval_RVLD_L_pass = o_vcmp_pass;
         mb_rx_compare_done = o_pcmp_done || o_vcmp_done || o_clk_done;
+
+        i_clk_embedded_en = mb_clk_embedded_en;
+        mb_aggr_err = i_aggr_err;
     end 
 
     always_comb begin : lfsr_state_generator

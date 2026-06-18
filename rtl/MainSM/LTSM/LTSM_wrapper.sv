@@ -785,8 +785,8 @@ module LTSM_wrapper #(
         mb_tx_iter_count             = 16'h0;
         mb_tx_clk_sampling_en        = 1'b0;
         mb_tx_clk_sampling           = 2'b00;
-        mb_rx_max_err_thresh_perlane = 12'h0;
-        mb_rx_max_err_thresh_aggr    = 16'h0;
+        mb_rx_max_err_thresh_perlane = cfg_max_err_thresh_perlane;
+        mb_rx_max_err_thresh_aggr    = cfg_max_err_thresh_aggr;
 
         if (d2c_active) begin
             // Shared D2C point test owns the mainband (MBINIT REPAIRMB or MBTRAIN sweep)
@@ -833,6 +833,13 @@ module LTSM_wrapper #(
             mb_rx_compare_en       = mbinit_mb_rx_compare_en;
             mb_rx_compare_setup    = mbinit_mb_rx_compare_setup;
             clear_error_req        = mbinit_clear_error_req;
+
+            mb_rx_val_lane_sel     = (current_ltsm_state_n >= LOG_MBINIT_REPAIRVAL);
+            
+            mb_rx_data_lane_sel    = (current_ltsm_state_n >= LOG_MBINIT_REVERSALMB);
+            
+            
+
         end
     end
 
