@@ -1,5 +1,11 @@
 `timescale 1ps/1ps
 
+import sb_pkg::*;
+import UCIe_pkg::*;
+import ltsm_state_n_pkg::*;
+import LTSM_state_pkg::*;
+import RDI_SM_pkg::*;
+
 module MB_SB_LTSM #(
     parameter int  DATA_WIDTH_MB  = 32,
     parameter int  DATA_WIDTH_SB  = 64,
@@ -54,7 +60,6 @@ module MB_SB_LTSM #(
     // =========================================================================
     // Sideband Controls & Serial Interface
     // =========================================================================
-    input  logic                             pmo_en,
     input  logic                             RXCKSB,
     output logic                             TXCKSB,
     output logic                             TXDATASB,
@@ -99,8 +104,6 @@ module MB_SB_LTSM #(
     // =========================================================================
     output LTSM_state_e                      current_ltsm_state,
     output state_n_e                         current_ltsm_state_n,
-    output logic                             mbinit_error,
-    output logic                             active_error,
     output logic                             timeout_8ms_occured,
     output logic [7:0]                       log0_state_n,
     output logic                             log0_lane_reversal,
@@ -154,13 +157,6 @@ module MB_SB_LTSM #(
     // RDI status
     input  RDI_state                         rdi_state
 );
-
-    import sb_pkg::*;
-    import UCIe_pkg::*;
-    import ltsm_state_n_pkg::*;
-    import LTSM_state_pkg::*;
-    import RDI_SM_pkg::*;
-
     // =========================================================================
     // 1. Clocks and Resets Generation
     // =========================================================================
@@ -215,6 +211,11 @@ module MB_SB_LTSM #(
     assign ltsm_msg_n_send = sb_tx_msg_id;
     assign sb_rx_msg_id    = msg_no_e'(ltsm_msg_no_rcvd);
 
+    // phy in reset logic 
+
+    logic phy_in_reset = (current_ltsm_state == RESET ||
+                          current_ltsm_state == SBINIT);
+                          
     // MainBand Control/Status intermediate connections between u_ltsm_top and u_mb_die
     logic                 mb_mapper_en;
     logic [2:0]           mb_width_deg_tx;
@@ -347,7 +348,7 @@ module MB_SB_LTSM #(
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_n),
         .phy_in_reset     (0),
-        .pmo_en           (pmo_en),
+        .pmo_en           (reg_PMO_enable_status),
         
         .sb_pll_clock     (sb_pll_clock),
         .RXCKSB           (RXCKSB),
@@ -412,9 +413,6 @@ module MB_SB_LTSM #(
         // Status / observability
         .current_ltsm_state                    (current_ltsm_state),
         .current_ltsm_state_n                  (current_ltsm_state_n),
-        .mbinit_error                          (mbinit_error),
-        .active_error                          (active_error),
-        .timeout_8ms_occured                   (timeout_8ms_occured),
         .log0_state_n                          (log0_state_n),
         .log0_lane_reversal                    (log0_lane_reversal),
         .log0_width_degrade                    (log0_width_degrade),
