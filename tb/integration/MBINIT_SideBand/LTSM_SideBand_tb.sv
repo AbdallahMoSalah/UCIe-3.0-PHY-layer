@@ -1487,6 +1487,67 @@ module LTSM_SideBand_tb;
         join_any
         disable fork;
 
+        // ---------------------------------------------------------------------
+        // SCENARIO 12: ASYMMETRIC REVERSAL RETRY (Die 0 retries, Die 1 stays passive)
+        // ---------------------------------------------------------------------
+        $display("\n==================================================================");
+        $display("T=%0t | [TEST - SCENARIO 12] Starting Asymmetric Reversal Retry...", $time);
+        $display("==================================================================\n");
+        reset_system();
+        block_sideband = 1'b0;
+
+        // Force Die 0 to retry (by making Die 1's RX fail on first pass)
+        // Keep Die 1 passive (by making Die 0's RX pass on first pass)
+        mb_rx_perlane_pass[0] = 16'hFFFF; // Die 1's TX to Die 0 passes
+        mb_rx_perlane_pass[1] = 16'h0000; // Die 0's TX to Die 1 fails
+
+        $display("T=%0t | [TEST - SCENARIO 12] Triggering training to trigger asymmetric reversal...", $time);
+        @(posedge clk_100);
+        m_phy_start_ucie_link_training_ctrl_out = 1'b1;
+
+        // Wait for lane reversal request on Die 0 (the retrying side)
+        fork
+            begin
+                wait (mb_lane_reversal_req[0]);
+                $display("T=%0t | [TEST - SCENARIO 12] Die 0 Lane Reversal retry detected! Injecting passing RX for Die 1...", $time);
+                
+                // Once retry starts, make Die 1's RX pass so it can receive Die 0's pattern
+                mb_rx_perlane_pass[1] = 16'hFFFF;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCENARIO 12] Training errored out before retry!", $time);
+                $finish;
+            end
+            begin
+                repeat(3000) @(posedge clk_100);
+                $error("T=%0t | [TIMEOUT - SCENARIO 12] Reversal retry not triggered in time!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wait for successful completion
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("\n==================================================================");
+                $display("T=%0t | [SUCCESS - SCENARIO 12] Asymmetric reversal retry completed successfully!", $time);
+                $display("==================================================================\n");
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [FAILURE - SCENARIO 12] Training errored out after retry!", $time);
+                $finish;
+            end
+            begin
+                repeat(5000) @(posedge clk_100);
+                $error("T=%0t | [TIMEOUT - SCENARIO 12] Watchdog expired!", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
         $display("\n==================================================================");
         $display("  ALL TEST SCENARIOS COMPLETED SUCCESSFULLY!");
         $display("==================================================================\n");

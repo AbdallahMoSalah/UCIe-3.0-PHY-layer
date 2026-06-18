@@ -700,11 +700,11 @@ module LTSM_wrapper #(
         .mb_tx_data_pattern_sel(d2c_mb_tx_data_pattern_sel),
         .mb_tx_val_pattern_sel (d2c_mb_tx_val_pattern_sel),
 
-        .mb_tx_pattern_count_done(mb_tx_pattern_count_done),
-        .mb_rx_compare_done      (mb_rx_compare_done),
-        .mb_rx_aggr_pass         (mb_rx_aggr_pass),
-        .mb_rx_perlane_pass      (mb_rx_perlane_pass),
-        .mb_rx_val_pass          (mb_rx_val_pass),
+        // PHY-layer feedback signals (inputs to LTSM_wrapper, forwarded to D2C PT wrapper)
+        .mb_tx_pattern_count_done (mb_tx_pattern_count_done),
+        .mb_rx_aggr_pass          (mb_rx_aggr_pass),
+        .mb_rx_perlane_pass       (mb_rx_perlane_pass),
+        .mb_rx_val_pass           (mb_rx_val_pass),
 
         .tx_sb_msg_valid (d2c_tx_sb_msg_valid),
         .tx_sb_msg       (d2c_tx_sb_msg),

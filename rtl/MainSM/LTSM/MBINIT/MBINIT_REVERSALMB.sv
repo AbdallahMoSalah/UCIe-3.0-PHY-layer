@@ -113,18 +113,24 @@ typedef enum logic [4:0] {
 
 state_e current_state, next_state;
 
-////////////////////////////////////////////////////////
-// WIDTH (FROM NEGOTIATION)
-////////////////////////////////////////////////////////
+//// Declarations
+logic        retry_done;
+logic        any_retry;         // Set when EITHER local or remote decided to retry in S5
+logic [15:0] partner_result;
+logic [4:0]  success_count;
+logic        reg_x8_mode_req;
+logic [15:0] mb_rx_perlane_pass_result;
+logic [4:0]  local_rx_success_count;
+logic        local_needs_retry;
+logic        remote_needs_retry;      // Registered: used outside S5
+logic        remote_needs_retry_comb; // Combinational: used IN S5 decision
+logic        clear_error_req_next;
+logic        majority_success;
 
-////////////////////////////////////////////////////////
-// SUCCESS COUNT
-////////////////////////////////////////////////////////
-logic retry_done;
-logic [15:0] partner_result; // latched in always_ff below
-logic [4:0] success_count;
-logic reg_x8_mode_req;
-assign reg_x8_mode_req = (Link_Width_enable_status == 4'h1);
+assign reg_x8_mode_req         = (Link_Width_enable_status == 4'h1);
+assign majority_success         = reg_x8_mode_req ? (success_count >= 4) : (success_count >= 8);
+assign remote_needs_retry_comb  = reg_x8_mode_req ? (local_rx_success_count < 4)
+                                                   : (local_rx_success_count < 8);
 
 always_comb begin
     success_count = 0;
@@ -137,8 +143,41 @@ always_comb begin
             success_count += partner_result[i];       
 end
 
-logic majority_success;
-assign majority_success = reg_x8_mode_req ? (success_count >= 4 ) : (success_count >= 8 );
+
+always_comb begin
+    local_rx_success_count = 0;
+    if (reg_x8_mode_req) begin
+        for (int i = 0; i < 8; i++) begin
+            local_rx_success_count += mb_rx_perlane_pass_result[i];
+        end
+    end else begin
+        for (int i = 0; i < 16; i++) begin
+            local_rx_success_count += mb_rx_perlane_pass_result[i];
+        end
+    end
+end
+
+
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        local_needs_retry  <= 1'b0;
+        remote_needs_retry <= 1'b0;
+    end else if (current_state == MB_S0_IDLE) begin
+        local_needs_retry  <= 1'b0;
+        remote_needs_retry <= 1'b0;
+    end else if (current_state == MB_S5_DECISION) begin
+        // Re-evaluate on EVERY visit to S5 (first pass AND retry).
+        // local_needs_retry: only set on first visit (!retry_done); on retry it stays 1.
+        if (!retry_done)
+            local_needs_retry <= !majority_success;
+        // remote_needs_retry: always re-evaluate (must reflect the current run's RX result).
+        remote_needs_retry <= (reg_x8_mode_req) ? (local_rx_success_count < 4)
+                                                 : (local_rx_success_count < 8);
+    end
+end
+
+
 
     logic mb_lane_reversal_req_r;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -174,7 +213,7 @@ localparam logic [63:0] MB_default_data_Field = 64'h0;
 ////////////////////////////////////////////////////////
 // RESULT
 ////////////////////////////////////////////////////////
-logic [15:0] mb_rx_perlane_pass_result;
+
 
 logic [63:0] MB_local_result_exchange_data_Field;
 always_comb begin
@@ -202,6 +241,21 @@ end
 logic retry_start;
 assign retry_start = (current_state == MB_S5_DECISION) && (!majority_success) && (!retry_done);
 
+// any_retry: latched once in S5 if EITHER local OR remote needs a retry.
+// Used by the passive side to detect it is in a retry-phase bypass path.
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        any_retry <= 1'b0;
+    else if (current_state == MB_S0_IDLE)
+        any_retry <= 1'b0;
+    else if (current_state == MB_S5_DECISION && !retry_done) begin
+        // Combinationally check both sides at the moment of decision
+        any_retry <= !majority_success ||
+                     ((reg_x8_mode_req) ? (local_rx_success_count < 4)
+                                        : (local_rx_success_count < 8));
+    end
+end
+
 ////////////////////////////////////////////////////////
 // HANDSHAKE FLAGS + DATA CAPTURE
 ////////////////////////////////////////////////////////
@@ -226,6 +280,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
         mb_rx_perlane_pass_result <= 16'h0;
+        clear_error_req <= 1'b0;
     end else if (current_state == MB_S0_IDLE) begin
         s1_req_rcvd    <= 1'b0;
         s1_rsp_rcvd    <= 1'b0;
@@ -237,6 +292,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
         mb_rx_perlane_pass_result <= 16'h0;
+        clear_error_req <= 1'b0;
     end else if (retry_start) begin
         s2_req_rcvd    <= 1'b0;
         s2_rsp_rcvd    <= 1'b0;
@@ -245,61 +301,88 @@ always_ff @(posedge clk or negedge rst_n) begin
         s6_req_rcvd    <= 1'b0;
         s6_rsp_rcvd    <= 1'b0;
         partner_result <= 16'h0;
-    end else if (sb_reversal_rx_valid) begin
-        case (sb_reversal_rx_msg_id)
-            MBINIT_REVERSALMB_init_req : begin
-                s1_req_rcvd <= 1'b1;
-            end
-            MBINIT_REVERSALMB_init_resp: begin
-                if (current_state > MB_S1_READY_REQ_SEND) begin
-                    s1_rsp_rcvd <= 1'b1;
-                end
-            end
-
-            MBINIT_REVERSALMB_clear_error_req : begin 
-                if (current_state > MB_S1_READY_RSP_SEND && s1_rsp_rcvd) begin
-                    s2_req_rcvd <= 1'b1;
-                    clear_error_req <= 1'b1;
-                end else begin
-                    clear_error_req <= 1'b0;
-                end
-            end
-            MBINIT_REVERSALMB_clear_error_resp: begin
-                if (current_state > MB_S2_ERROR_RESET_REQ_SEND)
-                    s2_rsp_rcvd <= 1'b1;
-            end
-
-            MBINIT_REVERSALMB_result_req      : begin 
-                if (current_state > MB_S2_ERROR_RESET_RSP_SEND && s2_rsp_rcvd) begin
-                    s4_req_rcvd <= 1'b1;
-                    mb_rx_perlane_pass_result <= mb_rx_perlane_pass;
-                end
-            end
-            MBINIT_REVERSALMB_result_resp     : begin
-                if (current_state > MB_S4_RESULT_REQ_SEND) begin
-                    s4_rsp_rcvd <= 1'b1;
-                    if (reg_x8_mode_req)
-                        partner_result <= {8'b0, sb_reversal_rx_data_Field[7:0]};
-                    else
-                        partner_result <= sb_reversal_rx_data_Field[15:0];
-                end
-            end
-            
-            MBINIT_REVERSALMB_done_req        : begin
-                if (current_state > MB_S4_RESULT_RSP_SEND && s4_rsp_rcvd) begin
-                    s6_req_rcvd <= 1'b1;
-                end
-            end
-            MBINIT_REVERSALMB_done_resp       : begin
-                if (current_state > MB_S6_FINALIZE_REQ_SEND) begin
-                    s6_rsp_rcvd <= 1'b1;
-                end
-            end
-            default                           : clear_error_req <= 1'b0;
-        endcase
-    end
-    else begin
         clear_error_req <= 1'b0;
+    end else begin
+        // Consumed flags clearing
+        if (current_state == MB_S2_ERROR_RESET_RSP_SEND && sb_ltsm_rdy)
+            s2_req_rcvd <= 1'b0;
+        if (current_state == MB_S4_RESULT_RSP_SEND && sb_ltsm_rdy)
+            s4_req_rcvd <= 1'b0;
+        if (current_state == MB_S6_FINALIZE_RSP_SEND && sb_ltsm_rdy)
+            s6_req_rcvd <= 1'b0;
+
+        if (current_state == MB_S2_ERROR_RESET_RSP_WAIT && s2_rsp_rcvd)
+            s2_rsp_rcvd <= 1'b0;
+        if (current_state == MB_S4_RESULT_RSP_WAIT && s4_rsp_rcvd)
+            s4_rsp_rcvd <= 1'b0;
+        if (current_state == MB_S6_FINALIZE_RSP_WAIT && s6_rsp_rcvd)
+            s6_rsp_rcvd <= 1'b0;
+
+        // Generator self clearing
+        if (current_state == MB_S2_ERROR_RESET_REQ_SEND && sb_ltsm_rdy)
+            clear_error_req_next = 1'b1;
+        else
+            clear_error_req_next = 1'b0;
+
+        if (sb_reversal_rx_valid) begin
+            case (sb_reversal_rx_msg_id)
+                MBINIT_REVERSALMB_init_req : begin
+                    s1_req_rcvd <= 1'b1;
+                end
+                MBINIT_REVERSALMB_init_resp: begin
+                    if (current_state > MB_S1_READY_REQ_SEND) begin
+                        s1_rsp_rcvd <= 1'b1;
+                    end
+                end
+
+                MBINIT_REVERSALMB_clear_error_req : begin 
+                    if (current_state > MB_S1_READY_RSP_SEND && s1_rsp_rcvd) begin
+                        s2_req_rcvd <= 1'b1;
+                        clear_error_req_next = 1'b1;
+                    end
+                end
+                MBINIT_REVERSALMB_clear_error_resp: begin
+                    if (current_state > MB_S2_ERROR_RESET_REQ_SEND)
+                        s2_rsp_rcvd <= 1'b1;
+                end
+
+                MBINIT_REVERSALMB_result_req      : begin 
+                    // Accept when we are past the S2 handshake phase.
+                    // First pass: both sides are in S4_RESULT_REQ_WAIT, s2_rsp_rcvd is set.
+                    // Passive retry: any_retry && !local_needs_retry (s2_rsp_rcvd never set for them).
+                    // Active retry: s2_rsp_rcvd is set after receiving clear_error_resp.
+                    if (current_state > MB_S2_ERROR_RESET_RSP_SEND) begin
+                        s4_req_rcvd <= 1'b1;
+                        mb_rx_perlane_pass_result <= mb_rx_perlane_pass;
+                    end
+                end
+                MBINIT_REVERSALMB_result_resp     : begin
+                    if (current_state > MB_S4_RESULT_REQ_SEND) begin
+                        s4_rsp_rcvd <= 1'b1;
+                        if (reg_x8_mode_req)
+                            partner_result <= {8'b0, sb_reversal_rx_data_Field[7:0]};
+                        else
+                            partner_result <= sb_reversal_rx_data_Field[15:0];
+                    end
+                end
+                
+                MBINIT_REVERSALMB_done_req        : begin
+                    // Accept when we are past S4 result exchange entirely.
+                    // s4_rsp_rcvd is cleared when leaving S4_RSP_WAIT so
+                    // we cannot rely on it here — state position is sufficient.
+                    if (current_state > MB_S4_RESULT_RSP_SEND) begin
+                        s6_req_rcvd <= 1'b1;
+                    end
+                end
+                MBINIT_REVERSALMB_done_resp       : begin
+                    if (current_state > MB_S6_FINALIZE_REQ_SEND) begin
+                        s6_rsp_rcvd <= 1'b1;
+                    end
+                end
+                default                           : ;
+            endcase
+        end
+        clear_error_req <= clear_error_req_next;
     end
 end
 
@@ -348,9 +431,15 @@ always_comb begin
                 if (s1_rsp_rcvd)    next_state = MB_S2_ERROR_RESET_REQ_SEND;
             end
 
-            // S2 Error Reset REQ
+            // S2 Error Reset REQ (only the active retrier sends this)
             MB_S2_ERROR_RESET_REQ_SEND: begin
-                if (sb_ltsm_rdy)       next_state = MB_S2_ERROR_RESET_REQ_WAIT;
+                if (sb_ltsm_rdy) begin
+                    if (local_needs_retry && !remote_needs_retry)
+                        // Active retrier in asymmetric retry: skip wait/rsp states, go straight to RSP_WAIT
+                        next_state = MB_S2_ERROR_RESET_RSP_WAIT;
+                    else
+                        next_state = MB_S2_ERROR_RESET_REQ_WAIT;
+                end
             end
             MB_S2_ERROR_RESET_REQ_WAIT: begin
                 if (s2_req_rcvd)    next_state = MB_S2_ERROR_RESET_RSP_SEND;
@@ -358,10 +447,19 @@ always_comb begin
 
             // S2 Error Reset RSP
             MB_S2_ERROR_RESET_RSP_SEND: begin
-                if (sb_ltsm_rdy)       next_state = MB_S2_ERROR_RESET_RSP_WAIT;
+                if (sb_ltsm_rdy) begin
+                    if (!local_needs_retry && any_retry)
+                        // Passive side in retry: skip S3 pattern, wait for partner's result_req
+                        next_state = MB_S4_RESULT_REQ_WAIT;
+                    else
+                        // Active retrier OR first-pass: wait for partner's clear_error_resp
+                        next_state = MB_S2_ERROR_RESET_RSP_WAIT;
+                end
             end
             MB_S2_ERROR_RESET_RSP_WAIT: begin
-                if (s2_rsp_rcvd)    next_state = MB_S3_PATTERN_TRANSMISSION;
+                // Only the active retrier arrives here
+                if (s2_rsp_rcvd)
+                    next_state = MB_S3_PATTERN_TRANSMISSION;
             end
 
             // S3 Pattern Transmission
@@ -370,9 +468,15 @@ always_comb begin
                     next_state = MB_S4_RESULT_REQ_SEND;
             end
 
-            // S4 Result REQ
+            // S4 Result REQ (only active retrier sends this)
             MB_S4_RESULT_REQ_SEND: begin
-                if (sb_ltsm_rdy)       next_state = MB_S4_RESULT_REQ_WAIT;
+                if (sb_ltsm_rdy) begin
+                    if (local_needs_retry && !remote_needs_retry)
+                        // Active retrier in asymmetric retry: skip wait/rsp states, go straight to RSP_WAIT
+                        next_state = MB_S4_RESULT_RSP_WAIT;
+                    else
+                        next_state = MB_S4_RESULT_REQ_WAIT;
+                end
             end
             MB_S4_RESULT_REQ_WAIT: begin
                 if (s4_req_rcvd)    next_state = MB_S4_RESULT_RSP_SEND;
@@ -380,28 +484,48 @@ always_comb begin
 
             // S4 Result RSP
             MB_S4_RESULT_RSP_SEND: begin
-                if (sb_ltsm_rdy)       next_state = MB_S4_RESULT_RSP_WAIT;
+                if (sb_ltsm_rdy) begin
+                    if (!local_needs_retry && any_retry)
+                        // Passive side in retry: I passed, partner ran retry - I send end_req
+                        next_state = MB_S6_FINALIZE_REQ_SEND;
+                    else
+                        // Active retrier OR first-pass: wait for partner's result_resp
+                        next_state = MB_S4_RESULT_RSP_WAIT;
+                end
             end
             MB_S4_RESULT_RSP_WAIT: begin
-                if (s4_rsp_rcvd)    next_state = MB_S5_DECISION;
+                // Only the active retrier arrives here
+                if (s4_rsp_rcvd)
+                    next_state = MB_S5_DECISION;
             end
 
-            // S5 Decision
+            // S5 Decision — ALL routing happens here
             MB_S5_DECISION: begin
-                if (majority_success)
-                    next_state = MB_S6_FINALIZE_REQ_SEND;
-                else if (!majority_success && !retry_done)
-                    next_state = MB_S2_ERROR_RESET_REQ_SEND;
-                else // !majority_success && retry_done
+                if (!majority_success && retry_done) begin
+                    // Both sides failed, retry exhausted
                     next_state = MB_S7_REVERSAL_ERROR;
+                end else if (!majority_success && !retry_done) begin
+                    // I need a retry → I send clear_error_req
+                    next_state = MB_S2_ERROR_RESET_REQ_SEND;
+                end else if (majority_success && remote_needs_retry_comb) begin
+                    // I passed, but partner needs retry → wait for their clear_error_req
+                    // Use combinational to avoid 1-cycle delay from registered version
+                    next_state = MB_S2_ERROR_RESET_REQ_WAIT;
+                end else begin
+                    // Both passed → finalize
+                    next_state = MB_S6_FINALIZE_REQ_SEND;
+                end
             end
 
-            // S6 Finalize REQ
+            // S6 Finalize REQ (only the active/both-pass side sends this)
             MB_S6_FINALIZE_REQ_SEND: begin
                 if (sb_ltsm_rdy)       next_state = MB_S6_FINALIZE_REQ_WAIT;
             end
             MB_S6_FINALIZE_REQ_WAIT: begin
-                if (s6_req_rcvd)    next_state = MB_S6_FINALIZE_RSP_SEND;
+                // Passive side arrived here directly from S4_RSP_WAIT;
+                // active/both-pass side arrived from S6_REQ_SEND
+                if (s6_req_rcvd)
+                    next_state = MB_S6_FINALIZE_RSP_SEND;
             end
 
             // S6 Finalize RSP
@@ -498,12 +622,38 @@ always_comb begin
     case(current_state)
 
         MB_S1_READY_RSP_SEND,
-        MB_S1_READY_RSP_WAIT,
+        MB_S1_READY_RSP_WAIT: begin
+            // Initial readiness exchange: enable RX comparison
+            mb_rx_compare_en = 1;
+        end
+
         MB_S3_PATTERN_TRANSMISSION,
         MB_S4_RESULT_REQ_SEND,
         MB_S4_RESULT_REQ_WAIT: begin
+            // Active retrier OR first-time traversal: enable RX compare
+            // Passive side (!local_needs_retry) never visits these states on retry
             mb_rx_compare_en = 1;
         end
+
+        MB_S2_ERROR_RESET_REQ_WAIT,
+        MB_S2_ERROR_RESET_RSP_SEND,
+        MB_S2_ERROR_RESET_RSP_WAIT: begin
+            // Passive side waits for partner's clear_error handshake;
+            // enable RX so the pattern result is ready when partner sends result_req
+            if (!local_needs_retry) begin
+                mb_rx_compare_en = 1;
+            end
+        end
+
+        MB_S4_RESULT_RSP_SEND,
+        MB_S4_RESULT_RSP_WAIT,
+        MB_S6_FINALIZE_REQ_WAIT: begin
+            // Passive side in final handshake phase
+            if (!local_needs_retry) begin
+                mb_rx_compare_en = 1;
+            end
+        end
+
         default: begin
             mb_rx_compare_en = 0;
         end
@@ -570,14 +720,14 @@ end
     // 6. Bounded Liveness: clear_error_req must eventually be answered or enter S7 error
     property p_clear_req_leads_to_resp_or_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S2_ERROR_RESET_REQ_WAIT) |-> (##[1:2000] (s2_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+        (current_state == MB_S2_ERROR_RESET_REQ_WAIT && local_needs_retry) |-> (##[1:2000] (s2_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
     endproperty
     assert_clear_req_leads_to_resp_or_error: assert property(p_clear_req_leads_to_resp_or_error);
 
     // 7. Bounded Liveness: result_req must eventually be answered or enter S7 error
     property p_degrade_req_leads_to_resp_or_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S4_RESULT_RSP_WAIT) |-> (##[1:2000] (s4_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+        (current_state == MB_S4_RESULT_RSP_WAIT && local_needs_retry) |-> (##[1:2000] (s4_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
     endproperty
     assert_degrade_req_leads_to_resp_or_error: assert property(p_degrade_req_leads_to_resp_or_error);
 
