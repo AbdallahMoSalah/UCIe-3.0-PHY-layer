@@ -19,56 +19,146 @@ parameter ZERO   = 8;
 
 
 
-logic [7:0] counter_toggle_p;
-logic [7:0] counter_toggle_n;
-logic [7:0] counter_toggle_track;
-logic [7:0] counter_zero_p;
-logic [7:0] counter_zero_n;
-logic [7:0] counter_zero_track;
+logic [4:0] counter_toggle_p;
+logic [4:0] counter_toggle_n;
+logic [4:0] counter_toggle_track;
+logic [3:0] counter_zero_p;
+logic [3:0] counter_zero_n;
+logic [3:0] counter_zero_track;
 
-logic [7:0] counter_16_consecetive_p;
-logic [7:0] counter_16_consecetive_n;
-logic [7:0] counter_16_consecetive_track;
+logic [4:0] counter_16_consecetive_p;
+logic [4:0] counter_16_consecetive_n;
+logic [4:0] counter_16_consecetive_track;
 logic clk_p_p_w , clk_p_n_w , clk_n_p_w , clk_n_n_w , track_p_w , track_n_w; 
 logic flag_p_tog , flag_p_zero , flag_n_tog , flag_n_zero , flag_track_tog , flag_track_zero ;
 
 
-always @(posedge i_clk or negedge i_rst_n) begin
+always @(posedge i_clk , negedge i_rst_n ) begin
     if (!i_rst_n) begin
+        counter_toggle_p    <= 0;
+        counter_toggle_n    <= 0;
+        counter_toggle_track    <= 0;
+        counter_zero_p <= 0;
+        counter_zero_n <= 0;
+        counter_zero_track <= 0;
+        counter_16_consecetive_p <= 0;
+        counter_16_consecetive_n <= 0;
+        counter_16_consecetive_track <= 0;
         clk_p_p_w <= 0; 
+        clk_p_n_w <= 0; 
         clk_n_p_w <= 0; 
+        clk_n_n_w <= 0; 
         track_p_w <= 0; 
+        track_n_w <= 0;
+        flag_p_tog <= 0; 
+        flag_p_zero <= 0; 
+        flag_n_tog <= 0; 
+        flag_n_zero <= 0; 
+        flag_track_tog <= 0; 
+        flag_track_zero <= 0; 
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
     end
     else begin
+
         if (!clk_detector_en) begin
-            clk_p_p_w <= 0; 
-            clk_n_p_w <= 0; 
-            track_p_w <= 0; 
+       counter_toggle_p    <= 0;
+        counter_toggle_n    <= 0;
+        counter_toggle_track    <= 0;
+        counter_zero_p <= 0;
+        counter_zero_n <= 0;
+        counter_zero_track <= 0;
+        counter_16_consecetive_p <= 0;
+        counter_16_consecetive_n <= 0;
+        counter_16_consecetive_track <= 0;
+        clk_p_p_w <= 0; 
+        clk_p_n_w <= 0; 
+        clk_n_p_w <= 0; 
+        clk_n_n_w <= 0; 
+        track_p_w <= 0; 
+        track_n_w <= 0;
+        flag_p_tog <= 0; 
+        flag_p_zero <= 0; 
+        flag_n_tog <= 0; 
+        flag_n_zero <= 0; 
+        flag_track_tog <= 0; 
+        flag_track_zero <= 0; 
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
         end
+
         else begin
             clk_p_p_w <= clk_p;
             clk_n_p_w <= clk_n;
             track_p_w <= track;
+   
         end
     end
 end
 
-always @(negedge i_clk or negedge i_rst_n) begin
+always @(negedge i_clk , negedge i_rst_n ) begin
     if (!i_rst_n) begin
+        counter_toggle_p    <= 0;
+        counter_toggle_n    <= 0;
+        counter_toggle_track    <= 0;
+        counter_zero_p <= 0;
+        counter_zero_n <= 0;
+        counter_zero_track <= 0;
+        counter_16_consecetive_p <= 0;
+        counter_16_consecetive_n <= 0;
+        counter_16_consecetive_track <= 0;
+        clk_p_p_w <= 0; 
         clk_p_n_w <= 0; 
+        clk_n_p_w <= 0; 
         clk_n_n_w <= 0; 
-        track_n_w <= 0; 
+        track_p_w <= 0; 
+        track_n_w <= 0;
+        flag_p_tog <= 0; 
+        flag_p_zero <= 0; 
+        flag_n_tog <= 0; 
+        flag_n_zero <= 0; 
+        flag_track_tog <= 0; 
+        flag_track_zero <= 0; 
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
     end
     else begin
+
         if (!clk_detector_en) begin
-            clk_p_n_w <= 0; 
-            clk_n_n_w <= 0; 
-            track_n_w <= 0; 
+        counter_toggle_p    <= 0;
+        counter_toggle_n    <= 0;
+        counter_toggle_track    <= 0;
+        counter_zero_p <= 0;
+        counter_zero_n <= 0;
+        counter_zero_track <= 0;
+        counter_16_consecetive_p <= 0;
+        counter_16_consecetive_n <= 0;
+        counter_16_consecetive_track <= 0;
+        clk_p_p_w <= 0; 
+        clk_p_n_w <= 0; 
+        clk_n_p_w <= 0; 
+        clk_n_n_w <= 0; 
+        track_p_w <= 0; 
+        track_n_w <= 0;
+        flag_p_tog <= 0; 
+        flag_p_zero <= 0; 
+        flag_n_tog <= 0; 
+        flag_n_zero <= 0; 
+        flag_track_tog <= 0; 
+        flag_track_zero <= 0; 
+        clk_p_pattern_pass <= 0;
+        clk_n_pattern_pass <= 0;
+        track_pattern_pass <= 0;
         end
+
         else begin
             clk_p_n_w <= clk_p;
             clk_n_n_w <= clk_n;
             track_n_w <= track;
+
         end
     end
 end
@@ -133,7 +223,7 @@ always @(posedge i_clk , negedge i_rst_n ) begin
 
             // positive clk
             //toggle
-            if ((clk_p_p_w ^ clk_p_n_w) == 1) begin
+            if (clk_p_p_w ^ clk_p_n_w == 1) begin
 
                 counter_toggle_p <= counter_toggle_p + 1; 
                 counter_zero_p <= 0;                      
@@ -141,29 +231,25 @@ always @(posedge i_clk , negedge i_rst_n ) begin
                 
                 if (counter_zero_p < ZERO && counter_zero_p != 0 ) begin
                     counter_16_consecetive_p <= 0;
-                    $display("[DEBUG DETECTOR] counter_zero_p=%0d < ZERO=%0d, resetting consec_p at t=%0t", counter_zero_p, ZERO, $realtime);
                 end     
 
                 if (counter_toggle_p == TOGGLE-1 ) begin
                     flag_p_tog <= 1;
-                    $display("[DEBUG DETECTOR] flag_p_tog set to 1 at t=%0t, counter_toggle_p=%0d", $realtime, counter_toggle_p);
                 end else if (counter_toggle_p > TOGGLE-1) begin
                     flag_p_tog <= 0;
                 end
                    //idle
-            end else if ((clk_p_p_w ^ clk_p_n_w) == 0 ) begin
+            end else if (clk_p_p_w ^ clk_p_n_w == 0 ) begin
             
                 counter_zero_p <= counter_zero_p + 1;   
                 counter_toggle_p <= 0;  
                 
                 if (counter_toggle_p < TOGGLE && counter_toggle_p != 0) begin
                     counter_16_consecetive_p <= 0;
-                    $display("[DEBUG DETECTOR] counter_toggle_p=%0d < TOGGLE=%0d, resetting consec_p at t=%0t", counter_toggle_p, TOGGLE, $realtime);
                 end  
 
                 if (counter_zero_p == ZERO-1 ) begin
                     flag_p_zero <= 1;       //
-                    $display("[DEBUG DETECTOR] flag_p_zero set to 1 at t=%0t, counter_zero_p=%0d", $realtime, counter_zero_p);
                 end else if (counter_zero_p > ZERO) begin
                     flag_p_zero <= 0;
                     if (counter_16_consecetive_p <= TOGGLE-1) begin
@@ -173,7 +259,7 @@ always @(posedge i_clk , negedge i_rst_n ) begin
             end 
              // negative clk
              //toggle
-            if ((clk_n_p_w ^ clk_n_n_w) == 1) begin
+            if (clk_n_p_w ^ clk_n_n_w == 1) begin
 
                 counter_toggle_n <= counter_toggle_n + 1; 
                 counter_zero_n <= 0;                      
@@ -189,7 +275,7 @@ always @(posedge i_clk , negedge i_rst_n ) begin
                     flag_n_tog <= 0;
                 end
                    //idle
-            end else if ((clk_n_p_w ^ clk_n_n_w) == 0 ) begin
+            end else if (clk_n_p_w ^ clk_n_n_w == 0 ) begin
             
                 counter_zero_n <= counter_zero_n + 1;   
                 counter_toggle_n <= 0;  
@@ -209,7 +295,7 @@ always @(posedge i_clk , negedge i_rst_n ) begin
             end
             // track
             //toggle
-            if ((track_p_w ^ track_n_w) == 1) begin
+            if (track_p_w ^ track_n_w == 1) begin
 
                 counter_toggle_track <= counter_toggle_track + 1; 
                 counter_zero_track <= 0;                      
@@ -225,7 +311,7 @@ always @(posedge i_clk , negedge i_rst_n ) begin
                     flag_track_tog <= 0;
                 end
                    //idle
-            end else if ((track_p_w ^ track_n_w) == 0 ) begin
+            end else if (track_p_w ^ track_n_w == 0 ) begin
             
                 counter_zero_track <= counter_zero_track + 1;   
                 counter_toggle_track <= 0;  
@@ -246,7 +332,6 @@ always @(posedge i_clk , negedge i_rst_n ) begin
 
             if (flag_p_tog && flag_p_zero) begin  
                 counter_16_consecetive_p <= counter_16_consecetive_p + 1;
-                $display("[DEBUG DETECTOR] flag_p_tog && flag_p_zero met! incrementing counter_16_consecetive_p to %0d at t=%0t", counter_16_consecetive_p + 1, $realtime);
                 flag_p_tog <= 0;
                 flag_p_zero <= 0;
             end
@@ -260,13 +345,13 @@ always @(posedge i_clk , negedge i_rst_n ) begin
                 flag_track_tog <= 0;
                 flag_track_zero <= 0;
             end
-            if (counter_16_consecetive_p >= 16) begin
+            if (counter_16_consecetive_p == 16) begin
                 clk_p_pattern_pass <= 1;
             end
-            if (counter_16_consecetive_n >= 16) begin
+            if (counter_16_consecetive_n == 16) begin
                 clk_n_pattern_pass <= 1;
             end
-            if (counter_16_consecetive_track >= 16) begin
+            if (counter_16_consecetive_track == 16) begin
                 track_pattern_pass <= 1;
             end
 

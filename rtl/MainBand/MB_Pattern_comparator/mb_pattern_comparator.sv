@@ -184,7 +184,6 @@ module PATTERN_COMPARATOR #(
                         lane_err_accum[k] <= 16'd0; // start fresh
                     end
                 end else if (iteration_ctr < 128) begin
-
                     // ACCUMULATE — only count errors on active lanes
                     for (k = 0; k < 16; k = k + 1) begin
                         if (lane_active[k]) begin

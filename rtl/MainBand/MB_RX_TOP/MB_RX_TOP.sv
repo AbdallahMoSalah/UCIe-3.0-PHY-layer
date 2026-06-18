@@ -136,7 +136,7 @@ module MB_RX_TOP #(
     end
 
     wire gated_enable_buffer = i_enable_buffer && (
-        (i_state == 3'b010 || i_state == 3'b011) ? de_ser_done : 1'b1
+        (i_state_delayed == 3'b010 || i_state_delayed == 3'b011) ? de_ser_done : 1'b1
     );
 
     // =========================================================================
@@ -467,11 +467,8 @@ module MB_RX_TOP #(
     // =========================================================================
     // Block 7: Clock Pattern Detector RX (CLK_PATTERN_DETECTOR_RX)
     // =========================================================================
-    CLK_PATTERN_DETECTOR_RX #(
-        .TOGGLE(32),
-        .ZERO(16)
-    ) u_CLK_PATTERN_DETECTOR_RX (
-        .i_clk(pll_clk),
+    CLK_PATTERN_DETECTOR_RX u_CLK_PATTERN_DETECTOR_RX (
+        .i_clk(MB_clk),
         .i_rst_n(i_rst_n),
         .clk_detector_en(clk_detector_en),
         .clk_p(clk_p),

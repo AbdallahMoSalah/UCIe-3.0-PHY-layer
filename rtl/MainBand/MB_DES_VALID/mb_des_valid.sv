@@ -30,7 +30,7 @@ module MB_DESERIALIZER_VALID #(
     input  wire                   pll_clk,
     input  wire                   i_rst_n,
     input  wire                   ser_data_in,          // valid lane serial input
-    output wire                   enable_des_valid_frame, // 1 when last frame == VALID_PATTERN
+    output reg                    enable_des_valid_frame, // 1 when last frame == VALID_PATTERN
     output reg  [DATA_WIDTH-1:0]  par_data_out,           // latest deserialized word
     output reg                    de_ser_done             // 1-cycle pulse per new word
 );
@@ -55,6 +55,8 @@ reg [3:0]            o_count;           // 0..15 negedge cycles per frame
 // Toggle-synchroniser for pll_clk → MB_clk CDC
 reg                  save_data_toggle;
 reg                  sync1_toggle;
+reg                  sync2_toggle;
+reg                  sync3_toggle;
 wire                 valid_pulse;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,9 +87,6 @@ always @(negedge pll_clk or negedge i_rst_n) begin
         // Free-running DDR shift register (always shifting regardless of FSM state)
         shift_reg <= {ser_data_in, r_data_pos, shift_reg[DATA_WIDTH-1:2]};
         prev_ser_data_in <= ser_data_in;
-
-        if (ser_data_in && !prev_ser_data_in && o_state == 1'b0) begin
-        end
 
         case (o_state)
             1'b0: begin // IDLE — wait for rising edge (0→1) on valid lane
@@ -120,18 +119,22 @@ always @(negedge pll_clk or negedge i_rst_n) begin
 end
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Toggle Synchroniser: pll_clk → MB_clk  (1-FF)
+// Toggle Synchroniser: pll_clk → MB_clk  (3-FF)
 // ─────────────────────────────────────────────────────────────────────────────
 always @(posedge MB_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         sync1_toggle <= 1'b0;
+        sync2_toggle <= 1'b0;
+        sync3_toggle <= 1'b0;
     end else begin
         sync1_toggle <= save_data_toggle;
+        sync2_toggle <= sync1_toggle;
+        sync3_toggle <= sync2_toggle;
     end
 end
 
 // 1-cycle pulse in MB_clk domain when a new 32-bit word has crossed the CDC
-assign valid_pulse = (save_data_toggle != sync1_toggle);
+assign valid_pulse = (sync2_toggle != sync3_toggle);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MB_clk domain: output registers
@@ -151,7 +154,15 @@ always @(posedge MB_clk or negedge i_rst_n) begin
     end
 end
 
-// enable_des_valid_frame: combinational comparison of save_data with valid pattern code
-assign enable_des_valid_frame = (save_data == VALID_PATTERN_CODE) ? 1'b1 : 1'b0;
+// enable_des_valid_frame: NON-STICKY, reflects the last received frame
+always @(posedge MB_clk or negedge i_rst_n) begin
+    if (!i_rst_n) begin
+        enable_des_valid_frame <= 1'b0;
+    end else begin
+        if (valid_pulse) begin
+            enable_des_valid_frame <= (save_data == VALID_PATTERN_CODE) ? 1'b1 : 1'b0;
+        end
+    end
+end
 
 endmodule

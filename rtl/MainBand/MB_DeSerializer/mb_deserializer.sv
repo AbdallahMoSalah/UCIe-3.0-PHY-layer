@@ -45,6 +45,8 @@ reg                  running;
 // Toggle-synchroniser for pll_clk → MB_clk CDC
 reg                  save_data_toggle;
 reg                  sync1_toggle;
+reg                  sync2_toggle;
+reg                  sync3_toggle;
 wire                 valid_pulse;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,18 +99,22 @@ always @(negedge pll_clk or negedge i_rst_n) begin
 end
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Toggle Synchroniser: pll_clk (negedge triggered) → MB_clk (1-FF)
+// Toggle Synchroniser: pll_clk (negedge triggered) → MB_clk (3-FF)
 // ─────────────────────────────────────────────────────────────────────────────
 always @(posedge MB_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         sync1_toggle <= 1'b0;
+        sync2_toggle <= 1'b0;
+        sync3_toggle <= 1'b0;
     end else begin
         sync1_toggle <= save_data_toggle;
+        sync2_toggle <= sync1_toggle;
+        sync3_toggle <= sync2_toggle;
     end
 end
 
 // 1-cycle pulse in MB_clk domain when new word crossed CDC
-assign valid_pulse = (save_data_toggle != sync1_toggle);
+assign valid_pulse = (sync2_toggle != sync3_toggle);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MB_clk domain: output logic
