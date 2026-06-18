@@ -840,6 +840,10 @@ module LTSM_wrapper #(
             
 
         end
+        else if (current_ltsm_state == ACTIVE) begin
+            mb_rx_val_lane_sel     = 1'b1;
+            mb_rx_data_lane_sel    = 1'b1;
+        end
     end
 
     // =========================================================================

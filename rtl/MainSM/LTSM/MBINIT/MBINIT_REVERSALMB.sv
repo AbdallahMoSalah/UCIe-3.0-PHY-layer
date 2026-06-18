@@ -187,8 +187,6 @@ end
             mb_lane_reversal_req_r <= 1'b0;
         else if (current_state == MB_S5_DECISION && !majority_success && !retry_done) begin
             mb_lane_reversal_req_r <= 1'b1;
-        end else begin
-            mb_lane_reversal_req_r <= 1'b0;
         end
     end
 

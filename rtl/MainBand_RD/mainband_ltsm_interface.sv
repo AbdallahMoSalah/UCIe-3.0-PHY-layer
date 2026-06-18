@@ -130,9 +130,25 @@ module mainband_ltsm_interface #(
                 i_lfsr_state = 3'b000; //Idle
             end 
         end 
-        i_state = i_lfsr_state;
     end
 
+    always_comb begin : i_state_generator
+        if (active)
+            i_state = 3'b100; //Data Transfer
+        else begin
+            if (mb_tx_lfsr_rst)
+                i_state = 3'b001; //Reset
+            else if (mb_rx_compare_en && mb_tx_pattern_setup[0]) begin
+                if (!mb_tx_data_pattern_sel[0])
+                    i_state = 3'b010; //PRBS Pattern
+                else
+                    i_state = 3'b011; //Per lane ID pattern
+            end else begin
+                i_state = 3'b000; //Idle
+            end 
+        end 
+    end
+    
     always_comb begin : valid_pattern_en_generator
         if (mb_tx_pattern_en && mb_tx_pattern_setup[1])
             i_valid_pattern_en = 1'b1;
@@ -181,6 +197,10 @@ module mainband_ltsm_interface #(
     end
 
     always_comb begin : deserializer_en_generator
+        // In ACTIVE (functional data transfer) the LTSM stops asserting the
+        // training-phase RX lane selects (mb_rx_data_en / mb_rx_valid_en), but the
+        // RX deserializers must stay enabled to recover mission-mode flits. Force
+        // them on in ACTIVE, sized to the negotiated width held in mb_rx_data_lane_map.
         if (mb_rx_data_en) begin
             case (mb_rx_data_lane_map)
                 3'b011: i_rx_data_deser_en = 16'hffff;
@@ -189,7 +209,7 @@ module mainband_ltsm_interface #(
                 3'b100: i_rx_data_deser_en = 16'h000f;
                 3'b101: i_rx_data_deser_en = 16'h00f0;
                 default: i_rx_data_deser_en = 16'h0000;
-            endcase 
+            endcase
         end else begin
             i_rx_data_deser_en = 16'h0000;
         end

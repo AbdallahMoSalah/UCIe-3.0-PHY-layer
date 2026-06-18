@@ -908,11 +908,11 @@ module MB_SB_LTSM_tb;
         lp_data1 = {16{32'hCAFEBABE}};
 
         fork
-            begin : die0_recv
+            begin : pair1_recv
+                // Require BOTH dies. wait is level-sensitive, so the order the two
+                // o_pl_valid pulses arrive in does not matter.
                 wait (o_pl_valid0 && o_out_data0 === {16{32'hCAFEBABE}});
                 $display("T=%0t | [SC7] Die0 received CAFEBABE correctly.", $time);
-            end
-            begin : die1_recv
                 wait (o_pl_valid1 && o_out_data1 === {16{32'hDEADBEEF}});
                 $display("T=%0t | [SC7] Die1 received DEADBEEF correctly.", $time);
             end
@@ -921,7 +921,7 @@ module MB_SB_LTSM_tb;
                 $error("T=%0t | [SC7] TIMEOUT -- Data transfer did not complete within 200 cycles.", $time);
                 $finish;
             end
-        join
+        join_any
         disable fork;
 
         // Send pair 2
@@ -930,11 +930,9 @@ module MB_SB_LTSM_tb;
         lp_data1 = {16{32'h87654321}};
 
         fork
-            begin : die0_recv_2
+            begin : pair2_recv
                 wait (o_pl_valid0 && o_out_data0 === {16{32'h87654321}});
                 $display("T=%0t | [SC7] Die0 received 87654321 correctly.", $time);
-            end
-            begin : die1_recv_2
                 wait (o_pl_valid1 && o_out_data1 === {16{32'h12345678}});
                 $display("T=%0t | [SC7] Die1 received 12345678 correctly.", $time);
             end
@@ -943,7 +941,7 @@ module MB_SB_LTSM_tb;
                 $error("T=%0t | [SC7] TIMEOUT -- Data transfer did not complete within 200 cycles.", $time);
                 $finish;
             end
-        join
+        join_any
         disable fork;
 
         @(negedge lclk0);
