@@ -49,7 +49,6 @@ module LTSM_wrapper #(
     // =========================================================================
     output LTSM_state_e current_ltsm_state,
     output state_n_e    current_ltsm_state_n,
-    output logic        timeout_8ms_occured,
     output logic [7:0]  log0_state_n,
     output logic        log0_lane_reversal,
     output logic        log0_width_degrade,
