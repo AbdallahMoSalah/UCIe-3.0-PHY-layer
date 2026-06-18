@@ -14,7 +14,7 @@
 //   3. Arbitrate the single SB TX output between local and partner sub-wrappers.
 // =============================================================================
 
-module wrapper_D2C_PT_top(
+module wrapper_D2C_PT(
         // =========================================================================
         // Group 1: Clock and Reset Signals
         // =========================================================================
