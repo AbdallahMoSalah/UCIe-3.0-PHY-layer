@@ -113,24 +113,13 @@ module unit_LINKSPEED_local (
         output logic [15:0] linkspeed_success_lanes,   // Per-lane D2C pass mask. Used by REPAIR.
 
         //=====================================//
-        // MB Lane Control Outputs:            //
+        // MB Lane State Flags:                //
         //=====================================//
-        // TX encoding: 2'b00=Low / 2'b01=Active / 2'b10=Hi-Z / 2'b11=Elec Idle
-        // RX encoding: 1=Enabled / 0=Disabled
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
-
-        //=====================================//
-        // Speed and Clock Mode:               //
-        //=====================================//
-        input  logic        is_high_speed,          // 1 = operating speed > 32 GT/s.
-        input  logic        is_continuous_clk_mode, // 1 = continuous clock mode advertised by partner.
+        // The wrapper uses these flags to compute the final MB lane selects,
+        // keeping lane-control logic centralised (consistent with all other wrappers).
+        // TX encoding used by wrapper: 2'b00=Low / 2'b01=Active / 2'b11=Elec-Idle
+        // RX encoding used by wrapper: 1=Enabled / 0=Disabled
+        output logic        tx_elec_idle ,  // 1 = LOCAL TX must be in Electrical Idle (error path).
 
         //=====================================//
         // D2C Sweep Interface:                //
@@ -153,11 +142,9 @@ module unit_LINKSPEED_local (
         //=====================================//
         // Connected to the physical RX SB bus (same for both LOCAL and PARTNER FSMs).
         input  logic        rx_sb_msg_valid,       // 1 = valid RX message arrived this cycle.
-        input  logic [7:0]  rx_sb_msg,             // Received opcode.
-        input  logic [15:0] rx_msginfo,            // Received MsgInfo.   NOTE: all LINKSPEED messages carry MsgInfo=16'h0; port is
-        //   wired but not consumed by this FSM. Retained for interface
-        //   completeness (PARTNER FSM shares the same RX SB bus).
-        input  logic [63:0] rx_data_field          // Received 64-bit data. NOTE: same as rx_msginfo — always 64'h0.
+        input  logic [7:0]  rx_sb_msg             // Received opcode.
+        // input  logic [15:0] rx_msginfo,            // Received MsgInfo.
+        // input  logic [63:0] rx_data_field          // Received 64-bit data.
     );
 
     import UCIe_pkg::*;
@@ -303,7 +290,7 @@ module unit_LINKSPEED_local (
 
                 // ────────────────────────────────────────────────────────────
                 LINKSPEED_LCL_IDLE: begin
-                    next_state = linkspeed_en ? LINKSPEED_LCL_SEND_START_REQ : LINKSPEED_LCL_IDLE;
+                    next_state = LINKSPEED_LCL_SEND_START_REQ;
                 end
 
                 // ────────────────────────────────────────────────────────────
@@ -501,9 +488,14 @@ module unit_LINKSPEED_local (
     end
 
     // =========================================================================
-    // sweep_en: Combinational, deasserts automatically on leaving TX_D2C_PT.
+    // sweep_en: Combinational. Deasserts automatically when leaving TX_D2C_PT.
+    // Also used by the wrapper (as local_sweep_en) to know when LOCAL is in D2C TX
+    // so it can set Data/Valid TX to Active in the MB lane control logic.
     // =========================================================================
-    assign sweep_en = (current_state == LINKSPEED_LCL_TX_D2C_PT);
+    assign sweep_en     = (current_state == LINKSPEED_LCL_TX_D2C_PT);
+
+    // tx_elec_idle: flag output to wrapper for MB TX Electrical Idle on error path.
+    assign tx_elec_idle = in_electrical_idle_r;
 
     // =========================================================================
     // FSM Output Logic (Moore Machine — outputs depend only on current_state)
@@ -517,24 +509,6 @@ module unit_LINKSPEED_local (
         linkinit_req        = 1'b0;
         phyretrain_req      = 1'b0;
         // NOTE: PHY_IN_RETRAIN_rst is driven by its own dedicated block (PHY_IN_RETRAIN_RST_PROC).
-
-        // ── MB Rx defaults (always enabled per spec) ──
-        mb_rx_clk_lane_sel  = 1'b1;
-        mb_rx_data_lane_sel = 1'b1;
-        mb_rx_val_lane_sel  = 1'b1;
-        mb_rx_trk_lane_sel  = 1'b0;
-
-        // ── MB Tx defaults ──
-        mb_tx_trk_lane_sel  = 2'b00; // Track TX: always held Low.
-        if (in_electrical_idle_r) begin
-            mb_tx_data_lane_sel = 2'b11; // Electrical Idle.
-            mb_tx_val_lane_sel  = 2'b11;
-            mb_tx_clk_lane_sel  = 2'b11;
-        end else begin
-            mb_tx_data_lane_sel = 2'b00; // Held Low.
-            mb_tx_val_lane_sel  = 2'b00;
-            mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-        end
 
         // ── SB TX defaults ──
         tx_sb_msg_valid = 1'b0;
@@ -554,11 +528,7 @@ module unit_LINKSPEED_local (
 
             LINKSPEED_LCL_WAIT_START_RESP: ; // Hold.
 
-            LINKSPEED_LCL_TX_D2C_PT: begin
-                mb_tx_data_lane_sel = 2'b01; // Active: TX sends LFSR pattern.
-                mb_tx_val_lane_sel  = 2'b01; // Active: TX sends valid framing.
-                // Clock TX: set by default logic above.
-            end
+            LINKSPEED_LCL_TX_D2C_PT: ; // sweep_active=1 from assign above; wrapper handles MB TX.
 
             LINKSPEED_LCL_EVAL_RESULT: ; // No SB output. Sequential block latches this cycle.
 
@@ -584,10 +554,8 @@ module unit_LINKSPEED_local (
             LINKSPEED_LCL_SEND_ERROR_REQ: begin
                 tx_sb_msg_valid     = 1'b1;
                 tx_sb_msg           = MBTRAIN_LINKSPEED_error_req;
-                // TX already in Elec-Idle from in_electrical_idle_r (set in EVAL_RESULT).
-                mb_tx_data_lane_sel = 2'b11;
-                mb_tx_val_lane_sel  = 2'b11;
-                mb_tx_clk_lane_sel  = 2'b11;
+                // TX already in Elec-Idle: tx_elec_idle=1 (set in DATA_PATH_REG_PROC).
+                // Wrapper drives MB TX to Elec-Idle from tx_elec_idle flag.
             end
 
             LINKSPEED_LCL_WAIT_ERROR_RESP: ; // Hold. TX in Elec-Idle.

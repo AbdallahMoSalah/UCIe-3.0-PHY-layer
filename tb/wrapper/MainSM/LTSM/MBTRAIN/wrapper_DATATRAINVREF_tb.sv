@@ -250,9 +250,9 @@ module wrapper_DATATRAINVREF_tb;
         .tx_msginfo                     (dut_if.tx_msginfo),
         .tx_data_field                  (dut_if.tx_data_field),
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
+        // .rx_msginfo                     (dut_if.rx_msginfo),
+        // .rx_data_field                  (dut_if.rx_data_field)
     );
 
     // =========================================================================
@@ -294,9 +294,9 @@ module wrapper_DATATRAINVREF_tb;
         .tx_msginfo                     (ptn_if.tx_msginfo),
         .tx_data_field                  (ptn_if.tx_data_field),
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
+        // .rx_msginfo                     (ptn_if.rx_msginfo),
+        // .rx_data_field                  (ptn_if.rx_data_field)
     );
 
     // =========================================================================
@@ -499,6 +499,11 @@ module wrapper_DATATRAINVREF_tb;
         tb_pass_test("Randomized Scenarios");
 
         $display("\nPASSED: %0d | FAILED: %0d", tb_success_count, tb_fail_count);
+        if (tb_fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $stop;
     end
 

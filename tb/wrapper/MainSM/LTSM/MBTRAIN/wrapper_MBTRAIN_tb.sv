@@ -49,16 +49,16 @@ module wrapper_MBTRAIN_tb;
     localparam integer MB_DELAY             = 2;
 
     // Keep sweep ranges small so simulation finishes quickly.
-    localparam int unsigned MAX_VAL_VREF_CODE  = 7'd16;
-    localparam int unsigned MIN_VAL_VREF_CODE  = 7'd10;
-    localparam int unsigned MAX_DATA_VREF_CODE = 7'd16;
-    localparam int unsigned MIN_DATA_VREF_CODE = 7'd10;
-    localparam int unsigned MAX_DATA_PI_CODE   = 6'd16;
-    localparam int unsigned MIN_DATA_PI_CODE   = 6'd0;
-    localparam int unsigned MAX_VAL_PI_CODE    = 6'd16;
-    localparam int unsigned MIN_VAL_PI_CODE    = 6'd0;
-    localparam int unsigned MAX_DESKEW_CODE    = 7'd16;
-    localparam int unsigned MIN_DESKEW_CODE    = 7'd0;
+    localparam int unsigned MAX_VAL_VREF_CODE  = 'd16;
+    localparam int unsigned MIN_VAL_VREF_CODE  = 'd10;
+    localparam int unsigned MAX_DATA_VREF_CODE = 'd16;
+    localparam int unsigned MIN_DATA_VREF_CODE = 'd10;
+    localparam int unsigned MAX_DATA_PI_CODE   = 'd16;
+    localparam int unsigned MIN_DATA_PI_CODE   = 'd0;
+    localparam int unsigned MAX_VAL_PI_CODE    = 'd16;
+    localparam int unsigned MIN_VAL_PI_CODE    = 'd0;
+    localparam int unsigned MAX_DESKEW_CODE    = 'd16;
+    localparam int unsigned MIN_DESKEW_CODE    = 'd0;
 
     // =========================================================================
     // Clock and Reset
@@ -291,13 +291,10 @@ module wrapper_MBTRAIN_tb;
     // =========================================================================
     wrapper_MBTRAIN #(
         .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE),
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE),
         .MAX_DATA_PI_CODE  (MAX_DATA_PI_CODE),
         .MIN_DATA_PI_CODE  (MIN_DATA_PI_CODE),
         .MAX_VAL_PI_CODE   (MAX_VAL_PI_CODE),
-        .MIN_VAL_PI_CODE   (MIN_VAL_PI_CODE),
         .MAX_DESKEW_CODE   (MAX_DESKEW_CODE),
         .MIN_DESKEW_CODE   (MIN_DESKEW_CODE)
     ) dut_die0 (
@@ -383,8 +380,8 @@ module wrapper_MBTRAIN_tb;
         .phy_tx_tckn_shift_out_of_range (1'b0),
 
         // ── Per-Lane PHY Vref / PI Controls ───────────────────────────────
-        .phy_rx_valvref_ctrl        (intf_die0.phy_rx_valvref_ctrl),
-        .phy_rx_datavref_ctrl       (intf_die0.phy_rx_datavref_ctrl),
+        .phy_rx_val_vref_ctrl        (intf_die0.phy_rx_valvref_ctrl),
+        .phy_rx_data_vref_ctrl       (intf_die0.phy_rx_datavref_ctrl),
         .phy_tx_val_pi_phase_ctrl   (intf_die0.phy_tx_val_pi_phase_ctrl),
         .phy_tx_data_pi_phase_ctrl  (intf_die0.phy_tx_data_pi_phase_ctrl),
         .phy_rx_deskew_ctrl         (),
@@ -415,8 +412,8 @@ module wrapper_MBTRAIN_tb;
         // ── Sideband RX (driven by cross-die shift register above) ────────
         .rx_sb_msg_valid            (intf_die0.rx_sb_msg_valid),
         .rx_sb_msg                  (intf_die0.rx_sb_msg),
-        .rx_msginfo                 (intf_die0.rx_msginfo),
-        .rx_data_field              (intf_die0.rx_data_field)
+        .rx_msginfo                 (intf_die0.rx_msginfo)
+        // .rx_data_field              (intf_die0.rx_data_field)
     );
 
     // =========================================================================
@@ -424,13 +421,10 @@ module wrapper_MBTRAIN_tb;
     // =========================================================================
     wrapper_MBTRAIN #(
         .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
-        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE),
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE),
         .MAX_DATA_PI_CODE  (MAX_DATA_PI_CODE),
         .MIN_DATA_PI_CODE  (MIN_DATA_PI_CODE),
         .MAX_VAL_PI_CODE   (MAX_VAL_PI_CODE),
-        .MIN_VAL_PI_CODE   (MIN_VAL_PI_CODE),
         .MAX_DESKEW_CODE   (MAX_DESKEW_CODE),
         .MIN_DESKEW_CODE   (MIN_DESKEW_CODE)
     ) dut_die1 (
@@ -481,8 +475,8 @@ module wrapper_MBTRAIN_tb;
         .phy_tx_tckn_shift          (intf_die1.phy_tx_tckn_shift),
         .phy_tx_decrement_shift     (intf_die1.phy_tx_decrement_shift),
         .phy_tx_tckn_shift_out_of_range (1'b0),
-        .phy_rx_valvref_ctrl        (intf_die1.phy_rx_valvref_ctrl),
-        .phy_rx_datavref_ctrl       (intf_die1.phy_rx_datavref_ctrl),
+        .phy_rx_val_vref_ctrl        (intf_die1.phy_rx_valvref_ctrl),
+        .phy_rx_data_vref_ctrl       (intf_die1.phy_rx_datavref_ctrl),
         .phy_tx_val_pi_phase_ctrl   (intf_die1.phy_tx_val_pi_phase_ctrl),
         .phy_tx_data_pi_phase_ctrl  (intf_die1.phy_tx_data_pi_phase_ctrl),
         .phy_rx_deskew_ctrl         (),
@@ -505,8 +499,8 @@ module wrapper_MBTRAIN_tb;
         .substate_tx_data_field     (intf_die1.wrapper_tx_data_field),
         .rx_sb_msg_valid            (intf_die1.rx_sb_msg_valid),
         .rx_sb_msg                  (intf_die1.rx_sb_msg),
-        .rx_msginfo                 (intf_die1.rx_msginfo),
-        .rx_data_field              (intf_die1.rx_data_field)
+        .rx_msginfo                 (intf_die1.rx_msginfo)
+        // .rx_data_field              (intf_die1.rx_data_field)
     );
 
     // =========================================================================
@@ -669,6 +663,8 @@ module wrapper_MBTRAIN_tb;
         intf_die1.tb_aggr_err           = 16'h0000;
     endtask
 
+    integer fail_count = 0;
+
     // =========================================================================
     // Task: Wait for mbtrain_done on both dies, with timeout and error checks
     // =========================================================================
@@ -680,6 +676,7 @@ module wrapper_MBTRAIN_tb;
                 if (ltsm_trainerror_req_d0 || ltsm_trainerror_req_d1) begin
                     $error("%s FAILED: exited to TRAINERROR. D0=%b D1=%b",
                         test_name, ltsm_trainerror_req_d0, ltsm_trainerror_req_d1);
+                    fail_count++;
                 end else if (ltsm_linkinit_req_d0 && ltsm_linkinit_req_d1) begin
                     $display("%s PASSED: both dies → LINKINIT.", test_name);
                 end else if (ltsm_phyretrain_req_d0 || ltsm_phyretrain_req_d1) begin
@@ -690,6 +687,7 @@ module wrapper_MBTRAIN_tb;
                         test_name,
                         ltsm_linkinit_req_d0, ltsm_linkinit_req_d1,
                         ltsm_phyretrain_req_d0, ltsm_phyretrain_req_d1);
+                    fail_count++;
                 end
                 disable wait_trainerror;
                 disable wait_timeout;
@@ -700,6 +698,7 @@ module wrapper_MBTRAIN_tb;
                     test_name,
                     current_mbtrain_substate_d0.name(),
                     current_mbtrain_substate_d1.name());
+                fail_count++;
                 disable wait_done;
                 disable wait_timeout;
             end
@@ -709,6 +708,7 @@ module wrapper_MBTRAIN_tb;
                     test_name,
                     current_mbtrain_substate_d0.name(),
                     current_mbtrain_substate_d1.name());
+                fail_count++;
                 disable wait_done;
                 disable wait_trainerror;
             end
@@ -829,6 +829,11 @@ module wrapper_MBTRAIN_tb;
         test_entry_at_repair();
 
         $display("=== wrapper_MBTRAIN Integration Testbench COMPLETE ===");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $finish;
     end
 

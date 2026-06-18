@@ -55,9 +55,9 @@ module wrapper_DATATRAINVREF #(
         output logic [63:0] tx_data_field,
 
         input  logic        rx_sb_msg_valid,
-        input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;
@@ -94,9 +94,9 @@ module wrapper_DATATRAINVREF #(
         .tx_msginfo                     (local_tx_msginfo),
         .tx_data_field                  (local_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
+        // .rx_msginfo                     (rx_msginfo),
+        // .rx_data_field                  (rx_data_field)
     );
 
     unit_DATATRAINVREF_partner u_partner (
@@ -112,9 +112,9 @@ module wrapper_DATATRAINVREF #(
         .tx_msginfo                     (partner_tx_msginfo),
         .tx_data_field                  (partner_tx_data_field),
         .rx_sb_msg_valid                (rx_sb_msg_valid),
-        .rx_sb_msg                      (rx_sb_msg),
-        .rx_msginfo                     (rx_msginfo),
-        .rx_data_field                  (rx_data_field)
+        .rx_sb_msg                      (rx_sb_msg)
+        // .rx_msginfo                     (rx_msginfo),
+        // .rx_data_field                  (rx_data_field)
     );
 
     // Combine terminal signals

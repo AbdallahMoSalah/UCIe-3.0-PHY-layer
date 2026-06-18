@@ -135,8 +135,8 @@ module wrapper_MBTRAIN #(
         // Broadcast sideband RX input
         input  logic        rx_sb_msg_valid,
         input  logic [7:0]  rx_sb_msg,
-        input  logic [15:0] rx_msginfo,
-        input  logic [63:0] rx_data_field
+        input  logic [15:0] rx_msginfo
+        // input  logic [63:0] rx_data_field
     );
 
 
@@ -192,53 +192,51 @@ module wrapper_MBTRAIN #(
 
 
     // Controller handshakes.
-    logic local_valvref_en       ,    partner_valvref_en       ;
-    logic local_datavref_en      ,    partner_datavref_en      ;
-    logic local_speedidle_en     ,    partner_speedidle_en     ;
-    logic local_txselfcal_en     ,    partner_txselfcal_en     ;
-    logic local_rxclkcal_en      ,    partner_rxclkcal_en      ;
-    logic local_valtraincenter_en,    partner_valtraincenter_en;
-    logic local_valtrainvref_en  ,    partner_valtrainvref_en  ;
-    logic local_dtc1_en          ,    partner_dtc1_en          ;
-    logic local_datatrainvref_en ,    partner_datatrainvref_en ;
-    logic local_rxdeskew_en      ,    partner_rxdeskew_en      ;
-    logic local_dtc2_en          ,    partner_dtc2_en          ;
-    logic local_linkspeed_en     ,    partner_linkspeed_en     ;
-    logic local_repair_en        ,    partner_repair_en        ;
+    logic valvref_en       ;
+    logic datavref_en      ;
+    logic speedidle_en     ;
+    logic txselfcal_en     ;
+    logic rxclkcal_en      ;
+    logic valtraincenter_en;
+    logic valtrainvref_en  ;
+    logic dtc1_en          ;
+    logic datatrainvref_en ;
+    logic rxdeskew_en      ;
+    logic dtc2_en          ;
+    logic linkspeed_en     ;
+    logic repair_en        ;
 
-    logic valvref_done_w       ;
-    logic datavref_done_w      ;
-    logic speedidle_done_w     ;
-    logic txselfcal_done_w     ;
-    logic rxclkcal_done_w      ;
-    logic valtraincenter_done_w;
-    logic valtrainvref_done_w  ;
-    logic dtc1_done_w          ;
-    logic datatrainvref_done_w ;
-    logic rxdeskew_done_w      ;
-    logic dtc2_done_w          ;
-    logic rxdeskew_dtc1_req    ;
+    logic valvref_done       ;
+    logic datavref_done      ;
+    logic speedidle_done     ;
+    logic txselfcal_done     ;
+    logic rxclkcal_done      ;
+    logic valtraincenter_done;
+    logic valtrainvref_done  ;
+    logic dtc1_done          ;
+    logic datatrainvref_done ;
+    logic rxdeskew_done      ;
+    logic dtc2_done          ;
+    logic linkspeed_done     ;
+    logic repair_done        ;
 
+    logic rxdeskew_dtc1_req         ;
+    // repair_trainerror_req_w: driven by wrapper_REPAIR's trainerror_req output.
+    logic repair_trainerror_req_w   ;
 
-    logic linkspeed_done_w;
-    logic linkspeed_trainerror_req_w;
-
-    logic repair_done_w;
-    logic repair_trainerror_req_w;
 
 
     // Per-substate combined trainerror request (each substate wrapper already ORs
     // its local|partner trainerror flags internally before driving this array).
-    logic [NUM_SUBSTATES-1:0] ss_active;
+    logic [NUM_SUBSTATES-1:0] ss_en            ;
     logic [NUM_SUBSTATES-1:0] ss_trainerror_req;
     // ss_analog_settle_timer_en: active for substates that use an analog-settle wait
     // (SPEEDIDLE, TXSELFCAL, RXCLKCAL); all others are tied 1'b0 below.
     // NOTE: ss_timeout_timer_en (8 ms MBTRAIN timeout) intentionally absent —
     // the future LTSM controller reads current_mbtrain_substate for that purpose.
     logic [NUM_SUBSTATES-1:0] ss_analog_settle_timer_en;
-    logic [NUM_SUBSTATES-1:0] ss_sweep_en;
-    logic [NUM_SUBSTATES-1:0] ss_partner_sweep_en;
-    logic [NUM_SUBSTATES-1:0] ss_update_lane_mask;
+    logic [NUM_SUBSTATES-1:0] ss_local_sweep_en        ;
+    logic [NUM_SUBSTATES-1:0] ss_partner_sweep_en      ;
 
     logic [1:0]  ss_mb_tx_clk_lane_sel  [0:NUM_SUBSTATES-1];
     logic [1:0]  ss_mb_tx_data_lane_sel [0:NUM_SUBSTATES-1];
@@ -249,15 +247,14 @@ module wrapper_MBTRAIN #(
     logic        ss_mb_rx_val_lane_sel  [0:NUM_SUBSTATES-1];
     logic        ss_mb_rx_trk_lane_sel  [0:NUM_SUBSTATES-1];
 
-    logic        ss_tx_sb_msg_valid [0:NUM_SUBSTATES-1];
-    logic [7:0]  ss_tx_sb_msg       [0:NUM_SUBSTATES-1];
-    logic [15:0] ss_tx_msginfo      [0:NUM_SUBSTATES-1];
-    logic [63:0] ss_tx_data_field   [0:NUM_SUBSTATES-1];
+    logic        ss_tx_sb_msg_valid     [0:NUM_SUBSTATES-1];
+    logic [7:0]  ss_tx_sb_msg           [0:NUM_SUBSTATES-1];
+    logic [15:0] ss_tx_msginfo          [0:NUM_SUBSTATES-1];
+    logic [63:0] ss_tx_data_field       [0:NUM_SUBSTATES-1];
 
     // Common decoder outputs and lane-map info.
     logic        is_high_speed;
-    // active_rx_lanes: driven by wrapper_REPAIR's exposed output (from its internal
-    // unit_negotiated_lanes). Connected to sweep_active_lanes and wrapper_LINKSPEED.
+    // active_rx_lanes: driven by wrapper_REPAIR's exposed output (from its internal unit_negotiated_lanes). Connected to sweep_active_lanes and wrapper_LINKSPEED.
     logic [15:0] active_rx_lanes;
     logic [15:0] linkspeed_success_lanes;
     // degrade_feasible: from wrapper_REPAIR's exposed output → wrapper_LINKSPEED.width_degrade_feasible
@@ -286,23 +283,14 @@ module wrapper_MBTRAIN #(
     logic [2:0]               rxdeskew_phy_tx_eq_preset_ctrl;
     logic                     rxdeskew_phy_tx_eq_preset_en;
 
-    // Retained values keep externally visible PHY controls stable between substates.
-
-    // logic [VAL_VREF_W-1:0]  phy_rx_valvref_ctrl_r;
-    // logic [DATA_VREF_W-1:0] phy_rx_datavref_ctrl_r [0:15];
-    // logic [VAL_PI_W-1:0]    phy_tx_val_pi_phase_ctrl_r;
-    // logic [DATA_PI_W-1:0]   phy_tx_data_pi_phase_ctrl_r [0:15];
-    // logic [6:0]             phy_rx_deskew_ctrl_r [15:0];
-    // logic [2:0]             phy_tx_eq_preset_ctrl_r;
-
     // Sliced versions of the shared 7-bit sweep bus for narrower substate wrappers.
     logic [VAL_VREF_W-1:0]  swept_val_vref_code;
     logic [DATA_VREF_W-1:0] swept_data_vref_code;
     logic [VAL_PI_W-1:0]    swept_val_pi_code;
     logic [DATA_PI_W-1:0]   swept_data_pi_code;
-    logic [VAL_VREF_W-1:0]  best_val_vref_code  [0:15];
+    logic [VAL_VREF_W-1:0]  best_val_vref_code;
     logic [DATA_VREF_W-1:0] best_data_vref_code [0:15];
-    logic [VAL_PI_W-1:0]    best_val_pi_code    [0:15];
+    logic [VAL_PI_W-1:0]    best_val_pi_code;
     logic [DATA_PI_W-1:0]   best_data_pi_code   [0:15];
 
     // ================================================================================================
@@ -313,61 +301,43 @@ module wrapper_MBTRAIN #(
     assign swept_val_pi_code    = sweep_swept_code[VAL_PI_W-1:0];
     assign swept_data_pi_code   = sweep_swept_code[DATA_PI_W-1:0];
 
+    assign best_val_vref_code   = sweep_best_code[0][VAL_VREF_W-1:0];
+    assign best_val_pi_code     = sweep_best_code[0][VAL_PI_W-1:0];
+
     genvar lane;
     generate
         for (lane = 0; lane < 16; lane++) begin : g_sweep_code_slices
-            assign best_val_vref_code [lane] = sweep_best_code[lane][VAL_VREF_W-1:0];
             assign best_data_vref_code[lane] = sweep_best_code[lane][DATA_VREF_W-1:0];
-            assign best_val_pi_code   [lane] = sweep_best_code[lane][VAL_PI_W-1:0];
             assign best_data_pi_code  [lane] = sweep_best_code[lane][DATA_PI_W-1:0];
         end
     endgenerate
 
-    assign ss_active[SS_VALVREF]        = local_valvref_en        | partner_valvref_en;
-    assign ss_active[SS_DATAVREF]       = local_datavref_en       | partner_datavref_en;
-    assign ss_active[SS_SPEEDIDLE]      = local_speedidle_en      | partner_speedidle_en;
-    assign ss_active[SS_TXSELFCAL]      = local_txselfcal_en      | partner_txselfcal_en;
-    assign ss_active[SS_RXCLKCAL]       = local_rxclkcal_en       | partner_rxclkcal_en;
-    assign ss_active[SS_VALTRAINCENTER] = local_valtraincenter_en | partner_valtraincenter_en;
-    assign ss_active[SS_VALTRAINVREF]   = local_valtrainvref_en   | partner_valtrainvref_en;
-    assign ss_active[SS_DTC1]           = local_dtc1_en           | partner_dtc1_en;
-    assign ss_active[SS_DATATRAINVREF]  = local_datatrainvref_en  | partner_datatrainvref_en;
-    assign ss_active[SS_RXDESKEW]       = local_rxdeskew_en       | partner_rxdeskew_en;
-    assign ss_active[SS_DTC2]           = local_dtc2_en           | partner_dtc2_en;
-    assign ss_active[SS_LINKSPEED]      = local_linkspeed_en      | partner_linkspeed_en;
-    assign ss_active[SS_REPAIR]         = local_repair_en         | partner_repair_en;
+    assign ss_en[SS_VALVREF]        = valvref_en;
+    assign ss_en[SS_DATAVREF]       = datavref_en;
+    assign ss_en[SS_SPEEDIDLE]      = speedidle_en;
+    assign ss_en[SS_TXSELFCAL]      = txselfcal_en;
+    assign ss_en[SS_RXCLKCAL]       = rxclkcal_en;
+    assign ss_en[SS_VALTRAINCENTER] = valtraincenter_en;
+    assign ss_en[SS_VALTRAINVREF]   = valtrainvref_en;
+    assign ss_en[SS_DTC1]           = dtc1_en;
+    assign ss_en[SS_DATATRAINVREF]  = datatrainvref_en;
+    assign ss_en[SS_RXDESKEW]       = rxdeskew_en;
+    assign ss_en[SS_DTC2]           = dtc2_en;
+    assign ss_en[SS_LINKSPEED]      = linkspeed_en;
+    assign ss_en[SS_REPAIR]         = repair_en;
 
     logic trainerror_detected;
-    logic repair_update_lane_mask     ;
 
     logic linkspeed_linkinit_req   ;
     logic linkspeed_speedidle_req  ;
     logic linkspeed_repair_req     ;
     logic linkspeed_phyretrain_req ;
 
-
-    // Retention register: captures VALVREF's update_lane_mask decision at the
-    // moment VALVREF completes (both Local and Partner done). This sticky value
-    // is forwarded to wrapper_REPAIR which runs much later in the sequence.
-    logic update_lane_mask_r;
-
     assign trainerror_detected = |ss_trainerror_req;
 
-    assign local_sweep_en     = |ss_sweep_en;
+    assign local_sweep_en     = |ss_local_sweep_en;
     assign partner_sweep_en   = |ss_partner_sweep_en;
     assign sweep_active_lanes = active_rx_lanes;
-
-    always_ff @(posedge lclk or negedge rst_n) begin : UPDATE_LANE_MASK_RETAIN
-        if (!rst_n)
-            update_lane_mask_r <= 1'b0;
-        else if (!soft_rst_n)
-            update_lane_mask_r <= 1'b0;
-        else if (valvref_done_w)
-            update_lane_mask_r <= ss_update_lane_mask[SS_VALVREF];
-    end
-    // repair_update_lane_mask is no longer a live OR of all substates;
-    // it is the retained VALVREF decision passed to wrapper_REPAIR.
-    assign repair_update_lane_mask = update_lane_mask_r;
 
     // ================================================================================================
     // 4. Common-file instantiations
@@ -386,53 +356,39 @@ module wrapper_MBTRAIN #(
         .mbtrain_txselfcal_req         (mbtrain_txselfcal_req),
         .mbtrain_speedidle_req         (mbtrain_speedidle_req),
         .mbtrain_repair_req            (mbtrain_repair_req),
-        .local_valvref_en              (local_valvref_en),
-        .partner_valvref_en            (partner_valvref_en),
-        .valvref_done                  (valvref_done_w),
-        .local_datavref_en             (local_datavref_en),
-        .partner_datavref_en           (partner_datavref_en),
-        .datavref_done                 (datavref_done_w),
-        .local_speedidle_en            (local_speedidle_en),
-        .partner_speedidle_en          (partner_speedidle_en),
-        .speedidle_done                (speedidle_done_w),
-        .local_txselfcal_en            (local_txselfcal_en),
-        .partner_txselfcal_en          (partner_txselfcal_en),
-        .txselfcal_done                (txselfcal_done_w),
-        .local_rxclkcal_en             (local_rxclkcal_en),
-        .partner_rxclkcal_en           (partner_rxclkcal_en),
-        .rxclkcal_done                 (rxclkcal_done_w),
-        .local_valtraincenter_en       (local_valtraincenter_en),
-        .partner_valtraincenter_en     (partner_valtraincenter_en),
-        .valtraincenter_done           (valtraincenter_done_w),
-        .local_valtrainvref_en         (local_valtrainvref_en),
-        .partner_valtrainvref_en       (partner_valtrainvref_en),
-        .valtrainvref_done             (valtrainvref_done_w),
-        .local_dtc1_en                 (local_dtc1_en),
-        .partner_dtc1_en               (partner_dtc1_en),
-        .dtc1_done                     (dtc1_done_w),
-        .local_datatrainvref_en        (local_datatrainvref_en),
-        .partner_datatrainvref_en      (partner_datatrainvref_en),
-        .datatrainvref_done            (datatrainvref_done_w),
-        .local_rxdeskew_en             (local_rxdeskew_en),
-        .partner_rxdeskew_en           (partner_rxdeskew_en),
-        .rxdeskew_done                 (rxdeskew_done_w),
+        // Sub-state enables (one per substate — wrapper handles internal local/partner fan-out)
+        .valvref_en                    (valvref_en),
+        .valvref_done                  (valvref_done),
+        .datavref_en                   (datavref_en),
+        .datavref_done                 (datavref_done),
+        .speedidle_en                  (speedidle_en),
+        .speedidle_done                (speedidle_done),
+        .txselfcal_en                  (txselfcal_en),
+        .txselfcal_done                (txselfcal_done),
+        .rxclkcal_en                   (rxclkcal_en),
+        .rxclkcal_done                 (rxclkcal_done),
+        .valtraincenter_en             (valtraincenter_en),
+        .valtraincenter_done           (valtraincenter_done),
+        .valtrainvref_en               (valtrainvref_en),
+        .valtrainvref_done             (valtrainvref_done),
+        .dtc1_en                       (dtc1_en),
+        .dtc1_done                     (dtc1_done),
+        .datatrainvref_en              (datatrainvref_en),
+        .datatrainvref_done            (datatrainvref_done),
+        .rxdeskew_en                   (rxdeskew_en),
+        .rxdeskew_done                 (rxdeskew_done),
         .dtc1_loopback_req             (rxdeskew_dtc1_req),
-        .local_dtc2_en                 (local_dtc2_en),
-        .partner_dtc2_en               (partner_dtc2_en),
-        .dtc2_done                     (dtc2_done_w),
-        .local_linkspeed_en            (local_linkspeed_en),
-        .partner_linkspeed_en          (partner_linkspeed_en),
-        .linkspeed_done                (linkspeed_done_w),
-
+        .dtc2_en                       (dtc2_en),
+        .dtc2_done                     (dtc2_done),
+        .linkspeed_en                  (linkspeed_en),
+        .linkspeed_done                (linkspeed_done),
         // LINKSPEED routing outputs (fed back to ctrl)
         .linkspeed_linkinit_req        (linkspeed_linkinit_req),
         .linkspeed_speedidle_req       (linkspeed_speedidle_req),
         .linkspeed_repair_req          (linkspeed_repair_req),
         .linkspeed_phyretrain_req      (linkspeed_phyretrain_req),
-
-        .local_repair_en               (local_repair_en),
-        .partner_repair_en             (partner_repair_en),
-        .repair_done                   (repair_done_w)
+        .repair_en                     (repair_en),
+        .repair_done                   (repair_done)
     );
 
 
@@ -446,13 +402,13 @@ module wrapper_MBTRAIN #(
         .lclk                  (lclk),
         .rst_n                 (rst_n),
         .soft_rst_n            (soft_rst_n),
-        .valvref_en            (ss_active[SS_VALVREF]),
-        .valvref_done          (valvref_done_w),
+        .valvref_en            (ss_en[SS_VALVREF]),
+        .valvref_done          (valvref_done),
         .phy_rx_valvref_ctrl   (valvref_phy_rx_valvref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_VALVREF]),
-        .local_sweep_en        (ss_sweep_en[SS_VALVREF]),
+        .local_sweep_en        (ss_local_sweep_en[SS_VALVREF]),
         .swept_code            (swept_val_vref_code),
-        .best_code             (best_val_vref_code[0]),
+        .best_code             (best_val_vref_code),
         .sweep_done            (sweep_done),
         .mb_tx_clk_lane_sel    (ss_mb_tx_clk_lane_sel[SS_VALVREF]),
         .mb_tx_data_lane_sel   (ss_mb_tx_data_lane_sel[SS_VALVREF]),
@@ -476,11 +432,11 @@ module wrapper_MBTRAIN #(
         .lclk                  (lclk),
         .rst_n                 (rst_n),
         .soft_rst_n            (soft_rst_n),
-        .datavref_en           (ss_active[SS_DATAVREF]),
-        .datavref_done         (datavref_done_w),
+        .datavref_en           (ss_en[SS_DATAVREF]),
+        .datavref_done         (datavref_done),
         .phy_rx_datavref_ctrl  (datavref_phy_rx_datavref_ctrl),
         .partner_sweep_en      (ss_partner_sweep_en[SS_DATAVREF]),
-        .local_sweep_en        (ss_sweep_en[SS_DATAVREF]),
+        .local_sweep_en        (ss_local_sweep_en[SS_DATAVREF]),
         .swept_code            (swept_data_vref_code),
         .best_code             (best_data_vref_code),
         .sweep_done            (sweep_done),
@@ -504,8 +460,8 @@ module wrapper_MBTRAIN #(
         .lclk                    (lclk),
         .rst_n                   (rst_n),
         .soft_rst_n              (soft_rst_n),
-        .speedidle_en            (ss_active[SS_SPEEDIDLE]),
-        .speedidle_done          (speedidle_done_w),
+        .speedidle_en            (ss_en[SS_SPEEDIDLE]),
+        .speedidle_done          (speedidle_done),
         .trainerror_req          (ss_trainerror_req[SS_SPEEDIDLE]),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_SPEEDIDLE]),
         .analog_settle_time_done (analog_settle_time_done),
@@ -532,8 +488,8 @@ module wrapper_MBTRAIN #(
         .lclk                    (lclk),
         .rst_n                   (rst_n),
         .soft_rst_n              (soft_rst_n),
-        .txselfcal_en            (ss_active[SS_TXSELFCAL]),
-        .txselfcal_done          (txselfcal_done_w),
+        .txselfcal_en            (ss_en[SS_TXSELFCAL]),
+        .txselfcal_done          (txselfcal_done),
         .analog_settle_timer_en  (ss_analog_settle_timer_en[SS_TXSELFCAL]),
         .analog_settle_time_done (analog_settle_time_done),
         .phy_tx_selfcal_en       (txselfcal_phy_tx_selfcal_en),
@@ -559,8 +515,8 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
-        .rxclkcal_en                  (ss_active[SS_RXCLKCAL]),
-        .rxclkcal_done                (rxclkcal_done_w),
+        .rxclkcal_en                  (ss_en[SS_RXCLKCAL]),
+        .rxclkcal_done                (rxclkcal_done),
         .trainerror_req               (ss_trainerror_req[SS_RXCLKCAL]),
         .analog_settle_timer_en       (ss_analog_settle_timer_en[SS_RXCLKCAL]),
         .analog_settle_time_done      (analog_settle_time_done),
@@ -599,13 +555,13 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .valtraincenter_en            (ss_active[SS_VALTRAINCENTER]),
-        .valtraincenter_done          (valtraincenter_done_w),
+        .valtraincenter_en            (ss_en[SS_VALTRAINCENTER]),
+        .valtraincenter_done          (valtraincenter_done),
         .phy_tx_val_pi_phase_ctrl     (valtraincenter_phy_tx_val_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINCENTER]),
-        .local_sweep_en               (ss_sweep_en[SS_VALTRAINCENTER]),
+        .local_sweep_en               (ss_local_sweep_en[SS_VALTRAINCENTER]),
         .swept_code                   (swept_val_pi_code),
-        .best_code                    (best_val_pi_code[0]),
+        .best_code                    (best_val_pi_code),
         .sweep_done                   (sweep_done),
         .mb_tx_continuous_or_strobe_clk(is_continuous_clk_mode),
         .phy_negotiated_speed         (phy_negotiated_speed),
@@ -631,13 +587,13 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .valtrainvref_en              (ss_active[SS_VALTRAINVREF]),
-        .valtrainvref_done            (valtrainvref_done_w),
+        .valtrainvref_en              (ss_en[SS_VALTRAINVREF]),
+        .valtrainvref_done            (valtrainvref_done),
         .phy_rx_valvref_ctrl          (valtrainvref_phy_rx_valvref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_VALTRAINVREF]),
-        .local_sweep_en               (ss_sweep_en[SS_VALTRAINVREF]),
+        .local_sweep_en               (ss_local_sweep_en[SS_VALTRAINVREF]),
         .swept_code                   (swept_val_vref_code),
-        .best_code                    (best_val_vref_code[0]),
+        .best_code                    (best_val_vref_code),
         .sweep_done                   (sweep_done),
         .mb_tx_clk_lane_sel           (ss_mb_tx_clk_lane_sel[SS_VALTRAINVREF]),
         .mb_tx_data_lane_sel          (ss_mb_tx_data_lane_sel[SS_VALTRAINVREF]),
@@ -661,11 +617,11 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .datatraincenter1_en          (ss_active[SS_DTC1]),
-        .datatraincenter1_done        (dtc1_done_w),
+        .datatraincenter1_en          (ss_en[SS_DTC1]),
+        .datatraincenter1_done        (dtc1_done),
         .phy_tx_data_pi_phase_ctrl    (dtc1_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC1]),
-        .local_sweep_en               (ss_sweep_en[SS_DTC1]),
+        .local_sweep_en               (ss_local_sweep_en[SS_DTC1]),
         .swept_code                   (swept_data_pi_code),
         .best_code                    (best_data_pi_code),
         .sweep_done                   (sweep_done),
@@ -691,11 +647,11 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .datatrainvref_en             (ss_active[SS_DATATRAINVREF]),
-        .datatrainvref_done           (datatrainvref_done_w),
+        .datatrainvref_en             (ss_en[SS_DATATRAINVREF]),
+        .datatrainvref_done           (datatrainvref_done),
         .phy_rx_datavref_ctrl         (datatrainvref_phy_rx_datavref_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DATATRAINVREF]),
-        .local_sweep_en               (ss_sweep_en[SS_DATATRAINVREF]),
+        .local_sweep_en               (ss_local_sweep_en[SS_DATATRAINVREF]),
         .swept_code                   (swept_data_vref_code),
         .best_code                    (best_data_vref_code),
         .sweep_done                   (sweep_done),
@@ -732,15 +688,15 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                   (soft_rst_n),
         .is_high_speed                (is_high_speed),
         .is_continuous_clk_mode       (is_continuous_clk_mode),
-        .rxdeskew_en                  (ss_active[SS_RXDESKEW]),
-        .rxdeskew_done                (rxdeskew_done_w),
+        .rxdeskew_en                  (ss_en[SS_RXDESKEW]),
+        .rxdeskew_done                (rxdeskew_done),
         .datatraincenter1_req         (rxdeskew_dtc1_req),
         .trainerror_req               (ss_trainerror_req[SS_RXDESKEW]),
         .phy_rx_deskew_ctrl           (rxdeskew_phy_rx_deskew_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_RXDESKEW]),
         .phy_tx_eq_preset_ctrl        (rxdeskew_phy_tx_eq_preset_ctrl),
         .phy_tx_eq_preset_en          (rxdeskew_phy_tx_eq_preset_en),
-        .local_sweep_en               (ss_sweep_en[SS_RXDESKEW]),
+        .local_sweep_en               (ss_local_sweep_en[SS_RXDESKEW]),
         .swept_code                   (swept_deskew_code_with_safe_width),
         .best_code                    (best_deskew_code_with_safe_width),
         .min_eye_width                (sweep_min_eye_width),
@@ -768,11 +724,11 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .datatraincenter2_en          (ss_active[SS_DTC2]),
-        .datatraincenter2_done        (dtc2_done_w),
+        .datatraincenter2_en          (ss_en[SS_DTC2]),
+        .datatraincenter2_done        (dtc2_done),
         .phy_tx_data_pi_phase_ctrl    (dtc2_phy_tx_data_pi_phase_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_DTC2]),
-        .local_sweep_en               (ss_sweep_en[SS_DTC2]),
+        .local_sweep_en               (ss_local_sweep_en[SS_DTC2]),
         .swept_code                   (swept_data_pi_code),
         .best_code                    (best_data_pi_code),
         .sweep_done                   (sweep_done),
@@ -798,10 +754,8 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                    (soft_rst_n),
         .is_high_speed                 (is_high_speed),
         .is_continuous_clk_mode        (is_continuous_clk_mode),
-        .local_linkspeed_en            (local_linkspeed_en),
-        .partner_linkspeed_en          (partner_linkspeed_en),
-
-        .linkspeed_done                (linkspeed_done_w),
+        .linkspeed_en                  (linkspeed_en),
+        .linkspeed_done                (linkspeed_done),
 
         .linkspeed_linkinit_req        (linkspeed_linkinit_req),
         .linkspeed_speedidle_req       (linkspeed_speedidle_req),
@@ -814,7 +768,7 @@ module wrapper_MBTRAIN #(
         .params_changed                (params_changed),
         .PHY_IN_RETRAIN_rst            (PHY_IN_RETRAIN_rst),
         .busy_bit_rst                  (busy_bit_rst),
-        .local_sweep_en                (ss_sweep_en[SS_LINKSPEED]),
+        .local_sweep_en                (ss_local_sweep_en[SS_LINKSPEED]),
         .partner_sweep_en              (ss_partner_sweep_en[SS_LINKSPEED]),
         .d2c_perlane_pass              (d2c_perlane_pass),
         .local_sweep_done              (sweep_done),
@@ -832,9 +786,9 @@ module wrapper_MBTRAIN #(
         .tx_msginfo                    (ss_tx_msginfo[SS_LINKSPEED]),
         .tx_data_field                 (ss_tx_data_field[SS_LINKSPEED]),
         .rx_sb_msg_valid               (rx_sb_msg_valid),
-        .rx_sb_msg                     (rx_sb_msg),
-        .rx_msginfo                    (rx_msginfo),
-        .rx_data_field                 (rx_data_field)
+        .rx_sb_msg                     (rx_sb_msg)
+        // .rx_msginfo                    (rx_msginfo),
+        // .rx_data_field                 (rx_data_field)
     );
     assign ss_trainerror_req[SS_LINKSPEED] = 1'b0;
 
@@ -842,8 +796,8 @@ module wrapper_MBTRAIN #(
         .lclk                         (lclk),
         .rst_n                        (rst_n),
         .soft_rst_n                   (soft_rst_n),
-        .repair_en                    (ss_active[SS_REPAIR]),
-        .repair_done                  (repair_done_w),
+        .repair_en                    (ss_en[SS_REPAIR]),
+        .repair_done                  (repair_done),
         .trainerror_req               (repair_trainerror_req_w),
         .success_tx_lanes             (linkspeed_success_lanes),
         .rf_cap_SPMW                  (rf_cap_SPMW),
@@ -876,7 +830,19 @@ module wrapper_MBTRAIN #(
 
     assign ss_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
 
-    // Substates without analog-settle or sweep/update ports get explicit inactive values.
+    // Substates with no trainerror_req output port get tied to 0.
+    // (SPEEDIDLE, RXCLKCAL, RXDESKEW, and REPAIR are driven by their wrapper output ports above.)
+    assign ss_trainerror_req[SS_VALVREF]        = 1'b0;
+    assign ss_trainerror_req[SS_DATAVREF]       = 1'b0;
+    assign ss_trainerror_req[SS_TXSELFCAL]      = 1'b0;
+    assign ss_trainerror_req[SS_VALTRAINCENTER] = 1'b0;
+    assign ss_trainerror_req[SS_VALTRAINVREF]   = 1'b0;
+    assign ss_trainerror_req[SS_DTC1]           = 1'b0;
+    assign ss_trainerror_req[SS_DATATRAINVREF]  = 1'b0;
+    assign ss_trainerror_req[SS_DTC2]           = 1'b0;
+
+    // Substates without analog-settle ports get explicit inactive values.
+    // (SPEEDIDLE, TXSELFCAL, and RXCLKCAL drive ss_analog_settle_timer_en through their ports above.)
     assign ss_analog_settle_timer_en[SS_VALVREF]        = 1'b0;
     assign ss_analog_settle_timer_en[SS_DATAVREF]       = 1'b0;
     assign ss_analog_settle_timer_en[SS_VALTRAINCENTER] = 1'b0;
@@ -888,21 +854,15 @@ module wrapper_MBTRAIN #(
     assign ss_analog_settle_timer_en[SS_LINKSPEED]      = 1'b0;
     assign ss_analog_settle_timer_en[SS_REPAIR]         = 1'b0;
 
-    assign ss_sweep_en[SS_SPEEDIDLE]     = 1'b0;
-    assign ss_sweep_en[SS_TXSELFCAL]     = 1'b0;
-    assign ss_sweep_en[SS_RXCLKCAL]      = 1'b0;
-    assign ss_sweep_en[SS_REPAIR]        = 1'b0;
+    // Substates without D2C sweep capability get sweep enables tied to 0.
+    assign ss_local_sweep_en[SS_SPEEDIDLE]   = 1'b0;
+    assign ss_local_sweep_en[SS_TXSELFCAL]   = 1'b0;
+    assign ss_local_sweep_en[SS_RXCLKCAL]    = 1'b0;
+    assign ss_local_sweep_en[SS_REPAIR]      = 1'b0;
     assign ss_partner_sweep_en[SS_SPEEDIDLE] = 1'b0;
     assign ss_partner_sweep_en[SS_TXSELFCAL] = 1'b0;
     assign ss_partner_sweep_en[SS_RXCLKCAL]  = 1'b0;
     assign ss_partner_sweep_en[SS_REPAIR]    = 1'b0;
-
-    assign ss_update_lane_mask[SS_SPEEDIDLE]  = 1'b0;
-    assign ss_update_lane_mask[SS_TXSELFCAL]  = 1'b0;
-    assign ss_update_lane_mask[SS_RXCLKCAL]   = 1'b0;
-    assign ss_update_lane_mask[SS_RXDESKEW]   = 1'b0;
-    assign ss_update_lane_mask[SS_LINKSPEED]  = 1'b0;
-    assign ss_update_lane_mask[SS_REPAIR]     = 1'b0;
 
     // ================================================================================================
     // 6. Output Arbitration, Muxing, and Retained PHY Controls
@@ -931,7 +891,7 @@ module wrapper_MBTRAIN #(
         substate_tx_data_field       = 64'h0000_0000_0000_0000;
 
         for (int i = 0; i < NUM_SUBSTATES; i++) begin
-            if (ss_active[i]) begin
+            if (ss_en[i]) begin
                 // MB lane selectors: owned by the currently active substate
                 substate_mb_tx_clk_lane_sel  = ss_mb_tx_clk_lane_sel[i];
                 substate_mb_tx_data_lane_sel = ss_mb_tx_data_lane_sel[i];
@@ -944,7 +904,7 @@ module wrapper_MBTRAIN #(
 
                 // BUG FIX: SB bus strictly owned by the active substate.
                 // Previously the ss_tx_sb_msg_valid check was OUTSIDE the
-                // ss_active guard, allowing any stale/inactive substate to
+                // ss_en guard, allowing any stale/inactive substate to
                 // hijack the SB bus for 1 cycle during state transitions.
                 substate_tx_sb_msg_valid     = ss_tx_sb_msg_valid[i];
                 substate_tx_sb_msg           = ss_tx_sb_msg[i];

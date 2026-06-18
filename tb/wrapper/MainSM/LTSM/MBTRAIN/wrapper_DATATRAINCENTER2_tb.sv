@@ -488,6 +488,11 @@ module wrapper_DATATRAINCENTER2_tb;
         tb_pass_test("Randomized Scenarios");
 
         $display("\nPASSED: %0d | FAILED: %0d", tb_success_count, tb_fail_count);
+        if (tb_fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $stop;
     end
 

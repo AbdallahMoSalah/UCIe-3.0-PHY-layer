@@ -11,7 +11,7 @@ module wrapper_LINKSPEED_tb;
     parameter SB_DELAY             = 20     ; // Delay in lclk cycles.
     parameter MB_DELAY             = 10     ; // Representing 128 lclk + 2 lclk delay
     parameter TIMEOUT_CYCLES       = 1_000_000;
-    parameter bit ENABLE_RAND_LOG  = 1'b1; // 1: display details of randomized scenarios in terminal; 0: suppress
+    parameter bit ENABLE_RAND_LOG  = 1'b0; // 1: display details of randomized scenarios in terminal; 0: suppress
 
     // =========================================================================
     // Clock and Reset Signals
@@ -189,8 +189,9 @@ module wrapper_LINKSPEED_tb;
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
-        .local_linkspeed_en             (dut_local_linkspeed_en),
-        .partner_linkspeed_en           (dut_partner_linkspeed_en),
+        .linkspeed_en                   (dut_partner_linkspeed_en || dut_local_linkspeed_en),
+        // .local_linkspeed_en             (dut_local_linkspeed_en),
+        // .partner_linkspeed_en           (dut_partner_linkspeed_en),
 
         .linkspeed_done                 (dut_linkspeed_done),
         // .trainerror_req                 (),
@@ -230,9 +231,9 @@ module wrapper_LINKSPEED_tb;
         .tx_data_field                  (dut_if.tx_data_field),
 
         .rx_sb_msg_valid                (dut_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (dut_if.rx_sb_msg),
-        .rx_msginfo                     (dut_if.rx_msginfo),
-        .rx_data_field                  (dut_if.rx_data_field)
+        .rx_sb_msg                      (dut_if.rx_sb_msg)
+        // .rx_msginfo                     (dut_if.rx_msginfo),
+        // .rx_data_field                  (dut_if.rx_data_field)
     );
 
     // =========================================================================
@@ -258,8 +259,9 @@ module wrapper_LINKSPEED_tb;
         .is_high_speed                  (is_high_speed),
         .is_continuous_clk_mode         (is_continuous_clk_mode),
 
-        .local_linkspeed_en             (ptn_local_linkspeed_en),
-        .partner_linkspeed_en           (ptn_partner_linkspeed_en),
+        .linkspeed_en                   (ptn_partner_linkspeed_en || ptn_local_linkspeed_en),
+        // .local_linkspeed_en             (ptn_local_linkspeed_en),
+        // .partner_linkspeed_en           (ptn_partner_linkspeed_en),
 
         .linkspeed_done                 (ptn_linkspeed_done),
         // .trainerror_req                 (),
@@ -298,9 +300,9 @@ module wrapper_LINKSPEED_tb;
         .tx_data_field                  (ptn_if.tx_data_field),
 
         .rx_sb_msg_valid                (ptn_if.rx_sb_msg_valid),
-        .rx_sb_msg                      (ptn_if.rx_sb_msg),
-        .rx_msginfo                     (ptn_if.rx_msginfo),
-        .rx_data_field                  (ptn_if.rx_data_field)
+        .rx_sb_msg                      (ptn_if.rx_sb_msg)
+        // .rx_msginfo                     (ptn_if.rx_msginfo),
+        // .rx_data_field                  (ptn_if.rx_data_field)
     );
 
     assign dut_if.timeout_timer_en          = dut_local_linkspeed_en | dut_partner_linkspeed_en;
@@ -600,7 +602,7 @@ module wrapper_LINKSPEED_tb;
         //     .expect_linkinit(0), .expect_repair(0), .expect_speedidle(0), .expect_phyretrain(0), .expect_trainerror(1),
         //     .suppress_sb(1), .inject_trainerror(0) // Suppress SB to force timeout
         // );
-        // 
+        //
         // // ------------------------------------------------------------------
         // // T7: TRAINERROR_Entry_req → TRAINERROR
         // // ------------------------------------------------------------------
@@ -781,8 +783,13 @@ module wrapper_LINKSPEED_tb;
         $display(" PASSED: %0d | FAILED: %0d | TOTAL: %0d", success_count, fail_count,
             success_count+fail_count);
         $display("=========================================================");
-        if (fail_count == 0) $display("*** ALL TESTS PASSED ***");
-        else                 $display("*** %0d TEST(S) FAILED ***", fail_count);
+        if (fail_count == 0) begin
+            $display("*** ALL TESTS PASSED ***");
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("*** %0d TEST(S) FAILED ***", fail_count);
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $finish;
     end
 
@@ -792,6 +799,7 @@ module wrapper_LINKSPEED_tb;
     initial begin
         repeat (TIMEOUT_CYCLES * 10) @(posedge lclk);
         $display("[FATAL] Absolute simulation watchdog expired! Forcing finish.");
+        $display("MBTRAIN_TB_RESULT: FAILURE");
         $finish;
     end
 

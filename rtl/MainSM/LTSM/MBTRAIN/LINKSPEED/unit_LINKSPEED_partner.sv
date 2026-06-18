@@ -85,25 +85,18 @@ module unit_LINKSPEED_partner (
         output logic        phyretrain_req,        // 1: Exit to PHYRETRAIN.
 
         //=====================================//
-        // MB Lane Control Outputs:            //
+        // MB Lane State Flags:                //
         //=====================================//
-        // TX encoding: 2'b00=Low / 2'b01=Active / 2'b10=Hi-Z / 2'b11=Elec Idle
-        // RX encoding: 1=Enabled / 0=Disabled
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        // The wrapper uses these flags to compute the final MB lane selects,
+        // keeping lane-control logic centralised (consistent with all other wrappers).
+        // RX encoding used by wrapper: 1=Enabled / 0=Disabled
+        output logic        rx_elec_idle,   // 1 = PARTNER RX must be disabled (error path: error_req_rcvd).
 
         //=====================================//
-        // Speed and Clock Mode:               //
+        // Speed and Clock Mode:              //
         //=====================================//
-        input  logic        is_high_speed,          // 1 = speed > 32 GT/s.
-        input  logic        is_continuous_clk_mode, // 1 = continuous clock mode.
-
+        // NOTE: is_high_speed and is_continuous_clk_mode are not used inside this
+        // unit. The wrapper computes MB clock TX using those signals directly.
         //=====================================//
         // Sideband TX Signals:                //
         //=====================================//
@@ -117,9 +110,9 @@ module unit_LINKSPEED_partner (
         // Sideband RX Signals:                //
         //=====================================//
         input  logic        rx_sb_msg_valid,        // 1 = valid RX message arrived this cycle.
-        input  logic [7:0]  rx_sb_msg,             // Received opcode.
-        input  logic [15:0] rx_msginfo,            // Received MsgInfo. NOTE: always 16'h0 in LINKSPEED.
-        input  logic [63:0] rx_data_field          // Received data.     NOTE: always 64'h0 in LINKSPEED.
+        input  logic [7:0]  rx_sb_msg               // Received opcode.
+        // input  logic [15:0] rx_msginfo,            // Received MsgInfo. NOTE: always 16'h0 in LINKSPEED.
+        // input  logic [63:0] rx_data_field          // Received data.     NOTE: always 64'h0 in LINKSPEED.
     );
 
     import UCIe_pkg::*;
@@ -338,11 +331,18 @@ module unit_LINKSPEED_partner (
     end
 
     // =========================================================================
+    // rx_elec_idle: Combinational flag output to wrapper.
+    // Set whenever error_req_rcvd is high (PARTNER received {error req} from
+    // remote LOCAL — spec says PARTNER must enter Elec-Idle on its Receiver).
+    // The wrapper uses this to disable the RX lane selects for the PARTNER side.
+    // =========================================================================
+    assign rx_elec_idle = error_req_rcvd;
+
+    // =========================================================================
     // FSM Output Logic (Moore Machine — outputs depend only on current_state)
     // ─────────────────────────────────────────────────────────────────────────
-    // Exception: MB RX Elec-Idle is driven from error_req_rcvd (registered flag),
-    // which is set in the snoop block. This is acceptable because error_req_rcvd is
-    // a registered (not combinational) signal, so no combinational loop is created.
+    // MB lane selects are computed entirely in the wrapper from flags:
+    //   rx_elec_idle, partner_sweep_en, and the clock-mode inputs.
     // =========================================================================
     always_comb begin : OUTPUT_COMB_PROC
 
@@ -354,34 +354,6 @@ module unit_LINKSPEED_partner (
         phyretrain_req   = 1'b0;
         partner_sweep_en = 1'b0;
 
-        // ── MB RX defaults (always enabled per spec §4.5.3.4.12) ──
-        // Exception: when {error req} received, PARTNER must enter Elec-Idle on RX.
-        // Spec Step 3: "the UCIe Module Partner enters electrical idle on its Receiver".
-        // This is gated on error_req_rcvd (registered), which is set when {error req} arrives.
-        if (error_req_rcvd) begin
-            // RX Elec-Idle on error path (per spec).
-            // Note: UCIe does not define a "Elec-Idle" encoding for RX lane selects;
-            // "entering electrical idle on receiver" means disabling the RX receivers.
-            mb_rx_clk_lane_sel  = 1'b0; // Disable clock RX.
-            mb_rx_data_lane_sel = 1'b0; // Disable data RX.
-            mb_rx_val_lane_sel  = 1'b0; // Disable valid RX.
-            mb_rx_trk_lane_sel  = 1'b0;
-        end else begin
-            mb_rx_clk_lane_sel  = 1'b1;
-            mb_rx_data_lane_sel = 1'b1;
-            mb_rx_val_lane_sel  = 1'b1;
-            mb_rx_trk_lane_sel  = 1'b0;
-        end
-
-        // ── MB TX defaults ──
-        // PARTNER holds Data and Valid TX low while remote LOCAL runs its D2C test.
-        // Track TX: always held Low (spec).
-        // Clock TX: free-running (high speed/continuous clock) or low (strobe/≤32 GT/s).
-        mb_tx_trk_lane_sel  = 2'b00;
-        mb_tx_data_lane_sel = 2'b00; // Held Low — partner does not transmit data.
-        mb_tx_val_lane_sel  = 2'b00; // Held Low — partner does not transmit valid.
-        mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-
         // ── SB TX defaults ──
         tx_sb_msg_valid = 1'b0;
         tx_sb_msg       = NOTHING;
@@ -390,12 +362,7 @@ module unit_LINKSPEED_partner (
 
         case (current_state)
 
-            LINKSPEED_PTR_IDLE: begin
-                mb_rx_clk_lane_sel  = 1'b0;
-                mb_rx_data_lane_sel = 1'b0;
-                mb_rx_val_lane_sel  = 1'b0;
-                mb_tx_clk_lane_sel  = 2'b00;
-            end
+            LINKSPEED_PTR_IDLE: ;
 
             // ── Wait states: no SB TX output ────────────────────────────────
             LINKSPEED_PTR_WAIT_START_REQ     : ; // Hold.
@@ -404,7 +371,7 @@ module unit_LINKSPEED_partner (
                 partner_sweep_en = 1'b1;
             end
 
-            LINKSPEED_PTR_WAIT_RECOVERY_REQ  : ; // Hold. RX Elec-Idle from error_req_rcvd.
+            LINKSPEED_PTR_WAIT_RECOVERY_REQ  : ; // Hold. RX Elec-Idle from rx_elec_idle flag in wrapper.
 
             // ── SEND states: 1-cycle tx_sb_msg_valid pulse ───────────────────
             LINKSPEED_PTR_SEND_START_RESP: begin
@@ -417,7 +384,7 @@ module unit_LINKSPEED_partner (
                 tx_sb_msg       = MBTRAIN_LINKSPEED_done_resp;
             end
 
-            // Spec: Partner enters RX Elec-Idle (from error_req_rcvd above), then sends resp.
+            // Spec: Partner enters RX Elec-Idle (from rx_elec_idle in wrapper), then sends resp.
             LINKSPEED_PTR_SEND_ERROR_RESP: begin
                 tx_sb_msg_valid = 1'b1;
                 tx_sb_msg       = MBTRAIN_LINKSPEED_error_resp;
@@ -440,7 +407,7 @@ module unit_LINKSPEED_partner (
                 tx_sb_msg       = MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp;
             end
 
-            // ── Terminal states ──────────────────────────────────────────────
+            // ── Terminal states ────────────────────────────────────────────
             LINKSPEED_PTR_TO_LINKINIT: begin
                 linkspeed_done   = 1'b1;
                 linkinit_req     = 1'b1;

@@ -65,9 +65,7 @@ module wrapper_LINKSPEED (
         input  logic        is_continuous_clk_mode,            // 0: Strobe mode; 1: Continuous clock
 
         // Local FSM Control:
-        input  logic        local_linkspeed_en,                // 0: Disable; 1: Enable Local LINKSPEED FSM
-        // Partner FSM Control:
-        input  logic        partner_linkspeed_en,              // 0: Disable; 1: Enable Partner LINKSPEED FSM
+        input  logic        linkspeed_en,                // 0: Disable; 1: Enable LINKSPEED FSMs
 
         // Combined outputs
         output logic        linkspeed_done,                    // 0: In progress; 1: Sub-state completed
@@ -137,9 +135,9 @@ module wrapper_LINKSPEED (
         output logic [63:0] tx_data_field,                     // Transmitted 64-bit Data payload
 
         input  logic        rx_sb_msg_valid,                   // 0: Idle; 1: Valid 1-cycle RX pulse
-        input  logic [7:0]  rx_sb_msg,                        // Received MsgCode
-        input  logic [15:0] rx_msginfo,                        // Received MsgInfo payload
-        input  logic [63:0] rx_data_field                      // Received 64-bit Data payload
+        input  logic [7:0]  rx_sb_msg                          // Received MsgCode
+        // input  logic [15:0] rx_msginfo,                        // Received MsgInfo payload
+        // input  logic [63:0] rx_data_field                      // Received 64-bit Data payload
     );
 
     // =========================================================================
@@ -147,7 +145,6 @@ module wrapper_LINKSPEED (
     // =========================================================================
 
     // Exit route requests:
-
     logic        local_linkinit_req    ;          // 1: Request exit to LINKINIT
     logic        partner_linkinit_req  ;          // 1: Request exit to LINKINIT
 
@@ -165,7 +162,7 @@ module wrapper_LINKSPEED (
     assign linkspeed_repair_req     = local_repair_req     & partner_repair_req     ;
     assign linkspeed_phyretrain_req = local_phyretrain_req & partner_phyretrain_req ;
 
-    // Done and trainerror wires from substate FSMs:
+    // Done wires from substate FSMs:
     logic        local_linkspeed_done_w     ;
     logic        partner_linkspeed_done_w   ;
 
@@ -181,25 +178,10 @@ module wrapper_LINKSPEED (
     logic [15:0] partner_tx_msginfo       ;
     logic [63:0] partner_tx_data_field    ;
 
-    // MB outputs from Local FSM:
-    logic [1:0]  local_mb_tx_clk_lane_sel ;
-    logic [1:0]  local_mb_tx_data_lane_sel;
-    logic [1:0]  local_mb_tx_val_lane_sel ;
-    logic [1:0]  local_mb_tx_trk_lane_sel ;
-    logic        local_mb_rx_clk_lane_sel ;
-    logic        local_mb_rx_data_lane_sel;
-    logic        local_mb_rx_val_lane_sel ;
-    logic        local_mb_rx_trk_lane_sel ;
-
-    // MB outputs from Partner FSM:
-    logic [1:0]  partner_mb_tx_clk_lane_sel ;
-    logic [1:0]  partner_mb_tx_data_lane_sel;
-    logic [1:0]  partner_mb_tx_val_lane_sel ;
-    logic [1:0]  partner_mb_tx_trk_lane_sel ;
-    logic        partner_mb_rx_clk_lane_sel ;
-    logic        partner_mb_rx_data_lane_sel;
-    logic        partner_mb_rx_val_lane_sel ;
-    logic        partner_mb_rx_trk_lane_sel ;
+    // MB state flags from unit FSMs (used to compute final MB lane selects in this wrapper):
+    // NOTE: lcl_sweep_active is not needed — local_sweep_en already carries that signal.
+    logic        lcl_tx_elec_idle; // LOCAL TX must be in Electrical Idle (error path).
+    logic        ptr_rx_elec_idle; // PARTNER RX must be disabled (error path: {error req} received).
 
     // =========================================================================
     // 1st: Port Mapping of unit_LINKSPEED_local
@@ -209,14 +191,13 @@ module wrapper_LINKSPEED (
         .lclk                           (lclk                          ), // LTSM clock domain
         .rst_n                          (rst_n                         ), // Active-low async reset
         // LTSM Control Signals
-        .linkspeed_en                   (local_linkspeed_en            ), // Enable Local LINKSPEED FSM
+        .linkspeed_en                   (linkspeed_en                  ), // Enable Local LINKSPEED FSM
         .soft_rst_n                     (soft_rst_n                    ), // Soft-reset control
         .linkspeed_done                 (local_linkspeed_done_w        ), // Sub-state done
         .speedidle_req                  (local_speedidle_req           ), // Exit to SPEEDIDLE
         .repair_req                     (local_repair_req              ), // Exit to REPAIR
         .linkinit_req                   (local_linkinit_req            ), // Exit to LINKINIT
         .phyretrain_req                 (local_phyretrain_req          ), // Exit to PHYRETRAIN
-        // .trainerror_req                 (), // Exit to TRAINERROR
         // Lane & Width Configuration
         .active_rx_lanes                (active_rx_lanes               ), // Active lane mask
         .width_degrade_feasible         (width_degrade_feasible        ), // Width degradation feasibility
@@ -227,18 +208,8 @@ module wrapper_LINKSPEED (
         .busy_bit_rst                   (busy_bit_rst                  ), // Clear busy bit pulse
         // LINKSPEED Result
         .linkspeed_success_lanes        (linkspeed_success_lanes       ), // Per-lane D2C pass mask
-        // MB Lane Control
-        .mb_tx_clk_lane_sel             (local_mb_tx_clk_lane_sel      ), // Clock TX select
-        .mb_tx_data_lane_sel            (local_mb_tx_data_lane_sel     ), // Data TX select
-        .mb_tx_val_lane_sel             (local_mb_tx_val_lane_sel      ), // Valid TX select
-        .mb_tx_trk_lane_sel             (local_mb_tx_trk_lane_sel      ), // Track TX select
-        .mb_rx_clk_lane_sel             (local_mb_rx_clk_lane_sel      ), // Clock RX enable
-        .mb_rx_data_lane_sel            (local_mb_rx_data_lane_sel     ), // Data RX enable
-        .mb_rx_val_lane_sel             (local_mb_rx_val_lane_sel      ), // Valid RX enable
-        .mb_rx_trk_lane_sel             (local_mb_rx_trk_lane_sel      ), // Track RX enable
-        // Speed and Clock Mode
-        .is_high_speed                  (is_high_speed                 ), // Speed > 32 GT/s
-        .is_continuous_clk_mode         (is_continuous_clk_mode        ), // Continuous clock mode
+        // MB Lane State Flag (wrapper computes final MB selects from this)
+        .tx_elec_idle                   (lcl_tx_elec_idle              ), // LOCAL TX in Elec-Idle
         // D2C Sweep Interface
         .sweep_en                       (local_sweep_en                ), // To external unit_D2C_sweep
         .d2c_perlane_pass               (d2c_perlane_pass              ), // From external unit_D2C_sweep
@@ -250,11 +221,10 @@ module wrapper_LINKSPEED (
         .tx_data_field                  (local_tx_data_field           ), // SB TX Data
         // Sideband RX (broadcast)
         .rx_sb_msg_valid                (rx_sb_msg_valid               ), // SB RX valid pulse
-        .rx_sb_msg                      (rx_sb_msg                     ), // SB RX MsgCode
-        .rx_msginfo                     (rx_msginfo                    ), // SB RX MsgInfo
-        .rx_data_field                  (rx_data_field                 )  // SB RX Data
+        .rx_sb_msg                      (rx_sb_msg                     )  // SB RX MsgCode
+        // .rx_msginfo                     (rx_msginfo                    ), // SB RX MsgInfo
+        // .rx_data_field                  (rx_data_field                 )  // SB RX Data
     );
-
 
     // =========================================================================
     // 2nd: Port Mapping of unit_LINKSPEED_partner
@@ -264,26 +234,15 @@ module wrapper_LINKSPEED (
         .lclk                           (lclk                          ), // LTSM clock domain
         .rst_n                          (rst_n                         ), // Active-low async reset
         // LTSM Control Signals
-        .linkspeed_en                   (partner_linkspeed_en          ), // Enable Partner LINKSPEED FSM
+        .linkspeed_en                   (linkspeed_en                  ), // Enable Partner LINKSPEED FSM
         .soft_rst_n                     (soft_rst_n                    ), // Soft-reset control
         .linkspeed_done                 (partner_linkspeed_done_w      ), // Sub-state done
         .speedidle_req                  (partner_speedidle_req         ), // Exit to SPEEDIDLE
         .repair_req                     (partner_repair_req            ), // Exit to REPAIR
         .linkinit_req                   (partner_linkinit_req          ), // Exit to LINKINIT
         .phyretrain_req                 (partner_phyretrain_req        ), // Exit to PHYRETRAIN
-        // .trainerror_req                 (), // Exit to TRAINERROR
-        // MB Lane Control
-        .mb_tx_clk_lane_sel             (partner_mb_tx_clk_lane_sel    ), // Clock TX select
-        .mb_tx_data_lane_sel            (partner_mb_tx_data_lane_sel   ), // Data TX select
-        .mb_tx_val_lane_sel             (partner_mb_tx_val_lane_sel    ), // Valid TX select
-        .mb_tx_trk_lane_sel             (partner_mb_tx_trk_lane_sel    ), // Track TX select
-        .mb_rx_clk_lane_sel             (partner_mb_rx_clk_lane_sel    ), // Clock RX enable
-        .mb_rx_data_lane_sel            (partner_mb_rx_data_lane_sel   ), // Data RX enable
-        .mb_rx_val_lane_sel             (partner_mb_rx_val_lane_sel    ), // Valid RX enable
-        .mb_rx_trk_lane_sel             (partner_mb_rx_trk_lane_sel    ), // Track RX enable
-        // Speed and Clock Mode
-        .is_high_speed                  (is_high_speed                 ), // Speed > 32 GT/s
-        .is_continuous_clk_mode         (is_continuous_clk_mode        ), // Continuous clock mode
+        // MB Lane State Flag (wrapper computes final MB selects from this)
+        .rx_elec_idle                   (ptr_rx_elec_idle              ), // PARTNER RX in Elec-Idle
         // D2C Sweep Interface
         .partner_sweep_en               (partner_sweep_en              ), // To external unit_D2C_sweep
         // Sideband TX (to arbiter)
@@ -293,11 +252,10 @@ module wrapper_LINKSPEED (
         .tx_data_field                  (partner_tx_data_field         ), // SB TX Data
         // Sideband RX (broadcast)
         .rx_sb_msg_valid                (rx_sb_msg_valid               ), // SB RX valid pulse
-        .rx_sb_msg                      (rx_sb_msg                     ), // SB RX MsgCode
-        .rx_msginfo                     (rx_msginfo                    ), // SB RX MsgInfo
-        .rx_data_field                  (rx_data_field                 )  // SB RX Data
+        .rx_sb_msg                      (rx_sb_msg                     )  // SB RX MsgCode
+        // .rx_msginfo                     (rx_msginfo                    ), // SB RX MsgInfo
+        // .rx_data_field                  (rx_data_field                 )  // SB RX Data
     );
-
 
     // =========================================================================
     // 3rd: Multiplexing and Output Assignments
@@ -316,41 +274,62 @@ module wrapper_LINKSPEED (
     assign tx_msginfo      = local_tx_sb_msg_valid  ? local_tx_msginfo      : partner_tx_msginfo    ;
     assign tx_data_field   = local_tx_sb_msg_valid  ? local_tx_data_field   : partner_tx_data_field ;
 
-    // ── MB Outputs MUX ───────────────────────────────────────────────────────
-    // TX side routing:
-    //   PARTNER active → PARTNER drives TX (holds clock; data/val held Low by its defaults).
-    //   Otherwise     → LOCAL   drives TX (Active during D2C; Elec-Idle on error path).
+    // ── MB Lane Control ──────────────────────────────────────────────────
+    // All MB lane selects are computed here from compact flags received from the
+    // two unit FSMs, plus the clock-mode inputs from the LTSM.
     //
-    // RX side routing:
-    //   LOCAL active  → LOCAL   drives RX (always-enabled until error path sets Elec-Idle).
-    //   Otherwise     → PARTNER drives RX (may disable on error path via error_req_rcvd flag).
+    // Spec §4.5.3.4.12 (idle posture when not performing state-specific actions):
+    //   - Clock RX:   always enabled.
+    //   - Data/Valid RX:  always enabled.
+    //   - Track TX:   always held Low.
+    //   - Data/Valid TX: held Low (except during D2C test: Active).
+    //   - Clock TX:   Low if speed ≤ 32 GT/s AND strobe mode;
+    //                 free-running (Active) if speed > 32 GT/s OR continuous clock.
+    //
+    // State-specific overrides:
+    //   LOCAL in D2C TX (lcl_sweep_active=1):
+    //       Data TX → Active (2'b01), Valid TX → Active (2'b01).
+    //   LOCAL error path (lcl_tx_elec_idle=1):
+    //       Clock/Data/Valid TX → Electrical Idle (2'b11).
+    //   PARTNER error path (ptr_rx_elec_idle=1):
+    //       Clock/Data/Valid RX → Disabled (1'b0).
+    // =========================================================================
     always_comb begin : MB_OUTPUTS_MUX
-        // ── MB TX source selection ──
-        if (partner_linkspeed_en) begin
-            mb_tx_clk_lane_sel  = partner_mb_tx_clk_lane_sel ;
-            mb_tx_data_lane_sel = partner_mb_tx_data_lane_sel;
-            mb_tx_val_lane_sel  = partner_mb_tx_val_lane_sel ;
-            mb_tx_trk_lane_sel  = partner_mb_tx_trk_lane_sel ;
-        end else begin
-            mb_tx_clk_lane_sel  = local_mb_tx_clk_lane_sel   ;
-            mb_tx_data_lane_sel = local_mb_tx_data_lane_sel  ;
-            mb_tx_val_lane_sel  = local_mb_tx_val_lane_sel   ;
-            mb_tx_trk_lane_sel  = local_mb_tx_trk_lane_sel   ;
+
+        // ── MB TX defaults (spec §4.5.3.4.12 idle posture) ──
+        // LOCAL error path: drive TX to Electrical Idle.
+        if (lcl_tx_elec_idle) begin
+            mb_tx_trk_lane_sel  = 2'b11; // Track TX: always held Low.
+            mb_tx_clk_lane_sel  = 2'b11;
+            mb_tx_data_lane_sel = 2'b11;
+            mb_tx_val_lane_sel  = 2'b11;
+        end
+        // LOCAL D2C TX: activate Data and Valid TX.
+        // local_sweep_en is already the sweep_en output of u_LINKSPEED_local — reused directly.
+        else begin
+            mb_tx_trk_lane_sel  = 2'b00; // Track TX: always held Low.
+            mb_tx_data_lane_sel = 2'b00; // Held Low by default.
+            mb_tx_val_lane_sel  = 2'b00; // Held Low by default.
+            mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
         end
 
-        // ── MB RX source selection ──
-        if (local_linkspeed_en) begin
-            mb_rx_clk_lane_sel  = local_mb_rx_clk_lane_sel   ;
-            mb_rx_data_lane_sel = local_mb_rx_data_lane_sel  ;
-            mb_rx_val_lane_sel  = local_mb_rx_val_lane_sel   ;
-            mb_rx_trk_lane_sel  = local_mb_rx_trk_lane_sel   ;
-        end else begin
-            mb_rx_clk_lane_sel  = partner_mb_rx_clk_lane_sel ;
-            mb_rx_data_lane_sel = partner_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel  = partner_mb_rx_val_lane_sel ;
-            mb_rx_trk_lane_sel  = partner_mb_rx_trk_lane_sel ;
+        // ── MB RX defaults (enabled per spec; PARTNER disables on error path) ──
+        // PARTNER error path: disable RX receivers.
+        // Spec Step 3: "the UCIe Module Partner enters electrical idle on its Receiver."
+        if (ptr_rx_elec_idle) begin
+            mb_rx_trk_lane_sel  = 1'b0; // Track RX: always disabled.
+            mb_rx_clk_lane_sel  = 1'b0;
+            mb_rx_data_lane_sel = 1'b0;
+            mb_rx_val_lane_sel  = 1'b0;
+        end
+        else begin
+            mb_rx_trk_lane_sel  = 1'b0; // Track RX: always disabled.
+            mb_rx_clk_lane_sel  = 1'b1;
+            mb_rx_data_lane_sel = 1'b1;
+            mb_rx_val_lane_sel  = 1'b1;
         end
     end
+
 
 endmodule
 // ====================================================================================================

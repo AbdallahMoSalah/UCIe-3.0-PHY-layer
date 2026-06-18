@@ -371,6 +371,11 @@ module wrapper_TXSELFCAL_tb;
         end
 
         $display("# All wrapper_TXSELFCAL_tb tests PASSED");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $finish;
     end
 

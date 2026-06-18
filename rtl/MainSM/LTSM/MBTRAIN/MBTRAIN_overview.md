@@ -277,79 +277,77 @@ UCIe-3.0-PHY-layer/
 ├── rtl/
 │   └── MainSM/
 │       └── LTSM/
-│           ├── MBTRAIN/
-│           │   ├── common/                               # Common files used in more than 1 MBTRAIN module.
-│           │   │   ├── MBTRAIN_if.sv                     # Interface file for the MBTRAIN modules.
-│           │   │   ├── unit_negotiated_lanes.sv          # ✅ Completed: determine active 16 data lanes in the link for Tx/Rx.
-│           │   │   └── unit_negotiated_speed.sv          # ✅ Completed: determine negotiated speed of the link, max possible speed.
-│           │   ├── RXDESKEW/
-│           │   │   ├── unit_RXDESKEW_local.sv            # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_RXDESKEW_partner.sv          # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_RXDESKEW.sv               # ✅ RTL Re-implemented & Verified.
-│           │   ├── DATATRAINCENTER1/
-│           │   │   ├── unit_DATATRAINCENTER1_local.sv    # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_DATATRAINCENTER1_partner.sv  # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_DATATRAINCENTER1.sv       # ✅ RTL Re-implemented & Verified.
-│           │   ├── DATATRAINCENTER2/
-│           │   │   ├── unit_DATATRAINCENTER2_local.sv    # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_DATATRAINCENTER2_partner.sv  # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_DATATRAINCENTER2.sv       # ✅ RTL Re-implemented & Verified.
-│           │   ├── DATATRAINVREF/
-│           │   │   ├── unit_DATATRAINVREF_local.sv       # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_DATATRAINVREF_partner.sv     # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_DATATRAINVREF.sv          # ✅ RTL Re-implemented & Verified.
-│           │   ├── DATAVREF/
-│           │   │   ├── unit_DATAVREF_local.sv            # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_DATAVREF_partner.sv          # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_DATAVREF.sv               # ✅ RTL Re-implemented & Verified.
-│           │   ├── LINKSPEED/    
-│           │   │   ├── unit_LINKSPEED_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_LINKSPEED_partner.sv         # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_LINKSPEED.sv              # ✅ RTL Re-implemented & Verified.
-│           │   ├── REPAIR/
-│           │   │   ├── unit_REPAIR_local.sv              # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_REPAIR_partner.sv            # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_REPAIR.sv                 # ✅ RTL Re-implemented & Verified.
-│           │   ├── RXCLKCAL/
-│           │   │   ├── unit_RXCLKCAL_local.sv            # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_RXCLKCAL_partner.sv          # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_RXCLKCAL_IQ_local.sv         # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_RXCLKCAL_IQ_partner.sv       # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_RXCLKCAL.sv               # ✅ RTL Re-implemented & Verified.
-│           │   ├── SPEEDIDLE/
-│           │   │   ├── unit_SPEEDIDLE_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_SPEEDIDLE_partner.sv         # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_SPEEDIDLE.sv              # ✅ RTL Re-implemented & Verified.
-│           │   ├── TXSELFCAL/
-│           │   │   ├── unit_TXSELFCAL_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_TXSELFCAL_partner.sv         # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_TXSELFCAL.sv              # ✅ RTL Re-implemented & Verified.
-│           │   ├── VALTRAINCENTER/
-│           │   │   ├── unit_VALTRAINCENTER_local.sv      # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_VALTRAINCENTER_partner.sv    # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_VALTRAINCENTER.sv         # ✅ RTL Re-implemented & Verified.
-│           │   ├── VALTRAINVREF/
-│           │   │   ├── unit_VALTRAINVREF_local.sv        # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_VALTRAINVREF_partner.sv      # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_VALTRAINVREF.sv           # ✅ RTL Re-implemented & Verified.
-│           │   ├── VALVREF/
-│           │   │   ├── unit_VALVREF_local.sv             # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── unit_VALVREF_partner.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_VALVREF.sv                # ✅ RTL Re-implemented & Verified.
-│           │   ├── unit_MBTRAIN_ctrl.sv                  # ✅ Completed & Verified.
-│           │   └── wrapper_MBTRAIN.sv                    # ⏳ To be implemented.
-│           └── D2C_PT/
-│               ├── unit_D2C_sweep.sv                     # ✅ RTL Re-implemented & Verified.
-│               ├── RX_D2C_PT/
-│               │   ├── unit_RX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│               │   └── unit_RX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
-│               ├── TX_D2C_PT/
-│               │   ├── unit_TX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│               │   └── unit_TX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
-│               └── wrapper_D2C_PT/
-│                   ├── wrapper_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│                   ├── wrapper_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
-│                   └── wrapper_D2C_PT_top.sv             # ✅ RTL Re-implemented & Verified (parallel MB TX/RX MUX).
+│           ├── D2C_PT/
+│           │   ├── RX_D2C_PT/
+│           │   │   ├── unit_RX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
+│           │   │   └── unit_RX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
+│           │   ├── TX_D2C_PT/
+│           │   │   ├── unit_TX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
+│           │   │   └── unit_TX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
+│           │   ├── wrapper_D2C_PT/
+│           │   │   ├── wrapper_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
+│           │   │   ├── wrapper_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
+│           │   │   └── wrapper_D2C_PT.sv                 # ✅ RTL Re-implemented & Verified (parallel MB TX/RX MUX).
+│           │   ├── unit_D2C_sweep.sv                     # ✅ RTL Re-implemented & Verified.
+│           │   └── wrapper_D2C_sweep.sv                  # ✅ RTL Re-implemented & Verified.
+│           └── MBTRAIN/
+│               ├── RXDESKEW/
+│               │   ├── unit_RXDESKEW_local.sv            # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXDESKEW_partner.sv          # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_RXDESKEW.sv               # ✅ RTL Re-implemented & Verified.
+│               ├── DATATRAINCENTER1/
+│               │   ├── unit_DATATRAINCENTER1_local.sv    # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER1_partner.sv  # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_DATATRAINCENTER1.sv       # ✅ RTL Re-implemented & Verified.
+│               ├── DATATRAINCENTER2/
+│               │   ├── unit_DATATRAINCENTER2_local.sv    # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER2_partner.sv  # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_DATATRAINCENTER2.sv       # ✅ RTL Re-implemented & Verified.
+│               ├── DATATRAINVREF/
+│               │   ├── unit_DATATRAINVREF_local.sv       # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINVREF_partner.sv     # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_DATATRAINVREF.sv          # ✅ RTL Re-implemented & Verified.
+│               ├── DATAVREF/
+│               │   ├── unit_DATAVREF_local.sv            # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATAVREF_partner.sv          # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_DATAVREF.sv               # ✅ RTL Re-implemented & Verified.
+│               ├── LINKSPEED/    
+│               │   ├── unit_LINKSPEED_local.sv           # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_LINKSPEED_partner.sv         # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_LINKSPEED.sv              # ✅ RTL Re-implemented & Verified.
+│               ├── REPAIR/
+│               │   ├── unit_REPAIR_local.sv              # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_REPAIR_partner.sv            # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_negotiated_lanes.sv          # ✅ Completed: determine active 16 data lanes in the link for Tx/Rx.
+│               │   └── wrapper_REPAIR.sv                 # ✅ RTL Re-implemented & Verified.
+│               ├── RXCLKCAL/
+│               │   ├── unit_RXCLKCAL_local.sv            # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXCLKCAL_partner.sv          # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXCLKCAL_IQ_local.sv         # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXCLKCAL_IQ_partner.sv       # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_RXCLKCAL.sv               # ✅ RTL Re-implemented & Verified.
+│               ├── SPEEDIDLE/
+│               │   ├── unit_SPEEDIDLE_local.sv           # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_SPEEDIDLE_partner.sv         # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_SPEEDIDLE.sv              # ✅ RTL Re-implemented & Verified.
+│               ├── TXSELFCAL/
+│               │   ├── unit_TXSELFCAL_local.sv           # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_TXSELFCAL_partner.sv         # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_TXSELFCAL.sv              # ✅ RTL Re-implemented & Verified.
+│               ├── VALTRAINCENTER/
+│               │   ├── unit_VALTRAINCENTER_local.sv      # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALTRAINCENTER_partner.sv    # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_VALTRAINCENTER.sv         # ✅ RTL Re-implemented & Verified.
+│               ├── VALTRAINVREF/
+│               │   ├── unit_VALTRAINVREF_local.sv        # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALTRAINVREF_partner.sv      # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_VALTRAINVREF.sv           # ✅ RTL Re-implemented & Verified.
+│               ├── VALVREF/
+│               │   ├── unit_VALVREF_local.sv             # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALVREF_partner.sv           # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_VALVREF.sv                # ✅ RTL Re-implemented & Verified.
+│               ├── unit_MBTRAIN_ctrl.sv              
+│               └── wrapper_MBTRAIN.sv
 ├── sim/
 │   ├── listfiles/
 │   │   ├── unit_MBTRAIN_ctrl.f                           # ✅ Completed.
@@ -362,6 +360,7 @@ UCIe-3.0-PHY-layer/
 │   │   ├── wrapper_DATATRAINVREF.f                       # ✅ New: listfile for wrapper_DATATRAINVREF_tb simulation.
 │   │   ├── wrapper_DATAVREF.f                            # ✅ New: listfile for wrapper_DATAVREF_tb simulation.
 │   │   ├── wrapper_LINKSPEED.f                           # ✅ New: listfile for wrapper_LINKSPEED_tb simulation.
+│   │   ├── wrapper_MBTRAIN_class_based.f                 # ✅ New: listfile for wrapper_MBTRAIN_class_based_tb simulation.
 │   │   ├── wrapper_REPAIR.f                              # ✅ New: listfile for wrapper_REPAIR_tb simulation.
 │   │   ├── wrapper_RXCLKCAL.f                            # ✅ New: listfile for wrapper_RXCLKCAL_tb simulation.
 │   │   ├── wrapper_RXDESKEW.f                            # ✅ New: listfile for wrapper_RXDESKEW_tb simulation.
@@ -370,7 +369,7 @@ UCIe-3.0-PHY-layer/
 │   │   ├── wrapper_VALTRAINCENTER.f                      # ✅ New: listfile for wrapper_VALTRAINCENTER_tb simulation.
 │   │   ├── wrapper_VALTRAINVREF.f                        # ✅ New: listfile for wrapper_VALTRAINVREF_tb simulation.
 │   │   ├── wrapper_VALVREF.f                             # ✅ New: listfile for wrapper_VALVREF_tb simulation.
-│   │   └── wrapper_MBTRAIN.f                             # ⏳ To be implemented.
+│   │   └── wrapper_MBTRAIN.f
 │   └── waves/
 │       ├── unit_DATATRAINCENTER1_tb.do
 │       ├── unit_DATATRAINCENTER2_tb.do
@@ -394,33 +393,51 @@ UCIe-3.0-PHY-layer/
     ├── unit/
     │   └── MainSM/
     │       └── LTSM/
-    │           ├── common/
-    │           │   ├── ltsm_tb_attachments.sv             # ✅ Completed: TB attachments.
-    │           │   └── ltsm_tb_if.sv                      # ✅ Completed: TB interface.
-    │           └── D2C_PT/
-    │               ├── unit_RX_D2C_PT_tb.sv               # ✅ Completed.
-    │               └── unit_TX_D2C_PT_tb.sv               # ✅ Completed.
+    │           ├── D2C_PT/
+    │           │   ├── unit_RX_D2C_PT_tb.sv              # ✅ Completed.
+    │           │   └── unit_TX_D2C_PT_tb.sv              # ✅ Completed.
+    │           └── MBTRAIN/
+    │               └── unit_MBTRAIN_ctrl_tb.sv           # ✅ Completed.
     └── wrapper/
         └── MainSM/
             └── LTSM/
                 ├── D2C_PT/
-                │   ├── wrapper_D2C_PT_tb.sv               # ✅ Completed.
-                │   └── wrapper_D2C_PT_top_tb.sv           # ✅ Verified: top-level TB covering all 6 test types + 100 randomized iterations.
+                │   ├── wrapper_D2C_PT_tb.sv              # ✅ Completed.
+                │   └── wrapper_D2C_PT_top_tb.sv          # ✅ Verified: top-level TB covering all 6 test types + 100 randomized iterations.
                 └── MBTRAIN/
-                    ├── wrapper_DATATRAINCENTER1_tb.sv     # ✅ Completed & Verified.
-                    ├── wrapper_DATATRAINCENTER2_tb.sv     # ✅ Completed & Verified.
-                    ├── wrapper_DATATRAINVREF_tb.sv        # ✅ Completed & Verified.
-                    ├── wrapper_DATAVREF_tb.sv             # ✅ Completed & Verified.
-                    ├── wrapper_LINKSPEED_tb.sv            # ✅ Completed.
-                    ├── wrapper_REPAIR_tb.sv               # ✅ Completed & Verified.
-                    ├── wrapper_RXCLKCAL_tb.sv             # ✅ Completed & Verified.
-                    ├── wrapper_RXDESKEW_tb.sv             # ✅ Completed.
-                    ├── wrapper_SPEEDIDLE_tb.sv            # ✅ Completed & Verified.
-                    ├── wrapper_TXSELFCAL_tb.sv            # ✅ Completed & Verified.
-                    ├── wrapper_VALTRAINCENTER_tb.sv       # ✅ Completed & Verified.
-                    ├── wrapper_VALTRAINVREF_tb.sv         # ✅ Completed & Verified.
-                    ├── wrapper_VALVREF_tb.sv              # ✅ Completed & Verified.
-                    └── wrapper_MBTRAIN_tb.sv              # ⏳ To be implemented.
+                    ├── common/
+                    │   ├── ltsm_tb_attachments.sv        # ✅ Completed: TB attachments.
+                    │   └── ltsm_tb_if.sv                 # ✅ Completed: TB interface.
+                    ├── wrapper_MBTRAIN_class_based_tb/   # Class-based (OOP-style) MBTRAIN testbench suite.
+                    │   ├── mbtrain_cb_config.sv
+                    │   ├── mbtrain_cb_coverage.sv
+                    │   ├── mbtrain_cb_d2c_model.sv
+                    │   ├── mbtrain_cb_driver.sv
+                    │   ├── mbtrain_cb_env.sv
+                    │   ├── mbtrain_cb_if.sv
+                    │   ├── mbtrain_cb_monitor.sv
+                    │   ├── mbtrain_cb_pkg.sv
+                    │   ├── mbtrain_cb_sb_agent.sv
+                    │   ├── mbtrain_cb_scoreboard.sv
+                    │   ├── mbtrain_cb_tb_top.sv
+                    │   ├── mbtrain_cb_testlib.sv
+                    │   ├── mbtrain_cb_transaction.sv
+                    │   ├── mbtrain_cb_types_pkg.sv
+                    │   └── wrapper_MBTRAIN_class_based_tb.sv
+                    ├── wrapper_DATATRAINCENTER1_tb.sv # ✅ Completed & Verified.
+                    ├── wrapper_DATATRAINCENTER2_tb.sv # ✅ Completed & Verified.
+                    ├── wrapper_DATATRAINVREF_tb.sv    # ✅ Completed & Verified.
+                    ├── wrapper_DATAVREF_tb.sv         # ✅ Completed & Verified.
+                    ├── wrapper_LINKSPEED_tb.sv        # ✅ Completed.
+                    ├── wrapper_REPAIR_tb.sv           # ✅ Completed & Verified.
+                    ├── wrapper_RXCLKCAL_tb.sv         # ✅ Completed & Verified.
+                    ├── wrapper_RXDESKEW_tb.sv         # ✅ Completed & Verified.
+                    ├── wrapper_SPEEDIDLE_tb.sv        # ✅ Completed & Verified.
+                    ├── wrapper_TXSELFCAL_tb.sv        # ✅ Completed & Verified.
+                    ├── wrapper_VALTRAINCENTER_tb.sv   # ✅ Completed & Verified.
+                    ├── wrapper_VALTRAINVREF_tb.sv     # ✅ Completed & Verified.
+                    ├── wrapper_VALVREF_tb.sv          # ✅ Completed & Verified.
+                    └── wrapper_MBTRAIN_tb.sv          # ✅ It works but need more scenarios.
 ```
 
 ---

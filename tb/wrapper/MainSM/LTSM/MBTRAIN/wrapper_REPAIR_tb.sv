@@ -533,8 +533,12 @@ module wrapper_REPAIR_tb;
         $display("# =============================================================");
         $display("# wrapper_REPAIR_tb DONE: %0d PASSED, %0d FAILED", success_count, fail_count);
         $display("# =============================================================");
-        if (fail_count == 0)
+        if (fail_count == 0) begin
             $display("# ALL TESTS PASSED");
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $finish;
     end
 

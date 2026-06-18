@@ -605,6 +605,11 @@ module wrapper_RXCLKCAL_tb ();
             $display("TEST SUITE PASSED - ALL 22 TESTS PASSED (20 RANDOMIZED + 2 DETERMINISTIC ASYMMETRIC)");
         end
         $display("==================================================");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $stop;
     end
 

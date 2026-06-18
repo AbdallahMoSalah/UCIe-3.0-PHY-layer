@@ -28,7 +28,10 @@ module ltsm_tb_attachments #(
     reg       tb_partner_test_d2c_done_en;
     reg       tb_partner_test_d2c_done;
 
-    // Local wires to capture wrapper outputs
+    // =========================================================================
+    // Local wires to capture wrapper_D2C_sweep MB and SB outputs
+    // (captured to local wires to avoid multi-driver conflicts on intf)
+    // =========================================================================
     wire [1:0]  wrapper_mb_tx_trk_lane_sel;
     wire [1:0]  wrapper_mb_tx_clk_lane_sel;
     wire [1:0]  wrapper_mb_tx_val_lane_sel;
@@ -64,28 +67,23 @@ module ltsm_tb_attachments #(
     wire [1:0]  mb_tx_data_pattern_sel;
     wire        mb_tx_val_pattern_sel;
 
-    // =========================================================================
-    // Wires between unit_D2C_sweep and wrapper_D2C_PT_top
-    // =========================================================================
-    wire        local_tx_pt_en;
-    wire        local_rx_pt_en;
-    wire        partner_tx_pt_en;
-    wire        partner_rx_pt_en;
-    wire [1:0]  d2c_clk_sampling;
-    wire [2:0]  d2c_pattern_setup;
-    wire [1:0]  d2c_data_pattern_sel;
-    wire        d2c_val_pattern_sel;
-    wire        d2c_pattern_mode;
-    wire [15:0] d2c_burst_count;
-    wire [15:0] d2c_idle_count;
-    wire [15:0] d2c_iter_count;
-    wire [1:0]  d2c_compare_setup;
-
+    // SB outputs from wrapper_D2C_sweep (arbitrated internally)
     wire        wrapper_tx_sb_msg_valid;
     wire [7:0]  wrapper_tx_sb_msg;
     wire [15:0] wrapper_tx_msginfo;
     wire [63:0] wrapper_tx_data_field;
+
+    // partner_test_d2c_done comes from wrapper_D2C_sweep internally
     wire        wrapper_partner_test_d2c_done;
+
+    // local_rx_pt_en: used by MB sim block — access via hierarchical reference
+    // into wrapper_D2C_sweep → unit_D2C_sweep (instead of the removed local_pt_en_dbg port)
+    wire        local_rx_pt_en;
+    wire        partner_tx_pt_en;
+    wire        partner_rx_pt_en;
+    assign local_rx_pt_en    = u_D2C_sweep_wrapper.u_D2C_sweep.local_rx_pt_en;
+    assign partner_tx_pt_en  = u_D2C_sweep_wrapper.u_D2C_sweep.partner_tx_pt_en;
+    assign partner_rx_pt_en  = u_D2C_sweep_wrapper.u_D2C_sweep.partner_rx_pt_en;
 
     // ===================================================================== //
     //                      Sideband Propagation Delay Line                  //
@@ -260,10 +258,8 @@ module ltsm_tb_attachments #(
     // =========================================================================
     // 1. Instantiate unit_negotiated_speed
     // =========================================================================
-    unit_negotiated_speed u_negotiated_speed (
-        .phy_negotiated_speed (intf.phy_negotiated_speed),
-        .is_high_speed        (intf.is_high_speed)
-    );
+    localparam [2:0] SPEED_32G = 3'b101;
+    assign intf.is_high_speed = (intf.phy_negotiated_speed > SPEED_32G);
 
     // =========================================================================
     // 2. Instantiate unit_negotiated_lanes
@@ -277,9 +273,7 @@ module ltsm_tb_attachments #(
         .mb_tx_data_lane_mask       (intf.mb_tx_data_lane_mask),
         .active_rx_lanes            (intf.active_rx_lanes),
         .active_tx_lanes            (intf.active_tx_lanes),
-        // Updated port names: success_lanes split into TX bitmask + RX encoding
         .success_tx_lanes           (intf.linkspeed_success_lanes),
-        // .success_rx_lanes_encoding  (intf.mb_rx_data_lane_mask),  // RX enc = current RX mask
         .rf_cap_SPMW                (intf.rf_cap_SPMW),
         .rf_ctrl_target_link_width  (intf.rf_ctrl_target_link_width),
         .param_UCIe_S_x8            (intf.param_UCIe_S_x8),
@@ -288,9 +282,14 @@ module ltsm_tb_attachments #(
         .is_x16_module              (is_x16_module_w)
     );
 
-
     // =========================================================================
-    // 3. Instantiate unit_D2C_sweep
+    // 3. Instantiate wrapper_D2C_sweep
+    //    (replaces the former separate unit_D2C_sweep + wrapper_D2C_PT_top pair)
+    //
+    // NOTE: local_pt_en_dbg has been removed from unit_D2C_sweep.
+    //       If you need to observe local_pt_en during simulation, use the
+    //       hierarchical path:
+    //         u_D2C_sweep_wrapper.u_D2C_sweep.local_pt_en
     // =========================================================================
     reg [15:0] held_d2c_perlane_pass;
     reg        held_d2c_val_pass;
@@ -304,137 +303,101 @@ module ltsm_tb_attachments #(
         end
     end
 
-    unit_D2C_sweep #(
-        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE),
+    wrapper_D2C_sweep #(
+        .MAX_VAL_VREF_CODE (MAX_VAL_VREF_CODE ),
         .MAX_DATA_VREF_CODE(MAX_DATA_VREF_CODE),
-        .MAX_VAL_PI_CODE   (MAX_VAL_PI_CODE),
-        .MAX_DATA_PI_CODE  (MAX_DATA_PI_CODE),
-        .MAX_DESKEW_CODE   (MAX_DESKEW_CODE),
-        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE),
+        .MAX_VAL_PI_CODE   (MAX_VAL_PI_CODE   ),
+        .MAX_DATA_PI_CODE  (MAX_DATA_PI_CODE  ),
+        .MAX_DESKEW_CODE   (MAX_DESKEW_CODE   ),
+        .MIN_VAL_VREF_CODE (MIN_VAL_VREF_CODE ),
         .MIN_DATA_VREF_CODE(MIN_DATA_VREF_CODE),
-        .MIN_VAL_PI_CODE   (MIN_VAL_PI_CODE),
-        .MIN_DATA_PI_CODE  (MIN_DATA_PI_CODE),
-        .MIN_DESKEW_CODE   (MIN_DESKEW_CODE)
-    ) u_D2C_sweep (
-        .lclk                 (intf.lclk),
-        .rst_n                (intf.rst_n),
-        .active_lanes         (intf.active_rx_lanes),
+        .MIN_VAL_PI_CODE   (MIN_VAL_PI_CODE   ),
+        .MIN_DATA_PI_CODE  (MIN_DATA_PI_CODE  ),
+        .MIN_DESKEW_CODE   (MIN_DESKEW_CODE   )
+    ) u_D2C_sweep_wrapper (
+        // ── Clock and Reset ─────────────────────────────────────────────────
+        .lclk                          (intf.lclk                           ),
+        .rst_n                         (intf.rst_n                          ),
 
-        .local_sweep_en       (intf.sweep_en),
-        .partner_sweep_en     (intf.partner_sweep_en),
-        .state_n              (intf.state_n_0),
+        // ── Substate control ────────────────────────────────────────────────
+        .active_lanes                  (intf.active_rx_lanes                ),
+        .local_sweep_en                (intf.sweep_en                       ),
+        .partner_sweep_en              (intf.partner_sweep_en               ),
+        .sweep_done                    (intf.sweep_done                     ),
+        .state_n                       (intf.state_n_0                      ),
 
-        .local_test_d2c_done  (intf.local_test_d2c_done),
-        .partner_test_d2c_done(intf.partner_test_d2c_done),
-        .d2c_perlane_pass     (held_d2c_perlane_pass),
-        .d2c_val_pass         (held_d2c_val_pass),
+        // ── PHY code / results ──────────────────────────────────────────────
+        .swept_code                    (intf.swept_code                     ),
+        .best_code                     (intf.best_code                      ),
+        .min_eye_width                 (intf.min_eye_width                  ),
 
-        .local_tx_pt_en       (local_tx_pt_en),
-        .local_rx_pt_en       (local_rx_pt_en),
-        .partner_tx_pt_en     (partner_tx_pt_en),
-        .partner_rx_pt_en     (partner_rx_pt_en),
+        // ── PHY / Register File config ──────────────────────────────────────
+        .mb_rx_data_lane_mask          (intf.mb_rx_data_lane_mask           ),
+        .cfg_max_err_thresh_perlane    (intf.cfg_train4_max_err_thresh_perlane),
+        .cfg_max_err_thresh_aggr       (intf.cfg_train4_max_err_thresh_aggr ),
 
-        .d2c_clk_sampling     (d2c_clk_sampling),
-        .d2c_pattern_setup    (d2c_pattern_setup),
-        .d2c_data_pattern_sel (d2c_data_pattern_sel),
-        .d2c_val_pattern_sel  (d2c_val_pattern_sel),
-        .d2c_pattern_mode     (d2c_pattern_mode),
-        .d2c_burst_count      (d2c_burst_count),
-        .d2c_idle_count       (d2c_idle_count),
-        .d2c_iter_count       (d2c_iter_count),
-        .d2c_compare_setup    (d2c_compare_setup),
+        // ── MB TX ────────────────────────────────────────────────────────────
+        .mb_tx_trk_lane_sel            (wrapper_mb_tx_trk_lane_sel          ),
+        .mb_tx_clk_lane_sel            (wrapper_mb_tx_clk_lane_sel          ),
+        .mb_tx_val_lane_sel            (wrapper_mb_tx_val_lane_sel          ),
+        .mb_tx_data_lane_sel           (wrapper_mb_tx_data_lane_sel         ),
+        .mb_tx_pattern_en              (mb_tx_pattern_en                    ),
+        .mb_tx_pattern_setup           (mb_tx_pattern_setup                 ),
+        .mb_tx_lfsr_en                 (mb_tx_lfsr_en                       ),
+        .mb_tx_lfsr_rst                (mb_tx_lfsr_rst                      ),
+        .mb_tx_clk_sampling_en         (mb_tx_clk_sampling_en               ),
+        .mb_tx_clk_sampling            (mb_tx_clk_sampling                  ),
+        .mb_tx_pattern_mode            (mb_tx_pattern_mode                  ),
+        .mb_tx_burst_count             (mb_tx_burst_count                   ),
+        .mb_tx_idle_count              (mb_tx_idle_count                    ),
+        .mb_tx_iter_count              (mb_tx_iter_count                    ),
+        .mb_tx_data_pattern_sel        (mb_tx_data_pattern_sel              ),
+        .mb_tx_val_pattern_sel         (mb_tx_val_pattern_sel               ),
+        .mb_tx_pattern_count_done      (mb_tx_pattern_count_done            ),
 
-        .swept_code           (intf.swept_code),
-        .best_code            (intf.best_code),
-        .min_eye_width        (intf.min_eye_width),
-        .sweep_done           (intf.sweep_done)
+        // ── MB RX ────────────────────────────────────────────────────────────
+        .mb_rx_trk_lane_sel            (wrapper_mb_rx_trk_lane_sel          ),
+        .mb_rx_clk_lane_sel            (wrapper_mb_rx_clk_lane_sel          ),
+        .mb_rx_val_lane_sel            (wrapper_mb_rx_val_lane_sel          ),
+        .mb_rx_data_lane_sel           (wrapper_mb_rx_data_lane_sel         ),
+        .mb_rx_pattern_setup           (mb_rx_pattern_setup                 ),
+        .mb_rx_lfsr_en                 (mb_rx_lfsr_en                       ),
+        .mb_rx_lfsr_rst                (mb_rx_lfsr_rst                      ),
+        .mb_rx_iter_count              (mb_rx_iter_count                    ),
+        .mb_rx_idle_count              (mb_rx_idle_count                    ),
+        .mb_rx_burst_count             (mb_rx_burst_count                   ),
+        .mb_rx_pattern_mode            (mb_rx_pattern_mode                  ),
+        .mb_rx_val_pattern_sel         (mb_rx_val_pattern_sel               ),
+        .mb_rx_data_pattern_sel        (mb_rx_data_pattern_sel              ),
+        .mb_rx_compare_en              (mb_rx_compare_en                    ),
+        .mb_rx_compare_setup           (mb_rx_compare_setup                 ),
+        .mb_rx_max_err_thresh_perlane  (mb_rx_max_err_thresh_perlane        ),
+        .mb_rx_max_err_thresh_aggr     (mb_rx_max_err_thresh_aggr           ),
+        .mb_rx_aggr_pass               (mb_rx_aggr_pass                     ),
+        .mb_rx_perlane_pass            (mb_rx_perlane_pass                  ),
+        .mb_rx_val_pass                (mb_rx_val_pass                      ),
+
+        // ── SB TX ────────────────────────────────────────────────────────────
+        .tx_sb_msg_valid               (wrapper_tx_sb_msg_valid             ),
+        .tx_sb_msg                     (wrapper_tx_sb_msg                   ),
+        .tx_msginfo                    (wrapper_tx_msginfo                  ),
+        .tx_data_field                 (wrapper_tx_data_field               ),
+
+        // ── SB RX (broadcast) ───────────────────────────────────────────────
+        .rx_sb_msg_valid               (intf.rx_sb_msg_valid                ),
+        .rx_sb_msg                     (intf.rx_sb_msg                      ),
+        .rx_msginfo                    (intf.rx_msginfo                     ),
+        .rx_data_field                 (intf.rx_data_field                  )
     );
 
-    // ===================================================================== //
-    //                      Wrapper D2C PT Top Instance                      //
-    // ===================================================================== //
-    wrapper_D2C_PT_top wrapper_D2C_PT_top_inst (
-        .lclk                       (intf.lclk),
-        .rst_n                      (intf.rst_n),
-
-        .mb_rx_data_lane_mask       (intf.mb_rx_data_lane_mask),
-        .local_test_d2c_done        (intf.local_test_d2c_done),
-        .partner_test_d2c_done      (wrapper_partner_test_d2c_done),
-        .d2c_perlane_pass           (intf.d2c_perlane_pass),
-        .d2c_aggr_pass              (intf.d2c_aggr_pass),
-        .d2c_val_pass               (intf.d2c_val_pass),
-
-        // Connect sweep signals to wrapper unified ports
-        .local_tx_pt_en             (local_tx_pt_en),
-        .partner_tx_pt_en           (partner_tx_pt_en),
-        .local_rx_pt_en             (local_rx_pt_en),
-        .partner_rx_pt_en           (partner_rx_pt_en),
-        .d2c_clk_sampling           (d2c_clk_sampling),
-        .d2c_pattern_setup          (d2c_pattern_setup),
-        .d2c_data_pattern_sel       (d2c_data_pattern_sel),
-        .d2c_val_pattern_sel        (d2c_val_pattern_sel),
-        .d2c_pattern_mode           (d2c_pattern_mode),
-        .d2c_burst_count            (d2c_burst_count),
-        .d2c_idle_count             (d2c_idle_count),
-        .d2c_iter_count             (d2c_iter_count),
-        .d2c_compare_setup          (d2c_compare_setup),
-
-        .cfg_max_err_thresh_perlane (intf.cfg_train4_max_err_thresh_perlane),
-        .cfg_max_err_thresh_aggr    (intf.cfg_train4_max_err_thresh_aggr),
-
-        // Mainband outputs connected to local wires to avoid multi-driver conflict
-        .mb_tx_trk_lane_sel         (wrapper_mb_tx_trk_lane_sel),
-        .mb_tx_clk_lane_sel         (wrapper_mb_tx_clk_lane_sel),
-        .mb_tx_val_lane_sel         (wrapper_mb_tx_val_lane_sel),
-        .mb_tx_data_lane_sel        (wrapper_mb_tx_data_lane_sel),
-        .mb_rx_trk_lane_sel         (wrapper_mb_rx_trk_lane_sel),
-        .mb_rx_clk_lane_sel         (wrapper_mb_rx_clk_lane_sel),
-        .mb_rx_val_lane_sel         (wrapper_mb_rx_val_lane_sel),
-        .mb_rx_data_lane_sel        (wrapper_mb_rx_data_lane_sel),
-
-        .mb_tx_pattern_en           (mb_tx_pattern_en),
-        .mb_tx_pattern_setup        (mb_tx_pattern_setup),
-        .mb_rx_pattern_setup        (mb_rx_pattern_setup),
-        .mb_tx_lfsr_en              (mb_tx_lfsr_en),
-        .mb_tx_lfsr_rst             (mb_tx_lfsr_rst),
-        .mb_rx_lfsr_en              (mb_rx_lfsr_en),
-        .mb_rx_lfsr_rst             (mb_rx_lfsr_rst),
-        .mb_rx_iter_count           (mb_rx_iter_count),
-        .mb_rx_idle_count           (mb_rx_idle_count),
-        .mb_rx_burst_count          (mb_rx_burst_count),
-        .mb_rx_pattern_mode         (mb_rx_pattern_mode),
-        .mb_rx_val_pattern_sel      (mb_rx_val_pattern_sel),
-        .mb_rx_data_pattern_sel     (mb_rx_data_pattern_sel),
-        .mb_rx_compare_en           (mb_rx_compare_en),
-        .mb_rx_compare_setup        (mb_rx_compare_setup),
-        .mb_rx_max_err_thresh_perlane(mb_rx_max_err_thresh_perlane),
-        .mb_rx_max_err_thresh_aggr  (mb_rx_max_err_thresh_aggr),
-        .mb_tx_clk_sampling_en      (mb_tx_clk_sampling_en),
-        .mb_tx_clk_sampling         (mb_tx_clk_sampling),
-        .mb_tx_pattern_mode         (mb_tx_pattern_mode),
-        .mb_tx_burst_count          (mb_tx_burst_count),
-        .mb_tx_idle_count           (mb_tx_idle_count),
-        .mb_tx_iter_count           (mb_tx_iter_count),
-        .mb_tx_data_pattern_sel     (mb_tx_data_pattern_sel),
-        .mb_tx_val_pattern_sel      (mb_tx_val_pattern_sel),
-
-        .mb_tx_pattern_count_done   (mb_tx_pattern_count_done),
-        // .mb_rx_compare_done         (mb_rx_compare_done),
-        .mb_rx_aggr_pass            (mb_rx_aggr_pass),
-        .mb_rx_perlane_pass         (mb_rx_perlane_pass),
-        .mb_rx_val_pass             (mb_rx_val_pass),
-
-        // SB outputs connected to local wires to avoid multi-driver conflict
-        .tx_sb_msg_valid            (wrapper_tx_sb_msg_valid),
-        .tx_sb_msg                  (wrapper_tx_sb_msg),
-        .tx_msginfo                 (wrapper_tx_msginfo),
-        .tx_data_field              (wrapper_tx_data_field),
-
-        .rx_sb_msg_valid            (intf.rx_sb_msg_valid),
-        .rx_sb_msg                  (intf.rx_sb_msg),
-        .rx_msginfo                 (intf.rx_msginfo),
-        .rx_data_field              (intf.rx_data_field)
-    );
+    // ── Expose wrapper_D2C_sweep test-done outputs to intf ──────────────────
+    // local_test_d2c_done and d2c_perlane_pass/d2c_val_pass come from
+    // wrapper_D2C_PT (inside wrapper_D2C_sweep) via the internal w_* wires.
+    assign intf.local_test_d2c_done   = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.local_test_d2c_done;
+    assign intf.d2c_perlane_pass      = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_perlane_pass;
+    assign intf.d2c_aggr_pass         = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_aggr_pass;
+    assign intf.d2c_val_pass          = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_val_pass;
+    assign wrapper_partner_test_d2c_done = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.partner_test_d2c_done;
 
     // MUX wrapper and substate sideband messages onto tb_muxed signals
     assign intf.tb_muxed_tx_sb_msg_valid = (wrapper_tx_sb_msg_valid === 1'b1) || (intf.tx_sb_msg_valid === 1'b1);

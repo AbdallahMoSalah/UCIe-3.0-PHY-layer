@@ -71,9 +71,9 @@ module unit_DATATRAINVREF_local #(
         output logic [63:0] tx_data_field       ,
 
         input  logic        rx_sb_msg_valid     ,
-        input  logic [7:0]  rx_sb_msg           ,
-        input  logic [15:0] rx_msginfo          ,
-        input  logic [63:0] rx_data_field
+        input  logic [7:0]  rx_sb_msg
+        // input  logic [15:0] rx_msginfo          ,
+        // input  logic [63:0] rx_data_field
     );
 
     import UCIe_pkg::*;

@@ -9,6 +9,10 @@
 // into a single `*_done` pulse. This controller therefore receives only one done
 // signal per substate (not separate local_*_done / partner_*_done).
 //
+// Each substate wrapper also handles the internal enable fan-out — the controller
+// drives a single `*_en` per substate; the wrapper decides which internal FSMs to
+// activate. There is therefore no longer a separate local_*_en / partner_*_en here.
+//
 // Sequence:
 //   1. VALVREF         (Rx Valid Lane Vref)
 //   2. DATAVREF        (Rx Data Lanes Vref)
@@ -49,64 +53,52 @@ module unit_MBTRAIN_ctrl (
         input  logic        mbtrain_repair_req,             // Re-enter at REPAIR
 
         // Sub-state Handshakes: VALVREF
-        output logic        local_valvref_en,
-        output logic        partner_valvref_en,
+        output logic        valvref_en,
         input  logic        valvref_done,
 
         // Sub-state Handshakes: DATAVREF
-        output logic        local_datavref_en,
-        output logic        partner_datavref_en,
+        output logic        datavref_en,
         input  logic        datavref_done,
 
         // Sub-state Handshakes: SPEEDIDLE
-        output logic        local_speedidle_en,
-        output logic        partner_speedidle_en,
+        output logic        speedidle_en,
         input  logic        speedidle_done,
 
         // Sub-state Handshakes: TXSELFCAL
-        output logic        local_txselfcal_en,
-        output logic        partner_txselfcal_en,
+        output logic        txselfcal_en,
         input  logic        txselfcal_done,
 
         // Sub-state Handshakes: RXCLKCAL
-        output logic        local_rxclkcal_en,
-        output logic        partner_rxclkcal_en,
+        output logic        rxclkcal_en,
         input  logic        rxclkcal_done,
 
         // Sub-state Handshakes: VALTRAINCENTER
-        output logic        local_valtraincenter_en,
-        output logic        partner_valtraincenter_en,
+        output logic        valtraincenter_en,
         input  logic        valtraincenter_done,
 
         // Sub-state Handshakes: VALTRAINVREF
-        output logic        local_valtrainvref_en,
-        output logic        partner_valtrainvref_en,
+        output logic        valtrainvref_en,
         input  logic        valtrainvref_done,
 
         // Sub-state Handshakes: DATATRAINCENTER1
-        output logic        local_dtc1_en,
-        output logic        partner_dtc1_en,
+        output logic        dtc1_en,
         input  logic        dtc1_done,
 
         // Sub-state Handshakes: DATATRAINVREF
-        output logic        local_datatrainvref_en,
-        output logic        partner_datatrainvref_en,
+        output logic        datatrainvref_en,
         input  logic        datatrainvref_done,
 
         // Sub-state Handshakes: RXDESKEW
-        output logic        local_rxdeskew_en,
-        output logic        partner_rxdeskew_en,
+        output logic        rxdeskew_en,
         input  logic        rxdeskew_done,
         input  logic        dtc1_loopback_req,              // From RXDESKEW: loop back to DTC1
 
         // Sub-state Handshakes: DATATRAINCENTER2
-        output logic        local_dtc2_en,
-        output logic        partner_dtc2_en,
+        output logic        dtc2_en,
         input  logic        dtc2_done,
 
         // Sub-state Handshakes: LINKSPEED
-        output logic        local_linkspeed_en,
-        output logic        partner_linkspeed_en,
+        output logic        linkspeed_en,
         input  logic        linkspeed_done,
         // LINKSPEED routing outputs (fed back to ctrl)
         input  logic        linkspeed_linkinit_req  ,
@@ -115,8 +107,7 @@ module unit_MBTRAIN_ctrl (
         input  logic        linkspeed_phyretrain_req,
 
         // Sub-state Handshakes: REPAIR
-        output logic        local_repair_en,
-        output logic        partner_repair_en,
+        output logic        repair_en,
         input  logic        repair_done
     );
 
@@ -188,25 +179,24 @@ module unit_MBTRAIN_ctrl (
 
     // Combinational Next State & Output Logic
     always_comb begin
-        // Default Outputs
-        mbtrain_done             = 1'b0;
-        next_state               = current_state;
+        // Default Outputs — all enables inactive
+        mbtrain_done        = 1'b0;
+        next_state          = current_state;
+        ltsm_trainerror_req = 1'b0;
 
-        ltsm_trainerror_req      = 1'b0;
-
-        local_valvref_en         = 1'b0; partner_valvref_en         = 1'b0;
-        local_datavref_en        = 1'b0; partner_datavref_en        = 1'b0;
-        local_speedidle_en       = 1'b0; partner_speedidle_en       = 1'b0;
-        local_txselfcal_en       = 1'b0; partner_txselfcal_en       = 1'b0;
-        local_rxclkcal_en        = 1'b0; partner_rxclkcal_en        = 1'b0;
-        local_valtraincenter_en  = 1'b0; partner_valtraincenter_en  = 1'b0;
-        local_valtrainvref_en    = 1'b0; partner_valtrainvref_en    = 1'b0;
-        local_dtc1_en            = 1'b0; partner_dtc1_en            = 1'b0;
-        local_datatrainvref_en   = 1'b0; partner_datatrainvref_en   = 1'b0;
-        local_rxdeskew_en        = 1'b0; partner_rxdeskew_en        = 1'b0;
-        local_dtc2_en            = 1'b0; partner_dtc2_en            = 1'b0;
-        local_linkspeed_en       = 1'b0; partner_linkspeed_en       = 1'b0;
-        local_repair_en          = 1'b0; partner_repair_en          = 1'b0;
+        valvref_en        = 1'b0;
+        datavref_en       = 1'b0;
+        speedidle_en      = 1'b0;
+        txselfcal_en      = 1'b0;
+        rxclkcal_en       = 1'b0;
+        valtraincenter_en = 1'b0;
+        valtrainvref_en   = 1'b0;
+        dtc1_en           = 1'b0;
+        datatrainvref_en  = 1'b0;
+        rxdeskew_en       = 1'b0;
+        dtc2_en           = 1'b0;
+        linkspeed_en      = 1'b0;
+        repair_en         = 1'b0;
 
         // Emergency TRAINERROR Exit
         if (trainerror_detected) begin
@@ -229,62 +219,52 @@ module unit_MBTRAIN_ctrl (
                 end
 
                 VALVREF: begin
-                    local_valvref_en   = 1'b1;
-                    partner_valvref_en = 1'b1;
+                    valvref_en = 1'b1;
                     if (valvref_done) next_state = DATAVREF;
                 end
 
                 DATAVREF: begin
-                    local_datavref_en   = 1'b1;
-                    partner_datavref_en = 1'b1;
+                    datavref_en = 1'b1;
                     if (datavref_done) next_state = SPEEDIDLE;
                 end
 
                 SPEEDIDLE: begin
-                    local_speedidle_en   = 1'b1;
-                    partner_speedidle_en = 1'b1;
+                    speedidle_en = 1'b1;
                     if (speedidle_done) next_state = TXSELFCAL;
                 end
 
                 TXSELFCAL: begin
-                    local_txselfcal_en   = 1'b1;
-                    partner_txselfcal_en = 1'b1;
+                    txselfcal_en = 1'b1;
                     if (txselfcal_done) next_state = RXCLKCAL;
                 end
 
                 RXCLKCAL: begin
-                    local_rxclkcal_en   = 1'b1;
-                    partner_rxclkcal_en = 1'b1;
+                    rxclkcal_en = 1'b1;
                     if (rxclkcal_done) next_state = VALTRAINCENTER;
                 end
 
                 VALTRAINCENTER: begin
-                    local_valtraincenter_en   = 1'b1;
-                    partner_valtraincenter_en = 1'b1;
+                    valtraincenter_en = 1'b1;
                     if (valtraincenter_done) next_state = VALTRAINVREF;
                 end
 
                 VALTRAINVREF: begin
-                    local_valtrainvref_en   = 1'b1;
-                    partner_valtrainvref_en = 1'b1;
+                    valtrainvref_en = 1'b1;
                     if (valtrainvref_done) next_state = DATATRAINCENTER1;
                 end
 
                 DATATRAINCENTER1: begin
-                    local_dtc1_en   = 1'b1;
-                    partner_dtc1_en = 1'b1;
+                    dtc1_en = 1'b1;
                     if (dtc1_done) next_state = DATATRAINVREF;
                 end
 
                 DATATRAINVREF: begin
-                    local_datatrainvref_en   = 1'b1;
-                    partner_datatrainvref_en = 1'b1;
+                    datatrainvref_en = 1'b1;
                     if (datatrainvref_done) next_state = RXDESKEW;
                 end
 
                 RXDESKEW: begin
-                    local_rxdeskew_en   = 1'b1;
-                    partner_rxdeskew_en = 1'b1;
+                    rxdeskew_en = 1'b1;
                     // Transition Logic:
                     // 1. Arc loop back to DTC1 takes precedence.
                     // 2. Normal completion moves to DTC2.
@@ -297,14 +277,12 @@ module unit_MBTRAIN_ctrl (
                 end
 
                 DATATRAINCENTER2: begin
-                    local_dtc2_en   = 1'b1;
-                    partner_dtc2_en = 1'b1;
+                    dtc2_en = 1'b1;
                     if (dtc2_done) next_state = LINKSPEED;
                 end
 
                 LINKSPEED: begin
-                    local_linkspeed_en   = 1'b1;
-                    partner_linkspeed_en = 1'b1;
+                    linkspeed_en = 1'b1;
                     if (linkspeed_done) begin
                         // Routing decisions from LINKSPEED (next state only)
                         if (linkspeed_linkinit_req || linkspeed_phyretrain_req) begin
@@ -324,9 +302,8 @@ module unit_MBTRAIN_ctrl (
                 end
 
                 REPAIR: begin
-                    local_repair_en   = 1'b1;
-                    partner_repair_en = 1'b1;
-                    next_state        = (repair_done)? TXSELFCAL : REPAIR;
+                    repair_en  = 1'b1;
+                    next_state = (repair_done) ? TXSELFCAL : REPAIR;
                 end
 
                 MBTRAIN_DONE: begin

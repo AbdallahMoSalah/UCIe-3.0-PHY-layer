@@ -1,0 +1,166 @@
+# [4343] [MON] D2C Sweep Done: pass=ffff
+# [EVENT] mbtrain_done detected
+# [SCENARIO END] A1_GOLDEN_X16
+# [CHECK] Checking results for A1_GOLDEN_X16
+# [RESULT] PASS A1_GOLDEN_X16
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] A2_GOLDEN_X8 width=WIDTH_X8 speed=5
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] A2_GOLDEN_X8
+# [CHECK] Checking results for A2_GOLDEN_X8
+# [RESULT] FAIL A2_GOLDEN_X8 - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] A3_GOLDEN_X4 width=WIDTH_X4 speed=3
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] A3_GOLDEN_X4
+# [CHECK] Checking results for A3_GOLDEN_X4
+# [RESULT] FAIL A3_GOLDEN_X4 - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] A4_HIGH_SPEED_RXDESKEW_EQ_GOLDEN width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] A4_HIGH_SPEED_RXDESKEW_EQ_GOLDEN
+# [CHECK] Checking results for A4_HIGH_SPEED_RXDESKEW_EQ_GOLDEN
+# [RESULT] FAIL A4_HIGH_SPEED_RXDESKEW_EQ_GOLDEN - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] B1_SINGLE_SPEED_DEGRADE_THEN_SUCCESS width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] B1_SINGLE_SPEED_DEGRADE_THEN_SUCCESS
+# [CHECK] Checking results for B1_SINGLE_SPEED_DEGRADE_THEN_SUCCESS
+# [RESULT] FAIL B1_SINGLE_SPEED_DEGRADE_THEN_SUCCESS - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] B2_MULTI_SPEED_DEGRADE_THEN_SUCCESS width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] B2_MULTI_SPEED_DEGRADE_THEN_SUCCESS
+# [CHECK] Checking results for B2_MULTI_SPEED_DEGRADE_THEN_SUCCESS
+# [RESULT] FAIL B2_MULTI_SPEED_DEGRADE_THEN_SUCCESS - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] B3_LOWEST_SPEED_STILL_FAILS width=WIDTH_X16 speed=0
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] B3_LOWEST_SPEED_STILL_FAILS
+# [CHECK] Checking results for B3_LOWEST_SPEED_STILL_FAILS
+# [RESULT] FAIL B3_LOWEST_SPEED_STILL_FAILS - Expected TRAINERROR
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C1_WIDTH_DEGRADE_X16_TO_X8_LOW width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C1_WIDTH_DEGRADE_X16_TO_X8_LOW
+# [CHECK] Checking results for C1_WIDTH_DEGRADE_X16_TO_X8_LOW
+# [RESULT] FAIL C1_WIDTH_DEGRADE_X16_TO_X8_LOW - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C2_WIDTH_DEGRADE_X16_TO_X8_HIGH width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C2_WIDTH_DEGRADE_X16_TO_X8_HIGH
+# [CHECK] Checking results for C2_WIDTH_DEGRADE_X16_TO_X8_HIGH
+# [RESULT] FAIL C2_WIDTH_DEGRADE_X16_TO_X8_HIGH - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C3_WIDTH_DEGRADE_X8_TO_X4_LOW width=WIDTH_X8 speed=5
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C3_WIDTH_DEGRADE_X8_TO_X4_LOW
+# [CHECK] Checking results for C3_WIDTH_DEGRADE_X8_TO_X4_LOW
+# [RESULT] FAIL C3_WIDTH_DEGRADE_X8_TO_X4_LOW - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C4_WIDTH_DEGRADE_X8_TO_X4_HIGH width=WIDTH_X8 speed=5
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C4_WIDTH_DEGRADE_X8_TO_X4_HIGH
+# [CHECK] Checking results for C4_WIDTH_DEGRADE_X8_TO_X4_HIGH
+# [RESULT] FAIL C4_WIDTH_DEGRADE_X8_TO_X4_HIGH - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C5_WIDTH_DEGRADE_EXHAUSTED_AFTER_X16_TO_X8 width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C5_WIDTH_DEGRADE_EXHAUSTED_AFTER_X16_TO_X8
+# [CHECK] Checking results for C5_WIDTH_DEGRADE_EXHAUSTED_AFTER_X16_TO_X8
+# [RESULT] FAIL C5_WIDTH_DEGRADE_EXHAUSTED_AFTER_X16_TO_X8 - Expected TRAINERROR
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] C6_WIDTH_DEGRADE_EXHAUSTED_AFTER_X8_TO_X4 width=WIDTH_X8 speed=5
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] C6_WIDTH_DEGRADE_EXHAUSTED_AFTER_X8_TO_X4
+# [CHECK] Checking results for C6_WIDTH_DEGRADE_EXHAUSTED_AFTER_X8_TO_X4
+# [RESULT] FAIL C6_WIDTH_DEGRADE_EXHAUSTED_AFTER_X8_TO_X4 - Expected TRAINERROR
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] D1_PHY_RETRAIN_PARAMS_CHANGED width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] D1_PHY_RETRAIN_PARAMS_CHANGED
+# [CHECK] Checking results for D1_PHY_RETRAIN_PARAMS_CHANGED
+# [RESULT] FAIL D1_PHY_RETRAIN_PARAMS_CHANGED - Expected PHYRETRAIN
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] D2_PHY_RETRAIN_NO_PARAMS_CHANGED width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] D2_PHY_RETRAIN_NO_PARAMS_CHANGED
+# [CHECK] Checking results for D2_PHY_RETRAIN_NO_PARAMS_CHANGED
+# [RESULT] FAIL D2_PHY_RETRAIN_NO_PARAMS_CHANGED - Expected LINKINIT, but got mbtrain_done=0, linkinit_seen=0, trainerror_seen=0
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] D3_PHY_RETRAIN_REENTRY_SUCCESS width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] D3_PHY_RETRAIN_REENTRY_SUCCESS
+# [CHECK] Checking results for D3_PHY_RETRAIN_REENTRY_SUCCESS
+# [RESULT] FAIL D3_PHY_RETRAIN_REENTRY_SUCCESS - Expected PHYRETRAIN
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] E3_REPAIR_DEGRADE_NOT_POSSIBLE width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] E3_REPAIR_DEGRADE_NOT_POSSIBLE
+# [CHECK] Checking results for E3_REPAIR_DEGRADE_NOT_POSSIBLE
+# [RESULT] FAIL E3_REPAIR_DEGRADE_NOT_POSSIBLE - Expected TRAINERROR
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] E7_TIMEOUT_RXDESKEW_END_RESP_MISSING width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for mbtrain_done in driver after 12000 cycles
+# [SCENARIO END] E7_TIMEOUT_RXDESKEW_END_RESP_MISSING
+# [CHECK] Checking results for E7_TIMEOUT_RXDESKEW_END_RESP_MISSING
+# [RESULT] PASS E7_TIMEOUT_RXDESKEW_END_RESP_MISSING expected_timeout=1
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] F3_SOFT_RESET_MID_SEQUENCE width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for RXCLKCAL injection point in F3_SOFT_RESET_MID_SEQUENCE
+# [SCENARIO END] F3_SOFT_RESET_MID_SEQUENCE
+# [CHECK] Checking results for F3_SOFT_RESET_MID_SEQUENCE
+# [RESULT] PASS F3_SOFT_RESET_MID_SEQUENCE
+# --------------------------------------------------
+#
+# --------------------------------------------------
+# [SCENARIO START] F4_DISABLE_MBTRAIN_MID_SEQUENCE width=WIDTH_X16 speed=7
+# [ERROR] Timeout waiting for RXCLKCAL injection point in F4_DISABLE_MBTRAIN_MID_SEQUENCE
+# [SCENARIO END] F4_DISABLE_MBTRAIN_MID_SEQUENCE
+# [CHECK] Checking results for F4_DISABLE_MBTRAIN_MID_SEQUENCE
+# [RESULT] PASS F4_DISABLE_MBTRAIN_MID_SEQUENCE
+# --------------------------------------------------
+# ==================================================
+# MBTRAIN CLASS-BASED REGRESSION SUMMARY
+# ==================================================
+# TOTAL SCENARIOS : 20
+# PASSED          : 4
+# FAILED          : 16
+# OVERALL RESULT : FAIL
+# ==================================================

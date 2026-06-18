@@ -733,6 +733,11 @@ module wrapper_DATAVREF_tb;
         $display(" PASSED: %0d | FAILED: %0d | TOTAL: %0d", success_count, fail_count,
             success_count+fail_count);
         $display("=========================================================\n");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $stop;
     end
 

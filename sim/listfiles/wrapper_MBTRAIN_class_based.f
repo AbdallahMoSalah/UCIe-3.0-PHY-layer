@@ -1,20 +1,16 @@
+// +incdir+target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb
+
 // Packages
 rtl/common/UCIe_pkg.sv
 rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 
+// Class-based TB package/interface files
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/mbtrain_cb_types_pkg.sv
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/mbtrain_cb_if.sv
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/mbtrain_cb_pkg.sv
+
 // Common MBTRAIN files
 rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv
-
-// D2C point-test and sweep files
-rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT.sv
-rtl/MainSM/LTSM/D2C/unit_D2C_sweep.sv
-rtl/MainSM/LTSM/D2C/wrapper_D2C_sweep.sv
 
 // MBTRAIN.VALVREF
 rtl/MainSM/LTSM/MBTRAIN/VALVREF/unit_VALVREF_local.sv
@@ -79,6 +75,7 @@ rtl/MainSM/LTSM/MBTRAIN/LINKSPEED/unit_LINKSPEED_partner.sv
 rtl/MainSM/LTSM/MBTRAIN/LINKSPEED/wrapper_LINKSPEED.sv
 
 // MBTRAIN.REPAIR
+rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_negotiated_lanes.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_local.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
@@ -86,9 +83,6 @@ rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
 // MBTRAIN top wrapper
 rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 
-// Testbench support
-tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_if.sv
-tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_attachments.sv
-
 // Testbench top
-tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb.sv
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/wrapper_MBTRAIN_class_based_tb.sv
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/mbtrain_cb_tb_top.sv

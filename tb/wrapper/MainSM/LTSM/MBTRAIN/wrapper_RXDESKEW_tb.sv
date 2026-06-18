@@ -477,6 +477,8 @@ module wrapper_RXDESKEW_tb;
         ptn_if.cfg_max_err_thresh_aggr    = 20;
     end
 
+    integer fail_count = 0;
+
     // =========================================================================
     // Task-Controlled Test Scenarios
     // =========================================================================
@@ -549,15 +551,15 @@ module wrapper_RXDESKEW_tb;
         // Verify FSM exits on Die A
         if (expect_dtc2_dut && (!dut_rxdeskew_done || dut_trainerror_req)) begin
             $display("# ERROR: Expected successful DTC2 exit on Die A, but got rxdeskew_done=%b, trainerror=%b", dut_rxdeskew_done, dut_trainerror_req);
-            $stop;
+            fail_count++; $stop;
         end
         if (expect_dtc1_dut && !dut_datatraincenter1_req) begin
             $display("# ERROR: Expected DTC1 arc request on Die A, but got datatraincenter1_req=%b", dut_datatraincenter1_req);
-            $stop;
+            fail_count++; $stop;
         end
         if (expect_te_dut && !dut_trainerror_req) begin
             $display("# ERROR: Expected TRAINERROR on Die A, but got trainerror_req=%b", dut_trainerror_req);
-            $stop;
+            fail_count++; $stop;
         end
 
         // Clean up FSM enables
@@ -701,7 +703,7 @@ module wrapper_RXDESKEW_tb;
         #1000;
         if (!dut_rxdeskew_done) begin
             $display("# ERROR: Expected DTC2 on 5th loop due to arc limit reached!");
-            $stop;
+            fail_count++; $stop;
         end
         dut_local_rxdeskew_en = 0; ptn_local_rxdeskew_en = 0;
         dut_partner_rxdeskew_en = 0; ptn_partner_rxdeskew_en = 0;
@@ -823,6 +825,11 @@ module wrapper_RXDESKEW_tb;
         $display("\n# =========================================================");
         $display("# All Test Scenarios and Randomized Verifications Passed!");
         $display("# =========================================================");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $stop;
     end
 

@@ -306,6 +306,11 @@ module wrapper_SPEEDIDLE_tb;
         end
 
         $display("# All wrapper_SPEEDIDLE_tb tests PASSED");
+        if (fail_count == 0) begin
+            $display("MBTRAIN_TB_RESULT: SUCCESS");
+        end else begin
+            $display("MBTRAIN_TB_RESULT: FAILURE");
+        end
         $finish;
     end
 
