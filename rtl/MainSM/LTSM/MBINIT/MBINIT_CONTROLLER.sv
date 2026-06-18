@@ -541,7 +541,7 @@ always_comb begin
         CTRL_REPAIRVAL:             mbinit_state_n = LOG_MBINIT_REPAIRVAL;
         CTRL_REVERSALMB:            mbinit_state_n = LOG_MBINIT_REVERSALMB;
         CTRL_REPAIRMB, CTRL_DONE:   mbinit_state_n = LOG_MBINIT_REPAIRMB;
-        default:                    mbinit_state_n = LOG_RESET;
+        default:                    mbinit_state_n = LOG_MBINIT_PARAM;
     endcase
 end
 

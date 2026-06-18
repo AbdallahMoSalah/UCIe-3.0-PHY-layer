@@ -42,6 +42,12 @@ module LTSM_TOP #(
     output logic        mbinit_error,
     output logic        active_error,
     output logic        timeout_8ms_occured,
+    output logic [7:0]  log0_state_n,
+    output logic        log0_lane_reversal,
+    output logic        log0_width_degrade,
+    output logic [7:0]  log0_state_n_minus_1,
+    output logic [7:0]  log0_state_n_minus_2,
+    output logic [7:0]  log1_state_n_minus_3,
 
     // =========================================================================
     // RESET-state triggers / strap
@@ -187,7 +193,7 @@ module LTSM_TOP #(
     // =========================================================================
     // LTSM
     // =========================================================================
-    LTSM #(
+    LTSM_wrapper #(
         .CLK_FRQ_HZ (CLK_FRQ_HZ)
     ) u_ltsm (
         .clk   (clk),
@@ -198,6 +204,12 @@ module LTSM_TOP #(
         .mbinit_error             (mbinit_error),
         .active_error             (active_error),
         .timeout_8ms_occured      (timeout_8ms_occured),
+        .log0_state_n             (log0_state_n),
+        .log0_lane_reversal       (log0_lane_reversal),
+        .log0_width_degrade       (log0_width_degrade),
+        .log0_state_n_minus_1     (log0_state_n_minus_1),
+        .log0_state_n_minus_2     (log0_state_n_minus_2),
+        .log1_state_n_minus_3     (log1_state_n_minus_3),
 
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
         .Adapter_training_req                  (Adapter_training_req),

@@ -34,7 +34,7 @@ import RDI_SM_pkg::*;
 // TRAINERROR, capability-status latching, state/error logs.
 // =============================================================================
 
-module LTSM #(
+module LTSM_wrapper #(
     parameter int CLK_FRQ_HZ         = 800000000,
     parameter int MAX_VAL_VREF_CODE  = 127,
     parameter int MAX_DATA_VREF_CODE = 127,
@@ -49,9 +49,13 @@ module LTSM #(
     // =========================================================================
     output LTSM_state_e current_ltsm_state,
     output state_n_e    current_ltsm_state_n,
-    output logic        mbinit_error,
-    output logic        active_error,
     output logic        timeout_8ms_occured,
+    output logic [7:0]  log0_state_n,
+    output logic        log0_lane_reversal,
+    output logic        log0_width_degrade,
+    output logic [7:0]  log0_state_n_minus_1,
+    output logic [7:0]  log0_state_n_minus_2,
+    output logic [7:0]  log1_state_n_minus_3,
 
     // =========================================================================
     // RESET-state triggers
@@ -189,10 +193,14 @@ module LTSM #(
     // =========================================================================
     logic reset_en,    reset_done;
     logic sbinit_en,   sbinit_done,  sbinit_error;
-    logic mbinit_en,   mbinit_done;
+    logic mbinit_en,   mbinit_done,  mbinit_error;
     logic mbtrain_en,  mbtrain_done;
     logic linkinit_en, linkinit_done, linkinit_error;
-    logic active_en;
+    logic active_en,   active_error;
+    logic phyretrain_en, phyretrain_done;
+    logic l1_en,         l1_done;
+    logic l2_en,         l2_done;
+    logic trainerror_en, trainerror_done;
 
     logic timeout_timer_en, timer_rst_n;
 
@@ -233,6 +241,15 @@ module LTSM #(
     logic [15:0] mbinit_d2c_iter_count;
 
     state_n_e    mbinit_state_n;
+
+    logic        mbinit_reg_Clock_Phase_enable_status;
+    logic        mbinit_reg_Clock_mode_enable_status;
+    logic        mbinit_reg_TARR_enable_status;
+    logic [3:0]  mbinit_reg_Link_Width_enable_status;
+    logic [3:0]  mbinit_reg_Link_Speed_enable_status;
+    logic        mbinit_reg_PMO_enable_status;
+    logic        mbinit_reg_L2SPD_enable_status;
+    logic        mbinit_reg_PSPT_enable_status;
 
     // =========================================================================
     // D2C wrapper output wires
@@ -280,6 +297,59 @@ module LTSM #(
     assign sb_rx_msg_8 = sb_rx_msg_id;
 
     // =========================================================================
+    // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
+    // =========================================================================
+    state_n_e mbtrain_state_n;
+    assign mbtrain_state_n = LOG_NOP;
+
+    state_n_e current_log_state;
+    always_comb begin
+        case (current_ltsm_state)
+            RESET:      current_log_state = LOG_RESET;
+            SBINIT:     current_log_state = LOG_SBINIT;
+            MBINIT:     current_log_state = mbinit_state_n;
+            MBTRAIN:    current_log_state = mbtrain_state_n;
+            LINKINIT:   current_log_state = LOG_LINKINIT;
+            ACTIVE:     current_log_state = LOG_ACTIVE;
+            PHYRETRAIN: current_log_state = LOG_PHYRETRAIN;
+            L1, L2:     current_log_state = LOG_L1_L2;
+            TRAINERROR: current_log_state = LOG_TRAINERROR;
+            default:    current_log_state = LOG_RESET;
+        endcase
+    end
+
+    logic [7:0] log0_state_n_reg;
+    logic [7:0] log0_state_n_minus_1_reg;
+    logic [7:0] log0_state_n_minus_2_reg;
+    logic [7:0] log1_state_n_minus_3_reg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            log0_state_n_reg         <= 8'h00;
+            log0_state_n_minus_1_reg <= 8'h00;
+            log0_state_n_minus_2_reg <= 8'h00;
+            log1_state_n_minus_3_reg <= 8'h00;
+        end else begin
+            if (current_log_state != log0_state_n_reg[4:0]) begin
+                log0_state_n_reg         <= {3'b0, current_log_state};
+                log0_state_n_minus_1_reg <= log0_state_n_reg;
+                log0_state_n_minus_2_reg <= log0_state_n_minus_1_reg;
+                log1_state_n_minus_3_reg <= log0_state_n_minus_2_reg;
+            end
+        end
+    end
+
+    assign log0_state_n         = log0_state_n_reg;
+    assign log0_state_n_minus_1 = log0_state_n_minus_1_reg;
+    assign log0_state_n_minus_2 = log0_state_n_minus_2_reg;
+    assign log1_state_n_minus_3 = log1_state_n_minus_3_reg;
+
+    assign log0_width_degrade   = (mb_tx_data_lane_mask != 3'b011);
+    assign log0_lane_reversal   = mb_lane_reversal_req;
+
+    assign current_ltsm_state_n = current_log_state;
+
+    // =========================================================================
     // D2C POINT-TEST INPUTS (MBINIT.REPAIRMB only)
     // =========================================================================
     logic        d2cpt_local_tx_pt_en, d2cpt_partner_tx_pt_en;
@@ -314,14 +384,16 @@ module LTSM #(
     assign d2c_active = d2cpt_local_tx_pt_en | d2cpt_partner_tx_pt_en;
 
     // =========================================================================
-    // MBTRAIN PASS-THROUGH
+    // MBTRAIN / PHYRETRAIN / L1 / L2 / TRAINERROR PASS-THROUGH
     // =========================================================================
-    // MBTRAIN is not instantiated in Step 1 (its block is interface-based). The
-    // controller still enters the MBTRAIN state; tying mbtrain_done to mbtrain_en
-    // makes it a single-cycle pass-through straight to LINKINIT. current_mbtrain_substate
-    // has no producer, so it is reported as NOP for observability.
+    // These states are not instantiated. They are implemented as pass-throughs
+    // by tying the done output directly to the enable input.
     assign mbtrain_done             = mbtrain_en;
     assign current_mbtrain_substate = LOG_NOP;
+    assign phyretrain_done          = phyretrain_en;
+    assign l1_done                  = l1_en;
+    assign l2_done                  = l2_en;
+    assign trainerror_done          = trainerror_en;
 
     // =========================================================================
     // CONTROLLER
@@ -340,6 +412,14 @@ module LTSM #(
         .linkinit_en         (linkinit_en),
         .linkinit_done       (linkinit_done),
         .active_en           (active_en),
+        .phyretrain_en       (phyretrain_en),
+        .phyretrain_done     (phyretrain_done),
+        .l1_en               (l1_en),
+        .l1_done             (l1_done),
+        .l2_en               (l2_en),
+        .l2_done             (l2_done),
+        .trainerror_en       (trainerror_en),
+        .trainerror_done     (trainerror_done),
         // Per-state errors (reserved — TRAINERROR handshake wired in a later step)
         .sbinit_error        (sbinit_error),
         .mbinit_error        (mbinit_error),
@@ -349,16 +429,39 @@ module LTSM #(
         // ACTIVE-resolved next state (reserved — drives ACTIVE exit in a later step)
         .active_next_ltsm_state (active_next_ltsm_state),
 
-        .mbinit_state_n      (mbinit_state_n),
-        .mbtrain_state_n     (mbtrain_state_n),
-
-        .current_ltsm_state  (current_ltsm_state),
-        .current_ltsm_state_n  (current_ltsm_state_n),
-
-        .timeout_timer_en    (timeout_timer_en),
-        .timer_rst_n         (timer_rst_n),
-        .timeout_8ms_occured (timeout_8ms_occured)
+        .current_ltsm_state  (current_ltsm_state)
     );
+
+    // =========================================================================
+    // 8 ms WATCHDOG TIMER CONTROL LOGIC
+    // =========================================================================
+    // Enabled while in states where handshakes can stall
+    assign timeout_timer_en = (current_ltsm_state == SBINIT)  ||
+                              (current_ltsm_state == MBINIT)   ||
+                              (current_ltsm_state == MBTRAIN)  ||
+                              (current_ltsm_state == LINKINIT) ||
+                              (current_ltsm_state == PHYRETRAIN);
+
+    // Reset the counter for one cycle whenever the substate (current_log_state) changes,
+    // so every substate starts with a fresh 8 ms budget.
+    state_n_e prev_log_state;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            prev_log_state <= LOG_RESET;
+        end else begin
+            prev_log_state <= current_log_state;
+        end
+    end
+
+    logic substate_changing;
+    assign substate_changing = (current_log_state != prev_log_state);
+
+    logic timer_rst_n_q;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) timer_rst_n_q <= 1'b0;
+        else        timer_rst_n_q <= ~substate_changing;
+    end
+    assign timer_rst_n = timer_rst_n_q;
 
     // =========================================================================
     // 8 ms WATCHDOG TIMER (internal)
@@ -446,14 +549,14 @@ module LTSM #(
         .reg_Target_Link_Width_ctrl  (reg_Target_Link_Width_ctrl),
         .reg_Target_Link_Speed_ctrl  (reg_Target_Link_Speed_ctrl),
 
-        .reg_Clock_Phase_enable_status (reg_Clock_Phase_enable_status),
-        .reg_Clock_mode_enable_status  (reg_Clock_mode_enable_status),
-        .reg_TARR_enable_status        (reg_TARR_enable_status),
-        .reg_Link_Width_enable_status  (reg_Link_Width_enable_status),
-        .reg_Link_Speed_enable_status  (reg_Link_Speed_enable_status),
-        .reg_PMO_enable_status         (reg_PMO_enable_status),
-        .reg_L2SPD_enable_status       (reg_L2SPD_enable_status),
-        .reg_PSPT_enable_status        (reg_PSPT_enable_status),
+        .reg_Clock_Phase_enable_status (mbinit_reg_Clock_Phase_enable_status),
+        .reg_Clock_mode_enable_status  (mbinit_reg_Clock_mode_enable_status),
+        .reg_TARR_enable_status        (mbinit_reg_TARR_enable_status),
+        .reg_Link_Width_enable_status  (mbinit_reg_Link_Width_enable_status),
+        .reg_Link_Speed_enable_status  (mbinit_reg_Link_Speed_enable_status),
+        .reg_PMO_enable_status         (mbinit_reg_PMO_enable_status),
+        .reg_L2SPD_enable_status       (mbinit_reg_L2SPD_enable_status),
+        .reg_PSPT_enable_status        (mbinit_reg_PSPT_enable_status),
 
         .local_tx_pt_en       (mbinit_local_tx_pt_en),
         .partner_tx_pt_en     (mbinit_partner_tx_pt_en),
@@ -734,11 +837,101 @@ module LTSM #(
     end
 
     // =========================================================================
-    // LANE MASK / REVERSAL  (MBINIT owns them; MBTRAIN not integrated in Step 1)
+    // SEQUENTIAL LATCHING & LOOKAHEAD FOR MBINIT OUTPUTS
     // =========================================================================
-    assign mb_tx_data_lane_mask = mbinit_tx_data_lane_mask;
-    assign mb_rx_data_lane_mask = mbinit_rx_data_lane_mask;
-    assign mb_lane_reversal_req = mbinit_mb_lane_reversal_req;
+    logic [2:0] mb_rx_data_lane_mask_reg;
+    logic [2:0] mb_tx_data_lane_mask_reg;
+    logic       mb_lane_reversal_req_reg;
+
+    logic        reg_Clock_Phase_enable_status_reg;
+    logic        reg_Clock_mode_enable_status_reg;
+    logic        reg_TARR_enable_status_reg;
+    logic [3:0]  reg_Link_Width_enable_status_reg;
+    logic [3:0]  reg_Link_Speed_enable_status_reg;
+    logic        reg_PMO_enable_status_reg;
+    logic        reg_L2SPD_enable_status_reg;
+    logic        reg_PSPT_enable_status_reg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            mb_rx_data_lane_mask_reg          <= 3'b011;
+            mb_tx_data_lane_mask_reg          <= 3'b011;
+            mb_lane_reversal_req_reg          <= 1'b0;
+            reg_Clock_Phase_enable_status_reg <= 1'b0;
+            reg_Clock_mode_enable_status_reg  <= 1'b0;
+            reg_TARR_enable_status_reg        <= 1'b0;
+            reg_Link_Width_enable_status_reg  <= 4'h0;
+            reg_Link_Speed_enable_status_reg  <= 4'h0;
+            reg_PMO_enable_status_reg         <= 1'b0;
+            reg_L2SPD_enable_status_reg       <= 1'b0;
+            reg_PSPT_enable_status_reg        <= 1'b0;
+        end else if (current_ltsm_state == RESET || current_ltsm_state == SBINIT) begin
+            mb_rx_data_lane_mask_reg          <= 3'b011;
+            mb_tx_data_lane_mask_reg          <= 3'b011;
+            mb_lane_reversal_req_reg          <= 1'b0;
+            reg_Clock_Phase_enable_status_reg <= 1'b0;
+            reg_Clock_mode_enable_status_reg  <= 1'b0;
+            reg_TARR_enable_status_reg        <= 1'b0;
+            reg_Link_Width_enable_status_reg  <= 4'h0;
+            reg_Link_Speed_enable_status_reg  <= 4'h0;
+            reg_PMO_enable_status_reg         <= 1'b0;
+            reg_L2SPD_enable_status_reg       <= 1'b0;
+            reg_PSPT_enable_status_reg        <= 1'b0;
+        end else if (current_ltsm_state == MBINIT) begin
+            mb_rx_data_lane_mask_reg          <= mbinit_rx_data_lane_mask;
+            mb_tx_data_lane_mask_reg          <= mbinit_tx_data_lane_mask;
+            mb_lane_reversal_req_reg          <= mbinit_mb_lane_reversal_req;
+            reg_Clock_Phase_enable_status_reg <= mbinit_reg_Clock_Phase_enable_status;
+            reg_Clock_mode_enable_status_reg  <= mbinit_reg_Clock_mode_enable_status;
+            reg_TARR_enable_status_reg        <= mbinit_reg_TARR_enable_status;
+            reg_Link_Width_enable_status_reg  <= mbinit_reg_Link_Width_enable_status;
+            reg_Link_Speed_enable_status_reg  <= mbinit_reg_Link_Speed_enable_status;
+            reg_PMO_enable_status_reg         <= mbinit_reg_PMO_enable_status;
+            reg_L2SPD_enable_status_reg       <= mbinit_reg_L2SPD_enable_status;
+            reg_PSPT_enable_status_reg        <= mbinit_reg_PSPT_enable_status;
+        end
+    end
+
+    always_comb begin
+        mb_rx_data_lane_mask          = mb_rx_data_lane_mask_reg;
+        mb_tx_data_lane_mask          = mb_tx_data_lane_mask_reg;
+        mb_lane_reversal_req          = mb_lane_reversal_req_reg;
+        reg_Clock_Phase_enable_status = reg_Clock_Phase_enable_status_reg;
+        reg_Clock_mode_enable_status  = reg_Clock_mode_enable_status_reg;
+        reg_TARR_enable_status        = reg_TARR_enable_status_reg;
+        reg_Link_Width_enable_status  = reg_Link_Width_enable_status_reg;
+        reg_Link_Speed_enable_status  = reg_Link_Speed_enable_status_reg;
+        reg_PMO_enable_status         = reg_PMO_enable_status_reg;
+        reg_L2SPD_enable_status       = reg_L2SPD_enable_status_reg;
+        reg_PSPT_enable_status        = reg_PSPT_enable_status_reg;
+
+        if (current_ltsm_state == RESET || current_ltsm_state == SBINIT) begin
+            mb_rx_data_lane_mask          = 3'b011;
+            mb_tx_data_lane_mask          = 3'b011;
+            mb_lane_reversal_req          = 1'b0;
+            reg_Clock_Phase_enable_status = 1'b0;
+            reg_Clock_mode_enable_status  = 1'b0;
+            reg_TARR_enable_status        = 1'b0;
+            reg_Link_Width_enable_status  = 4'h0;
+            reg_Link_Speed_enable_status  = 4'h0;
+            reg_PMO_enable_status         = 1'b0;
+            reg_L2SPD_enable_status       = 1'b0;
+            reg_PSPT_enable_status        = 1'b0;
+        end else if (current_ltsm_state == MBINIT) begin
+            mb_rx_data_lane_mask          = mbinit_rx_data_lane_mask;
+            mb_tx_data_lane_mask          = mbinit_tx_data_lane_mask;
+            mb_lane_reversal_req          = mbinit_mb_lane_reversal_req;
+            reg_Clock_Phase_enable_status = mbinit_reg_Clock_Phase_enable_status;
+            reg_Clock_mode_enable_status  = mbinit_reg_Clock_mode_enable_status;
+            reg_TARR_enable_status        = mbinit_reg_TARR_enable_status;
+            reg_Link_Width_enable_status  = mbinit_reg_Link_Width_enable_status;
+            reg_Link_Speed_enable_status  = mbinit_reg_Link_Speed_enable_status;
+            reg_PMO_enable_status         = mbinit_reg_PMO_enable_status;
+            reg_L2SPD_enable_status       = mbinit_reg_L2SPD_enable_status;
+            reg_PSPT_enable_status        = mbinit_reg_PSPT_enable_status;
+        end
+    end
+
     assign sb_pattern_mode      = (current_ltsm_state == RESET) || (sbinit_pattern_mode && current_ltsm_state == SBINIT);
 
 endmodule

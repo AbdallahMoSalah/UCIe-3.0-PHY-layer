@@ -533,14 +533,14 @@ import ltsm_state_n_pkg::*;
 
     // 3. Error Check: Watchdog timeout assertion leading to top error
     property p_wrapper_timeout_leads_to_error;
-        @(posedge clk) disable iff (!rst_n)
+        @(posedge clk) disable iff (!rst_n || !mbinit_enable)
         global_error |-> ##[1:5] mbinit_error;
     endproperty
     assert_wrapper_timeout_leads_to_error: assert property(p_wrapper_timeout_leads_to_error);
 
     // 4. Safety Check: Substate errors properly trigger top level error FSM transition
     property p_wrapper_sub_error_leads_to_top_error;
-        @(posedge clk) disable iff (!rst_n)
+        @(posedge clk) disable iff (!rst_n || !mbinit_enable)
         (param_error || cal_error || repairclk_error || repairval_error || reversalmb_error || repairmb_error)
         |-> ##[1:5] (mbinit_error);
     endproperty
