@@ -52,13 +52,12 @@
 // | {MBTRAIN.LINKSPEED exit to speed degrade req}      | Out (TX)  | MsgInfo: 16'h0, Data: 64'h0   |
 // | {MBTRAIN.LINKSPEED exit to speed degrade resp}     | In  (RX)  | MsgInfo: 16'h0, Data: 64'h0   |
 // | {MBTRAIN.LINKSPEED exit to phy retrain req}        | Out (TX)  | MsgInfo: 16'h0, Data: 64'h0   |
-// |   (= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_     |           | (shared opcode with RXDESKEW   |
-// |      MBTRAIN_RXDESKEW_EQ_Preset_req)               |           |  EQ Preset req; disambiguated  |
-// |                                                    |           |  by LTSM state context)        |
+// |   (= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_     |           | (shared opcode with RXDESKEW  |
+// |      MBTRAIN_RXDESKEW_EQ_Preset_req)               |           |  EQ Preset req; disambiguated |
+// |                                                    |           |  by LTSM state context)       |
 // | {MBTRAIN.LINKSPEED exit to phy retrain resp}       | In  (RX)  | MsgInfo: 16'h0, Data: 64'h0   |
-// |   (= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_     |           | (shared opcode with RXDESKEW   |
-// |      MBTRAIN_RXDESKEW_EQ_Preset_resp)              |           |  EQ Preset resp; disambiguated)|
-// | {TRAINERROR entry req}                             | In  (RX)  | → TO_TRAINERROR immediately    |
+// |   (= MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_     |           | (shared opcode with RXDESKEW  |
+// |      MBTRAIN_RXDESKEW_EQ_Preset_resp)              |           | EQ Preset resp; disambiguated)|
 // +----------------------------------------------------+-----------+-------------------------------+
 // ====================================================================================================
 

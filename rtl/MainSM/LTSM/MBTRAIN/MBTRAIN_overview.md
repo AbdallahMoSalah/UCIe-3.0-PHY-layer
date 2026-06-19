@@ -764,18 +764,19 @@ This section details all legal flow paths, entry points, state transitions, and 
 The LTSM MBTRAIN sub-state sequences through up to 13 dedicated substates. Depending on the previous LTSM state history (`state_n_1`) or external requests (such as wake-up from low power states or retrain requests), training can start at different entry points:
 
 1. **From MBINIT (Nominal Entry)**: Starts at the first substate, `VALVREF`.
-2. **From L1 Exit (L1/L1_L2 Wake-up)**: Entered directly at `SPEEDIDLE` when `state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2` (and not `LOG_L2`). The link retains the previously negotiated speed parameter.
+2. **From L1 Exit (L1/L1_L2 Wake-up)**: Entered directly at `SPEEDIDLE` when `state_n_1 == LOG_L1 || (state_n_1 == LOG_L1_L2 && is_state_n_1_l1)` (and not `LOG_L2`). The link retains the previously negotiated speed parameter.
+Note: `is_state_n_1_l1` should always be 1 in our design so, we removed it. Now the condition is `state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2`.
 3. **From PHYRETRAIN (Retrain Entry)**: Re-enters MBTRAIN at specific entry points based on the request type:
    * Re-entry at `SPEEDIDLE` (if `mbtrain_speedidle_req == 1`)
    * Re-entry at `TXSELFCAL` (if `mbtrain_txselfcal_req == 1`)
-   * Re-entry at `REPAIR` (if `mbtrain_repair_req == 1`)
+   * Re-entry at `REPAIR`    (if `mbtrain_repair_req == 1`)
 
 ```mermaid
 graph TD
-    %% Entry Points
-    MBINIT_ENTRY(["From MBINIT"]) --> VALVREF["1. VALVREF"]
-    L1_ENTRY(["From L1 (L1/L1_L2 Exit)"]) -.-> SPEEDIDLE["3. SPEEDIDLE"]
-    RETRAIN_ENTRY(["From PHYRETRAIN"]) -.-> SPEEDIDLE
+    %% Entry Points (Outside MBTRAIN)
+    MBINIT_ENTRY[/"From MBINIT"/] --> VALVREF["1. VALVREF"]
+    L1_ENTRY[/"From L1 (L1 Exit)"/] -.-> SPEEDIDLE["3. SPEEDIDLE"]
+    RETRAIN_ENTRY[/"From PHYRETRAIN"/] -.-> SPEEDIDLE
     RETRAIN_ENTRY -.-> TXSELFCAL["4. TXSELFCAL"]
     RETRAIN_ENTRY -.-> REPAIR["13. REPAIR"]
 
@@ -792,12 +793,15 @@ graph TD
     RXDESKEW --> DATATRAINCENTER2["11. DATATRAINCENTER2"]
     DATATRAINCENTER2 --> LINKSPEED["12. LINKSPEED"]
 
-    %% Exit Paths from LINKSPEED
-    LINKSPEED -->|Success & Stable| LINKINIT["LINKINIT"]
+    %% Loopback / Refinement Arc
+    RXDESKEW -->|DTC1 Loopback Request| DATATRAINCENTER1
+
+    %% Exit Paths from LINKSPEED (To Outside MBTRAIN)
+    LINKSPEED -->|Success & Stable| LINKINIT(("LINKINIT"))
     LINKSPEED -->|Speed Degrade Request| SPEEDIDLE
     LINKSPEED -->|Width Degrade Request| REPAIR
-    LINKSPEED -->|PHY Retrain Request| PHYRETRAIN["PHYRETRAIN"]
-    LINKSPEED -->|Unrecoverable Fail / Exhausted| TRAINERROR["TRAINERROR"]
+    LINKSPEED -->|PHY Retrain Request| PHYRETRAIN(("PHYRETRAIN"))
+    LINKSPEED -->|Unrecoverable Fail / Exhausted| TRAINERROR{{"TRAINERROR"}}
 
     %% REPAIR loop
     REPAIR -->|Valid Degrade| TXSELFCAL
@@ -815,6 +819,15 @@ graph TD
     DATATRAINVREF -->|Fail| TRAINERROR
     RXDESKEW -->|Fail| TRAINERROR
     DATATRAINCENTER2 -->|Fail| TRAINERROR
+
+    %% Style definitions for Outside states
+    style MBINIT_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
+    style L1_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
+    style RETRAIN_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
+
+    style LINKINIT fill:#e6f4ea,stroke:#137333,stroke-width:3px
+    style PHYRETRAIN fill:#e8f0fe,stroke:#1a73e8,stroke-width:3px
+    style TRAINERROR fill:#fce8e6,stroke:#c5221f,stroke-width:3px
 ```
 
 ---
