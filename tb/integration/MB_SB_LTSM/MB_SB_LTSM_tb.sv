@@ -16,7 +16,7 @@ import RDI_SM_pkg::*;
 module MB_SB_LTSM_tb;
 
     // Parameters scaled to speed up simulation watchdog/timer
-    localparam int  LTSM_CLK_FRQ  = 125_000; // 8ms timer = 1000 lclk cycles = 8µs real time
+    localparam int  LTSM_CLK_FRQ  = 200_000; // 8ms timer = 1600 lclk cycles = 12.8µs real time
     localparam int  NUM_LANES     = 16;
     localparam int  N_BYTES       = 64;
     localparam int  FLITW         = 8 * N_BYTES;
@@ -130,6 +130,7 @@ module MB_SB_LTSM_tb;
     logic [15:0]      cfg_max_err_thresh_aggr0;
     logic [NUM_LANES-1:0] reg_lane_mask0;
     RDI_state         rdi_state0;
+    RDI_state         lp_state_req0;
 
     // =========================================================================
     // Die 1 signals
@@ -240,6 +241,7 @@ module MB_SB_LTSM_tb;
     logic [15:0]      cfg_max_err_thresh_aggr1;
     logic [NUM_LANES-1:0] reg_lane_mask1;
     RDI_state         rdi_state1;
+    RDI_state         lp_state_req1;
 
     // =========================================================================
     // System control / Channel modeling
@@ -391,7 +393,8 @@ module MB_SB_LTSM_tb;
         .cfg_max_err_thresh_perlane            (cfg_max_err_thresh_perlane0),
         .cfg_max_err_thresh_aggr               (cfg_max_err_thresh_aggr0),
         .reg_lane_mask                         (reg_lane_mask0),
-        .rdi_state                             (rdi_state0)
+        .rdi_state                             (rdi_state0),
+        .lp_state_req                          (lp_state_req0)
     );
 
     MB_SB_LTSM #(
@@ -494,7 +497,8 @@ module MB_SB_LTSM_tb;
         .cfg_max_err_thresh_perlane            (cfg_max_err_thresh_perlane1),
         .cfg_max_err_thresh_aggr               (cfg_max_err_thresh_aggr1),
         .reg_lane_mask                         (reg_lane_mask1),
-        .rdi_state                             (rdi_state1)
+        .rdi_state                             (rdi_state1),
+        .lp_state_req                          (lp_state_req1)
     );
 
     // =========================================================================
@@ -636,6 +640,10 @@ module MB_SB_LTSM_tb;
 
         reg_lane_mask0 = 16'h0000;
         reg_lane_mask1 = 16'h0000;
+
+        // Adapter requests link Active by default (only changes for L1 entry/wake)
+        lp_state_req0 = Active;
+        lp_state_req1 = Active;
 
         // Straps and support
         reg_TARR_support_local_cap0 = 1'b1;
@@ -947,6 +955,251 @@ module MB_SB_LTSM_tb;
         @(negedge lclk0);
         lp_valid0 = 1'b0;
         lp_valid1 = 1'b0;
+
+        // ----------------------------------------------------------------
+        // SCENARIO 8: L1 entry and wake (both dies)
+        // ----------------------------------------------------------------
+        // Train to ACTIVE, request L1 (lp_state_req=L_1 + rdi=L_1) on both dies,
+        // then wake (lp_state_req=Active) and confirm L1 exit re-enters MBTRAIN at
+        // SPEEDIDLE (not VALVREF) and re-trains back to ACTIVE.
+        $display("\nT=%0t | [SC8] L1 Power State: train, enter L1, wake via SPEEDIDLE...", $time);
+        reset_system();
+        phy_start0 = 1'b1;
+
+        fork
+            begin wait (m_done && p_done); end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [SC8] FAIL -- Training errored before L1.", $time);
+                $finish;
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC8] TIMEOUT -- Training hung before L1.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+        $display("T=%0t | [SC8] Both dies ACTIVE. Requesting L1 entry (lp_state_req=L_1)...", $time);
+
+        // Enter L1 on both dies. lp_state_req must leave Active so L1 holds (it
+        // wakes on lp_state_req==Active); rdi=L_1 drives the ACTIVE->L1 transition.
+        @(negedge lclk0);
+        lp_state_req0 = L_1;
+        lp_state_req1 = L_1;
+        rdi_state0 = L_1;
+        rdi_state1 = L_1;
+
+        fork
+            begin
+                wait (current_ltsm_state_n0 == LOG_L1_L2 && current_ltsm_state_n1 == LOG_L1_L2);
+                $display("T=%0t | [SC8] Both dies entered L1.", $time);
+            end
+            begin
+                repeat(2000) @(posedge lclk0);
+                $error("T=%0t | [SC8] TIMEOUT -- Dies did not enter L1.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Wake: Adapter requests Active -> L1 done -> MBTRAIN re-enters at SPEEDIDLE
+        @(negedge lclk0);
+        lp_state_req0 = Active;
+        lp_state_req1 = Active;
+        rdi_state0 = Active;
+        rdi_state1 = Active;
+
+        fork
+            begin
+                // Positive evidence: re-entry is at SPEEDIDLE (VALVREF/DATAVREF skipped)
+                wait (current_ltsm_state_n0 == LOG_MBTRAIN_SPEEDIDLE);
+                $display("T=%0t | [SC8] Die0 re-entered MBTRAIN at SPEEDIDLE.", $time);
+                wait (m_done && p_done);
+                $display("T=%0t | [SC8] PASS -- L1 wake re-trained via SPEEDIDLE back to ACTIVE.", $time);
+            end
+            begin
+                // Negative: a SPEEDIDLE re-entry never visits DATAVREF; seeing it
+                // means MBTRAIN ran the full VALVREF->DATAVREF first pass instead.
+                // (IDLE maps to LOG_MBTRAIN_VALVREF, so VALVREF is not a usable sentinel.)
+                wait (current_ltsm_state_n0 == LOG_MBTRAIN_DATAVREF);
+                $error("T=%0t | [SC8] FAIL -- MBTRAIN ran the full first pass, not SPEEDIDLE re-entry.", $time);
+                $finish;
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [SC8] FAIL -- Error during L1 wake re-train.", $time);
+                $finish;
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC8] TIMEOUT -- L1 wake re-train did not complete.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ----------------------------------------------------------------
+        // SCENARIO 9: L2 entry, exit to RESET, and re-train recovery
+        // ----------------------------------------------------------------
+        // Request L2 (rdi=L_2), exit to RESET (rdi=Reset), then re-pulse
+        // training and confirm the link re-trains from scratch back to ACTIVE.
+        $display("\nT=%0t | [SC9] L2 Power State: enter L2, exit to RESET, re-train...", $time);
+        reset_system();
+        phy_start0 = 1'b1;
+
+        fork
+            begin wait (m_done && p_done); end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [SC9] FAIL -- Training errored before L2.", $time);
+                $finish;
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC9] TIMEOUT -- Training hung before L2.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+        $display("T=%0t | [SC9] Both dies ACTIVE. Requesting L2 entry (rdi=L_2)...", $time);
+
+        @(negedge lclk0);
+        rdi_state0 = L_2;
+        rdi_state1 = L_2;
+
+        fork
+            begin
+                wait (current_ltsm_state_n0 == LOG_L1_L2 && current_ltsm_state_n1 == LOG_L1_L2);
+                $display("T=%0t | [SC9] Both dies entered L2.", $time);
+            end
+            begin
+                repeat(2000) @(posedge lclk0);
+                $error("T=%0t | [SC9] TIMEOUT -- Dies did not enter L2.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Exit L2 -> RESET (rdi=Reset)
+        @(negedge lclk0);
+        rdi_state0 = Reset;
+        rdi_state1 = Reset;
+
+        fork
+            begin
+                wait (current_ltsm_state_n0 == LOG_RESET && current_ltsm_state_n1 == LOG_RESET);
+                $display("T=%0t | [SC9] Both dies exited L2 to RESET.", $time);
+            end
+            begin
+                repeat(2000) @(posedge lclk0);
+                $error("T=%0t | [SC9] TIMEOUT -- Dies did not reach RESET from L2.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Recover: re-pulse training, expect full re-train to ACTIVE
+        @(negedge lclk0);
+        phy_start0 = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SC9] PASS -- Re-trained to ACTIVE after L2 exit.", $time);
+            end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [SC9] FAIL -- Error during post-L2 re-train.", $time);
+                $finish;
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC9] TIMEOUT -- Post-L2 re-train hung.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // ----------------------------------------------------------------
+        // SCENARIO 10: TRAINERROR entry (rdi=LinkError), clear, recover
+        // ----------------------------------------------------------------
+        // From ACTIVE, fault both adapters (rdi=LinkError). ACTIVE routes to
+        // TRAINERROR, which HOLDs while the error persists. Clear the error
+        // (rdi=Reset) so the real TRAINERROR block asserts trainerror_done and
+        // the controller falls back to RESET; then re-pulse training and confirm
+        // a clean re-train to ACTIVE.
+        $display("\nT=%0t | [SC10] TRAINERROR: fault link, hold, clear, re-train...", $time);
+        reset_system();
+        phy_start0 = 1'b1;
+
+        fork
+            begin wait (m_done && p_done); end
+            begin
+                wait (m_error || p_error);
+                $error("T=%0t | [SC10] FAIL -- Training errored before fault injection.", $time);
+                $finish;
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC10] TIMEOUT -- Training hung before fault injection.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+        $display("T=%0t | [SC10] Both dies ACTIVE. Injecting fault (rdi=LinkError)...", $time);
+
+        @(negedge lclk0);
+        rdi_state0 = LinkError;
+        rdi_state1 = LinkError;
+
+        fork
+            begin
+                wait (m_error && p_error);  // both reached LOG_TRAINERROR
+                $display("T=%0t | [SC10] Both dies entered TRAINERROR.", $time);
+            end
+            begin
+                repeat(2000) @(posedge lclk0);
+                $error("T=%0t | [SC10] TIMEOUT -- Dies did not enter TRAINERROR.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Clear the error -> TRAINERROR completes -> controller -> RESET
+        @(negedge lclk0);
+        rdi_state0 = Reset;
+        rdi_state1 = Reset;
+
+        fork
+            begin
+                wait (current_ltsm_state_n0 == LOG_RESET && current_ltsm_state_n1 == LOG_RESET);
+                $display("T=%0t | [SC10] Both dies cleared TRAINERROR to RESET.", $time);
+            end
+            begin
+                repeat(2000) @(posedge lclk0);
+                $error("T=%0t | [SC10] TIMEOUT -- Dies did not reach RESET from TRAINERROR.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
+
+        // Recover: re-pulse training, expect full re-train to ACTIVE
+        @(negedge lclk0);
+        phy_start0 = 1'b1;
+
+        fork
+            begin
+                wait (m_done && p_done);
+                $display("T=%0t | [SC10] PASS -- Re-trained to ACTIVE after TRAINERROR.", $time);
+            end
+            begin
+                repeat(100000) @(posedge lclk0);
+                $error("T=%0t | [SC10] TIMEOUT -- Post-TRAINERROR re-train hung.", $time);
+                $finish;
+            end
+        join_any
+        disable fork;
 
         $display("\n================================================================");
         $display("  ALL SCENARIOS PASSED!");

@@ -316,32 +316,38 @@ module unit_MBTRAIN_ctrl (
         end
     end
 
-    always_ff @(posedge lclk or negedge rst_n) begin
-        if (~rst_n) begin
-            current_mbtrain_substate <= LOG_NOP;
-        end
-        else if (~soft_rst_n) begin
-            current_mbtrain_substate <= LOG_NOP;
-        end
-        else if (!trainerror_detected & mbtrain_en) begin
-            case (current_state)
-                MBTRAIN_IDLE    : current_mbtrain_substate <= LOG_NOP                     ;
-                VALVREF         : current_mbtrain_substate <= LOG_MBTRAIN_VALVREF         ;
-                DATAVREF        : current_mbtrain_substate <= LOG_MBTRAIN_DATAVREF        ;
-                SPEEDIDLE       : current_mbtrain_substate <= LOG_MBTRAIN_SPEEDIDLE       ;
-                TXSELFCAL       : current_mbtrain_substate <= LOG_MBTRAIN_TXSELFCAL       ;
-                RXCLKCAL        : current_mbtrain_substate <= LOG_MBTRAIN_RXCLKCAL        ;
-                VALTRAINCENTER  : current_mbtrain_substate <= LOG_MBTRAIN_VALTRAINCENTER  ;
-                VALTRAINVREF    : current_mbtrain_substate <= LOG_MBTRAIN_VALTRAINVREF    ;
-                DATATRAINCENTER1: current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINCENTER1;
-                DATATRAINVREF   : current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINVREF   ;
-                RXDESKEW        : current_mbtrain_substate <= LOG_MBTRAIN_RXDESKEW        ;
-                DATATRAINCENTER2: current_mbtrain_substate <= LOG_MBTRAIN_DATATRAINCENTER2;
-                LINKSPEED       : current_mbtrain_substate <= LOG_MBTRAIN_LINKSPEED       ;
-                REPAIR          : current_mbtrain_substate <= LOG_MBTRAIN_REPAIR          ;
-                MBTRAIN_DONE    : current_mbtrain_substate <= current_mbtrain_substate    ; // Keep last substate for LTSM timeout reference.
-                default         : ;
-            endcase
-        end
+    // Substate logging for the LTSM error-log register (Table 9-59) and timeout
+    // reference. Combinational decode of the *actual* substate so the transcript
+    // never flashes a wrong code:
+    //   - MBTRAIN_IDLE is a transient entry/exit state with no dedicated log code,
+    //     so it anticipates the substate we are about to enter (same priority as
+    //     the next_state logic). This avoids logging VALVREF on a SPEEDIDLE/TXSELFCAL
+    //     re-entry (e.g. waking from L1).
+    //   - MBTRAIN_DONE reports the last completed substate (LINKSPEED) rather than
+    //     holding a stale registered value carried over from a previous training pass.
+    always_comb begin
+        case (current_state)
+            MBTRAIN_IDLE    : begin
+                if      (mbtrain_txselfcal_req) current_mbtrain_substate = LOG_MBTRAIN_TXSELFCAL;
+                else if (mbtrain_speedidle_req) current_mbtrain_substate = LOG_MBTRAIN_SPEEDIDLE;
+                else if (mbtrain_repair_req)    current_mbtrain_substate = LOG_MBTRAIN_REPAIR;
+                else                            current_mbtrain_substate = LOG_MBTRAIN_VALVREF;
+            end
+            VALVREF         : current_mbtrain_substate = LOG_MBTRAIN_VALVREF         ;
+            DATAVREF        : current_mbtrain_substate = LOG_MBTRAIN_DATAVREF        ;
+            SPEEDIDLE       : current_mbtrain_substate = LOG_MBTRAIN_SPEEDIDLE       ;
+            TXSELFCAL       : current_mbtrain_substate = LOG_MBTRAIN_TXSELFCAL       ;
+            RXCLKCAL        : current_mbtrain_substate = LOG_MBTRAIN_RXCLKCAL        ;
+            VALTRAINCENTER  : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINCENTER  ;
+            VALTRAINVREF    : current_mbtrain_substate = LOG_MBTRAIN_VALTRAINVREF    ;
+            DATATRAINCENTER1: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER1;
+            DATATRAINVREF   : current_mbtrain_substate = LOG_MBTRAIN_DATATRAINVREF   ;
+            RXDESKEW        : current_mbtrain_substate = LOG_MBTRAIN_RXDESKEW        ;
+            DATATRAINCENTER2: current_mbtrain_substate = LOG_MBTRAIN_DATATRAINCENTER2;
+            LINKSPEED       : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ;
+            REPAIR          : current_mbtrain_substate = LOG_MBTRAIN_REPAIR          ;
+            MBTRAIN_DONE    : current_mbtrain_substate = LOG_MBTRAIN_LINKSPEED       ; // last completed substate
+            default         : current_mbtrain_substate = LOG_MBTRAIN_VALVREF         ;
+        endcase
     end
 endmodule

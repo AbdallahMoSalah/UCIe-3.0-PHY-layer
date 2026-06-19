@@ -130,6 +130,11 @@ rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 rtl/MainSM/LTSM/LINKINIT/linkinit.sv
 rtl/MainSM/LTSM/ACTIVE.sv
 
+# ---- L1 / L2 / TRAINERROR ----------------------------------------------------
+rtl/MainSM/LTSM/L1.sv
+rtl/MainSM/LTSM/L2.sv
+rtl/MainSM/LTSM/TRAINERROR.sv
+
 # ---- LTSM controller + wrapper -----------------------------------------------
 rtl/MainSM/LTSM/unit_ltsm_controller.sv
 rtl/MainSM/LTSM/LTSM_wrapper.sv

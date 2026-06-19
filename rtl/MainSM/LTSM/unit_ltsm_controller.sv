@@ -50,6 +50,10 @@ import LTSM_state_pkg::*;
 
     output logic        active_en,
 
+    // L1 exit re-enters MBTRAIN at SPEEDIDLE: held high for the whole MBTRAIN
+    // visit that follows an L1 wake (drives wrapper_MBTRAIN.mbtrain_speedidle_req).
+    output logic        mbtrain_speedidle_req,
+
     // ---------------------------------------------------------------- error inputs
     // Reserved: in a later step these drive the TRAINERROR entry handshake
     // (§4.5.3.8). For now they are wired through from the state blocks but the
@@ -75,9 +79,11 @@ import LTSM_state_pkg::*;
 
     output logic        l1_en,
     input  logic        l1_done,
+    input  logic        l1_error,
 
     output logic        l2_en,
     input  logic        l2_done,
+    input  logic        l2_error,
 
     output logic        trainerror_en,
     input  logic        trainerror_done,
@@ -135,10 +141,15 @@ import LTSM_state_pkg::*;
                                    next_state = active_next_ltsm_state;
                                    
                 CTRL_PHYRETRAIN: if (phyretrain_done)  next_state = CTRL_MBTRAIN;
-                
-                CTRL_L1:       if (l1_done)            next_state = CTRL_MBTRAIN;
-                
-                CTRL_L2:       if (l2_done)            next_state = CTRL_MBTRAIN;
+
+                // L1 exit -> MBTRAIN re-entering at SPEEDIDLE (see
+                // mbtrain_speedidle_req below); error -> TRAINERROR
+                CTRL_L1:       if (l1_error)           next_state = CTRL_TRAINERROR;
+                               else if (l1_done)       next_state = CTRL_MBTRAIN;
+
+                // L2 exit -> RESET (deep sleep, re-train from scratch); error -> TRAINERROR
+                CTRL_L2:       if (l2_error)           next_state = CTRL_TRAINERROR;
+                               else if (l2_done)       next_state = CTRL_RESET;
                 
                 CTRL_TRAINERROR: if (trainerror_done)  next_state = CTRL_RESET;
                 
@@ -178,6 +189,25 @@ import LTSM_state_pkg::*;
 
 
 
+
+    // =========================================================================
+    // L1-EXIT MBTRAIN RE-ENTRY (SPEEDIDLE)
+    // =========================================================================
+    // When L1 exits we re-enter MBTRAIN at SPEEDIDLE (skipping VALVREF/DATAVREF).
+    // wrapper_MBTRAIN samples mbtrain_speedidle_req in its IDLE state as mbtrain_en
+    // rises, so we set the latch on the L1 -> MBTRAIN edge and hold it for the whole
+    // MBTRAIN visit, clearing as MBTRAIN is left. Normal MBTRAIN entries (from
+    // MBINIT) leave it low, so they enter at VALVREF as before.
+    logic mbtrain_from_l1_q;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            mbtrain_from_l1_q <= 1'b0;
+        else if (current_state == CTRL_L1 && next_state == CTRL_MBTRAIN)
+            mbtrain_from_l1_q <= 1'b1;
+        else if (current_state == CTRL_MBTRAIN && next_state != CTRL_MBTRAIN)
+            mbtrain_from_l1_q <= 1'b0;
+    end
+    assign mbtrain_speedidle_req = mbtrain_from_l1_q;
 
     // =========================================================================
     // CURRENT-STATE STATUS ENUM

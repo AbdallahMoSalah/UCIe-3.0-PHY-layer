@@ -155,7 +155,8 @@ module MB_SB_LTSM #(
     input  logic [NUM_LANES-1:0]             reg_lane_mask,
 
     // RDI status
-    input  RDI_state                         rdi_state
+    input  RDI_state                         rdi_state,
+    input  RDI_state                         lp_state_req   // Adapter-requested RDI state (L1 wake)
 );
     // =========================================================================
     // 1. Clocks and Resets Generation
@@ -166,7 +167,7 @@ module MB_SB_LTSM #(
     real  sb_pll_period;
 
     sb_pll u_sb_pll (
-        .en           (1),
+        .en           (1'b1),
         .clk          (sb_pll_clock),
         .local_period (sb_pll_period)
     );
@@ -278,7 +279,7 @@ module MB_SB_LTSM #(
         .i_lfsr_state         (mb_lfsr_state),
         .i_reversal_en        (mb_reversal_en),
         .i_valid_pattern_en   (mb_valid_pattern_en),
-        .i_pll_en             (1),
+        .i_pll_en             (1'b1),
         .i_pll_speed_sel      (i_pll_speed_sel),
         .lclk_g               (lclk_g),
         .i_clk_pattern_en     (mb_clk_pattern_en),
@@ -347,7 +348,7 @@ module MB_SB_LTSM #(
         .rst_main_n       (rst_n),
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_n),
-        .phy_in_reset     (0),
+        .phy_in_reset     (1'b0),
         .pmo_en           (reg_PMO_enable_status),
         
         .sb_pll_clock     (sb_pll_clock),
@@ -480,6 +481,7 @@ module MB_SB_LTSM #(
 
         // RDI status
         .rdi_state                             (rdi_state),
+        .lp_state_req                          (lp_state_req),
 
         // unit_mb_die-facing CONTROL outputs
         .i_mapper_en                           (mb_mapper_en),

@@ -184,7 +184,10 @@ module LTSM_wrapper #(
     // =========================================================================
     // RDI status (LINKINIT / ACTIVE)
     // =========================================================================
-    input  RDI_state    rdi_state
+    input  RDI_state    rdi_state,
+
+    // Adapter-requested RDI state (L1 wake trigger)
+    input  RDI_state    lp_state_req
 );
 
     // =========================================================================
@@ -197,9 +200,12 @@ module LTSM_wrapper #(
     logic linkinit_en, linkinit_done, linkinit_error;
     logic active_en,   active_error;
     logic phyretrain_en, phyretrain_done;
-    logic l1_en,         l1_done;
-    logic l2_en,         l2_done;
+    logic l1_en,         l1_done, l1_error;
+    logic l2_en,         l2_done, l2_error;
     logic trainerror_en, trainerror_done;
+
+    // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
+    logic mbtrain_speedidle_req;
 
     logic timeout_timer_en, timer_rst_n;
 
@@ -451,15 +457,12 @@ module LTSM_wrapper #(
     assign d2c_active = sweep_local_en | sweep_partner_en;
 
     // =========================================================================
-    // PHYRETRAIN / L1 / L2 / TRAINERROR PASS-THROUGH
+    // PHYRETRAIN PASS-THROUGH (still not instantiated here)
     // =========================================================================
-    // These states are not instantiated yet. They are implemented as pass-throughs
-    // by tying the done output directly to the enable input. MBTRAIN is now a REAL
-    // block (wrapper_MBTRAIN below); it is no longer a pass-through.
+    // PHYRETRAIN is still a pass-through (done tied to enable). TRAINERROR, L1 and
+    // L2 are REAL blocks (instantiated below) and no longer pass-throughs. MBTRAIN
+    // is also a real block above.
     assign phyretrain_done          = phyretrain_en;
-    assign l1_done                  = l1_en;
-    assign l2_done                  = l2_en;
-    assign trainerror_done          = trainerror_en;
 
     // =========================================================================
     // MBTRAIN block / shared-sweep wiring  (declarations are up top)
@@ -512,12 +515,15 @@ module LTSM_wrapper #(
         .linkinit_en         (linkinit_en),
         .linkinit_done       (linkinit_done),
         .active_en           (active_en),
+        .mbtrain_speedidle_req (mbtrain_speedidle_req),
         .phyretrain_en       (phyretrain_en),
         .phyretrain_done     (phyretrain_done),
         .l1_en               (l1_en),
         .l1_done             (l1_done),
+        .l1_error            (l1_error),
         .l2_en               (l2_en),
         .l2_done             (l2_done),
+        .l2_error            (l2_error),
         .trainerror_en       (trainerror_en),
         .trainerror_done     (trainerror_done),
         // Per-state errors (reserved — TRAINERROR handshake wired in a later step)
@@ -526,6 +532,7 @@ module LTSM_wrapper #(
         .mbtrain_error       (mbtrain_ltsm_trainerror_req),
         .linkinit_error      (linkinit_error),
         .active_error        (active_error),
+        .timeout_8ms_occured (timeout_8ms_occured),
         // ACTIVE-resolved next state (reserved — drives ACTIVE exit in a later step)
         .active_next_ltsm_state (active_next_ltsm_state),
 
@@ -737,9 +744,10 @@ module LTSM_wrapper #(
         .ltsm_linkinit_req          (mbtrain_ltsm_linkinit_req),
         .ltsm_phyretrain_req        (mbtrain_ltsm_phyretrain_req),
 
-        // Re-entry selectors (future PHYRETRAIN/L1/L2 paths) — normal entry for now
+        // Re-entry selectors. SPEEDIDLE re-entry is driven on an L1 exit; the
+        // others (PHYRETRAIN / L2 paths) are not wired yet.
         .mbtrain_txselfcal_req      (1'b0),
-        .mbtrain_speedidle_req      (1'b0),
+        .mbtrain_speedidle_req      (mbtrain_speedidle_req),
         .mbtrain_repair_req         (1'b0),
 
         .analog_settle_time_done    (mbtrain_analog_settle_time_done),
@@ -848,6 +856,41 @@ module LTSM_wrapper #(
         .Start_UCIe_Link_Training (phy_start_ucie_link_training_ctrl_out),
         .active_error             (active_error),
         .next_ltsm_state          (active_next_ltsm_state)
+    );
+
+    // =========================================================================
+    // 6a. L1 / L2 (real blocks, RDI-state driven)
+    // =========================================================================
+    // L1 exit (l1_done on rdi==Active) -> controller returns to ACTIVE.
+    // L2 exit (l2_done on rdi==Reset)  -> controller returns to RESET.
+    // l1_error / l2_error (rdi==LinkError) -> controller goes to TRAINERROR.
+    L1 u_l1 (
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .l1_enable     (l1_en),
+        .rdi_state_sts (rdi_state),
+        .lp_state_req  (lp_state_req),
+        .l1_done       (l1_done),
+        .l1_error      (l1_error)
+    );
+
+    L2 u_l2 (
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .l2_enable     (l2_en),
+        .rdi_state_sts (rdi_state),
+        .l2_done       (l2_done),
+        .l2_error      (l2_error)
+    );
+
+    // TRAINERROR (real block): latches on entry, HOLDs while rdi==LinkError, and
+    // signals trainerror_done once the adapter clears the error -> controller -> RESET.
+    TRAINERROR u_trainerror (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .trainerror_enable (trainerror_en),
+        .rdi_state_sts     (rdi_state),
+        .trainerror_done   (trainerror_done)
     );
 
     // =========================================================================

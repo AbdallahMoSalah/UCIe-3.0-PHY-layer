@@ -114,6 +114,7 @@ module LTSM_TOP #(
     // RDI status
     // =========================================================================
     input  RDI_state             rdi_state,
+    input  RDI_state             lp_state_req,   // Adapter-requested RDI state (L1 wake)
 
     // =========================================================================
     // unit_mb_die-facing CONTROL outputs (from the interface)
@@ -216,7 +217,27 @@ module LTSM_TOP #(
         .Adapter_training_req                   (Adapter_training_req),
         .sb_det_pattern_rcvd                    (sb_det_pattern_rcvd),
         .SPMW                                   (SPMW),
-
+        .mb_rx_max_err_thresh_aggr              (),
+        .mb_rx_max_err_thresh_perlane           (),
+        .mb_tx_clk_sampling                     (),
+        .mb_tx_clk_sampling_en                  (),
+        .mb_tx_iter_count                       (),
+        .mb_tx_burst_count                      (),
+        .mb_tx_pattern_mode                     (),
+        .mb_rx_iter_count                       (),
+        .mb_rx_burst_count                      (),
+        .mb_rx_idle_count                       (),
+        .mb_rx_lfsr_en                          (),
+        .mb_tx_lfsr_en                          (),
+        .mb_rx_clk_lane_sel                     (),
+        .mb_rx_trk_lane_sel                     (),
+        .mb_tx_data_lane_sel                    (),
+        .mb_tx_val_lane_sel                     (),
+        .mb_tx_clk_lane_sel                     (),
+        .mb_tx_trk_lane_sel                     (),
+        .mb_tx_clk_pattern_sel                  (),
+        .mb_tx_idle_count                       (),
+        .mb_rx_val_pattern_sel                  (),
         .reg_phy_x8_mode_ctrl                   (reg_phy_x8_mode_ctrl),
         .reg_TARR_support_local_cap             (reg_TARR_support_local_cap),
         .reg_L2SPD_support_local_cap            (reg_L2SPD_support_local_cap),
@@ -265,6 +286,7 @@ module LTSM_TOP #(
         .sbinit_req_iter_count                  (sbinit_req_iter_count),
 
         .rdi_state                              (rdi_state),
+        .lp_state_req                           (lp_state_req),
 
         // Mainband control -> interface (subset the interface consumes)
         .mb_tx_pattern_en                       (w_mb_tx_pattern_en),

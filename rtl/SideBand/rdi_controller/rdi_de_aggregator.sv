@@ -6,7 +6,7 @@ module rdi_de_aggregator
     input  logic        rst_n,
 
     // Interface with Arbiter
-    input  sb_packet_t  pl_msg,
+    input  wire [127:0]  pl_msg,
     input  logic        pl_msg_vld,
     output logic        pl_msg_rdy,
 
@@ -27,6 +27,7 @@ module rdi_de_aggregator
     state_t state, next_state;
 
     sb_packet_t   msg_reg;
+    sb_packet_t   msg;
     logic [127:0] msg_flat;
     logic [2:0]   chunk_cnt;
     logic [2:0]   expected_chunks;
@@ -35,12 +36,13 @@ module rdi_de_aggregator
     logic [2:0]   next_expected_chunks;
 
     assign msg_flat = msg_reg;
+    assign msg      = sb_packet_t'(pl_msg);
 
     ////////////////////////////////////////
     // opcode decode
     ////////////////////////////////////////
 
-    assign in_opcode = pl_msg.header.req.opcode;
+    assign in_opcode = msg.header.req.opcode;
 
     always_comb begin
 
@@ -159,7 +161,7 @@ module rdi_de_aggregator
             ///////////////////////////////////////
             begin
                 if(pl_msg_vld) begin
-                    msg_reg         <= pl_msg;
+                    msg_reg         <= msg;
                     expected_chunks <= next_expected_chunks;
                 end
                 pl_cfg_vld <= 0;
@@ -189,7 +191,7 @@ module rdi_de_aggregator
                     // Last chunk was alrdy sent out in the previous cycle
                     if(pl_msg_vld) begin
                         // Back to back consecutive packets: buffer and wait for rdy
-                        msg_reg         <= pl_msg;
+                        msg_reg         <= msg;
                         expected_chunks <= next_expected_chunks;
                     end
                     pl_cfg_vld <= 0;

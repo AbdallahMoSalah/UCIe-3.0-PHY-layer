@@ -7,6 +7,7 @@ import RDI_SM_pkg::*;
     input  logic l1_enable,
 
     input RDI_state rdi_state_sts,
+    input RDI_state lp_state_req,   // Requested RDI state from Adapter (wake trigger)
 
     output logic l1_done,
     output logic l1_error
@@ -36,7 +37,10 @@ import RDI_SM_pkg::*;
             case (current_state)
                 IDLE      : next_state = L1_RUN;
 
-                L1_RUN    : if (rdi_state_sts == Active)
+                // Wake when the Adapter requests Active again, or a retrain is
+                // requested. Exit then routes (in the LTSM controller) into
+                // MBTRAIN re-entering at SPEEDIDLE.
+                L1_RUN    : if ((lp_state_req == Active) || (rdi_state_sts == Retrain))
                                  next_state = LINK_SPEED;
                             else if (rdi_state_sts == LinkError)
                                  next_state = TRAIN_ERROR;
