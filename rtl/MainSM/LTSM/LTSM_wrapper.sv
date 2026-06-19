@@ -49,6 +49,19 @@ module LTSM_wrapper #(
     // =========================================================================
     output LTSM_state_e current_ltsm_state,
     output state_n_e    current_ltsm_state_n,
+
+
+
+
+
+
+    // Rigster File Interface
+    output logic        link_training_retraining,
+    output logic        link_status,
+    output logic        timeout_8ms_occured,
+    output logic        busy_flag,
+
+    // State log registers (shift & latch history)
     output logic [7:0]  log0_state_n,
     output logic        log0_lane_reversal,
     output logic        log0_width_degrade,
@@ -168,7 +181,6 @@ module LTSM_wrapper #(
     output logic [11:0] mb_rx_max_err_thresh_perlane,
     output logic [15:0] mb_rx_max_err_thresh_aggr,
     output logic [2:0]  mb_pll_speed_sel,
-    output logic        busy_bit_rst,
 
     // =========================================================================
     // Unified mainband status inputs (from mainband_ltsm_interface)
@@ -209,7 +221,7 @@ module LTSM_wrapper #(
     // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
     logic mbtrain_speedidle_req;
 
-    logic timeout_timer_en, timer_rst_n, timeout_8ms_occured;
+    logic timeout_timer_en, timer_rst_n;
 
     // =========================================================================
     // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
@@ -372,6 +384,17 @@ module LTSM_wrapper #(
     logic        reg_L2SPD_enable_status_reg;
     logic        reg_PSPT_enable_status_reg;
 
+    logic busy_bit_rst;
+
+    logic  busy_flag_rst;
+    assign busy_flag_rst = busy_bit_rst;
+
+
+    logic [7:0] log0_state_n_reg;
+    logic [7:0] log0_state_n_minus_1_reg;
+    logic [7:0] log0_state_n_minus_2_reg;
+    logic [7:0] log1_state_n_minus_3_reg;
+
     // ACTIVE next-state (unused until L1/L2/PHYRETRAIN exits are added)
     ltsm_ctrl_state_e active_next_ltsm_state;
 
@@ -408,6 +431,23 @@ module LTSM_wrapper #(
         end
     end
 
+
+// =============================================================================
+    // LINK TRAINING / RETRAINING STATUS (to Register File)
+    // =============================================================================
+    assign link_training_retraining = (current_ltsm_state == SBINIT) ||
+                                      (current_ltsm_state == MBINIT) ||
+                                      (current_ltsm_state == MBTRAIN) ||
+                                      (current_ltsm_state == LINKINIT) ||
+                                      (current_ltsm_state == PHYRETRAIN);
+
+    // =============================================================================
+    // LINK STATUS (to Register File)
+    // =============================================================================
+    assign link_status = (current_ltsm_state == ACTIVE) ||
+                         (current_ltsm_state == PHYRETRAIN) || (current_ltsm_state == MBTRAIN && log0_state_n_minus_1_reg == LOG_PHYRETRAIN)
+                         || (current_ltsm_state == LOG_LINKINIT && log0_state_n_minus_2_reg == LOG_PHYRETRAIN);
+
     // =========================================================================
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
     // =========================================================================
@@ -429,11 +469,6 @@ module LTSM_wrapper #(
             default:    current_log_state = LOG_RESET;
         endcase
     end
-
-    logic [7:0] log0_state_n_reg;
-    logic [7:0] log0_state_n_minus_1_reg;
-    logic [7:0] log0_state_n_minus_2_reg;
-    logic [7:0] log1_state_n_minus_3_reg;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -668,12 +703,24 @@ module LTSM_wrapper #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             PHY_IN_RETRAIN <= 1'b0;
-        end else if (current_ltsm_state_n == PHYRETRAIN) begin
+        end else if (current_ltsm_state == PHYRETRAIN) begin
             PHY_IN_RETRAIN <= 1'b1;
         end else if (PHY_IN_RETRAIN_rst) begin
             PHY_IN_RETRAIN <= 1'b0;
         end
     end
+
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            busy_flag <= 1'b0;
+        end else if (start_bit && (current_ltsm_state == PHYRETRAIN)) begin
+            busy_flag <= 1'b1;
+        end else if (busy_flag_rst) begin
+            busy_flag <= 1'b0;
+        end
+    end
+
 
     logic timer_rst_n_q;
     always_ff @(posedge clk or negedge rst_n) begin

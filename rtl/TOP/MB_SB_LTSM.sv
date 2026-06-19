@@ -416,6 +416,10 @@ module MB_SB_LTSM #(
         // Status / observability
         .current_ltsm_state                    (current_ltsm_state),
         .current_ltsm_state_n                  (current_ltsm_state_n),
+        .link_training_retraining              (link_training_retraining),
+        .link_status                           (link_status),
+        .timeout_8ms_occured                   (timeout_8ms_occured),
+        
         .log0_state_n                          (log0_state_n),
         .log0_lane_reversal                    (log0_lane_reversal),
         .log0_width_degrade                    (log0_width_degrade),
@@ -425,7 +429,6 @@ module MB_SB_LTSM #(
 
         // RESET-state triggers / strap
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
-        .Adapter_training_req                  (Adapter_training_req),
         .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd),
         .SPMW                                  (SPMW),
 
@@ -529,7 +532,7 @@ module MB_SB_LTSM #(
 
         // PLL-speed / params-changed / busy-bit
         .mb_pll_speed_sel                      (mb_pll_speed_sel),
-        .busy_bit_rst                          (busy_bit_rst),
+        .busy_flag                             (busy_flag),
         .start_bit                             (start_bit)
     );
 

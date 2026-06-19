@@ -39,6 +39,11 @@ module LTSM_TOP #(
     // =========================================================================
     output LTSM_state_e          current_ltsm_state,
     output state_n_e             current_ltsm_state_n,
+
+
+    output logic                 link_training_retraining,
+    output logic                 link_status,
+    output logic                 timeout_8ms_occured,
     output logic [7:0]           log0_state_n,
     output logic                 log0_lane_reversal,
     output logic                 log0_width_degrade,
@@ -141,7 +146,7 @@ module LTSM_TOP #(
     output logic                 i_rx_valid_deser_en,
     output logic                 i_clk_embedded_en,
     output logic [2:0]           mb_pll_speed_sel,
-    output logic                 busy_bit_rst,
+    output logic                 busy_flag,
     output logic [1:0]           mb_tx_data_lane_sel,
     output logic [1:0]           mb_tx_val_lane_sel,
     output logic [1:0]           mb_tx_clk_lane_sel,
@@ -212,6 +217,11 @@ module LTSM_TOP #(
 
         .current_ltsm_state                     (current_ltsm_state),
         .current_ltsm_state_n                   (current_ltsm_state_n),
+
+        .link_training_retraining               (link_training_retraining),
+        .link_status                            (link_status),
+        .timeout_8ms_occured                    (timeout_8ms_occured),
+        
         .log0_state_n                           (log0_state_n),
         .log0_lane_reversal                     (log0_lane_reversal),
         .log0_width_degrade                     (log0_width_degrade),
@@ -325,7 +335,7 @@ module LTSM_TOP #(
         .repairclk_rckp_pass                    (w_repairclk_rckp_pass),
         .repairval_RVLD_L_pass                  (w_repairval_RVLD_L_pass),
         .mb_pll_speed_sel                       (mb_pll_speed_sel),
-        .busy_bit_rst                           (busy_bit_rst),
+        .busy_flag                              (busy_flag),
         .start_bit                              (start_bit)
     );
 
