@@ -730,9 +730,15 @@ end
     assert_degrade_req_leads_to_resp_or_error: assert property(p_degrade_req_leads_to_resp_or_error);
 
     // 8. Bounded Liveness: done_req must eventually be answered or enter S7 error
+    //    The antecedent re-arms on every cycle spent in S6_FINALIZE_RSP_WAIT.
+    //    s6_rsp_rcvd is a 1-cycle pulse that is cleared the same cycle the FSM
+    //    advances to the success state MB_S8_REVERSAL_DONE, so the thread armed
+    //    on the final S6 cycle would never observe s6_rsp_rcvd (already cleared)
+    //    nor S7 (it went to S8). Accept the clean terminal exit to S8 as well so
+    //    the check still flags a genuine hang but not the normal success path.
     property p_end_req_leads_to_resp_or_error;
         @(posedge clk) disable iff (!rst_n)
-        (current_state == MB_S6_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s6_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR));
+        (current_state == MB_S6_FINALIZE_RSP_WAIT) |-> (##[1:2000] (s6_rsp_rcvd || current_state == MB_S7_REVERSAL_ERROR || current_state == MB_S8_REVERSAL_DONE));
     endproperty
     assert_end_req_leads_to_resp_or_error: assert property(p_end_req_leads_to_resp_or_error);
 

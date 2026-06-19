@@ -380,42 +380,4 @@ module LTSM_TOP #(
         .mb_rx_compare_done                     (w_mb_rx_compare_done)
     );
 
-// synopsys translate_off
-    logic        dbg_done_d;
-    logic [15:0] dbg_perlane_d;
-    logic [2:0]  dbg_istate_d;
-    state_n_e    dbg_stn_d;
-    logic [15:0] dbg_rxdeser_d;
-    logic        dbg_cntdone_d;
-    always @(posedge clk) begin
-        dbg_done_d    <= o_pcmp_done;
-        dbg_perlane_d <= o_pcmp_per_lane_pass;
-        dbg_istate_d  <= i_state;
-        dbg_stn_d     <= current_ltsm_state_n;
-        dbg_rxdeser_d <= i_rx_data_deser_en;
-        dbg_cntdone_d <= w_mb_tx_pattern_count_done;
-        if (current_ltsm_state_n !== dbg_stn_d)
-            $display("[%0t] %m STN %0d->%0d", $time, dbg_stn_d, current_ltsm_state_n);
-        if (i_rx_data_deser_en !== dbg_rxdeser_d)
-            $display("[%0t] %m RXDESER %04h->%04h stn=%0d pcmpen=%b cmpen=%b istate=%0d",
-                     $time, dbg_rxdeser_d, i_rx_data_deser_en, current_ltsm_state_n, i_pcmp_enable, w_mb_rx_compare_en, i_state);
-        if (w_mb_tx_pattern_count_done !== dbg_cntdone_d)
-            $display("[%0t] %m CNTDONE %b->%b stn=%0d lfsrtx=%b vald=%b clkd=%b lfsr_state=%0d",
-                     $time, dbg_cntdone_d, w_mb_tx_pattern_count_done, current_ltsm_state_n,
-                     o_lfsr_tx_done, o_valid_done, o_clk_done, i_lfsr_state);
-        if (w_mb_rx_lfsr_rst || w_mb_tx_lfsr_rst)
-            $display("[%0t] %m RST stn=%0d txrst=%b rxrst=%b istate=%0d lfsr_state=%0d paten=%b cmpen=%b cmpset=%0d rxdsel=%0d rxpsetup=%0d",
-                     $time, current_ltsm_state_n, w_mb_tx_lfsr_rst, w_mb_rx_lfsr_rst, i_state, i_lfsr_state,
-                     w_mb_tx_pattern_en, w_mb_rx_compare_en, w_mb_rx_compare_setup, w_mb_rx_data_pattern_sel, w_mb_rx_pattern_setup);
-        if (i_state !== dbg_istate_d)
-            $display("[%0t] %m ISTATE %0d->%0d cmpen=%b paten=%b rxrst=%b txrst=%b",
-                     $time, dbg_istate_d, i_state, w_mb_rx_compare_en, w_mb_tx_pattern_en,
-                     w_mb_rx_lfsr_rst, w_mb_tx_lfsr_rst);
-        if (o_pcmp_done && !dbg_done_d)
-            $display("[%0t] %m PCMPDONE stn=%0d perlane=%04h istate=%0d cmpen=%b rxdsel=%0d", $time, current_ltsm_state_n, o_pcmp_per_lane_pass, i_state, w_mb_rx_compare_en, w_mb_rx_data_pattern_sel);
-        if (o_pcmp_per_lane_pass !== dbg_perlane_d)
-            $display("[%0t] %m PERLANE %04h->%04h done=%b istate=%0d", $time, dbg_perlane_d, o_pcmp_per_lane_pass, o_pcmp_done, i_state);
-    end
-// synopsys translate_on
-
 endmodule
