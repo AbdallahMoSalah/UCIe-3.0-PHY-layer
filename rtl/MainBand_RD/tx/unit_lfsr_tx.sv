@@ -285,6 +285,8 @@ module unit_lfsr_tx #(
                     o_ser_en_lfsr    <= 0;
                     counter_per_lane <= 0;
                     o_Lfsr_tx_done   <= 0;
+                    for (i = 0; i < 8; i = i + 1)
+                        tx_lfsr[i] <= SEED[i];
                 end
 
                 // ==============================================================

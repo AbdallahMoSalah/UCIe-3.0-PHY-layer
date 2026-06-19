@@ -563,9 +563,9 @@ module unit_D2C_sweep #(
                 d2c_clk_sampling     = 2'b00                   ; // (for TX/RX_D2C_PT) 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
 
                 // Received Tx Pattern Generator Setup Group:
-                d2c_pattern_setup    = 3'b011                  ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
+                d2c_pattern_setup    = 3'b001                  ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
                 d2c_data_pattern_sel = 2'b00                   ; // Data pattern: LFSR pattern.
-                d2c_val_pattern_sel  = 1'b0                    ; // 0: VALTRAIN pattern (Valid framing).
+                d2c_val_pattern_sel  = 1'b1                    ; // 0: VALTRAIN pattern (Valid framing).
 
                 // Received Tx Pattern Mode Setup Group:
                 d2c_pattern_mode     = 1'b0                    ; // 0: Continuous Pattern Mode, 1: Burst Pattern Mode.
@@ -601,7 +601,7 @@ module unit_D2C_sweep #(
                 d2c_clk_sampling     = 2'b00 ; // (for TX/RX_D2C_PT) 00: Eye Center (In-phase), 01: Left Edge, 10: Right Edge, 11: Reserved.
                 d2c_pattern_setup    = 3'b000; // (for TX/RX_D2C_PT) Bit0: Data Pattern Enable, Bit1: Valid Pattern Enable, Bit2: Clock Pattern Enable.
                 d2c_data_pattern_sel = 2'b10 ; // (for TX/RX_D2C_PT) 00: LFSR pattern, 01: Per-Lane ID, 10: Fixed All Zeros, 11: Reserved.
-                d2c_val_pattern_sel  = 1'b0  ; // (for TX/RX_D2C_PT) 0: VALTRAIN/functional pattern, 1: Held Low.
+                d2c_val_pattern_sel  = 1'b1  ; // (for TX/RX_D2C_PT) 0: VALTRAIN/functional pattern, 1: Held Low.
                 d2c_pattern_mode     = 1'b0  ; // (for TX/RX_D2C_PT) 0: Continuous mode (indefinite), 1: Burst mode (burst/idle counts).
                 d2c_burst_count      = 16'b0 ; // (for TX/RX_D2C_PT) Unsigned 16-bit burst duration in Unit Intervals (UI).
                 d2c_idle_count       = 16'b0 ; // (for TX/RX_D2C_PT) Unsigned 16-bit idle duration in Unit Intervals (UI).

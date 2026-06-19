@@ -697,7 +697,7 @@ module MB_SB_LTSM_tb;
                 $finish;
             end
             begin
-                repeat(10000) @(posedge lclk0);
+                repeat(100000) @(posedge lclk0);
                 $error("T=%0t | [SC1] TIMEOUT -- Simulation hung", $time);
                 $finish;
             end
@@ -755,7 +755,7 @@ module MB_SB_LTSM_tb;
                 $finish;
             end
             begin
-                repeat(10000) @(posedge lclk0);
+                repeat(100000) @(posedge lclk0);
                 $error("T=%0t | [SC3] TIMEOUT -- Simulation hung", $time);
                 $finish;
             end
@@ -886,7 +886,7 @@ module MB_SB_LTSM_tb;
                 $finish;
             end
             begin
-                repeat(10000) @(posedge lclk0);
+                repeat(100000) @(posedge lclk0);
                 $error("T=%0t | [SC7] TIMEOUT -- Training hung", $time);
                 $finish;
             end

@@ -520,4 +520,47 @@ module MB_SB_LTSM #(
         .o_track_pass                          (mb_track_pass)
     );
 
+// synopsys translate_off
+    // ---- TEMP comparator + valid-frame probe ----
+    logic [1:0]  dbg_cmp_state_d;
+    logic        dbg_dv_d, dbg_vfp_d, dbg_vden_d, dbg_paten_d;
+    always @(posedge lclk) begin
+        dbg_cmp_state_d <= u_mb_die.u_rx_top.u_pat_cmp.state;
+        dbg_dv_d   <= u_mb_die.u_rx_top.o_data_valid;
+        dbg_vfp_d  <= u_mb_die.u_rx_top.o_valid_frame_pulse;
+        dbg_vden_d <= u_mb_die.u_rx_top.i_rx_valid_deser_en;
+        dbg_paten_d<= u_mb_die.i_valid_pattern_en;
+        if (u_mb_die.u_rx_top.u_pat_cmp.state !== dbg_cmp_state_d)
+            $display("[%0t] %m PATCMP st=%0d iter=%0d clr=%b en=%b pcmpen=%b pcompen=%b stn=%0d",
+                     $time,
+                     u_mb_die.u_rx_top.u_pat_cmp.state,
+                     u_mb_die.u_rx_top.u_pat_cmp.iter_ctr,
+                     u_mb_die.u_rx_top.u_pat_cmp.i_clear_error,
+                     u_mb_die.u_rx_top.u_pat_cmp.i_enable,
+                     u_mb_die.u_rx_top.u_pat_cmp.i_pcmp_enable,
+                     u_mb_die.u_rx_top.o_pattern_comp_en,
+                     u_ltsm_top.current_ltsm_state_n);
+        if (u_mb_die.u_rx_top.o_data_valid !== dbg_dv_d ||
+            u_mb_die.u_rx_top.i_rx_valid_deser_en !== dbg_vden_d ||
+            u_mb_die.i_valid_pattern_en !== dbg_paten_d)
+            $display("[%0t] %m VFRAME dv=%b vfp=%b vden=%b vpaten=%b rvld=%b txvpaten=%b stn=%0d",
+                     $time,
+                     u_mb_die.u_rx_top.o_data_valid,
+                     u_mb_die.u_rx_top.o_valid_frame_pulse,
+                     u_mb_die.u_rx_top.i_rx_valid_deser_en,
+                     u_mb_die.i_valid_pattern_en,
+                     u_mb_die.u_rx_top.i_RVLD_P,
+                     u_mb_die.i_valid_pattern_en,
+                     u_ltsm_top.current_ltsm_state_n);
+        if (u_ltsm_top.current_ltsm_state_n == 8'h17 && u_mb_die.u_rx_top.o_pl_valid)
+            $display("[%0t] %m PLVALID out=%08h rxst=%0d rxlfsr=%06h txst=%0d txlfsr=%06h rxin=%08h", $time,
+                     u_mb_die.u_rx_top.o_out_data[31:0],
+                     u_mb_die.u_rx_top.u_lfsr_rx.current_state,
+                     u_mb_die.u_rx_top.u_lfsr_rx.rx_lfsr_lane[0],
+                     u_mb_die.u_tx_top.u_lfsr_tx.current_state,
+                     u_mb_die.u_tx_top.u_lfsr_tx.tx_lfsr[0],
+                     u_mb_die.u_rx_top.o_rx_lane[0]);
+    end
+// synopsys translate_on
+
 endmodule

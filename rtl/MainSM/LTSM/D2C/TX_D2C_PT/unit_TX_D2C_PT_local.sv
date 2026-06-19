@@ -257,7 +257,14 @@ module unit_TX_D2C_PT_local (
                 tx_data_field[42:27] = d2c_idle_count;
                 tx_data_field[58:43] = d2c_iter_count;
                 tx_data_field[59]    = (d2c_compare_setup != 2'b00); // 0: Per-lane mode, 1: non-per-lane comparison mode
-                tx_data_field[63:60] = 4'h0;
+                // Carry the pattern ENABLE bits (data/valid/clk) explicitly in the
+                // reserved field. The [2:0] "Data pattern" field only encodes the
+                // pattern SELECT and is 3'b000 for PRBS (LFSR), which is
+                // indistinguishable from "data disabled" if the partner infers the
+                // enable from |data_field[2:0]. Transmitting d2c_pattern_setup here
+                // lets the partner enable the PRBS RX descrambler/compare correctly.
+                tx_data_field[62:60] = d2c_pattern_setup;
+                tx_data_field[63]    = 1'b0;
             end
 
             // UCIe 3.0 Reference Content:

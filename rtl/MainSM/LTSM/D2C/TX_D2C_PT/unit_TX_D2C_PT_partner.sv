@@ -223,7 +223,11 @@ module unit_TX_D2C_PT_partner (
             // mb_tx_clk_sampling_r           <= 2'(rx_data_field[9:6]);
             mb_rx_val_pattern_sel_r        <= |rx_data_field[5:3];
             mb_rx_data_pattern_sel_r       <= 2'(rx_data_field[2:0]);
-            mb_rx_pattern_setup_r          <= {1'b0, |rx_data_field[5:3], |rx_data_field[2:0]};
+            // Decode the pattern ENABLE bits directly from the reserved field the
+            // local now transmits (see unit_TX_D2C_PT_local). Inferring data-enable
+            // from |rx_data_field[2:0] breaks for PRBS (data select 3'b000), which
+            // would leave the RX descrambler in IDLE and fail every PRBS compare.
+            mb_rx_pattern_setup_r          <= rx_data_field[62:60];
             decoded_lfsr_en_r              <= (rx_data_field[2:0] == 3'h0); // 0h: LFSR pattern
         end
         else if (current_state == TX_PT_WAIT_RESULTS_REQ && rx_sb_msg == Tx_Init_D_to_C_results_req && rx_sb_msg_valid) begin

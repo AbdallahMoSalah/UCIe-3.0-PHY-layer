@@ -1105,6 +1105,11 @@ module LTSM_wrapper #(
             mb_rx_val_lane_sel     = 1'b1;
             mb_rx_data_lane_sel    = 1'b1;
         end
+
+        if (!d2c_active) begin
+            mb_rx_pattern_setup    = mb_tx_pattern_setup;
+            mb_rx_data_pattern_sel = mb_tx_data_pattern_sel;
+        end
     end
 
     // =========================================================================
