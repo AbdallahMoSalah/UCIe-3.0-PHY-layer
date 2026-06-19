@@ -223,6 +223,9 @@ module wrapper_MBTRAIN #(
     logic rxdeskew_dtc1_req         ;
     // repair_trainerror_req_w: driven by wrapper_REPAIR's trainerror_req output.
     logic repair_trainerror_req_w   ;
+    // rxdeskew_trainerror_req_w: driven by wrapper_RXDESKEW's trainerror_req output.
+    // BUG FIX: was previously undriven (missing from both the tied-0 group and the assigned group).
+    logic rxdeskew_trainerror_req_w ;
 
 
 
@@ -691,7 +694,7 @@ module wrapper_MBTRAIN #(
         .rxdeskew_en                  (ss_en[SS_RXDESKEW]),
         .rxdeskew_done                (rxdeskew_done),
         .datatraincenter1_req         (rxdeskew_dtc1_req),
-        .trainerror_req               (ss_trainerror_req[SS_RXDESKEW]),
+        .trainerror_req               (rxdeskew_trainerror_req_w),
         .phy_rx_deskew_ctrl           (rxdeskew_phy_rx_deskew_ctrl),
         .partner_sweep_en             (ss_partner_sweep_en[SS_RXDESKEW]),
         .phy_tx_eq_preset_ctrl        (rxdeskew_phy_tx_eq_preset_ctrl),
@@ -754,7 +757,7 @@ module wrapper_MBTRAIN #(
         .soft_rst_n                    (soft_rst_n),
         .is_high_speed                 (is_high_speed),
         .is_continuous_clk_mode        (is_continuous_clk_mode),
-        .linkspeed_en                  (linkspeed_en),
+        .linkspeed_en                  (ss_en[SS_LINKSPEED]),
         .linkspeed_done                (linkspeed_done),
 
         .linkspeed_linkinit_req        (linkspeed_linkinit_req),
@@ -828,10 +831,10 @@ module wrapper_MBTRAIN #(
         // .rx_data_field                (rx_data_field)
     );
 
-    assign ss_trainerror_req[SS_REPAIR] = repair_trainerror_req_w;
+    assign ss_trainerror_req[SS_REPAIR]  = repair_trainerror_req_w;
+    assign ss_trainerror_req[SS_RXDESKEW]= rxdeskew_trainerror_req_w; // BUG FIX: was undriven
 
-    // Substates with no trainerror_req output port get tied to 0.
-    // (SPEEDIDLE, RXCLKCAL, RXDESKEW, and REPAIR are driven by their wrapper output ports above.)
+    // All remaining substates have no trainerror_req output — tied to 0.
     assign ss_trainerror_req[SS_VALVREF]        = 1'b0;
     assign ss_trainerror_req[SS_DATAVREF]       = 1'b0;
     assign ss_trainerror_req[SS_TXSELFCAL]      = 1'b0;
@@ -970,7 +973,7 @@ module wrapper_MBTRAIN #(
     assign phy_tx_decrement_shift   = rxclkcal_phy_tx_decrement_shift  ;
 
     assign phy_rx_val_vref_ctrl       = (!is_valtrainvref_entered)? valvref_phy_rx_valvref_ctrl : valtrainvref_phy_rx_valvref_ctrl;//Valvref is not needed in training mode
-    assign phy_tx_val_pi_phase_ctrl  = valtraincenter_phy_tx_val_pi_phase_ctrl;
+    assign phy_tx_val_pi_phase_ctrl   = valtraincenter_phy_tx_val_pi_phase_ctrl;
     for (genvar i = 0; i < 16; i++) begin : DATA_PI_CODE_MUX
         assign phy_rx_data_vref_ctrl[i] = (!is_dtvref_entered)? datavref_phy_rx_datavref_ctrl[i] : datatrainvref_phy_rx_datavref_ctrl[i];
         assign phy_tx_data_pi_phase_ctrl[i] =

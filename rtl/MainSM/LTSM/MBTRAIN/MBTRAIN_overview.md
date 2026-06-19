@@ -507,12 +507,12 @@ cd "path to UCIe-3.0-PHY-layer"
 | **REPAIR Substate**            | `wrapper_REPAIR`           | `wrapper_REPAIR_tb`           | `make run CONFIG=wrapper_REPAIR           TOP=wrapper_REPAIR_tb`           |
 | **MBTRAIN Controller**         | `wrapper_MBTRAIN`          | `wrapper_MBTRAIN_tb`          | `make run CONFIG=wrapper_MBTRAIN          TOP=unit_MBTRAIN_tb`             |
 
-##### How to run the simulation in the terminal on Windows (PowerShell):
+##### How to run the simulation in the terminal on Linux (Make):
 
-Go to the root directory of the repo (inside `UCIe-3.0-PHY-layer`) then run the `Execution Command` from the table above. Here is an example on running `unit_RX_D2C_PT` TB: 
-Note: You can replace `-MODE run` in any one of the above `Execution Command` with `-MODE debug` to open Questasim GUI and see the waveform.
+Go to the root directory of the repo (inside `UCIe-3.0-PHY-layer`) then run the `Execution Command` from the table above. Here is an example on running `unit_RX_D2C_PT` TB:
+Note: You can replace `make run` with `make debug` to open Questasim GUI and see the waveform.
 
-```powershell
+```bash
 cd "path to UCIe-3.0-PHY-layer"
 make run CONFIG=unit_RX_D2C_PT           TOP=unit_RX_D2C_PT_tb
 ```
@@ -521,101 +521,107 @@ make run CONFIG=unit_RX_D2C_PT           TOP=unit_RX_D2C_PT_tb
 
 ## 13. AI Design Guide: Top-Level `wrapper_MBTRAIN.sv` Implementation Blueprint
 
-The top-level training wrapper `wrapper_MBTRAIN.sv` is responsible for integrating all 13 substate wrappers, the shared D2C sweep engine, lane negotiation utility, and the `unit_MBTRAIN_ctrl` top-level sequencer. For any coding assistant implementing this top-level wrapper, follow this blueprint strictly.
+The top-level training wrapper `wrapper_MBTRAIN.sv` is responsible for integrating all 13 substate wrappers, the shared D2C sweep engine, and the `unit_MBTRAIN_ctrl` top-level sequencer. For any coding assistant implementing this top-level wrapper, follow this blueprint strictly.
 
 ### 13.1. Sub-Modules to Instantiate
 1. **Top Sequencer**: `unit_MBTRAIN_ctrl`
-2. **Shared Sweep Engine**: `unit_D2C_sweep` (with configurable widths for Vref/PI codes)
-3. **Shared Negotiated Lanes**: `unit_negotiated_lanes` (translates target lane width code to 16-bit lane mask)
-4. **Substate Wrappers**:
+2. **Substate Wrappers** (all 13, in order):
    * `wrapper_VALVREF`, `wrapper_DATAVREF`, `wrapper_SPEEDIDLE`, `wrapper_TXSELFCAL`, `wrapper_RXCLKCAL`
    * `wrapper_VALTRAINCENTER`, `wrapper_VALTRAINVREF`, `wrapper_DATATRAINCENTER1`, `wrapper_DATATRAINVREF`
    * `wrapper_RXDESKEW`, `wrapper_DATATRAINCENTER2`, `wrapper_LINKSPEED`, `wrapper_REPAIR`
 
+> **Note on `unit_negotiated_lanes`**: This utility is instantiated **INSIDE `wrapper_REPAIR`**, NOT at the `wrapper_MBTRAIN` top level. `wrapper_REPAIR` exposes `active_rx_lanes` and `degrade_feasible` as output ports, which `wrapper_MBTRAIN` routes to `wrapper_LINKSPEED`.
+
 ### 13.2. Multiplexing and Control Signal Routing
 
-All interface routes from/to the physical layer must be multiplexed based on the `current_mbtrain_substate` output of `unit_MBTRAIN_ctrl`.
+Each substate wrapper drives its lane selectors and SB TX signals into indexed arrays:
+- `ss_mb_tx_*_lane_sel[0:NUM_SUBSTATES-1]` and `ss_mb_rx_*_lane_sel[0:NUM_SUBSTATES-1]`
+- `ss_tx_sb_msg_valid[0:NUM_SUBSTATES-1]`, `ss_tx_sb_msg[0:NUM_SUBSTATES-1]`, etc.
+
+All substate enable signals are also stored in `ss_en[0:NUM_SUBSTATES-1]` using localparam indices (`SS_VALVREF`=0, `SS_DATAVREF`=1, ..., `SS_REPAIR`=12).
 
 #### A. Mainband (MB) Transceiver MUX Logic
-The lane selectors (`mb_tx_*_lane_sel` and `mb_rx_*_lane_sel`) must route the active substate's output to the top wrapper ports. When MBTRAIN is in `MBTRAIN_IDLE` or `MBTRAIN_DONE`, default safe values must be driven (TX = Tri-state `2'b10`, RX = Disabled `1'b0`).
-* **TX Clock, Data, Valid, Track Selectors**:
-  ```systemverilog
-  always_comb begin
-      case (current_mbtrain_substate)
-          VALVREF:          {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {valvref_tx_clk_sel  , valvref_tx_data_sel  , valvref_tx_val_sel  , valvref_tx_trk_sel  };
-          DATAVREF:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {datavref_tx_clk_sel , datavref_tx_data_sel , datavref_tx_val_sel , datavref_tx_trk_sel };
-          SPEEDIDLE:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {speedidle_tx_clk_sel, speedidle_tx_data_sel, speedidle_tx_val_sel, speedidle_tx_trk_sel};
-          TXSELFCAL:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {txselfcal_tx_clk_sel, txselfcal_tx_data_sel, txselfcal_tx_val_sel, txselfcal_tx_trk_sel};
-          RXCLKCAL:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxclkcal_tx_clk_sel , rxclkcal_tx_data_sel , rxclkcal_tx_val_sel , rxclkcal_tx_trk_sel };
-          VALTRAINCENTER:   {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtc_tx_clk_sel      , vtc_tx_data_sel      , vtc_tx_val_sel      , vtc_tx_trk_sel      };
-          VALTRAINVREF:     {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtvref_tx_clk_sel   , vtvref_tx_data_sel   , vtvref_tx_val_sel   , vtvref_tx_trk_sel   };
-          DATATRAINCENTER1: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc1_tx_clk_sel     , dtc1_tx_data_sel     , dtc1_tx_val_sel     , dtc1_tx_trk_sel     };
-          DATATRAINVREF:    {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtvref_tx_clk_sel   , dtvref_tx_data_sel   , dtvref_tx_val_sel   , dtvref_tx_trk_sel   };
-          RXDESKEW:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxdeskew_tx_clk_sel , rxdeskew_tx_data_sel , rxdeskew_tx_val_sel , rxdeskew_tx_trk_sel };
-          DATATRAINCENTER2: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc2_tx_clk_sel     , dtc2_tx_data_sel     , dtc2_tx_val_sel     , dtc2_tx_trk_sel     };
-          LINKSPEED:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {linkspeed_tx_clk_sel, linkspeed_tx_data_sel, linkspeed_tx_val_sel, linkspeed_tx_trk_sel};
-          REPAIR:           {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {repair_tx_clk_sel   , repair_tx_data_sel   , repair_tx_val_sel   , repair_tx_trk_sel   };
-          default:          {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {2'b10, 2'b10, 2'b10, 2'b10}; // Tri-stated
-      endcase
-  end
-  ```
+Lane selectors are muxed by iterating `ss_en[]` in a combinational block:
 
-#### B. Sideband (SB) TX Message Arbitration
-Because multiple substate modules can request SB transmission, the wrapper must select the active substate's SB outputs to write into the async FIFO:
 ```systemverilog
-assign tx_sb_msg_valid = active_tx_sb_msg_valid;
-assign tx_sb_msg       = active_tx_sb_msg;
-assign tx_msginfo      = active_tx_msginfo;
-assign tx_data_field   = active_tx_data_field;
+always_comb begin : SUBSTATE_OUTPUT_MUX
+    // Defaults: TX driven Low, RX disabled
+    substate_mb_tx_clk_lane_sel  = 2'b00;
+    substate_mb_tx_data_lane_sel = 2'b00;
+    substate_mb_tx_val_lane_sel  = 2'b00;
+    substate_mb_tx_trk_lane_sel  = 2'b00;
+    substate_mb_rx_clk_lane_sel  = 1'b0;
+    substate_mb_rx_data_lane_sel = 1'b0;
+    substate_mb_rx_val_lane_sel  = 1'b0;
+    substate_mb_rx_trk_lane_sel  = 1'b0;
+    substate_tx_sb_msg_valid     = 1'b0;
+    substate_tx_sb_msg           = 8'h00;
+    substate_tx_msginfo          = 16'h0000;
+    substate_tx_data_field       = 64'h0;
+
+    for (int i = 0; i < NUM_SUBSTATES; i++) begin
+        if (ss_en[i]) begin
+            substate_mb_tx_clk_lane_sel  = ss_mb_tx_clk_lane_sel[i];
+            substate_mb_tx_data_lane_sel = ss_mb_tx_data_lane_sel[i];
+            substate_mb_tx_val_lane_sel  = ss_mb_tx_val_lane_sel[i];
+            substate_mb_tx_trk_lane_sel  = ss_mb_tx_trk_lane_sel[i];
+            substate_mb_rx_clk_lane_sel  = ss_mb_rx_clk_lane_sel[i];
+            substate_mb_rx_data_lane_sel = ss_mb_rx_data_lane_sel[i];
+            substate_mb_rx_val_lane_sel  = ss_mb_rx_val_lane_sel[i];
+            substate_mb_rx_trk_lane_sel  = ss_mb_rx_trk_lane_sel[i];
+            // SB bus is strictly owned by the active substate
+            substate_tx_sb_msg_valid     = ss_tx_sb_msg_valid[i];
+            substate_tx_sb_msg           = ss_tx_sb_msg[i];
+            substate_tx_msginfo          = ss_tx_msginfo[i];
+            substate_tx_data_field       = ss_tx_data_field[i];
+        end
+    end
+end
 ```
-*(Combine them inside a comb block using `current_mbtrain_substate` as the select line).*
 
-#### C. Shared Watchdog & Settle Timer Routing
-Watchdog and settle timers are OR'ed or routed cleanly.
-* `analog_settle_timer_en` = OR of all `analog_settle_timer_en` outputs.
+> **Note**: When `MBTRAIN_IDLE` or `MBTRAIN_DONE`, `ss_en[]` is all-zero so default safe values hold (TX Low, RX Disabled).
 
-#### D. Shared Sweep Engine Multiplexing
-Since only one substate sweeps at a time, route the sweep controls using a multiplexer:
-* **Inputs to active substate**: `swept_code`, `best_code`, `sweep_done` from `unit_D2C_sweep`.
-* **Outputs to `unit_D2C_sweep`**:
-  ```systemverilog
-  assign sweep_en = valvref_sweep_en | datavref_sweep_en | valtraincenter_sweep_en | 
-                    valtrainvref_sweep_en | dtc1_sweep_en | dtvref_sweep_en | 
-                    rxdeskew_sweep_en | dtc2_sweep_en | linkspeed_sweep_en;
-  ```
+#### B. Shared Watchdog & Settle Timer Routing
+* `analog_settle_timer_en` = OR of all `ss_analog_settle_timer_en[i]` array elements.
+* Substates without an analog-settle port have their array element tied to `1'b0`.
+
+#### C. Shared Sweep Engine Routing
+Since only one substate sweeps at a time:
+* **Local sweep en**: `assign local_sweep_en = |ss_local_sweep_en;`
+* **Partner sweep en**: `assign partner_sweep_en = |ss_partner_sweep_en;`
+* **Active lanes**: `assign sweep_active_lanes = active_rx_lanes;` (from `wrapper_REPAIR`)
+* Substates without sweep capability have `ss_local_sweep_en[i]` and `ss_partner_sweep_en[i]` tied to `1'b0`.
 
 ### 13.3. Signal Mapping and Connectivity Details
 
 To compile and verify `wrapper_MBTRAIN.sv` successfully, implement the following connections between sub-modules:
 
 1. **Top-Level Sequencer Handshakes (`unit_MBTRAIN_ctrl` ↔ Substate Wrappers)**:
-   * Map `local_<substate>_en` and `partner_<substate>_en` outputs from the sequencer to the corresponding substate wrapper input ports.
-   * Route `local_<substate>_done` and `partner_<substate>_done` outputs from all wrappers back to the sequencer's status inputs.
-   * Collect the `trainerror_req` signals from all active wrappers and logically `OR` them to drive the `trainerror_detected` input on the sequencer.
+   * Each substate wrapper gets its enable from `ss_en[SS_<NAME>]` (set from the ctrl's `<name>_en` output via `ss_en[i]` array).
+   * `<name>_done` outputs from each wrapper route directly back to the ctrl.
+   * `trainerror_req` outputs from substates feed into `ss_trainerror_req[i]`; the OR-reduction `|ss_trainerror_req` drives `trainerror_detected` on the sequencer.
 
-2. **D2C Sweep Interface Routing (`unit_D2C_sweep` ↔ Substate Wrappers)**:
-   * Connect `unit_D2C_sweep.swept_code` combinational output to the `swept_code` input of all wrappers.
-   * Connect `unit_D2C_sweep.best_code` array output to the `best_code` input of all wrappers.
-   * Connect `unit_D2C_sweep.sweep_done` flag output to the `sweep_done` input of all wrappers.
-   * Drive `unit_D2C_sweep.sweep_en` using the logical OR of all wrappers' `sweep_en` outputs:
-     `assign sweep_en = valvref_sweep_en | datavref_sweep_en | valtraincenter_sweep_en | valtrainvref_sweep_en | dtc1_sweep_en | dtvref_sweep_en | rxdeskew_sweep_en | dtc2_sweep_en | linkspeed_sweep_en;`
+2. **D2C Sweep Interface Routing (External `unit_D2C_sweep` ↔ Substate Wrappers)**:
+   * `unit_D2C_sweep` is instantiated **outside** `wrapper_MBTRAIN` (at higher level). The wrapper receives `sweep_swept_code`, `sweep_best_code`, `sweep_done`, `sweep_min_eye_width` as inputs and drives `local_sweep_en`, `partner_sweep_en`, `sweep_active_lanes` as outputs.
+   * Sliced versions of the shared sweep bus are distributed to each substate wrapper based on its code width.
 
-3. **Width Degradation Inter-lock (`unit_negotiated_lanes` ↔ `wrapper_REPAIR`)**:
-   * Connect `unit_negotiated_lanes.degrade_feasible` to the `width_degrade_feasible` input of `wrapper_REPAIR`.
-   * Connect `unit_negotiated_lanes.degraded_lane_map_code` to the `local_tx_lane_map_code` input of `wrapper_REPAIR`.
-   * Connect `wrapper_REPAIR.update_lane_mask` to the `update_lane_mask` control input of `unit_negotiated_lanes`.
-   * Broadcast the registered `mb_tx_data_lane_mask` and `mb_rx_data_lane_mask` outputs from `wrapper_REPAIR` back to the top-level ports and other wrappers.
+3. **Width Degradation Inter-lock (`unit_negotiated_lanes` inside `wrapper_REPAIR`)**:
+   * **`unit_negotiated_lanes` is instantiated INSIDE `wrapper_REPAIR`** (not at the top-level `wrapper_MBTRAIN`). The wrapper exposes its key outputs as ports:
+     * `wrapper_REPAIR.active_rx_lanes` → connected to `sweep_active_lanes` output and `wrapper_LINKSPEED.active_rx_lanes` input.
+     * `wrapper_REPAIR.degrade_feasible` → connected to `wrapper_LINKSPEED.width_degrade_feasible` input.
+   * Connect `wrapper_REPAIR.success_tx_lanes` ← from `wrapper_LINKSPEED.linkspeed_success_lanes`.
+   * Broadcast the registered `mb_tx_data_lane_mask` and `mb_rx_data_lane_mask` outputs from `wrapper_REPAIR` back to the top-level ports.
 
 4. **Sideband Messaging Broadcast & Arbitration**:
-   * Broadcast the top-level incoming sideband inputs (`rx_sb_msg_valid`, `rx_sb_msg`, `rx_msginfo`, and `rx_data_field`) to the respective input ports of all 13 substate wrappers.
-   * Multiplex the outgoing sideband message channels from all wrappers onto the global TX sideband ports (`tx_sb_msg_valid`, `tx_sb_msg`, `tx_msginfo`, `tx_data_field`) comb-wise using `current_mbtrain_substate` as the selection lines.
+   * Broadcast the top-level incoming sideband inputs (`rx_sb_msg_valid`, `rx_sb_msg`, `rx_msginfo`) to all 13 substate wrappers.
+   * The `ss_en[]`-gated `SUBSTATE_OUTPUT_MUX` block above handles SB TX arbitration — only the active substate's SB outputs are forwarded to `substate_tx_sb_msg_valid`, etc.
 
 5. **Mainband Lane Selectors Multiplexing**:
-   * Symmetrically route the 8 lane selector signals (`mb_tx_clk_lane_sel`, `mb_tx_data_lane_sel`, `mb_tx_val_lane_sel`, `mb_tx_trk_lane_sel` and `mb_rx_clk_lane_sel`, `mb_rx_data_lane_sel`, `mb_rx_val_lane_sel`, `mb_rx_trk_lane_sel`) from each substate wrapper into a combinational multiplexer controlled by `current_mbtrain_substate`.
-   * If no substate is active, default TX selectors to tri-state (`2'b10`) and RX selectors to disabled (`1'b0`).
+   * Each substate wrapper drives its own `mb_tx_*_lane_sel` / `mb_rx_*_lane_sel` outputs into the `ss_mb_*[]` arrays. The `SUBSTATE_OUTPUT_MUX` comb block selects the active substate's values.
+   * When no substate is active (`ss_en[]` all zero), defaults hold: TX=`2'b00` (Low), RX=`1'b0` (Disabled).
 
 6. **Timer Enables OR-Logic**:
-   * Combine all substate wrappers' `analog_settle_timer_en` signals using a logical OR to drive the top-level `analog_settle_timer_en` output.
+   * `assign analog_settle_timer_en = |ss_analog_settle_timer_en;`
 
 ---
 
@@ -744,3 +750,160 @@ Keep these critical rules in mind when writing or modifying SystemVerilog module
 3. **No Direct Inter-Die Modport Connection**: Modules must use individual ports, not interfaces or modports directly in the module port definitions, to maintain synthesis compatibility and simulation modularity.
 4. **Soft Reset Compatibility**: All register arrays (like `best_code_r` or phase configurations) must be reset not only by the physical `rst_n` signal, but also by the soft reset signal `soft_rst_n` when it is low (`!soft_rst_n`).
 5. **Speed Change Settle Cycles**: When changing PLL speed rates in `SPEEDIDLE`, FSMs must request `analog_settle_timer_en = 1` and wait for `analog_settle_time_done == 1` before sending sideband status updates, ensuring the PLL clocks are stable before launching point tests.
+6. **`ss_trainerror_req[]` completeness rule**: Every entry in the `ss_trainerror_req[NUM_SUBSTATES-1:0]` array **must** be explicitly driven — either by the substate's `trainerror_req` output port or by a tie-zero `assign`. An undriven entry propagates `X` into the OR-reduction `trainerror_detected`, which can cause spurious TRAINERROR exits in simulation.
+7. **`ss_en[]` consistency rule**: All substate wrapper enable inputs must be connected via `ss_en[SS_<NAME>]`, not the bare intermediate wire (e.g., `linkspeed_en`). Using the bare wire bypasses the `ss_en` array, breaking the `SUBSTATE_OUTPUT_MUX` and the `ss_local/partner_sweep_en` tied-zero assignments.
+
+---
+
+## 17. MBTRAIN Full-Flow Scenario Matrix & Paths
+
+This section details all legal flow paths, entry points, state transitions, and test scenarios designed to verify the LTSM sequencer (`unit_MBTRAIN_ctrl.sv` and `wrapper_MBTRAIN.sv`).
+
+### 17.1. MBTRAIN Flow Paths & Entry Points
+
+The LTSM MBTRAIN sub-state sequences through up to 13 dedicated substates. Depending on the previous LTSM state history (`state_n_1`) or external requests (such as wake-up from low power states or retrain requests), training can start at different entry points:
+
+1. **From MBINIT (Nominal Entry)**: Starts at the first substate, `VALVREF`.
+2. **From L1 Exit (L1/L1_L2 Wake-up)**: Entered directly at `SPEEDIDLE` when `state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2` (and not `LOG_L2`). The link retains the previously negotiated speed parameter.
+3. **From PHYRETRAIN (Retrain Entry)**: Re-enters MBTRAIN at specific entry points based on the request type:
+   * Re-entry at `SPEEDIDLE` (if `mbtrain_speedidle_req == 1`)
+   * Re-entry at `TXSELFCAL` (if `mbtrain_txselfcal_req == 1`)
+   * Re-entry at `REPAIR` (if `mbtrain_repair_req == 1`)
+
+```mermaid
+graph TD
+    %% Entry Points
+    MBINIT_ENTRY(["From MBINIT"]) --> VALVREF["1. VALVREF"]
+    L1_ENTRY(["From L1 (L1/L1_L2 Exit)"]) -.-> SPEEDIDLE["3. SPEEDIDLE"]
+    RETRAIN_ENTRY(["From PHYRETRAIN"]) -.-> SPEEDIDLE
+    RETRAIN_ENTRY -.-> TXSELFCAL["4. TXSELFCAL"]
+    RETRAIN_ENTRY -.-> REPAIR["13. REPAIR"]
+
+    %% Nominal sequence
+    VALVREF --> DATAVREF["2. DATAVREF"]
+    DATAVREF --> SPEEDIDLE
+    SPEEDIDLE --> TXSELFCAL
+    TXSELFCAL --> RXCLKCAL["5. RXCLKCAL"]
+    RXCLKCAL --> VALTRAINCENTER["6. VALTRAINCENTER"]
+    VALTRAINCENTER --> VALTRAINVREF["7. VALTRAINVREF"]
+    VALTRAINVREF --> DATATRAINCENTER1["8. DATATRAINCENTER1"]
+    DATATRAINCENTER1 --> DATATRAINVREF["9. DATATRAINVREF"]
+    DATATRAINVREF --> RXDESKEW["10. RXDESKEW"]
+    RXDESKEW --> DATATRAINCENTER2["11. DATATRAINCENTER2"]
+    DATATRAINCENTER2 --> LINKSPEED["12. LINKSPEED"]
+
+    %% Exit Paths from LINKSPEED
+    LINKSPEED -->|Success & Stable| LINKINIT["LINKINIT"]
+    LINKSPEED -->|Speed Degrade Request| SPEEDIDLE
+    LINKSPEED -->|Width Degrade Request| REPAIR
+    LINKSPEED -->|PHY Retrain Request| PHYRETRAIN["PHYRETRAIN"]
+    LINKSPEED -->|Unrecoverable Fail / Exhausted| TRAINERROR["TRAINERROR"]
+
+    %% REPAIR loop
+    REPAIR -->|Valid Degrade| TXSELFCAL
+    REPAIR -->|Invalid / Exhausted| TRAINERROR
+
+    %% Individual state failures (Timeout or architectural check)
+    VALVREF -->|Fail| TRAINERROR
+    DATAVREF -->|Fail| TRAINERROR
+    SPEEDIDLE -->|Fail| TRAINERROR
+    TXSELFCAL -->|Fail| TRAINERROR
+    RXCLKCAL -->|Fail| TRAINERROR
+    VALTRAINCENTER -->|Fail| TRAINERROR
+    VALTRAINVREF -->|Fail| TRAINERROR
+    DATATRAINCENTER1 -->|Fail| TRAINERROR
+    DATATRAINVREF -->|Fail| TRAINERROR
+    RXDESKEW -->|Fail| TRAINERROR
+    DATATRAINCENTER2 -->|Fail| TRAINERROR
+```
+
+---
+
+### 17.2. Detailed Architectural Causes for TRAINERROR Transitions
+
+Beyond the global 8ms timeout watchdog, the LTSM MBTRAIN sub-modules perform local checks that trigger an immediate transition to `TRAINERROR` if violated:
+
+1. **SPEEDIDLE - Lowest Speed Rate Violation**:
+   * **Cause**: Entered to perform speed degradation (`state_n_1 == LOG_MBTRAIN_LINKSPEED || state_n_1 == LOG_PHYRETRAIN`), but the negotiated speed is already at the lowest rate (`3'b000` / 4 GT/s).
+   * **Mechanism**: Local/Partner FSM detects `speed_degrade_error = 1` and transitions to `TO_TRAINERROR`, asserting `trainerror_req`.
+2. **RXCLKCAL - Residual Clock Phase Shift Out of Range**:
+   * **Cause**: During IQ clock phase calibration, the required adjustment exceeds the physical limit of the Tx TCKN driver.
+   * **Mechanism**: The Partner IQ sub-module (`unit_RXCLKCAL_IQ_partner`) detects `phy_tx_tckn_shift_out_of_range == 1'b1`, enters `IQ_PTR_ERROR`, and sends status `rx_msginfo[0] = 1` (Fail) to the Local IQ sub-module, which transitions to `IQ_LCL_DONE_ERROR` and asserts `trainerror_req`.
+3. **RXDESKEW - DTC1 Iteration Loop Count Exceeded**:
+   * **Cause**: The loopback arc from `RXDESKEW` to `DATATRAINCENTER1` (for TX EQ preset tuning) is taken more than the specification limit of 4 times.
+   * **Mechanism**: When receiving an exit-to-DTC1 request, if the canonical partner-side arc counter (`dtc1_arc_cnt` / `partner_arc_cnt`) has already reached `3'd4`, the Local and Partner FSMs reject the request and transition directly to `TO_TRAINERROR`.
+4. **REPAIR - Width Degradation Not Feasible**:
+   * **Cause**: Lane repair fails because width degradation is not supported or not feasible.
+   * **Mechanism**: During REPAIR negotiation, if either side determines degradation cannot be completed (local TX code is `3'b000` or received partner code is `3'b000` "degrade not possible"), the Local/Partner FSMs transition to `REPAIR_LCL_TO_TRAINERROR`/`REPAIR_PTR_TO_TRAINERROR` and assert `trainerror_req`.
+5. **LINKSPEED - Unstable Link with No Feasible Recovery (Controller Level)**:
+   * **Cause**: `LINKSPEED` completes (`linkspeed_done == 1`) but the link is unstable and cannot recover via further speed degrades or width degradation.
+   * **Mechanism**: Controller `unit_MBTRAIN_ctrl.sv` evaluates the return request flags from `wrapper_LINKSPEED`. If all flags (`linkspeed_speedidle_req`, `linkspeed_repair_req`, `linkspeed_phyretrain_req`, and `linkspeed_linkinit_req`) are low, the sequencer combinationally asserts `ltsm_trainerror_req = 1'b1` and advances to `MBTRAIN_DONE`.
+
+---
+
+### 17.3. Scenario Matrix
+
+The verification scenarios are classified into six groups:
+
+#### Group A: Normal Success Flow (Golden Path)
+| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **A1** | Golden Path (MBINIT Entry) | Enters from `MBINIT` (`VALVREF` start). All substates succeed; `RXDESKEW` succeeds; `LINKSPEED` stable. | VALVREF → DATAVREF → SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| **A2** | Golden Path (L1 Exit Entry) | Enters from `L1` or `L1_L2` exit (`SPEEDIDLE` start, `state_n_1 == LOG_L1 || LOG_L1_L2`). Previous speed is kept; all substates succeed. | SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+
+#### Group B: Speed Degrade Flow
+| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **B1** | Single Speed Degrade | `LINKSPEED` determines current speed is unstable, and a next lower speed rate exists. | ... → LINKSPEED → **SPEEDIDLE** (performs fallback) → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| **B2** | Multiple Speed Degrades | E.g., starts at 64 GT/s → drops to 48 GT/s → drops to 32 GT/s. The loop repeats until stability is reached. | Repeats the training sequence loop from `SPEEDIDLE` after each fallback request. | **PASS** |
+| **B3** | Lowest Speed Still Fails | `LINKSPEED` repeatedly requests speed degrade, but no lower speed is available. | ... → LINKSPEED → SPEEDIDLE → **TRAINERROR** (due to Speed Degrade Error) | **PASS** |
+
+#### Group C: Width Degrade Flow
+> [!NOTE]
+> Width degrade behavior is guided by the module capabilities:
+> * **x16 Module**: `is_x16_module = (rf_cap_SPMW == 1'b0) && (rf_ctrl_target_link_width == 4'h2) && (param_UCIe_S_x8 == 1'b0)` and `is_x8_module = 1'b0`.
+> * **x8 Module**: `is_x16_module = 1'b0` and `is_x8_module = (rf_ctrl_target_link_width == 4'h1)`.
+> * If any other width configuration issues an unsupported degrade request (e.g. degrading directly from x16 to x4), the controller exits to `TRAINERROR`.
+> * Only one degradation level is allowed per training session. A second degrade request exits to `TRAINERROR`.
+
+| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **C1** | Width Degrade x16 → x8 | `is_x16_module = 1` and `is_x8_module = 0`. `LINKSPEED` detects lane instability; width degrade is allowed. | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT** | **PASS** |
+| **C2** | Width Degrade x8 → x4 | `is_x16_module = 0` and `is_x8_module = 1`. `LINKSPEED` detects lane instability; width degrade is allowed. | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT** | **PASS** |
+| **C3** | Width Degrade Exhausted (x16 → x8) | E.g. x16 → x8 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR** | **PASS** |
+| **C4** | Width Degrade Exhausted (x8 → x4) | E.g. x8 → x4 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR** | **PASS** |
+
+#### Group D: PHY Retrain Flow
+| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **D1** | PHY Retrain Request | `LINKSPEED` detects parameter change (`params_changed = 1`). | ... → LINKSPEED → **PHYRETRAIN** | **PASS** |
+| **D2** | PHY Retrain Then Success | Controller re-enters MBTRAIN after a `PHYRETRAIN` request, and training succeeds. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> VALVREF → ... → LINKSPEED → **LINKINIT** | **PASS** |
+| **D3** | PHY Retrain Then Speed Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires speed degrade. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> ... → LINKSPEED → **SPEEDIDLE** (fallback) → ... → **LINKINIT** | **PASS** |
+
+#### Group E: Training Failure Flow
+These scenarios test individual substate failures. Any substate asserting `trainerror_req` must trigger an immediate transition to `TRAINERROR`.
+
+| Scenario | Scenario Name | Expected Flow Path |
+| :--- | :--- | :--- |
+| **E1** | `VALVREF` Failure | VALVREF → **TRAINERROR** (due to watchdog timeout) |
+| **E2** | `DATAVREF` Failure | VALVREF → DATAVREF → **TRAINERROR** (due to watchdog timeout) |
+| **E3** | `SPEEDIDLE` Failure | ... → SPEEDIDLE → **TRAINERROR** (due to speed degrade error or timeout) |
+| **E4** | `TXSELFCAL` Failure | ... → TXSELFCAL → **TRAINERROR** (due to watchdog timeout) |
+| **E5** | `RXCLKCAL` Failure | ... → RXCLKCAL → **TRAINERROR** (due to IQ phase out of range or timeout) |
+| **E6** | `VALTRAINCENTER` Failure | ... → VALTRAINCENTER → **TRAINERROR** (due to watchdog timeout) |
+| **E7** | `VALTRAINVREF` Failure | ... → VALTRAINVREF → **TRAINERROR** (due to watchdog timeout) |
+| **E8** | `DATATRAINCENTER1` Failure | ... → DATATRAINCENTER1 → **TRAINERROR** (due to watchdog timeout) |
+| **E9** | `DATATRAINVREF` Failure | ... → DATATRAINVREF → **TRAINERROR** (due to watchdog timeout) |
+| **E10** | `RXDESKEW` Failure | ... → RXDESKEW → **TRAINERROR** (due to loopback arc count > 4 or timeout) |
+| **E11** | `DATATRAINCENTER2` Failure | ... → DATATRAINCENTER2 → **TRAINERROR** (due to watchdog timeout) |
+| **E12** | `LINKSPEED` Unrecoverable Fail | ... → LINKSPEED → **TRAINERROR** (due to no recovery paths or timeout) |
+
+#### Group F: Asynchronous Error Injection
+| Scenario | Scenario Name | Description / Conditions | Expected Behavior |
+| :--- | :--- | :--- | :--- |
+| **F1** | TRAINERROR Injection | Inject external `trainerror` request during *any* of the 13 active substates. | Immediate transition to the `TRAINERROR` state. |
+| **F2** | Soft Reset Mid-Sequence | Assert soft reset (`soft_rst_n = 0`) while training is active. | Controller returns to `IDLE` state immediately; all pending requests deasserted. |
+| **F3** | Disable Mid-Sequence | Deassert MBTRAIN enable input mid-sequence. | Clean exit to the `IDLE` state with no deadlock. |
+
+---
+
