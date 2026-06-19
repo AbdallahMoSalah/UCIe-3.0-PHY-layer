@@ -77,7 +77,7 @@ module unit_tx_top #(
     // unit_mb_pll control
     // -------------------------------------------------------------------------
     input  logic                    i_pll_en,               // enable the PLL
-    input  logic [1:0]              i_pll_speed_sel,        // 00=2G 01=4G 10=8G 11=16G
+    input  logic [2:0]              i_pll_speed_sel,        // 00=2G 01=4G 10=8G 11=16G
     input  logic                    lclk_g,                 // debug clock gate enable
     // -------------------------------------------------------------------------
     // unit_clk_pattern_gen_tx control

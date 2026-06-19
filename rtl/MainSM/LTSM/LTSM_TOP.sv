@@ -50,7 +50,6 @@ module LTSM_TOP #(
     // RESET-state triggers / strap
     // =========================================================================
     input  logic                 phy_start_ucie_link_training_ctrl_out,
-    input  logic                 Adapter_training_req,
     input  logic                 sb_det_pattern_rcvd,
     input  logic                 SPMW,
 
@@ -141,6 +140,13 @@ module LTSM_TOP #(
     output logic [NUM_LANES-1:0] i_rx_data_deser_en,
     output logic                 i_rx_valid_deser_en,
     output logic                 i_clk_embedded_en,
+    output logic [2:0]           mb_pll_speed_sel,
+    output logic                 busy_bit_rst,
+    output logic [1:0]           mb_tx_data_lane_sel,
+    output logic [1:0]           mb_tx_val_lane_sel,
+    output logic [1:0]           mb_tx_clk_lane_sel,
+    output logic [1:0]           mb_tx_trk_lane_sel,
+    input  logic                 start_bit,
 
     // =========================================================================
     // unit_mb_die-facing RESULT inputs (to the interface)
@@ -214,7 +220,6 @@ module LTSM_TOP #(
         .log1_state_n_minus_3                   (log1_state_n_minus_3),
 
         .phy_start_ucie_link_training_ctrl_out  (phy_start_ucie_link_training_ctrl_out),
-        .Adapter_training_req                   (Adapter_training_req),
         .sb_det_pattern_rcvd                    (sb_det_pattern_rcvd),
         .SPMW                                   (SPMW),
         .mb_rx_max_err_thresh_aggr              (),
@@ -231,10 +236,10 @@ module LTSM_TOP #(
         .mb_tx_lfsr_en                          (),
         .mb_rx_clk_lane_sel                     (),
         .mb_rx_trk_lane_sel                     (),
-        .mb_tx_data_lane_sel                    (),
-        .mb_tx_val_lane_sel                     (),
-        .mb_tx_clk_lane_sel                     (),
-        .mb_tx_trk_lane_sel                     (),
+        .mb_tx_data_lane_sel                    (mb_tx_data_lane_sel),
+        .mb_tx_val_lane_sel                     (mb_tx_val_lane_sel),
+        .mb_tx_clk_lane_sel                     (mb_tx_clk_lane_sel),
+        .mb_tx_trk_lane_sel                     (mb_tx_trk_lane_sel),
         .mb_tx_clk_pattern_sel                  (),
         .mb_tx_idle_count                       (),
         .mb_rx_val_pattern_sel                  (),
@@ -318,7 +323,10 @@ module LTSM_TOP #(
         .repairclk_rtrk_pass                    (w_repairclk_rtrk_pass),
         .repairclk_rckn_pass                    (w_repairclk_rckn_pass),
         .repairclk_rckp_pass                    (w_repairclk_rckp_pass),
-        .repairval_RVLD_L_pass                  (w_repairval_RVLD_L_pass)
+        .repairval_RVLD_L_pass                  (w_repairval_RVLD_L_pass),
+        .mb_pll_speed_sel                       (mb_pll_speed_sel),
+        .busy_bit_rst                           (busy_bit_rst),
+        .start_bit                              (start_bit)
     );
 
 

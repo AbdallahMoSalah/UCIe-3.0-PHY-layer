@@ -12,9 +12,9 @@
 //   - If triggered by partner request (`rx_req_detected`): we are the Responder.
 //     * Transitions to `TE_RSP_SEND`, drives `TRAINERROR_Entry_resp` until accepted.
 //   - Transition to `TE_DONE` on completion of either path.
-//   - If `global_error` (timeout) is asserted while active, transition to `TE_DONE`.
-//   - Once in `TE_DONE`, remains there until `en` goes low, transitioning back
-//     to `TE_IDLE`.
+//   - `done` is asserted ONLY in `TE_DONE` (a genuine completed handshake).
+//   - Whenever `en` is deasserted the FSM parks in `TE_IDLE` (done=0), which
+//     re-arms it for the next link bring-up. (Disabled != done.)
 // =============================================================================
 
 module trainerror_handshake
@@ -88,7 +88,11 @@ module trainerror_handshake
         next_state = current_state;
 
         if (!en) begin
-            next_state = TE_DONE;
+            // Disabled -> park in IDLE (done=0), NOT TE_DONE. This re-arms the
+            // handshake every time `en` drops (RESET/SBINIT/TRAINERROR) and keeps
+            // `done` meaning strictly "a real entry handshake completed" — so the
+            // controller never reads a stale done=1 when `en` rises into MBINIT.
+            next_state = TE_IDLE;
         end else begin
             case (current_state)
                 TE_IDLE: begin

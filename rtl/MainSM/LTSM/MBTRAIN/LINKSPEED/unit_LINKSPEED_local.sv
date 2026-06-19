@@ -213,8 +213,6 @@ module unit_LINKSPEED_local (
     //   local_phy_retrain_r — EVAL_RESULT next-state reads (PHY_IN_RETRAIN && params_changed)
     //                         directly. No subsequent state reads a latched version.
     // =========================================================================
-    logic req_speed_degrade_r;   // 1 = width degrade NOT feasible → must speed degrade.
-    //     Read in: RECOVERY_DECISION.
     logic in_electrical_idle_r;  // 1 = TX must remain in Electrical Idle.
     //     Read in: OUTPUT_COMB_PROC MB TX default logic.
 
@@ -387,10 +385,16 @@ module unit_LINKSPEED_local (
                 end
 
                 // 1-cycle decision: check if partner already committed to speed degrade.
+                // width_degrade_feasible is evaluated combinationally HERE (not latched in
+                // EVAL_RESULT): it is derived from linkspeed_success_lanes, which is only
+                // registered ON the EVAL_RESULT clock edge. Reading feasibility in EVAL_RESULT
+                // would therefore sample the stale (pre-update) success-lane mask and always
+                // resolve to "not feasible" → spurious speed-degrade. By RECOVERY_DECISION the
+                // success-lane mask has been stable for several cycles, so feasibility is valid.
                 LINKSPEED_LCL_RECOVERY_DECISION: begin
                     if (partner_exit_to_speed_degrade_req_rcvd)
                         next_state = LINKSPEED_LCL_TO_SPEEDIDLE;
-                    else if (req_speed_degrade_r)
+                    else if (!width_degrade_feasible)
                         next_state = LINKSPEED_LCL_SEND_SPEED_DEGRADE_REQ;
                     else
                         next_state = LINKSPEED_LCL_SEND_REPAIR_REQ;
@@ -460,19 +464,15 @@ module unit_LINKSPEED_local (
     // =========================================================================
     always_ff @(posedge lclk or negedge rst_n) begin : DATA_PATH_REG_PROC
         if (!rst_n) begin
-            req_speed_degrade_r     <= 1'b0;
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
         else if (!soft_rst_n || !linkspeed_en) begin
-            req_speed_degrade_r     <= 1'b0;
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
         else begin
             if (current_state == LINKSPEED_LCL_EVAL_RESULT) begin
-                // req_speed_degrade_r: held for RECOVERY_DECISION state (after error resp).
-                req_speed_degrade_r     <= ~width_degrade_feasible;
                 // in_electrical_idle_r: held throughout the error path; drives MB TX Elec-Idle.
                 in_electrical_idle_r    <= error_detected_w;
                 // linkspeed_success_lanes: passed to MBTRAIN.REPAIR to identify which lanes need repair.

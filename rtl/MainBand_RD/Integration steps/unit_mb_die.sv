@@ -49,7 +49,7 @@ module unit_mb_die #(
     input  logic                    i_reversal_en,
     input  logic                    i_valid_pattern_en,
     input  logic                    i_pll_en,
-    input  logic [1:0]              i_pll_speed_sel,
+    input  logic [2:0]              i_pll_speed_sel,
     input  logic                    lclk_g,
     input  logic                    i_clk_pattern_en,
     input  logic                    i_clk_embedded_en,

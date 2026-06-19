@@ -28,7 +28,8 @@ module MB_SB_LTSM_tb;
     logic             lp_irdy0;
     logic             lp_valid0;
     logic             pl_trdy0;
-    logic [1:0]       i_pll_speed_sel0;
+    logic             start_bit0;       // -> LTSM params_changed
+    logic             busy_bit_rst0;
     logic             lclk_g0;
     logic [15:0]      i_pcmp_thr_per_lane0;
     logic [15:0]      i_pcmp_thr_aggregate0;
@@ -139,7 +140,8 @@ module MB_SB_LTSM_tb;
     logic             lp_irdy1;
     logic             lp_valid1;
     logic             pl_trdy1;
-    logic [1:0]       i_pll_speed_sel1;
+    logic             start_bit1;       // -> LTSM params_changed
+    logic             busy_bit_rst1;
     logic             lclk_g1;
     logic [15:0]      i_pcmp_thr_per_lane1;
     logic [15:0]      i_pcmp_thr_aggregate1;
@@ -302,7 +304,8 @@ module MB_SB_LTSM_tb;
         .lp_irdy                               (lp_irdy0),
         .lp_valid                              (lp_valid0),
         .pl_trdy                               (pl_trdy0),
-        .i_pll_speed_sel                       (i_pll_speed_sel0),
+        .start_bit                             (start_bit0),
+        .busy_bit_rst                          (busy_bit_rst0),
         .lclk_g                                (lclk_g0),
         .i_pcmp_thr_per_lane                   (i_pcmp_thr_per_lane0),
         .i_pcmp_thr_aggregate                  (i_pcmp_thr_aggregate0),
@@ -406,7 +409,8 @@ module MB_SB_LTSM_tb;
         .lp_irdy                               (lp_irdy1),
         .lp_valid                              (lp_valid1),
         .pl_trdy                               (pl_trdy1),
-        .i_pll_speed_sel                       (i_pll_speed_sel1),
+        .start_bit                             (start_bit1),
+        .busy_bit_rst                          (busy_bit_rst1),
         .lclk_g                                (lclk_g1),
         .i_pcmp_thr_per_lane                   (i_pcmp_thr_per_lane1),
         .i_pcmp_thr_aggregate                  (i_pcmp_thr_aggregate1),
@@ -621,8 +625,8 @@ module MB_SB_LTSM_tb;
         addr_err_o0 = 1'b0;
         addr_err_o1 = 1'b0;
 
-        i_pll_speed_sel0 = 2'b00;
-        i_pll_speed_sel1 = 2'b00;
+        start_bit0 = 1'b0;
+        start_bit1 = 1'b0;
         lclk_g0 = 1'b1; // keep ungated
         lclk_g1 = 1'b1;
 

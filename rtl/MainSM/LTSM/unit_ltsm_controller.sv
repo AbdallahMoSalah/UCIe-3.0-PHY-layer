@@ -1,24 +1,25 @@
 // =============================================================================
-// unit_ltsm_controller  —  Step 1: initial / minimal LTSM controller FSM
+// unit_ltsm_controller  —  LTSM controller FSM
 // =============================================================================
-// Sequences the Step-1 subset of LTSM states:
+// Sequences the full LTSM:
 //
 //     RESET -> SBINIT -> MBINIT -> MBTRAIN -> LINKINIT -> ACTIVE
+//        plus PHYRETRAIN / L1 / L2 / TRAINERROR
 //
-// Responsibilities (kept deliberately minimal — pure FSM, no datapath muxing):
+// Responsibilities (pure FSM, no datapath muxing):
 //   * one-hot per-state enables (drive the state submodules in the wrapper)
 //   * the current-state status enum (used by the wrapper to mux SB / MB / D2C)
 //   * the shared 8 ms watchdog control (enabled in the SB/MB training states,
 //     restarted on every state change so each state gets a fresh budget)
 //
-// MBTRAIN is a PASS-THROUGH in Step 1 (no verified MBTRAIN block yet): the FSM
-// enters it, asserts mbtrain_en, and leaves as soon as mbtrain_done is seen
-// (the wrapper ties mbtrain_done high). The MB datapath is exercised by MBINIT.
+// TRAINERROR entry: SBINIT / PHYRETRAIN faults (and their timeouts) jump
+// straight to CTRL_TRAINERROR. In MBINIT / MBTRAIN / LINKINIT the entry runs
+// through the §4.5.3.8 sideband 2-way handshake (trainerror_handshake.sv in the
+// wrapper); its completion arrives here as te_handshake_done, which gates the
+// transition to CTRL_TRAINERROR. ACTIVE resolves its own next state
+// (PHYRETRAIN / L1 / L2 / TRAINERROR) via active_next_ltsm_state.
 //
-// Deferred to later steps: PHYRETRAIN / L1 / L2 / TRAINERROR states, the
-// timeout_8ms_occured -> TRAINERROR reaction, and the sideband/mainband muxing
-// (that lives in the LTSM wrapper for now). The state register uses the full
-// ltsm_ctrl_state_e so adding those states later is a localised change.
+// The sideband/mainband output muxing lives in the LTSM wrapper.
 // =============================================================================
 
 module unit_ltsm_controller
@@ -55,9 +56,10 @@ import LTSM_state_pkg::*;
     output logic        mbtrain_speedidle_req,
 
     // ---------------------------------------------------------------- error inputs
-    // Reserved: in a later step these drive the TRAINERROR entry handshake
-    // (§4.5.3.8). For now they are wired through from the state blocks but the
-    // FSM takes NO action on them.
+    // sbinit_error is acted on directly here (SBINIT has no SB handshake -> jump
+    // straight to CTRL_TRAINERROR). mbinit/mbtrain/linkinit/active_error instead
+    // feed the wrapper's §4.5.3.8 TRAINERROR-entry handshake, whose completion
+    // returns here as te_handshake_done (below) to gate the CTRL_TRAINERROR move.
     input  logic        sbinit_error,
     input  logic        mbinit_error,
     input  logic        mbtrain_error,   // <= MBTRAIN ltsm_trainerror_req
@@ -65,11 +67,11 @@ import LTSM_state_pkg::*;
     input  logic        active_error,
 
     // ---------------------------------------------------------------- ACTIVE exit
-    // Reserved: ACTIVE resolves the next LTSM state (PHYRETRAIN / L1 / L2 /
-    // TRAINERROR) here. Wired now; the FSM acts on it in a later step (ACTIVE is
-    // terminal in Step 1).
+    // ACTIVE resolves the next LTSM state (PHYRETRAIN / L1 / L2 / TRAINERROR);
+    // the CTRL_ACTIVE arm below transitions to it (CTRL_TRAINERROR direct, the
+    // others via their states).
     input  ltsm_ctrl_state_e active_next_ltsm_state,
-
+    input  logic        second_timeout_occured,
     // ---------------------------------------------------------------- status
     output LTSM_state_e current_ltsm_state,
 
@@ -114,10 +116,7 @@ import LTSM_state_pkg::*;
         // Global error / timeout transition to TRAINERROR
         // Handshake is active in MBINIT, MBTRAIN and LINKINIT, so timeouts in those states
         // are handled via the handshake done signal. Only other states go directly.
-        if (timeout_8ms_occured && (
-            current_state == CTRL_SBINIT ||
-            current_state == CTRL_PHYRETRAIN
-        )) begin
+        if ((timeout_8ms_occured && (current_state == CTRL_SBINIT)) || second_timeout_occured) begin
             next_state = CTRL_TRAINERROR;
         end else begin
             case (current_state)

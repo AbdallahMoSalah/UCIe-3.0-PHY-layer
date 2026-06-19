@@ -37,11 +37,18 @@ module RDI_SM (
 
     //Interface with MB
     output logic                    lclk_g              ,
+    // Clock-gate ENABLE level for the MB TX clock gate (1 = clock on, 0 = gated).
+    // lclk_g above is a *gated clock*; the MB unit_clk_gate wants an active-high
+    // enable, so this mirrors the gating FSM's ungating_done for that purpose.
+    output logic                    lclk_g_en           ,
     output logic                    stall_done          ,
     input  logic                    pl_error            ,
 
     //Interface with LTSM
-    input  LTSM_state_e             state_sts
+    input  LTSM_state_e             state_sts                                   ,
+    // RDI state status forwarded to the LTSM (mirrors the internal
+    // wrapper_sm rdi_state_sts so the LTSM can observe the RDI SM state)
+    output RDI_state                rdi_state
 );
 
     // =========================================================================
@@ -181,5 +188,11 @@ module RDI_SM (
 
     // clk_handshake_strt: triggered by a signal transition OR an explicit traffic request
     assign clk_handshake_strt = signal_transition || traffic_req;
+
+    // Forward the internal RDI state status out to the LTSM.
+    assign rdi_state = rdi_state_sts;
+
+    // Expose the clock-gate enable level (1 = ungated/clock-on) for the MB.
+    assign lclk_g_en = ungating_done;
 
 endmodule

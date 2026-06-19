@@ -6,7 +6,36 @@ import ltsm_state_n_pkg::*;
 import LTSM_state_pkg::*;
 import RDI_SM_pkg::*;
 
-module MB_SB_LTSM #(
+// =============================================================================
+// Logical_PHY
+// -----------------------------------------------------------------------------
+// Final system-integration wrapper: stitches together the four already-verified
+// blocks of the UCIe PHY logical layer:
+//
+//   * unit_mb_die    (u_mb_die)        - MainBand TX/RX die
+//   * SideBand_Top   (u_sideband_top)  - Sideband (messaging + reg access + RDI)
+//   * LTSM_TOP       (u_ltsm_top)      - Link Training State Machine
+//   * RDI_SM         (u_rdi_sm)        - RDI (Raw D2D Interface) state machine
+//
+// This is *not* built on top of MB_SB_LTSM; it re-instantiates the same four
+// leaf designs directly (MB_SB_LTSM is used only as a wiring reference) so the
+// RDI_SM can be spliced into the internal nets.
+//
+// Notable internal connections introduced by RDI_SM integration:
+//   * RDI_SM.state_sts  <= LTSM current_ltsm_state
+//   * RDI_SM.rdi_state  -> LTSM.rdi_state            (new RDI_SM output)
+//   * RDI_SM.pl_error   <= mb_die.o_valid_frame_error
+//   * RDI_SM.lclk_g     -> mb_die.lclk_g             (RDI owns TX clock gating)
+//   * SideBand traffic_req -> RDI_SM.traffic_req
+//   * RDI_SM Link_Mgmt msg path <-> SideBand RDI msg ports
+//       (SB stall_send tied 0; SB RDI_rdy / stall_rcvd left open)
+//   * stall_done latch & AND with LTSM mapper-enable -> mb_die.i_mapper_en
+//
+// NOTE: PHYRETRAIN interplay between RDI and the LTSM is intentionally left
+//       untouched for this integration step.
+// =============================================================================
+
+module Logical_PHY #(
     parameter int  DATA_WIDTH_MB  = 32,
     parameter int  DATA_WIDTH_SB  = 64,
     parameter int  NUM_LANES      = 16,
@@ -18,7 +47,7 @@ module MB_SB_LTSM #(
     parameter int  CLK_FRQ_HZ     = 800_000_000
 )(
     // =========================================================================
-    // System Reset & PLL Controls
+    // System Reset
     // =========================================================================
     input  logic                             rst_n,
 
@@ -29,7 +58,7 @@ module MB_SB_LTSM #(
     input  logic                             lp_irdy,
     input  logic                             lp_valid,
     output logic                             pl_trdy,
-    input  logic                             lclk_g,
+    input  logic [1:0]                       i_pll_speed_sel,
     input  logic [15:0]                      i_pcmp_thr_per_lane,
     input  logic [15:0]                      i_pcmp_thr_aggregate,
     input  logic [15:0]                      i_vcmp_thr,
@@ -57,29 +86,17 @@ module MB_SB_LTSM #(
     output logic                             o_TTRK_P,
 
     // =========================================================================
-    // Sideband Controls & Serial Interface
+    // Sideband Serial Interface
     // =========================================================================
     input  logic                             RXCKSB,
     output logic                             TXCKSB,
     output logic                             TXDATASB,
     input  logic                             RXDATASB,
 
-    // RDI SM Traffic Control
-    output logic                             traffic_req,
+    // Sideband traffic-ready (traffic_req is now internal: SB -> RDI_SM)
     input  logic                             traffic_rdy,
 
-    // RDI SM TX Interface (From Main Controller)
-    input  logic [7:0]                       RDI_msg_no_send,
-    input  logic                             stall_send,
-    input  logic                             RDI_vld_send,
-    output logic                             RDI_rdy,
-
-    // RDI SM RX Interface (To Main Controller)
-    output logic                             RDI_vld_rcvd,
-    output logic [7:0]                       RDI_msg_no_rcvd,
-    output logic                             stall_rcvd,
-
-    // Adapter Interface (RDI Control)
+    // Adapter Interface (RDI Control / config over sideband)
     input  logic [31:0]                      lp_cfg,
     input  logic                             lp_cfg_vld,
     output logic                             pl_cfg_crd,
@@ -103,15 +120,12 @@ module MB_SB_LTSM #(
     // =========================================================================
     output LTSM_state_e                      current_ltsm_state,
     output state_n_e                         current_ltsm_state_n,
-    output logic                             timeout_8ms_occured,
     output logic [7:0]                       log0_state_n,
     output logic                             log0_lane_reversal,
     output logic                             log0_width_degrade,
     output logic [7:0]                       log0_state_n_minus_1,
     output logic [7:0]                       log0_state_n_minus_2,
     output logic [7:0]                       log1_state_n_minus_3,
-    input  logic                             start_bit,            // -> LTSM params_changed
-    output logic                             busy_bit_rst,
 
     // RESET-state triggers / strap
     input  logic                             phy_start_ucie_link_training_ctrl_out,
@@ -155,14 +169,38 @@ module MB_SB_LTSM #(
     input  logic [15:0]                      cfg_max_err_thresh_aggr,
     input  logic [NUM_LANES-1:0]             reg_lane_mask,
 
-    // RDI status
-    input  RDI_state                         rdi_state,
-    input  RDI_state                         lp_state_req   // Adapter-requested RDI state (L1 wake)
+    // =========================================================================
+    // RDI_SM Adapter-facing Interface
+    // =========================================================================
+    input  RDI_state                         lp_state_req,   // shared: RDI_SM + LTSM
+    input  logic                             lp_clk_ack,
+    input  logic                             lp_wake_req,
+    input  logic                             lp_stallack,
+    input  logic                             lp_linkerror,
+
+    output logic                             pl_clk_req,
+    output logic                             pl_stallreq,
+    output logic                             pl_wake_ack,
+    output logic                             pl_trainerror,
+    output logic                             pl_inband_pres,
+    output logic                             pl_phyinrecenter,
+    output RDI_state                         pl_state_sts,
+    output logic                             pl_max_speedmode,
+    output logic [2:0]                       pl_speedmode,
+    output logic [2:0]                       pl_lnk_cfg,
+    output logic                             clk_handshake_done,
+    output logic                             stall_done,      // observability
+
+    // RDI_SM DVSEC status inputs
+    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Capability_7to4,
+    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Status_17to11,
+    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Status_10to7
 );
+
     // =========================================================================
     // 1. Clocks and Resets Generation
     // =========================================================================
-    
+
     // Sideband PLL clock generator (800 MHz)
     logic sb_pll_clock;
     real  sb_pll_period;
@@ -190,13 +228,13 @@ module MB_SB_LTSM #(
     // 2. Internal Signals
     // =========================================================================
 
-    // Sideband message bus connections between u_ltsm_top and u_sideband_top
+    // ---- LTSM <-> SideBand message bus ----
     logic        sb_rx_valid;
     msg_no_e     sb_rx_msg_id;
     logic [15:0] sb_rx_MsgInfo;
     logic [63:0] sb_rx_data_Field;
     logic        sb_tx_valid;
-    logic        sb_lsm_rdy; // Connected to sb_ltsm_rdy of u_ltsm_top
+    logic        sb_lsm_rdy;
     msg_no_e     sb_tx_msg_id;
     logic [15:0] sb_tx_MsgInfo;
     logic [63:0] sb_tx_data_Field;
@@ -206,21 +244,33 @@ module MB_SB_LTSM #(
     logic [2:0]  sbinit_req_iter_count;
     logic        sb_det_pattern_rcvd;
 
-    // Casting wires for SideBand_Top ltsm message IDs
+    // Casting wires for SideBand_Top LTSM message IDs
     logic [7:0]  ltsm_msg_n_send;
     logic [7:0]  ltsm_msg_no_rcvd;
-
     assign ltsm_msg_n_send = sb_tx_msg_id;
     assign sb_rx_msg_id    = msg_no_e'(ltsm_msg_no_rcvd);
 
-    // phy in reset logic 
+    // ---- RDI_SM <-> SideBand RDI message bus ----
+    msg_no_e     rdi_msg_send;          // RDI_SM.Link_Mgmt_Msg_Send
+    logic        rdi_vld_send;          // RDI_SM.valid_s
+    msg_no_e     rdi_msg_rcvd;          // RDI_SM.Link_Mgmt_Msg_Receive
+    logic        rdi_vld_rcvd;          // RDI_SM.valid_r
+    logic [7:0]  rdi_msg_no_send_bus;   // SideBand_Top.RDI_msg_no_send
+    logic [7:0]  rdi_msg_no_rcvd_bus;   // SideBand_Top.RDI_msg_no_rcvd
+    assign rdi_msg_no_send_bus = rdi_msg_send;                 // msg_no_e -> [7:0]
+    assign rdi_msg_rcvd        = msg_no_e'(rdi_msg_no_rcvd_bus); // [7:0] -> msg_no_e
 
-    logic phy_in_reset = (current_ltsm_state == RESET ||
-                          current_ltsm_state == SBINIT);
-                          
-    // MainBand Control/Status intermediate connections between u_ltsm_top and u_mb_die
-    logic [2:0]           mb_pll_speed_sel;   // LTSM-driven PLL speed select -> u_mb_die
-    logic                 mb_mapper_en;
+    // ---- RDI_SM <-> LTSM / MB ----
+    RDI_state    rdi_state_w;      // RDI_SM.rdi_state -> LTSM.rdi_state
+    logic        traffic_req_w;    // SideBand_Top.traffic_req -> RDI_SM.traffic_req
+    logic        rdi_lclk_g;       // RDI_SM.lclk_g (raw gated clock - unused)
+    logic        rdi_lclk_g_en;    // RDI_SM.lclk_g_en (enable level: 1=clock on)
+    logic        mb_lclk_g;        // qualified clock-enable -> mb_die.lclk_g (CLK_EN)
+    logic        stall_done_w;     // RDI_SM.stall_done (latched into mapper enable)
+
+    // ---- LTSM <-> MainBand die control/result wires ----
+    logic                 ltsm_mapper_en;   // LTSM mapper enable (pre-gate)
+    logic                 mb_mapper_en;      // gated enable -> mb_die.i_mapper_en
     logic [2:0]           mb_width_deg_tx;
     logic [2:0]           mb_width_deg_rx;
     logic [2:0]           mb_lfsr_state;
@@ -257,7 +307,54 @@ module MB_SB_LTSM #(
     logic                 mb_track_pass;
 
     // =========================================================================
-    // 3. Module Instantiations
+    // 3. stall_done latch + mapper-enable gating
+    // -------------------------------------------------------------------------
+    // The RDI stall_done pulse is captured into a level (SR flop on lclk) that
+    // represents "data path stalled":
+    //   * set   by stall_done   (RDI stall handshake complete -> stall the path)
+    //   * clear when the LTSM mapper enable falls (acts as the latch reset)
+    // The mapper is enabled in ACTIVE (ltsm_mapper_en) while NOT stalled, so data
+    // flows in steady ACTIVE and is held off only during an RDI stall (the stall
+    // precedes an ACTIVE-exit state change).  Hence the latch output is inverted.
+    // =========================================================================
+    logic stall_done_latched;
+
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n)
+            stall_done_latched <= 1'b0;
+        else if (!ltsm_mapper_en)      // enable low -> clear the latch
+            stall_done_latched <= 1'b0;
+        else if (stall_done_w)         // set on stall_done (stalled)
+            stall_done_latched <= 1'b1;
+    end
+
+    assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched;
+    assign stall_done   = stall_done_w;   // observability
+
+    // -------------------------------------------------------------------------
+    // RDI PM clock-gating qualifier  [INTEGRATION ADDITION - flagged for review]
+    // -------------------------------------------------------------------------
+    // mb_die.lclk_g is an active-high CLK_EN into a latch-based clock gate (the
+    // working MB_SB_LTSM TB tied it to 1'b1).  RDI's lclk_g output is a *gated
+    // clock*, not an enable, so it cannot drive CLK_EN directly; we use RDI's
+    // ungating enable level (rdi_lclk_g_en: 1=clock on) instead.
+    //
+    // RDI also marks the clock gateable whenever pl_state_sts is Reset, and the
+    // RDI SM sits in Reset for the whole LTSM training run, so its enable would
+    // stop the MB TX clock and hang training.  PM clock-gating is only
+    // meaningful once trained (ACTIVE) and entering L1/L2, so honour RDI's
+    // enable only in ACTIVE/L1/L2 and force the clock on while training.
+    wire ltsm_pm_phase = (current_ltsm_state == ACTIVE) ||
+                         (current_ltsm_state == L1)     ||
+                         (current_ltsm_state == L2);
+    // Active-high gate request (1 = gate/stop the MB TX clock).  RDI requests
+    // gating when its enable level is low (rdi_lclk_g_en==0); honour it only in
+    // the PM phase (ACTIVE/L1/L2) and never gate while the LTSM is training.
+    wire mb_clk_gate = ltsm_pm_phase & ~rdi_lclk_g_en;
+    assign mb_lclk_g = ~mb_clk_gate;   // mb_die clk-gate CLK_EN: 1 = clock on
+
+    // =========================================================================
+    // 4. Module Instantiations
     // =========================================================================
 
     unit_mb_die #(
@@ -282,8 +379,8 @@ module MB_SB_LTSM #(
         .i_reversal_en        (mb_reversal_en),
         .i_valid_pattern_en   (mb_valid_pattern_en),
         .i_pll_en             (1'b1),
-        .i_pll_speed_sel      (mb_pll_speed_sel),
-        .lclk_g               (lclk_g),
+        .i_pll_speed_sel      (i_pll_speed_sel),
+        .lclk_g               (mb_lclk_g),
         .i_clk_pattern_en     (mb_clk_pattern_en),
         .i_clk_embedded_en    (mb_clk_embedded_en),
 
@@ -346,13 +443,13 @@ module MB_SB_LTSM #(
         .DATA_WIDTH (DATA_WIDTH_SB),
         .GAP_WIDTH  (GAP_WIDTH)
     ) u_sideband_top (
-        .clk_main         (lclk), // Driven by lclk coming out of u_mb_die
+        .clk_main         (lclk),
         .rst_main_n       (rst_n),
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_n),
         .phy_in_reset     (1'b0),
         .pmo_en           (reg_PMO_enable_status),
-        
+
         .sb_pll_clock     (sb_pll_clock),
         .RXCKSB           (RXCKSB),
         .TXCKSB           (TXCKSB),
@@ -365,23 +462,24 @@ module MB_SB_LTSM #(
         .iter_done        (sb_iter_done),
         .det_pat_rcvd     (sb_det_pattern_rcvd),
 
-        .traffic_req      (traffic_req),
+        .traffic_req      (traffic_req_w),
         .traffic_rdy      (traffic_rdy),
 
-        .RDI_msg_no_send  (RDI_msg_no_send),
-        .stall_send       (stall_send),
-        .RDI_vld_send     (RDI_vld_send),
-        .RDI_rdy          (RDI_rdy),
+        // RDI message path (driven by RDI_SM)
+        .RDI_msg_no_send  (rdi_msg_no_send_bus),
+        .stall_send       (1'b0),                 // tied per integration spec
+        .RDI_vld_send     (rdi_vld_send),
+        .RDI_rdy          (),                      // unconnected per integration spec
+        .RDI_vld_rcvd     (rdi_vld_rcvd),
+        .RDI_msg_no_rcvd  (rdi_msg_no_rcvd_bus),
+        .stall_rcvd       (),                      // unconnected per integration spec
 
+        // LTSM message path
         .ltsm_msg_n_send  (ltsm_msg_n_send),
         .msg_data_send    (sb_tx_data_Field),
         .msg_info_send    (sb_tx_MsgInfo),
         .ltsm_vld_send    (sb_tx_valid),
         .ltsm_rdy         (sb_lsm_rdy),
-
-        .RDI_vld_rcvd     (RDI_vld_rcvd),
-        .RDI_msg_no_rcvd  (RDI_msg_no_rcvd),
-        .stall_rcvd       (stall_rcvd),
 
         .ltsm_vld_rcvd    (sb_rx_valid),
         .ltsm_msg_no_rcvd (ltsm_msg_no_rcvd),
@@ -410,7 +508,7 @@ module MB_SB_LTSM #(
         .CLK_FRQ_HZ (CLK_FRQ_HZ),
         .NUM_LANES  (NUM_LANES)
     ) u_ltsm_top (
-        .clk                                   (lclk), // Driven by lclk coming out of u_mb_die
+        .clk                                   (lclk),
         .rst_n                                 (rst_n),
 
         // Status / observability
@@ -482,11 +580,11 @@ module MB_SB_LTSM #(
         .sbinit_req_iter_count                 (sbinit_req_iter_count),
 
         // RDI status
-        .rdi_state                             (rdi_state),
+        .rdi_state                             (rdi_state_w),
         .lp_state_req                          (lp_state_req),
 
         // unit_mb_die-facing CONTROL outputs
-        .i_mapper_en                           (mb_mapper_en),
+        .i_mapper_en                           (ltsm_mapper_en),
         .i_width_deg_tx                        (mb_width_deg_tx),
         .i_width_deg_rx                        (mb_width_deg_rx),
         .i_lfsr_state                          (mb_lfsr_state),
@@ -521,16 +619,55 @@ module MB_SB_LTSM #(
         .o_clk_p_pass                          (mb_clk_p_pass),
         .o_clk_n_pass                          (mb_clk_n_pass),
         .i_aggr_err                            (mb_pcmp_agg_error),
-        .o_track_pass                          (mb_track_pass),
-        .mb_tx_data_lane_sel                   (),
-        .mb_tx_val_lane_sel                    (),
-        .mb_tx_clk_lane_sel                    (),
-        .mb_tx_trk_lane_sel                    (),
+        .o_track_pass                          (mb_track_pass)
+    );
 
-        // PLL-speed / params-changed / busy-bit
-        .mb_pll_speed_sel                      (mb_pll_speed_sel),
-        .busy_bit_rst                          (busy_bit_rst),
-        .start_bit                             (start_bit)
+    RDI_SM u_rdi_sm (
+        .lclk                                       (lclk),
+        .rst_n                                      (rst_n),
+
+        // Adapter interface
+        .lp_clk_ack                                 (lp_clk_ack),
+        .lp_wake_req                                (lp_wake_req),
+        .lp_stallack                                (lp_stallack),
+        .lp_state_req                               (lp_state_req),
+        .lp_linkerror                               (lp_linkerror),
+
+        .pl_clk_req                                 (pl_clk_req),
+        .pl_stallreq                                (pl_stallreq),
+        .pl_wake_ack                                (pl_wake_ack),
+        .pl_trainerror                              (pl_trainerror),
+        .pl_inband_pres                             (pl_inband_pres),
+        .pl_phyinrecenter                           (pl_phyinrecenter),
+        .pl_state_sts                               (pl_state_sts),
+        .pl_max_speedmode                           (pl_max_speedmode),
+        .pl_speedmode                               (pl_speedmode),
+        .pl_lnk_cfg                                 (pl_lnk_cfg),
+
+        // Sideband DVSEC status
+        .UCIe_Link_DVSEC_UCIe_Link_Capability_7to4  (UCIe_Link_DVSEC_UCIe_Link_Capability_7to4),
+        .UCIe_Link_DVSEC_UCIe_Link_Status_17to11    (UCIe_Link_DVSEC_UCIe_Link_Status_17to11),
+        .UCIe_Link_DVSEC_UCIe_Link_Status_10to7     (UCIe_Link_DVSEC_UCIe_Link_Status_10to7),
+
+        // Sideband RDI message path
+        .Link_Mgmt_Msg_Receive                      (rdi_msg_rcvd),
+        .valid_r                                     (rdi_vld_rcvd),
+        .Link_Mgmt_Msg_Send                         (rdi_msg_send),
+        .valid_s                                     (rdi_vld_send),
+
+        // Clock handshake
+        .traffic_req                                (traffic_req_w),
+        .clk_handshake_done                         (clk_handshake_done),
+
+        // MainBand interface
+        .lclk_g                                     (rdi_lclk_g),
+        .lclk_g_en                                  (rdi_lclk_g_en),
+        .stall_done                                 (stall_done_w),
+        .pl_error                                   (mb_valid_frame_error),
+
+        // LTSM interface
+        .state_sts                                  (current_ltsm_state),
+        .rdi_state                                  (rdi_state_w)
     );
 
 endmodule
