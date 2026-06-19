@@ -91,4 +91,5 @@ tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_if.sv
 tb/wrapper/MainSM/LTSM/MBTRAIN/common/ltsm_tb_attachments.sv
 
 // Testbench top
-tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb.sv
+# tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb.sv
+tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb2.sv

@@ -330,6 +330,8 @@ module ltsm_tb_attachments #(
         .swept_code                    (intf.swept_code                     ),
         .best_code                     (intf.best_code                      ),
         .min_eye_width                 (intf.min_eye_width                  ),
+        .d2c_perlane_pass              (intf.d2c_perlane_pass               ),
+        .d2c_val_pass                  (intf.d2c_val_pass                   ),
 
         // ── PHY / Register File config ──────────────────────────────────────
         .mb_rx_data_lane_mask          (intf.mb_rx_data_lane_mask           ),
@@ -394,9 +396,7 @@ module ltsm_tb_attachments #(
     // local_test_d2c_done and d2c_perlane_pass/d2c_val_pass come from
     // wrapper_D2C_PT (inside wrapper_D2C_sweep) via the internal w_* wires.
     assign intf.local_test_d2c_done   = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.local_test_d2c_done;
-    assign intf.d2c_perlane_pass      = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_perlane_pass;
     assign intf.d2c_aggr_pass         = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_aggr_pass;
-    assign intf.d2c_val_pass          = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.d2c_val_pass;
     assign wrapper_partner_test_d2c_done = u_D2C_sweep_wrapper.u_wrapper_D2C_PT.partner_test_d2c_done;
 
     // MUX wrapper and substate sideband messages onto tb_muxed signals

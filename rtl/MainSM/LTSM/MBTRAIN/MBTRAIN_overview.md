@@ -127,7 +127,7 @@ Calibration substates rely on point-testing the clock-to-data alignment. This is
 
 The `*_lane_sel` signals determine whether a physical lane is driven Low, driven with the active training pattern, or Tri-stated (on TX), and whether it is Enabled or Disabled (on RX).
 These signals are:
-- `mb_tx_clk_lane_sel`, `mb_tx_data_lane_sel`, `mb_tx_val_lane_sel`, `mb_tx_trk_lane_sel` (2-bit control: `00` = Low, `01` = Active, `1x` = Tri-stated)
+- `mb_tx_clk_lane_sel`, `mb_tx_data_lane_sel`, `mb_tx_val_lane_sel`, `mb_tx_trk_lane_sel` (2-bit control: `00` = Low, `01` = Active, `10` = Tri-stated)
 - `mb_rx_clk_lane_sel`, `mb_rx_data_lane_sel`, `mb_rx_val_lane_sel`, `mb_rx_trk_lane_sel` (1-bit control: `0` = Disabled, `1` = Enabled)
 
 In a decoupled architecture, both Die 0 (our side) and Die 1 (partner side) run their own FSMs. On each die, the FSM is split into a **Local FSM (Initiator)** and a **Partner FSM (Responder)**.
@@ -215,7 +215,7 @@ assign phy_ctrl_code[lane] = (current_state == SWEEP_STATE) ?
 always_ff @(posedge lclk or negedge rst_n) begin
     if (!rst_n) begin
         for (int i=0; i<16; i++) best_code_r[i] <= '0;
-    end else if (!is_ltsm_out_of_reset) begin
+    end else if (!soft_rst_n) begin
         for (int i=0; i<16; i++) best_code_r[i] <= '0;
     end else if (current_state == SWEEP_STATE && sweep_done) begin
         for (int i=0; i<16; i++) best_code_r[i] <= best_code[i]; // Latch on exact cycle
@@ -279,73 +279,73 @@ UCIe-3.0-PHY-layer/
 │       └── LTSM/
 │           ├── D2C_PT/
 │           │   ├── RX_D2C_PT/
-│           │   │   ├── unit_RX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   └── unit_RX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
+│           │   │   ├── unit_RX_D2C_PT_local.sv           # ✅ RTL implemented & Verified.
+│           │   │   └── unit_RX_D2C_PT_partner.sv         # ✅ RTL implemented & Verified.
 │           │   ├── TX_D2C_PT/
-│           │   │   ├── unit_TX_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   └── unit_TX_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
+│           │   │   ├── unit_TX_D2C_PT_local.sv           # ✅ RTL implemented & Verified.
+│           │   │   └── unit_TX_D2C_PT_partner.sv         # ✅ RTL implemented & Verified.
 │           │   ├── wrapper_D2C_PT/
-│           │   │   ├── wrapper_D2C_PT_local.sv           # ✅ RTL Re-implemented & Verified.
-│           │   │   ├── wrapper_D2C_PT_partner.sv         # ✅ RTL Re-implemented & Verified.
-│           │   │   └── wrapper_D2C_PT.sv                 # ✅ RTL Re-implemented & Verified (parallel MB TX/RX MUX).
-│           │   ├── unit_D2C_sweep.sv                     # ✅ RTL Re-implemented & Verified.
-│           │   └── wrapper_D2C_sweep.sv                  # ✅ RTL Re-implemented & Verified.
+│           │   │   ├── wrapper_D2C_PT_local.sv           # ✅ RTL implemented & Verified.
+│           │   │   ├── wrapper_D2C_PT_partner.sv         # ✅ RTL implemented & Verified.
+│           │   │   └── wrapper_D2C_PT.sv                 # ✅ RTL implemented & Verified (parallel MB TX/RX MUX).
+│           │   ├── unit_D2C_sweep.sv                     # ✅ RTL implemented & Verified.
+│           │   └── wrapper_D2C_sweep.sv                  # ✅ RTL implemented & Verified.
 │           └── MBTRAIN/
 │               ├── RXDESKEW/
-│               │   ├── unit_RXDESKEW_local.sv            # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_RXDESKEW_partner.sv          # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_RXDESKEW.sv               # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXDESKEW_local.sv            # ✅ RTL implemented & Verified.
+│               │   ├── unit_RXDESKEW_partner.sv          # ✅ RTL implemented & Verified.
+│               │   └── wrapper_RXDESKEW.sv               # ✅ RTL implemented & Verified.
 │               ├── DATATRAINCENTER1/
-│               │   ├── unit_DATATRAINCENTER1_local.sv    # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_DATATRAINCENTER1_partner.sv  # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_DATATRAINCENTER1.sv       # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER1_local.sv    # ✅ RTL implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER1_partner.sv  # ✅ RTL implemented & Verified.
+│               │   └── wrapper_DATATRAINCENTER1.sv       # ✅ RTL implemented & Verified.
 │               ├── DATATRAINCENTER2/
-│               │   ├── unit_DATATRAINCENTER2_local.sv    # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_DATATRAINCENTER2_partner.sv  # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_DATATRAINCENTER2.sv       # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER2_local.sv    # ✅ RTL implemented & Verified.
+│               │   ├── unit_DATATRAINCENTER2_partner.sv  # ✅ RTL implemented & Verified.
+│               │   └── wrapper_DATATRAINCENTER2.sv       # ✅ RTL implemented & Verified.
 │               ├── DATATRAINVREF/
-│               │   ├── unit_DATATRAINVREF_local.sv       # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_DATATRAINVREF_partner.sv     # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_DATATRAINVREF.sv          # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATATRAINVREF_local.sv       # ✅ RTL implemented & Verified.
+│               │   ├── unit_DATATRAINVREF_partner.sv     # ✅ RTL implemented & Verified.
+│               │   └── wrapper_DATATRAINVREF.sv          # ✅ RTL implemented & Verified.
 │               ├── DATAVREF/
-│               │   ├── unit_DATAVREF_local.sv            # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_DATAVREF_partner.sv          # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_DATAVREF.sv               # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_DATAVREF_local.sv            # ✅ RTL implemented & Verified.
+│               │   ├── unit_DATAVREF_partner.sv          # ✅ RTL implemented & Verified.
+│               │   └── wrapper_DATAVREF.sv               # ✅ RTL implemented & Verified.
 │               ├── LINKSPEED/    
-│               │   ├── unit_LINKSPEED_local.sv           # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_LINKSPEED_partner.sv         # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_LINKSPEED.sv              # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_LINKSPEED_local.sv           # ✅ RTL implemented & Verified.
+│               │   ├── unit_LINKSPEED_partner.sv         # ✅ RTL implemented & Verified.
+│               │   └── wrapper_LINKSPEED.sv              # ✅ RTL implemented & Verified.
 │               ├── REPAIR/
-│               │   ├── unit_REPAIR_local.sv              # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_REPAIR_partner.sv            # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_REPAIR_local.sv              # ✅ RTL implemented & Verified.
+│               │   ├── unit_REPAIR_partner.sv            # ✅ RTL implemented & Verified.
 │               │   ├── unit_negotiated_lanes.sv          # ✅ Completed: determine active 16 data lanes in the link for Tx/Rx.
-│               │   └── wrapper_REPAIR.sv                 # ✅ RTL Re-implemented & Verified.
+│               │   └── wrapper_REPAIR.sv                 # ✅ RTL implemented & Verified.
 │               ├── RXCLKCAL/
-│               │   ├── unit_RXCLKCAL_local.sv            # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_RXCLKCAL_partner.sv          # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_RXCLKCAL_IQ_local.sv         # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_RXCLKCAL_IQ_partner.sv       # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_RXCLKCAL.sv               # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_RXCLKCAL_local.sv            # ✅ RTL implemented & Verified.
+│               │   ├── unit_RXCLKCAL_partner.sv          # ✅ RTL implemented & Verified.
+│               │   ├── unit_RXCLKCAL_IQ_local.sv         # ✅ RTL implemented & Verified.
+│               │   ├── unit_RXCLKCAL_IQ_partner.sv       # ✅ RTL implemented & Verified.
+│               │   └── wrapper_RXCLKCAL.sv               # ✅ RTL implemented & Verified.
 │               ├── SPEEDIDLE/
-│               │   ├── unit_SPEEDIDLE_local.sv           # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_SPEEDIDLE_partner.sv         # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_SPEEDIDLE.sv              # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_SPEEDIDLE_local.sv           # ✅ RTL implemented & Verified.
+│               │   ├── unit_SPEEDIDLE_partner.sv         # ✅ RTL implemented & Verified.
+│               │   └── wrapper_SPEEDIDLE.sv              # ✅ RTL implemented & Verified.
 │               ├── TXSELFCAL/
-│               │   ├── unit_TXSELFCAL_local.sv           # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_TXSELFCAL_partner.sv         # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_TXSELFCAL.sv              # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_TXSELFCAL_local.sv           # ✅ RTL implemented & Verified.
+│               │   ├── unit_TXSELFCAL_partner.sv         # ✅ RTL implemented & Verified.
+│               │   └── wrapper_TXSELFCAL.sv              # ✅ RTL implemented & Verified.
 │               ├── VALTRAINCENTER/
-│               │   ├── unit_VALTRAINCENTER_local.sv      # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_VALTRAINCENTER_partner.sv    # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_VALTRAINCENTER.sv         # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALTRAINCENTER_local.sv      # ✅ RTL implemented & Verified.
+│               │   ├── unit_VALTRAINCENTER_partner.sv    # ✅ RTL implemented & Verified.
+│               │   └── wrapper_VALTRAINCENTER.sv         # ✅ RTL implemented & Verified.
 │               ├── VALTRAINVREF/
-│               │   ├── unit_VALTRAINVREF_local.sv        # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_VALTRAINVREF_partner.sv      # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_VALTRAINVREF.sv           # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALTRAINVREF_local.sv        # ✅ RTL implemented & Verified.
+│               │   ├── unit_VALTRAINVREF_partner.sv      # ✅ RTL implemented & Verified.
+│               │   └── wrapper_VALTRAINVREF.sv           # ✅ RTL implemented & Verified.
 │               ├── VALVREF/
-│               │   ├── unit_VALVREF_local.sv             # ✅ RTL Re-implemented & Verified.
-│               │   ├── unit_VALVREF_partner.sv           # ✅ RTL Re-implemented & Verified.
-│               │   └── wrapper_VALVREF.sv                # ✅ RTL Re-implemented & Verified.
+│               │   ├── unit_VALVREF_local.sv             # ✅ RTL implemented & Verified.
+│               │   ├── unit_VALVREF_partner.sv           # ✅ RTL implemented & Verified.
+│               │   └── wrapper_VALVREF.sv                # ✅ RTL implemented & Verified.
 │               ├── unit_MBTRAIN_ctrl.sv              
 │               └── wrapper_MBTRAIN.sv
 ├── sim/
@@ -354,21 +354,21 @@ UCIe-3.0-PHY-layer/
 │   │   ├── unit_RX_D2C_PT.f                              # ✅ Completed.
 │   │   ├── unit_TX_D2C_PT.f                              # ✅ Completed.
 │   │   ├── wrapper_D2C_PT.f                              # ✅ Completed.
-│   │   ├── wrapper_D2C_PT_top.f                          # ✅ New: listfile for wrapper_D2C_PT_top_tb simulation.
-│   │   ├── wrapper_DATATRAINCENTER1.f                    # ✅ New: listfile for wrapper_DATATRAINCENTER1_tb simulation.
-│   │   ├── wrapper_DATATRAINCENTER2.f                    # ✅ New: listfile for wrapper_DATATRAINCENTER2_tb simulation.
-│   │   ├── wrapper_DATATRAINVREF.f                       # ✅ New: listfile for wrapper_DATATRAINVREF_tb simulation.
-│   │   ├── wrapper_DATAVREF.f                            # ✅ New: listfile for wrapper_DATAVREF_tb simulation.
-│   │   ├── wrapper_LINKSPEED.f                           # ✅ New: listfile for wrapper_LINKSPEED_tb simulation.
-│   │   ├── wrapper_MBTRAIN_class_based.f                 # ✅ New: listfile for wrapper_MBTRAIN_class_based_tb simulation.
-│   │   ├── wrapper_REPAIR.f                              # ✅ New: listfile for wrapper_REPAIR_tb simulation.
-│   │   ├── wrapper_RXCLKCAL.f                            # ✅ New: listfile for wrapper_RXCLKCAL_tb simulation.
-│   │   ├── wrapper_RXDESKEW.f                            # ✅ New: listfile for wrapper_RXDESKEW_tb simulation.
-│   │   ├── wrapper_SPEEDIDLE.f                           # ✅ New: listfile for wrapper_SPEEDIDLE_tb simulation.
-│   │   ├── wrapper_TXSELFCAL.f                           # ✅ New: listfile for wrapper_TXSELFCAL_tb simulation.
-│   │   ├── wrapper_VALTRAINCENTER.f                      # ✅ New: listfile for wrapper_VALTRAINCENTER_tb simulation.
-│   │   ├── wrapper_VALTRAINVREF.f                        # ✅ New: listfile for wrapper_VALTRAINVREF_tb simulation.
-│   │   ├── wrapper_VALVREF.f                             # ✅ New: listfile for wrapper_VALVREF_tb simulation.
+│   │   ├── wrapper_D2C_PT_top.f                          # ✅ listfile for wrapper_D2C_PT_top_tb          simulation.
+│   │   ├── wrapper_DATATRAINCENTER1.f                    # ✅ listfile for wrapper_DATATRAINCENTER1_tb    simulation.
+│   │   ├── wrapper_DATATRAINCENTER2.f                    # ✅ listfile for wrapper_DATATRAINCENTER2_tb    simulation.
+│   │   ├── wrapper_DATATRAINVREF.f                       # ✅ listfile for wrapper_DATATRAINVREF_tb       simulation.
+│   │   ├── wrapper_DATAVREF.f                            # ✅ listfile for wrapper_DATAVREF_tb            simulation.
+│   │   ├── wrapper_LINKSPEED.f                           # ✅ listfile for wrapper_LINKSPEED_tb           simulation.
+│   │   ├── wrapper_MBTRAIN_class_based.f                 # ✅ listfile for wrapper_MBTRAIN_class_based_tb simulation.
+│   │   ├── wrapper_REPAIR.f                              # ✅ listfile for wrapper_REPAIR_tb              simulation.
+│   │   ├── wrapper_RXCLKCAL.f                            # ✅ listfile for wrapper_RXCLKCAL_tb            simulation.
+│   │   ├── wrapper_RXDESKEW.f                            # ✅ listfile for wrapper_RXDESKEW_tb            simulation.
+│   │   ├── wrapper_SPEEDIDLE.f                           # ✅ listfile for wrapper_SPEEDIDLE_tb           simulation.
+│   │   ├── wrapper_TXSELFCAL.f                           # ✅ listfile for wrapper_TXSELFCAL_tb           simulation.
+│   │   ├── wrapper_VALTRAINCENTER.f                      # ✅ listfile for wrapper_VALTRAINCENTER_tb      simulation.
+│   │   ├── wrapper_VALTRAINVREF.f                        # ✅ listfile for wrapper_VALTRAINVREF_tb        simulation.
+│   │   ├── wrapper_VALVREF.f                             # ✅ listfile for wrapper_VALVREF_tb             simulation.
 │   │   └── wrapper_MBTRAIN.f
 │   └── waves/
 │       ├── unit_DATATRAINCENTER1_tb.do
@@ -450,47 +450,72 @@ Every sub-state and component has a dedicated testbench. You can run each testbe
 
 | Sub-system / FSM | Listfile Config | Top Testbench Module | Execution Command |
 | :--- | :--- | :--- | :--- |
-| **MBTRAIN Controller**         | `unit_MBTRAIN_ctrl`        | `unit_MBTRAIN_ctrl_tb`        | `.\run_sim.ps1 -CONFIG unit_MBTRAIN_ctrl -TOP unit_MBTRAIN_ctrl_tb -MODE run`               |
-| **RX D2C Point Test**          | `unit_RX_D2C_PT`           | `unit_RX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_RX_D2C_PT -TOP unit_RX_D2C_PT_tb -MODE run`                     |
-| **TX D2C Point Test**          | `unit_TX_D2C_PT`           | `unit_TX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_TX_D2C_PT -TOP unit_TX_D2C_PT_tb -MODE run`                     |
-| **D2C Point Test Sub-wrapper** | `wrapper_D2C_PT`           | `wrapper_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG wrapper_D2C_PT -TOP wrapper_D2C_PT_tb -MODE run`                     |
-| **D2C Point Test Top Wrapper** | `wrapper_D2C_PT_top`       | `wrapper_D2C_PT_top_tb`       | `.\run_sim.ps1 -CONFIG wrapper_D2C_PT_top -TOP wrapper_D2C_PT_top_tb -MODE run`             |
-| **VALVREF Substate**           | `wrapper_VALVREF`          | `wrapper_VALVREF_tb`          | `.\run_sim.ps1 -CONFIG wrapper_VALVREF -TOP wrapper_VALVREF_tb -MODE run`                   |
-| **DATAVREF Substate**          | `wrapper_DATAVREF`         | `wrapper_DATAVREF_tb`         | `.\run_sim.ps1 -CONFIG wrapper_DATAVREF -TOP wrapper_DATAVREF_tb -MODE run`                 |
-| **SPEEDIDLE Substate**         | `wrapper_SPEEDIDLE`        | `wrapper_SPEEDIDLE_tb`        | `.\run_sim.ps1 -CONFIG wrapper_SPEEDIDLE -TOP wrapper_SPEEDIDLE_tb -MODE run`               |
-| **TXSELFCAL Substate**         | `wrapper_TXSELFCAL`        | `wrapper_TXSELFCAL_tb`        | `.\run_sim.ps1 -CONFIG wrapper_TXSELFCAL -TOP wrapper_TXSELFCAL_tb -MODE run`               |
-| **RXCLKCAL Substate**          | `wrapper_RXCLKCAL`         | `wrapper_RXCLKCAL_tb`         | `.\run_sim.ps1 -CONFIG wrapper_RXCLKCAL -TOP wrapper_RXCLKCAL_tb -MODE run`                 |
-| **VALTRAINCENTER Substate**    | `wrapper_VALTRAINCENTER`   | `wrapper_VALTRAINCENTER_tb`   | `.\run_sim.ps1 -CONFIG wrapper_VALTRAINCENTER -TOP wrapper_VALTRAINCENTER_tb -MODE run`     |
-| **VALTRAINVREF Substate**      | `wrapper_VALTRAINVREF`     | `wrapper_VALTRAINVREF_tb`     | `.\run_sim.ps1 -CONFIG wrapper_VALTRAINVREF -TOP wrapper_VALTRAINVREF_tb -MODE run`         |
+| **RX D2C Point Test**          | `unit_RX_D2C_PT`           | `unit_RX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_RX_D2C_PT           -TOP unit_RX_D2C_PT_tb           -MODE run` |
+| **TX D2C Point Test**          | `unit_TX_D2C_PT`           | `unit_TX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_TX_D2C_PT           -TOP unit_TX_D2C_PT_tb           -MODE run` |
+| **D2C Point Test Sub-wrapper** | `wrapper_D2C_PT`           | `wrapper_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG wrapper_D2C_PT           -TOP wrapper_D2C_PT_tb           -MODE run` |
+| **VALVREF Substate**           | `wrapper_VALVREF`          | `wrapper_VALVREF_tb`          | `.\run_sim.ps1 -CONFIG wrapper_VALVREF          -TOP wrapper_VALVREF_tb          -MODE run` |
+| **DATAVREF Substate**          | `wrapper_DATAVREF`         | `wrapper_DATAVREF_tb`         | `.\run_sim.ps1 -CONFIG wrapper_DATAVREF         -TOP wrapper_DATAVREF_tb         -MODE run` |
+| **SPEEDIDLE Substate**         | `wrapper_SPEEDIDLE`        | `wrapper_SPEEDIDLE_tb`        | `.\run_sim.ps1 -CONFIG wrapper_SPEEDIDLE        -TOP wrapper_SPEEDIDLE_tb        -MODE run` |
+| **TXSELFCAL Substate**         | `wrapper_TXSELFCAL`        | `wrapper_TXSELFCAL_tb`        | `.\run_sim.ps1 -CONFIG wrapper_TXSELFCAL        -TOP wrapper_TXSELFCAL_tb        -MODE run` |
+| **RXCLKCAL Substate**          | `wrapper_RXCLKCAL`         | `wrapper_RXCLKCAL_tb`         | `.\run_sim.ps1 -CONFIG wrapper_RXCLKCAL         -TOP wrapper_RXCLKCAL_tb         -MODE run` |
+| **VALTRAINCENTER Substate**    | `wrapper_VALTRAINCENTER`   | `wrapper_VALTRAINCENTER_tb`   | `.\run_sim.ps1 -CONFIG wrapper_VALTRAINCENTER   -TOP wrapper_VALTRAINCENTER_tb   -MODE run` |
+| **VALTRAINVREF Substate**      | `wrapper_VALTRAINVREF`     | `wrapper_VALTRAINVREF_tb`     | `.\run_sim.ps1 -CONFIG wrapper_VALTRAINVREF     -TOP wrapper_VALTRAINVREF_tb     -MODE run` |
 | **DATATRAINCENTER1 Substate**  | `wrapper_DATATRAINCENTER1` | `wrapper_DATATRAINCENTER1_tb` | `.\run_sim.ps1 -CONFIG wrapper_DATATRAINCENTER1 -TOP wrapper_DATATRAINCENTER1_tb -MODE run` |
-| **DATATRAINVREF Substate**     | `wrapper_DATATRAINVREF`    | `wrapper_DATATRAINVREF_tb`    | `.\run_sim.ps1 -CONFIG wrapper_DATATRAINVREF -TOP wrapper_DATATRAINVREF_tb -MODE run`       |
-| **RXDESKEW Substate**          | `wrapper_RXDESKEW`         | `wrapper_RXDESKEW_tb`         | `.\run_sim.ps1 -CONFIG wrapper_RXDESKEW -TOP wrapper_RXDESKEW_tb -MODE run`                 |
+| **DATATRAINVREF Substate**     | `wrapper_DATATRAINVREF`    | `wrapper_DATATRAINVREF_tb`    | `.\run_sim.ps1 -CONFIG wrapper_DATATRAINVREF    -TOP wrapper_DATATRAINVREF_tb    -MODE run` |
+| **RXDESKEW Substate**          | `wrapper_RXDESKEW`         | `wrapper_RXDESKEW_tb`         | `.\run_sim.ps1 -CONFIG wrapper_RXDESKEW         -TOP wrapper_RXDESKEW_tb         -MODE run` |
 | **DATATRAINCENTER2 Substate**  | `wrapper_DATATRAINCENTER2` | `wrapper_DATATRAINCENTER2_tb` | `.\run_sim.ps1 -CONFIG wrapper_DATATRAINCENTER2 -TOP wrapper_DATATRAINCENTER2_tb -MODE run` |
-| **LINKSPEED Substate**         | `wrapper_LINKSPEED`        | `wrapper_LINKSPEED_tb`        | `.\run_sim.ps1 -CONFIG wrapper_LINKSPEED -TOP wrapper_LINKSPEED_tb -MODE run`               |
-| **REPAIR Substate**            | `wrapper_REPAIR`           | `wrapper_REPAIR_tb`           | `.\run_sim.ps1 -CONFIG wrapper_REPAIR -TOP wrapper_REPAIR_tb -MODE run`                     |
+| **LINKSPEED Substate**         | `wrapper_LINKSPEED`        | `wrapper_LINKSPEED_tb`        | `.\run_sim.ps1 -CONFIG wrapper_LINKSPEED        -TOP wrapper_LINKSPEED_tb        -MODE run` |
+| **REPAIR Substate**            | `wrapper_REPAIR`           | `wrapper_REPAIR_tb`           | `.\run_sim.ps1 -CONFIG wrapper_REPAIR           -TOP wrapper_REPAIR_tb           -MODE run` |
+| **MBTRAIN Top wrapper**        | `wrapper_MBTRAIN`          | `wrapper_MBTRAIN_tb`          | `.\run_sim.ps1 -CONFIG wrapper_MBTRAIN          -TOP wrapper_MBTRAIN_tb          -MODE run` |
+
+##### How to run the simulation in the terminal on Windows (PowerShell):
+
+Go to the root directory of the repo (inside `UCIe-3.0-PHY-layer`) then run the `Execution Command` from the table above. Here is an example on running `unit_RX_D2C_PT` testbench (TB): 
+Note: You can replace `-MODE run` in any one of the above `Execution Command` with `-MODE debug` to open Questasim GUI and see the waveform.
+
+```powershell
+cd "path to UCIe-3.0-PHY-layer"
+.\run_sim.ps1 -CONFIG unit_RX_D2C_PT           -TOP unit_RX_D2C_PT_tb           -MODE run
+```
+
+You can run all testbenches (TBs) of all substates and `wrapper_MBTRAIN` in the table above using this command:
+```powershell
+cd "path to UCIe-3.0-PHY-layer"
+.\tb\wrapper\MainSM\LTSM\MBTRAIN\run_all_mbtrain_substates_tbs.ps1
+```
+
 
 ### Linux Terminal (Make):
 
 | Sub-system / FSM | Listfile Config | Top Testbench Module | Execution Command |
 | :--- | :--- | :--- | :--- |
-| **MBTRAIN Controller**         | `unit_MBTRAIN_ctrl`        | `unit_MBTRAIN_ctrl_tb`        | `make run CONFIG=unit_MBTRAIN_ctrl TOP=unit_MBTRAIN_ctrl_tb`               |
-| **RX D2C Point Test**          | `unit_RX_D2C_PT`           | `unit_RX_D2C_PT_tb`           | `make run CONFIG=unit_RX_D2C_PT TOP=unit_RX_D2C_PT_tb`                     |
-| **TX D2C Point Test**          | `unit_TX_D2C_PT`           | `unit_TX_D2C_PT_tb`           | `make run CONFIG=unit_TX_D2C_PT TOP=unit_TX_D2C_PT_tb`                     |
-| **D2C Point Test Sub-wrapper** | `wrapper_D2C_PT`           | `wrapper_D2C_PT_tb`           | `make run CONFIG=wrapper_D2C_PT TOP=wrapper_D2C_PT_tb`                     |
-| **D2C Point Test Top Wrapper** | `wrapper_D2C_PT_top`       | `wrapper_D2C_PT_top_tb`       | `make run CONFIG=wrapper_D2C_PT_top TOP=wrapper_D2C_PT_top_tb`             |
-| **VALVREF Substate**           | `wrapper_VALVREF`          | `wrapper_VALVREF_tb`          | `make run CONFIG=wrapper_VALVREF TOP=wrapper_VALVREF_tb`                   |
-| **DATAVREF Substate**          | `wrapper_DATAVREF`         | `wrapper_DATAVREF_tb`         | `make run CONFIG=wrapper_DATAVREF TOP=wrapper_DATAVREF_tb`                 |
-| **SPEEDIDLE Substate**         | `wrapper_SPEEDIDLE`        | `wrapper_SPEEDIDLE_tb`        | `make run CONFIG=wrapper_SPEEDIDLE TOP=wrapper_SPEEDIDLE_tb`               |
-| **TXSELFCAL Substate**         | `wrapper_TXSELFCAL`        | `wrapper_TXSELFCAL_tb`        | `make run CONFIG=wrapper_TXSELFCAL TOP=wrapper_TXSELFCAL_tb`               |
-| **RXCLKCAL Substate**          | `wrapper_RXCLKCAL`         | `wrapper_RXCLKCAL_tb`         | `make run CONFIG=wrapper_RXCLKCAL TOP=wrapper_RXCLKCAL_tb`                 |
-| **VALTRAINCENTER Substate**    | `wrapper_VALTRAINCENTER`   | `wrapper_VALTRAINCENTER_tb`   | `make run CONFIG=wrapper_VALTRAINCENTER TOP=wrapper_VALTRAINCENTER_tb`     |
-| **VALTRAINVREF Substate**      | `wrapper_VALTRAINVREF`     | `wrapper_VALTRAINVREF_tb`     | `make run CONFIG=wrapper_VALTRAINVREF TOP=wrapper_VALTRAINVREF_tb`         |
+| **RX D2C Point Test**          | `unit_RX_D2C_PT`           | `unit_RX_D2C_PT_tb`           | `make run CONFIG=unit_RX_D2C_PT           TOP=unit_RX_D2C_PT_tb`           |
+| **TX D2C Point Test**          | `unit_TX_D2C_PT`           | `unit_TX_D2C_PT_tb`           | `make run CONFIG=unit_TX_D2C_PT           TOP=unit_TX_D2C_PT_tb`           |
+| **D2C Point Test Sub-wrapper** | `wrapper_D2C_PT`           | `wrapper_D2C_PT_tb`           | `make run CONFIG=wrapper_D2C_PT           TOP=wrapper_D2C_PT_tb`           |
+| **VALVREF Substate**           | `wrapper_VALVREF`          | `wrapper_VALVREF_tb`          | `make run CONFIG=wrapper_VALVREF          TOP=wrapper_VALVREF_tb`          |
+| **DATAVREF Substate**          | `wrapper_DATAVREF`         | `wrapper_DATAVREF_tb`         | `make run CONFIG=wrapper_DATAVREF         TOP=wrapper_DATAVREF_tb`         |
+| **SPEEDIDLE Substate**         | `wrapper_SPEEDIDLE`        | `wrapper_SPEEDIDLE_tb`        | `make run CONFIG=wrapper_SPEEDIDLE        TOP=wrapper_SPEEDIDLE_tb`        |
+| **TXSELFCAL Substate**         | `wrapper_TXSELFCAL`        | `wrapper_TXSELFCAL_tb`        | `make run CONFIG=wrapper_TXSELFCAL        TOP=wrapper_TXSELFCAL_tb`        |
+| **RXCLKCAL Substate**          | `wrapper_RXCLKCAL`         | `wrapper_RXCLKCAL_tb`         | `make run CONFIG=wrapper_RXCLKCAL         TOP=wrapper_RXCLKCAL_tb`         |
+| **VALTRAINCENTER Substate**    | `wrapper_VALTRAINCENTER`   | `wrapper_VALTRAINCENTER_tb`   | `make run CONFIG=wrapper_VALTRAINCENTER   TOP=wrapper_VALTRAINCENTER_tb`   |
+| **VALTRAINVREF Substate**      | `wrapper_VALTRAINVREF`     | `wrapper_VALTRAINVREF_tb`     | `make run CONFIG=wrapper_VALTRAINVREF     TOP=wrapper_VALTRAINVREF_tb`     |
 | **DATATRAINCENTER1 Substate**  | `wrapper_DATATRAINCENTER1` | `wrapper_DATATRAINCENTER1_tb` | `make run CONFIG=wrapper_DATATRAINCENTER1 TOP=wrapper_DATATRAINCENTER1_tb` |
-| **DATATRAINVREF Substate**     | `wrapper_DATATRAINVREF`    | `wrapper_DATATRAINVREF_tb`    | `make run CONFIG=wrapper_DATATRAINVREF TOP=wrapper_DATATRAINVREF_tb`       |
-| **RXDESKEW Substate**          | `wrapper_RXDESKEW`         | `wrapper_RXDESKEW_tb`         | `make run CONFIG=wrapper_RXDESKEW TOP=wrapper_RXDESKEW_tb`                 |
+| **DATATRAINVREF Substate**     | `wrapper_DATATRAINVREF`    | `wrapper_DATATRAINVREF_tb`    | `make run CONFIG=wrapper_DATATRAINVREF    TOP=wrapper_DATATRAINVREF_tb`    |
+| **RXDESKEW Substate**          | `wrapper_RXDESKEW`         | `wrapper_RXDESKEW_tb`         | `make run CONFIG=wrapper_RXDESKEW         TOP=wrapper_RXDESKEW_tb`         |
 | **DATATRAINCENTER2 Substate**  | `wrapper_DATATRAINCENTER2` | `wrapper_DATATRAINCENTER2_tb` | `make run CONFIG=wrapper_DATATRAINCENTER2 TOP=wrapper_DATATRAINCENTER2_tb` |
-| **LINKSPEED Substate**         | `wrapper_LINKSPEED`        | `wrapper_LINKSPEED_tb`        | `make run CONFIG=wrapper_LINKSPEED TOP=wrapper_LINKSPEED_tb`               |
-| **REPAIR Substate**            | `wrapper_REPAIR`           | `wrapper_REPAIR_tb`           | `make run CONFIG=wrapper_REPAIR TOP=wrapper_REPAIR_tb`                     |
+| **LINKSPEED Substate**         | `wrapper_LINKSPEED`        | `wrapper_LINKSPEED_tb`        | `make run CONFIG=wrapper_LINKSPEED        TOP=wrapper_LINKSPEED_tb`        |
+| **REPAIR Substate**            | `wrapper_REPAIR`           | `wrapper_REPAIR_tb`           | `make run CONFIG=wrapper_REPAIR           TOP=wrapper_REPAIR_tb`           |
+| **MBTRAIN Controller**         | `wrapper_MBTRAIN`          | `wrapper_MBTRAIN_tb`          | `make run CONFIG=wrapper_MBTRAIN          TOP=unit_MBTRAIN_tb`             |
+
+##### How to run the simulation in the terminal on Windows (PowerShell):
+
+Go to the root directory of the repo (inside `UCIe-3.0-PHY-layer`) then run the `Execution Command` from the table above. Here is an example on running `unit_RX_D2C_PT` TB: 
+Note: You can replace `-MODE run` in any one of the above `Execution Command` with `-MODE debug` to open Questasim GUI and see the waveform.
+
+```powershell
+cd "path to UCIe-3.0-PHY-layer"
+make run CONFIG=unit_RX_D2C_PT           TOP=unit_RX_D2C_PT_tb
+```
 
 ---
 
@@ -502,8 +527,7 @@ The top-level training wrapper `wrapper_MBTRAIN.sv` is responsible for integrati
 1. **Top Sequencer**: `unit_MBTRAIN_ctrl`
 2. **Shared Sweep Engine**: `unit_D2C_sweep` (with configurable widths for Vref/PI codes)
 3. **Shared Negotiated Lanes**: `unit_negotiated_lanes` (translates target lane width code to 16-bit lane mask)
-4. **Shared Negotiated Speed**: `unit_negotiated_speed` (determines link maximum and current negotiated speed)
-5. **Substate Wrappers**:
+4. **Substate Wrappers**:
    * `wrapper_VALVREF`, `wrapper_DATAVREF`, `wrapper_SPEEDIDLE`, `wrapper_TXSELFCAL`, `wrapper_RXCLKCAL`
    * `wrapper_VALTRAINCENTER`, `wrapper_VALTRAINVREF`, `wrapper_DATATRAINCENTER1`, `wrapper_DATATRAINVREF`
    * `wrapper_RXDESKEW`, `wrapper_DATATRAINCENTER2`, `wrapper_LINKSPEED`, `wrapper_REPAIR`
@@ -518,19 +542,19 @@ The lane selectors (`mb_tx_*_lane_sel` and `mb_rx_*_lane_sel`) must route the ac
   ```systemverilog
   always_comb begin
       case (current_mbtrain_substate)
-          VALVREF:          {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {valvref_tx_clk_sel, valvref_tx_data_sel, valvref_tx_val_sel, valvref_tx_trk_sel};
-          DATAVREF:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {datavref_tx_clk_sel, datavref_tx_data_sel, datavref_tx_val_sel, datavref_tx_trk_sel};
+          VALVREF:          {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {valvref_tx_clk_sel  , valvref_tx_data_sel  , valvref_tx_val_sel  , valvref_tx_trk_sel  };
+          DATAVREF:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {datavref_tx_clk_sel , datavref_tx_data_sel , datavref_tx_val_sel , datavref_tx_trk_sel };
           SPEEDIDLE:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {speedidle_tx_clk_sel, speedidle_tx_data_sel, speedidle_tx_val_sel, speedidle_tx_trk_sel};
           TXSELFCAL:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {txselfcal_tx_clk_sel, txselfcal_tx_data_sel, txselfcal_tx_val_sel, txselfcal_tx_trk_sel};
-          RXCLKCAL:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxclkcal_tx_clk_sel, rxclkcal_tx_data_sel, rxclkcal_tx_val_sel, rxclkcal_tx_trk_sel};
-          VALTRAINCENTER:   {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtc_tx_clk_sel, vtc_tx_data_sel, vtc_tx_val_sel, vtc_tx_trk_sel};
-          VALTRAINVREF:     {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtvref_tx_clk_sel, vtvref_tx_data_sel, vtvref_tx_val_sel, vtvref_tx_trk_sel};
-          DATATRAINCENTER1: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc1_tx_clk_sel, dtc1_tx_data_sel, dtc1_tx_val_sel, dtc1_tx_trk_sel};
-          DATATRAINVREF:    {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtvref_tx_clk_sel, dtvref_tx_data_sel, dtvref_tx_val_sel, dtvref_tx_trk_sel};
-          RXDESKEW:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxdeskew_tx_clk_sel, rxdeskew_tx_data_sel, rxdeskew_tx_val_sel, rxdeskew_tx_trk_sel};
-          DATATRAINCENTER2: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc2_tx_clk_sel, dtc2_tx_data_sel, dtc2_tx_val_sel, dtc2_tx_trk_sel};
+          RXCLKCAL:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxclkcal_tx_clk_sel , rxclkcal_tx_data_sel , rxclkcal_tx_val_sel , rxclkcal_tx_trk_sel };
+          VALTRAINCENTER:   {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtc_tx_clk_sel      , vtc_tx_data_sel      , vtc_tx_val_sel      , vtc_tx_trk_sel      };
+          VALTRAINVREF:     {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {vtvref_tx_clk_sel   , vtvref_tx_data_sel   , vtvref_tx_val_sel   , vtvref_tx_trk_sel   };
+          DATATRAINCENTER1: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc1_tx_clk_sel     , dtc1_tx_data_sel     , dtc1_tx_val_sel     , dtc1_tx_trk_sel     };
+          DATATRAINVREF:    {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtvref_tx_clk_sel   , dtvref_tx_data_sel   , dtvref_tx_val_sel   , dtvref_tx_trk_sel   };
+          RXDESKEW:         {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {rxdeskew_tx_clk_sel , rxdeskew_tx_data_sel , rxdeskew_tx_val_sel , rxdeskew_tx_trk_sel };
+          DATATRAINCENTER2: {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {dtc2_tx_clk_sel     , dtc2_tx_data_sel     , dtc2_tx_val_sel     , dtc2_tx_trk_sel     };
           LINKSPEED:        {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {linkspeed_tx_clk_sel, linkspeed_tx_data_sel, linkspeed_tx_val_sel, linkspeed_tx_trk_sel};
-          REPAIR:           {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {repair_tx_clk_sel, repair_tx_data_sel, repair_tx_val_sel, repair_tx_trk_sel};
+          REPAIR:           {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {repair_tx_clk_sel   , repair_tx_data_sel   , repair_tx_val_sel   , repair_tx_trk_sel   };
           default:          {mb_tx_clk_lane_sel, mb_tx_data_lane_sel, mb_tx_val_lane_sel, mb_tx_trk_lane_sel} = {2'b10, 2'b10, 2'b10, 2'b10}; // Tri-stated
       endcase
   end
@@ -548,7 +572,6 @@ assign tx_data_field   = active_tx_data_field;
 
 #### C. Shared Watchdog & Settle Timer Routing
 Watchdog and settle timers are OR'ed or routed cleanly.
-* `timeout_timer_en` = OR of all `timeout_timer_en` outputs of active substates.
 * `analog_settle_timer_en` = OR of all `analog_settle_timer_en` outputs.
 
 #### D. Shared Sweep Engine Multiplexing
@@ -561,69 +584,7 @@ Since only one substate sweeps at a time, route the sweep controls using a multi
                     rxdeskew_sweep_en | dtc2_sweep_en | linkspeed_sweep_en;
   ```
 
-### 13.3. Module Interconnection and Signal Flow Diagram
-
-The following Mermaid block diagram illustrates how all the sub-modules within `wrapper_MBTRAIN.sv` are connected together, detailing the handshakes, shared sweep engine, lane masks, sideband/mainband multiplexers, and timer logic:
-
-```mermaid
-graph TD
-    subgraph wrapper_MBTRAIN.sv [wrapper_MBTRAIN.sv Top Level]
-        ctrl[unit_MBTRAIN_ctrl Sequencer]
-        sweep[unit_D2C_sweep Shared Sweep Engine]
-        lanes[unit_negotiated_lanes Utility]
-        speed[unit_negotiated_speed Utility]
-        
-        subgraph Substate_Wrappers [13 Substate Wrappers]
-            w_valvref[wrapper_VALVREF]
-            w_datavref[wrapper_DATAVREF]
-            w_speedidle[wrapper_SPEEDIDLE]
-            w_txselfcal[wrapper_TXSELFCAL]
-            w_rxclkcal[wrapper_RXCLKCAL]
-            w_valcenter[wrapper_VALTRAINCENTER]
-            w_valvref_tr[wrapper_VALTRAINVREF]
-            w_dtc1[wrapper_DATATRAINCENTER1]
-            w_dtvref[wrapper_DATATRAINVREF]
-            w_rxdeskew[wrapper_RXDESKEW]
-            w_dtc2[wrapper_DATATRAINCENTER2]
-            w_linkspeed[wrapper_LINKSPEED]
-            w_repair[wrapper_REPAIR]
-        end
-        
-        sb_mux[Sideband MUX / Arbiter]
-        mb_mux[Mainband MUX]
-        timer_or[Timer OR-Gate Logic]
-    end
-
-    %% Sequencer Handshakes
-    ctrl -->|local_en / partner_en vectors| Substate_Wrappers
-    Substate_Wrappers -->|local_done / partner_done vectors| ctrl
-    Substate_Wrappers -->|trainerror_req ORed| ctrl
-    
-    %% Shared Sweep Connections
-    Substate_Wrappers -->|sweep_en ORed| sweep
-    sweep -->|swept_code / best_code / sweep_done| Substate_Wrappers
-    
-    %% Lane/Speed Connection
-    lanes -->|width_degrade_feasible / local_tx_lane_map_code| w_repair
-    w_repair -->|update_lane_mask| lanes
-    speed -->|param_negotiated_max_speed| w_speedidle
-    w_speedidle -->|phy_negotiated_speed| speed
-    
-    %% SB Connections
-    Substate_Wrappers -->|tx_sb_msg_valid / tx_sb_msg / tx_msginfo / tx_data_field| sb_mux
-    sb_mux -->|Global TX SB Signals| global_sb_tx[Global Sideband TX Ports]
-    global_sb_rx[Global Sideband RX Ports] -->|rx_sb_msg_valid / rx_sb_msg / rx_msginfo / rx_data_field| Substate_Wrappers
-    
-    %% MB Connections
-    Substate_Wrappers -->|mb_tx_clk/data/val/trk_lane_sel & mb_rx_clk/data/val/trk_lane_sel| mb_mux
-    mb_mux -->|Global MB Selectors| global_mb[Global Mainband Ports]
-    
-    %% Timer Connections
-    Substate_Wrappers -->|timeout_timer_en / analog_settle_timer_en| timer_or
-    timer_or -->|Global Timer Enable Flags| global_timers[Global Timer Hardware]
-```
-
-### 13.4. Signal Mapping and Connectivity Details
+### 13.3. Signal Mapping and Connectivity Details
 
 To compile and verify `wrapper_MBTRAIN.sv` successfully, implement the following connections between sub-modules:
 
@@ -654,7 +615,6 @@ To compile and verify `wrapper_MBTRAIN.sv` successfully, implement the following
    * If no substate is active, default TX selectors to tri-state (`2'b10`) and RX selectors to disabled (`1'b0`).
 
 6. **Timer Enables OR-Logic**:
-   * Combine all substate wrappers' `timeout_timer_en` signals using a logical OR to drive the top-level `timeout_timer_en` output to the watchdogs.
    * Combine all substate wrappers' `analog_settle_timer_en` signals using a logical OR to drive the top-level `analog_settle_timer_en` output.
 
 ---
@@ -666,70 +626,70 @@ For quick lookup without parsing `UCIe_pkg.sv` directly, the following sideband 
 
 | Message Symbolic Name | Enum Value | MsgInfo / Data Contents and Description |
 | :--- | :--- | :--- |
-| `MBTRAIN_VALVREF_start_req` | `d35` | Starts Rx Valid Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALVREF_start_resp` | `d36` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALVREF_end_req` | `d37` | Finishes Rx Valid Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALVREF_end_resp` | `d38` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATAVREF_start_req` | `d39` | Starts Rx Data Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATAVREF_start_resp` | `d40` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATAVREF_end_req` | `d41` | Finishes Rx Data Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATAVREF_end_resp` | `d42` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_SPEEDIDLE_done_req` | `d43` | Speed negotiation done request. MsgInfo: `16'h0`. |
+| `MBTRAIN_VALVREF_start_req`  | `d35` | Starts Rx Valid Vref training. MsgInfo: `16'h0`.   |
+| `MBTRAIN_VALVREF_start_resp` | `d36` | Acknowledges start. MsgInfo: `16'h0`.              |
+| `MBTRAIN_VALVREF_end_req`    | `d37` | Finishes Rx Valid Vref training. MsgInfo: `16'h0`. |
+| `MBTRAIN_VALVREF_end_resp`   | `d38` | Acknowledges finish. MsgInfo: `16'h0`.             |
+| `MBTRAIN_DATAVREF_start_req`  | `d39` | Starts Rx Data Vref calibration. MsgInfo: `16'h0`.   |
+| `MBTRAIN_DATAVREF_start_resp` | `d40` | Acknowledges start. MsgInfo: `16'h0`.                |
+| `MBTRAIN_DATAVREF_end_req`    | `d41` | Finishes Rx Data Vref calibration. MsgInfo: `16'h0`. |
+| `MBTRAIN_DATAVREF_end_resp`   | `d42` | Acknowledges finish. MsgInfo: `16'h0`.               |
+| `MBTRAIN_SPEEDIDLE_done_req`  | `d43` | Speed negotiation done request. MsgInfo: `16'h0`.  |
 | `MBTRAIN_SPEEDIDLE_done_resp` | `d44` | Speed negotiation done response. MsgInfo: `16'h0`. |
-| `MBTRAIN_TXSELFCAL_Done_req` | `d45` | Transmitter self-cal done request. MsgInfo: `16'h0`. |
+| `MBTRAIN_TXSELFCAL_Done_req`  | `d45` | Transmitter self-cal done request. MsgInfo: `16'h0`.  |
 | `MBTRAIN_TXSELFCAL_Done_resp` | `d46` | Transmitter self-cal done response. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_start_req` | `d47` | Starts Rx clock and IQ calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_start_resp` | `d48` | Acknowledges start. MsgInfo: `16'h0`. |
+| `MBTRAIN_RXCLKCAL_start_req`        | `d47` | Starts Rx clock and IQ calibration. MsgInfo: `16'h0`.     |
+| `MBTRAIN_RXCLKCAL_start_resp`       | `d48` | Acknowledges start. MsgInfo: `16'h0`.                     |
 | `MBTRAIN_RXCLKCAL_TCKN_L_shift_req` | `d49` | Request remote transmitter shift clock. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_TCKN_L_shift_resp`| `d50` | Acknowledges shift request. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_done_req` | `d51` | Clock cal done request. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_done_resp` | `d52` | Clock cal done response. MsgInfo: `16'h0`. |
+| `MBTRAIN_RXCLKCAL_TCKN_L_shift_resp`| `d50` | Acknowledges shift request. MsgInfo: `16'h0`.             |
+| `MBTRAIN_RXCLKCAL_done_req`         | `d51` | Clock cal done request. MsgInfo: `16'h0`.                 |
+| `MBTRAIN_RXCLKCAL_done_resp`        | `d52` | Clock cal done response. MsgInfo: `16'h0`.                |
 | `MBTRAIN_VALTRAINCENTER_start_req` | `d53` | Starts Valid PI calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINCENTER_start_resp`| `d54` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINCENTER_done_req` | `d55` | Valid PI done request. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINCENTER_done_resp` | `d56` | Valid PI done response. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINVREF_start_req` | `d57` | Starts Valid Rx Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINVREF_start_resp` | `d58` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINVREF_end_req` | `d59` | Finishes Valid Rx Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINVREF_end_resp` | `d60` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER1_start_req`| `d61` | Starts Data PI Pass 1 training. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER1_start_resp`| `d62` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER1_end_req` | `d63` | Finishes Data PI Pass 1. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER1_end_resp` | `d64` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINVREF_start_req` | `d65` | Starts Data Rx Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINVREF_start_resp` | `d66` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINVREF_end_req` | `d67` | Finishes Data Rx Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINVREF_end_resp` | `d68` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_start_req` | `d69` | Starts Rx deskew calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_start_resp` | `d70` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req`| `d73` | Request loopback to DTC1. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp`| `d74`| Acknowledges loopback request. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_end_req` | `d75` | Finishes Rx deskew. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_end_resp` | `d76` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER2_start_req`| `d77` | Starts Data PI Pass 2 training. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER2_start_resp`| `d78` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER2_end_req` | `d79` | Finishes Data PI Pass 2. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER2_end_resp` | `d80` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_start_req` | `d81` | Starts Link stability point test. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_start_resp` | `d82` | Acknowledges start. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_error_req` | `d83` | Reports link stable test failed. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_error_resp` | `d84` | Acknowledges error report. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_repair_req`| `d85` | Requests exit path to REPAIR. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_repair_resp`| `d86` | Acknowledges exit to REPAIR. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_req`| `d87`| Requests speed degradation downshift. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp`| `d88`| Acknowledges speed degradation. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req`| `d89`| Requests exit to PHYRETRAIN. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp`| `d90`| Acknowledges exit to PHYRETRAIN. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_done_req` | `d91` | Stable test passed request. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_done_resp` | `d92` | Stable test passed response. MsgInfo: `16'h0`. |
-| `MBTRAIN_REPAIR_init_req` | `d93` | Starts link repair (degrade width). MsgInfo: `16'h0`. |
-| `MBTRAIN_REPAIR_init_resp` | `d94` | Acknowledges repair start. MsgInfo: `16'h0`. |
+| `MBTRAIN_VALTRAINCENTER_start_resp`| `d54` | Acknowledges start. MsgInfo: `16'h0`.          |
+| `MBTRAIN_VALTRAINCENTER_done_req`  | `d55` | Valid PI done request. MsgInfo: `16'h0`.       |
+| `MBTRAIN_VALTRAINCENTER_done_resp` | `d56` | Valid PI done response. MsgInfo: `16'h0`.      |
+| `MBTRAIN_VALTRAINVREF_start_req`  | `d57` | Starts Valid Rx Vref training. MsgInfo: `16'h0`.   |
+| `MBTRAIN_VALTRAINVREF_start_resp` | `d58` | Acknowledges start. MsgInfo: `16'h0`.              |
+| `MBTRAIN_VALTRAINVREF_end_req`    | `d59` | Finishes Valid Rx Vref training. MsgInfo: `16'h0`. |
+| `MBTRAIN_VALTRAINVREF_end_resp`   | `d60` | Acknowledges finish. MsgInfo: `16'h0`.             |
+| `MBTRAIN_DATATRAINCENTER1_start_req` | `d61` | Starts Data PI Pass 1 training. MsgInfo: `16'h0`. |
+| `MBTRAIN_DATATRAINCENTER1_start_resp`| `d62` | Acknowledges start. MsgInfo: `16'h0`.             |
+| `MBTRAIN_DATATRAINCENTER1_end_req`   | `d63` | Finishes Data PI Pass 1. MsgInfo: `16'h0`.        |
+| `MBTRAIN_DATATRAINCENTER1_end_resp`  | `d64` | Acknowledges finish. MsgInfo: `16'h0`.            |
+| `MBTRAIN_DATATRAINVREF_start_req`  | `d65` | Starts Data Rx Vref calibration. MsgInfo: `16'h0`.   |
+| `MBTRAIN_DATATRAINVREF_start_resp` | `d66` | Acknowledges start. MsgInfo: `16'h0`.                |
+| `MBTRAIN_DATATRAINVREF_end_req`    | `d67` | Finishes Data Rx Vref calibration. MsgInfo: `16'h0`. |
+| `MBTRAIN_DATATRAINVREF_end_resp`   | `d68` | Acknowledges finish. MsgInfo: `16'h0`.               |
+| `MBTRAIN_RXDESKEW_start_req`                    | `d69` | Starts Rx deskew calibration. MsgInfo: `16'h0`.  |
+| `MBTRAIN_RXDESKEW_start_resp`                   | `d70` | Acknowledges start. MsgInfo: `16'h0`.            |
+| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req` | `d73` | Request loopback to DTC1. MsgInfo: `16'h0`.      |
+| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp`| `d74` | Acknowledges loopback request. MsgInfo: `16'h0`. |
+| `MBTRAIN_RXDESKEW_end_req`                      | `d75` | Finishes Rx deskew. MsgInfo: `16'h0`.            |
+| `MBTRAIN_RXDESKEW_end_resp`                     | `d76` | Acknowledges finish. MsgInfo: `16'h0`.           |
+| `MBTRAIN_DATATRAINCENTER2_start_req` | `d77` | Starts Data PI Pass 2 training. MsgInfo: `16'h0`. |
+| `MBTRAIN_DATATRAINCENTER2_start_resp`| `d78` | Acknowledges start. MsgInfo: `16'h0`.             |
+| `MBTRAIN_DATATRAINCENTER2_end_req`   | `d79` | Finishes Data PI Pass 2. MsgInfo: `16'h0`.        |
+| `MBTRAIN_DATATRAINCENTER2_end_resp`  | `d80` | Acknowledges finish. MsgInfo: `16'h0`.            |
+| `MBTRAIN_LINKSPEED_start_req`                                             | `d81` | Starts Link stability point test. MsgInfo: `16'h0`.     |
+| `MBTRAIN_LINKSPEED_start_resp`                                            | `d82` | Acknowledges start. MsgInfo: `16'h0`.                   |
+| `MBTRAIN_LINKSPEED_error_req`                                             | `d83` | Reports link stable test failed. MsgInfo: `16'h0`.      |
+| `MBTRAIN_LINKSPEED_error_resp`                                            | `d84` | Acknowledges error report. MsgInfo: `16'h0`.            |
+| `MBTRAIN_LINKSPEED_exit_to_repair_req`                                    | `d85` | Requests exit path to REPAIR. MsgInfo: `16'h0`.         |
+| `MBTRAIN_LINKSPEED_exit_to_repair_resp`                                   | `d86` | Acknowledges exit to REPAIR. MsgInfo: `16'h0`.          |
+| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_req`                             | `d87` | Requests speed degradation downshift. MsgInfo: `16'h0`. |
+| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp`                            | `d88` | Acknowledges speed degradation. MsgInfo: `16'h0`.       |
+| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req` | `d89` | Requests exit to PHYRETRAIN. MsgInfo: `16'h0`.          |
+| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp`| `d90` | Acknowledges exit to PHYRETRAIN. MsgInfo: `16'h0`.      |
+| `MBTRAIN_LINKSPEED_done_req`                                              | `d91` | Stable test passed request. MsgInfo: `16'h0`.           |
+| `MBTRAIN_LINKSPEED_done_resp`                                             | `d92` | Stable test passed response. MsgInfo: `16'h0`.          |
+| `MBTRAIN_REPAIR_init_req`          | `d93` | Starts link repair (degrade width). MsgInfo: `16'h0`.        |
+| `MBTRAIN_REPAIR_init_resp`         | `d94` | Acknowledges repair start. MsgInfo: `16'h0`.                 |
 | `MBTRAIN_REPAIR_apply_degrade_req` | `d95` | Local sends degraded lane map. MsgInfo: `[2:0] tx_map_code`. |
-| `MBTRAIN_REPAIR_apply_degrade_resp`| `d96` | Acknowledges registered degraded map. MsgInfo: `16'h0`. |
-| `MBTRAIN_REPAIR_end_req` | `d97` | Finishes REPAIR substate. MsgInfo: `16'h0`. |
-| `MBTRAIN_REPAIR_end_resp` | `d98` | Acknowledges finish. MsgInfo: `16'h0`. |
-| `TRAINERROR_Entry_req` | `d107`| Enter global TRAINERROR state. MsgInfo: `16'h0`. |
-| `TRAINERROR_Entry_resp` | `d108`| Acknowledge TRAINERROR entry. MsgInfo: `16'h0`. |
+| `MBTRAIN_REPAIR_apply_degrade_resp`| `d96` | Acknowledges registered degraded map. MsgInfo: `16'h0`.      |
+| `MBTRAIN_REPAIR_end_req`           | `d97` | Finishes REPAIR substate. MsgInfo: `16'h0`.                  |
+| `MBTRAIN_REPAIR_end_resp`          | `d98` | Acknowledges finish. MsgInfo: `16'h0`.                       |
+| `TRAINERROR_Entry_req`  | `d107`| Enter global TRAINERROR state. MsgInfo: `16'h0`. |
+| `TRAINERROR_Entry_resp` | `d108`| Acknowledge TRAINERROR entry. MsgInfo: `16'h0`.  |
 
 ---
 
@@ -740,7 +700,6 @@ When implementing a new training sub-state, developers must implement three file
 ### 15.1. Local FSM Module (`unit_<SUBSTATE>_local.sv`)
 * **Role**: Initiates training, executes sweeps, and checks bounds/errors.
 * **Control signals**: Accepts `<substate>_en` from the sequencer, outputs `<substate>_done` and `trainerror_req` when failed.
-* **Watchdog / Timer**: Uses `timeout_timer_en = 1` while active. Triggers `trainerror_req` if `timeout_8ms_occured == 1`.
 * **State Machine Flow**:
   1. `IDLE`: Resets best codes/registers. Transitions to `INIT_REQ` when `<substate>_en` is asserted.
   2. `INIT_REQ`: Asserts `tx_sb_msg_valid` with the start message for exactly 1 cycle. Transitions to `WAIT_INIT_RESP`.
@@ -773,7 +732,6 @@ When implementing a new training sub-state, developers must implement three file
 * **Mainband Multiplexing**:
   * For **TX lanes**: Route from Partner FSM if partner is transmitting patterns; otherwise route from Local FSM.
   * For **RX lanes**: Route from Local FSM if local is performing tests; otherwise route from Partner FSM.
-* **Timer Multiplexing**: OR the local and partner `timeout_timer_en` signals to output to the top level.
 
 ---
 
@@ -784,11 +742,5 @@ Keep these critical rules in mind when writing or modifying SystemVerilog module
 1. **Sideband Message Duration constraint**: All sideband messages must be asserted (`tx_sb_msg_valid = 1`) for **exactly one clock cycle (1 lclk)**, then immediately deasserted to `0`. If valid is held high for more than one cycle, the receiving sideband FIFO will interpret it as multiple duplicate messages, causing FSM deadlock or incorrect transitions.
 2. **Sideband Message Spacing constraint**: Consecutive sideband messages must be separated by **at least one idle clock cycle** (`tx_sb_msg_valid = 0`) to guarantee correct packet synchronization.
 3. **No Direct Inter-Die Modport Connection**: Modules must use individual ports, not interfaces or modports directly in the module port definitions, to maintain synthesis compatibility and simulation modularity.
-4. **Soft Reset Compatibility**: All register arrays (like `best_code_r` or phase configurations) must be reset not only by the physical `rst_n` signal, but also by the soft reset signal `is_ltsm_out_of_reset` when it is low (`!is_ltsm_out_of_reset`).
+4. **Soft Reset Compatibility**: All register arrays (like `best_code_r` or phase configurations) must be reset not only by the physical `rst_n` signal, but also by the soft reset signal `soft_rst_n` when it is low (`!soft_rst_n`).
 5. **Speed Change Settle Cycles**: When changing PLL speed rates in `SPEEDIDLE`, FSMs must request `analog_settle_timer_en = 1` and wait for `analog_settle_time_done == 1` before sending sideband status updates, ensuring the PLL clocks are stable before launching point tests.
-
-
-## 17. There are old files we may need to take an idea about some logic used inside time (but note, we already changed many details in the new design according to the old files)
-1. `tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_tb_old.sv`
-2. `rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_old.sv`
-
