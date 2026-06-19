@@ -71,19 +71,20 @@ rtl/MainSM/LTSM/MBINIT/MBINIT_WRAPPER.sv
 rtl/MainSM/LTSM/MBINIT/MBINIT.sv
 
 # ---- D2C Point Test ----------------------------------------------------------
-rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C_PT/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT/unit_RX_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C_PT/RX_D2C_PT/unit_RX_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_local.sv
-rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
-rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT/wrapper_D2C_PT_top.sv
+rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_local.sv
+rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
+rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT.sv
 
 # ---- LINKINIT + ACTIVE -------------------------------------------------------
 rtl/MainSM/LTSM/LINKINIT/linkinit.sv
 rtl/MainSM/LTSM/ACTIVE.sv
 
 # ---- LTSM controller + wrapper -----------------------------------------------
+rtl/MainSM/LTSM/trainerror_handshake.sv
 rtl/MainSM/LTSM/unit_ltsm_controller.sv
 rtl/MainSM/LTSM/LTSM_wrapper.sv
 

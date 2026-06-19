@@ -88,6 +88,8 @@ import LTSM_state_pkg::*;
     output logic        trainerror_en,
     input  logic        trainerror_done,
 
+    input  logic        te_handshake_done,
+
     // ---------------------------------------------------------------- 8 ms timer
     input  logic        timeout_8ms_occured  // drives TRAINERROR on timeout
 );
@@ -110,11 +112,10 @@ import LTSM_state_pkg::*;
         next_state = current_state;
         
         // Global error / timeout transition to TRAINERROR
+        // Handshake is active in MBINIT, MBTRAIN and LINKINIT, so timeouts in those states
+        // are handled via the handshake done signal. Only other states go directly.
         if (timeout_8ms_occured && (
             current_state == CTRL_SBINIT ||
-            current_state == CTRL_MBINIT ||
-            current_state == CTRL_MBTRAIN ||
-            current_state == CTRL_LINKINIT ||
             current_state == CTRL_PHYRETRAIN
         )) begin
             next_state = CTRL_TRAINERROR;
@@ -125,14 +126,14 @@ import LTSM_state_pkg::*;
                 CTRL_SBINIT:   if (sbinit_error)       next_state = CTRL_TRAINERROR;
                                else if (sbinit_done)   next_state = CTRL_MBINIT;
                                
-                CTRL_MBINIT:   if (mbinit_error)       next_state = CTRL_TRAINERROR;
+                CTRL_MBINIT:   if (te_handshake_done)  next_state = CTRL_TRAINERROR;
                                else if (mbinit_done)   next_state = CTRL_MBTRAIN;
                                
-                CTRL_MBTRAIN:  if (mbtrain_error)            next_state = CTRL_TRAINERROR;
+                CTRL_MBTRAIN:  if (te_handshake_done)  next_state = CTRL_TRAINERROR;
                                else if (mbtrain_phyretrain_req) next_state = CTRL_PHYRETRAIN;
                                else if (mbtrain_done)        next_state = CTRL_LINKINIT;
                                
-                CTRL_LINKINIT: if (linkinit_error)     next_state = CTRL_TRAINERROR;
+                CTRL_LINKINIT: if (te_handshake_done)  next_state = CTRL_TRAINERROR;
                                else if (linkinit_done) next_state = CTRL_ACTIVE;
                                
                 CTRL_ACTIVE:   if (active_next_ltsm_state == CTRL_TRAINERROR)

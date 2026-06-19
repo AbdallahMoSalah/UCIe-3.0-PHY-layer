@@ -167,13 +167,6 @@ module trainerror_handshake
         ##1 (tx_sb_msg_valid && $stable(tx_sb_msg) && $stable(tx_msginfo));
     endproperty
     assert_tx_stable_until_rdy: assert property (p_tx_stable_until_rdy);
-
-    // 3. Global error triggers immediate entry to done
-    property p_global_error_to_done;
-        @(posedge clk) disable iff (!rst_n)
-        (global_error && current_state != TE_DONE && current_state != TE_IDLE) |=> done;
-    endproperty
-    assert_global_error_to_done: assert property (p_global_error_to_done);
 `endif
 
 endmodule

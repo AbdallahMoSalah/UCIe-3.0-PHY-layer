@@ -136,6 +136,7 @@ rtl/MainSM/LTSM/L2.sv
 rtl/MainSM/LTSM/TRAINERROR.sv
 
 # ---- LTSM controller + wrapper -----------------------------------------------
+rtl/MainSM/LTSM/trainerror_handshake.sv
 rtl/MainSM/LTSM/unit_ltsm_controller.sv
 rtl/MainSM/LTSM/LTSM_wrapper.sv
 

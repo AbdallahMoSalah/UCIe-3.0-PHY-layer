@@ -207,7 +207,7 @@ module LTSM_wrapper #(
     // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
     logic mbtrain_speedidle_req;
 
-    logic timeout_timer_en, timer_rst_n;
+    logic timeout_timer_en, timer_rst_n, timeout_8ms_occured;
 
     // =========================================================================
     // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
@@ -365,7 +365,7 @@ module LTSM_wrapper #(
     ltsm_ctrl_state_e active_next_ltsm_state;
 
     // Sideband RX, 8-bit form for the D2C point test
-    logic [7:0] sb_rx_msg_8;
+    msg_no_e sb_rx_msg_8;
     assign sb_rx_msg_8 = sb_rx_msg_id;
 
     // =========================================================================
@@ -498,6 +498,62 @@ module LTSM_wrapper #(
     end
 
     // =========================================================================
+    // TRAINERROR HANDSHAKE INTEGRATION
+    // =========================================================================
+    logic        te_handshake_en;
+    logic        te_local_error_trigger;
+    logic        te_handshake_done;
+    logic        te_tx_sb_msg_valid;
+    msg_no_e     te_tx_sb_msg;
+    logic [15:0] te_tx_msginfo;
+
+    assign te_handshake_en = (current_ltsm_state == MBINIT || current_ltsm_state == MBTRAIN || current_ltsm_state == LINKINIT);
+
+    // Watchdog reset on handshake start
+    logic reset_timer_on_handshake_start;
+    assign reset_timer_on_handshake_start = te_handshake_en && !te_local_error_trigger &&
+                                            (mbinit_error || mbtrain_ltsm_trainerror_req || linkinit_error || timeout_8ms_occured);
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            te_local_error_trigger <= 1'b0;
+        end else if (te_handshake_en) begin
+            // Trigger handshake on mbinit_error, mbtrain_error, linkinit_error, or timeout_8ms_occured
+            if (mbinit_error || mbtrain_ltsm_trainerror_req || linkinit_error || timeout_8ms_occured) begin
+                if (te_local_error_trigger) begin
+                    // If already running, a second timeout clears it
+                    if (timeout_8ms_occured) begin
+                        te_local_error_trigger <= 1'b0;
+                    end
+                end else begin
+                    te_local_error_trigger <= 1'b1;
+                end
+            end
+            // Clear on handshake done
+            if (te_handshake_done) begin
+                te_local_error_trigger <= 1'b0;
+            end
+        end else begin
+            te_local_error_trigger <= 1'b0;
+        end
+    end
+
+    trainerror_handshake u_trainerror_handshake (
+        .clk                 (clk),
+        .rst_n               (rst_n),
+        .en                  (te_handshake_en),
+        .local_error_trigger (te_local_error_trigger),
+        .done                (te_handshake_done),
+        .tx_sb_msg_valid     (te_tx_sb_msg_valid),
+        .tx_sb_msg           (te_tx_sb_msg),
+        .tx_msginfo          (te_tx_msginfo),
+        .ltsm_rdy            (sb_ltsm_rdy),
+        .rx_sb_msg_valid     (sb_rx_valid),
+        .rx_sb_msg           (sb_rx_msg_8),
+        .rx_msginfo          (sb_rx_MsgInfo)
+    );
+
+    // =========================================================================
     // CONTROLLER
     // =========================================================================
     unit_ltsm_controller u_controller (
@@ -526,6 +582,7 @@ module LTSM_wrapper #(
         .l2_error            (l2_error),
         .trainerror_en       (trainerror_en),
         .trainerror_done     (trainerror_done),
+        .te_handshake_done   (te_handshake_done),
         // Per-state errors (reserved — TRAINERROR handshake wired in a later step)
         .sbinit_error        (sbinit_error),
         .mbinit_error        (mbinit_error),
@@ -566,7 +623,7 @@ module LTSM_wrapper #(
     logic timer_rst_n_q;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) timer_rst_n_q <= 1'b0;
-        else        timer_rst_n_q <= ~substate_changing;
+        else        timer_rst_n_q <= ~(substate_changing || reset_timer_on_handshake_start);
     end
     assign timer_rst_n = timer_rst_n_q;
 
@@ -997,41 +1054,48 @@ module LTSM_wrapper #(
         sb_tx_msg_id     = msg_no_e'(8'h0);
         sb_tx_MsgInfo    = 16'h0;
         sb_tx_data_Field = 64'h0;
-        case (current_ltsm_state)
-            SBINIT: begin
-                sb_tx_valid  = sbinit_tx_valid;
-                sb_tx_msg_id = sbinit_tx_msg_id;
-            end
-            MBINIT: begin
-                if (d2c_tx_sb_msg_valid) begin
-                    sb_tx_valid      = 1'b1;
-                    sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
-                    sb_tx_MsgInfo    = d2c_tx_msginfo;
-                    sb_tx_data_Field = d2c_tx_data_field;
-                end else begin
-                    sb_tx_valid      = mbinit_tx_valid;
-                    sb_tx_msg_id     = mbinit_tx_msg_id;
-                    sb_tx_MsgInfo    = mbinit_tx_MsgInfo;
-                    sb_tx_data_Field = mbinit_tx_data_Field;
+        if (te_tx_sb_msg_valid) begin
+            sb_tx_valid      = 1'b1;
+            sb_tx_msg_id     = te_tx_sb_msg;
+            sb_tx_MsgInfo    = te_tx_msginfo;
+            sb_tx_data_Field = 64'h0;
+        end else begin
+            case (current_ltsm_state)
+                SBINIT: begin
+                    sb_tx_valid  = sbinit_tx_valid;
+                    sb_tx_msg_id = sbinit_tx_msg_id;
                 end
-            end
-            MBTRAIN: begin
-                // Substate handshake messages take priority; otherwise the shared
-                // D2C sweep engine's point-test messages own the SB bus.
-                if (mbtrain_tx_sb_msg_valid) begin
-                    sb_tx_valid      = 1'b1;
-                    sb_tx_msg_id     = msg_no_e'(mbtrain_tx_sb_msg);
-                    sb_tx_MsgInfo    = mbtrain_tx_msginfo;
-                    sb_tx_data_Field = mbtrain_tx_data_field;
-                end else if (d2c_tx_sb_msg_valid) begin
-                    sb_tx_valid      = 1'b1;
-                    sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
-                    sb_tx_MsgInfo    = d2c_tx_msginfo;
-                    sb_tx_data_Field = d2c_tx_data_field;
+                MBINIT: begin
+                    if (d2c_tx_sb_msg_valid) begin
+                        sb_tx_valid      = 1'b1;
+                        sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
+                        sb_tx_MsgInfo    = d2c_tx_msginfo;
+                        sb_tx_data_Field = d2c_tx_data_field;
+                    end else begin
+                        sb_tx_valid      = mbinit_tx_valid;
+                        sb_tx_msg_id     = mbinit_tx_msg_id;
+                        sb_tx_MsgInfo    = mbinit_tx_MsgInfo;
+                        sb_tx_data_Field = mbinit_tx_data_Field;
+                    end
                 end
-            end
-            default: ; // RESET / LINKINIT / ACTIVE: no SB TX
-        endcase
+                MBTRAIN: begin
+                    // Substate handshake messages take priority; otherwise the shared
+                    // D2C sweep engine's point-test messages own the SB bus.
+                    if (mbtrain_tx_sb_msg_valid) begin
+                        sb_tx_valid      = 1'b1;
+                        sb_tx_msg_id     = msg_no_e'(mbtrain_tx_sb_msg);
+                        sb_tx_MsgInfo    = mbtrain_tx_msginfo;
+                        sb_tx_data_Field = mbtrain_tx_data_field;
+                    end else if (d2c_tx_sb_msg_valid) begin
+                        sb_tx_valid      = 1'b1;
+                        sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
+                        sb_tx_MsgInfo    = d2c_tx_msginfo;
+                        sb_tx_data_Field = d2c_tx_data_field;
+                    end
+                end
+                default: ; // RESET / LINKINIT / ACTIVE: no SB TX
+            endcase
+        end
     end
 
     // =========================================================================
