@@ -60,7 +60,6 @@
 // | {MBTRAIN.LINKSPEED exit to speed degrade resp} | TX (Out)  | Our response → SPEEDIDLE         |
 // | {MBTRAIN.LINKSPEED exit to phy retrain req}    | RX (In)   | Remote LOCAL detected change     |
 // | {MBTRAIN.LINKSPEED exit to phy retrain resp}   | TX (Out)  | Our response → PHYRETRAIN        |
-// | {TRAINERROR entry req}                         | RX (In)   | → TO_TRAINERROR immediately      |
 // NOTE: {exit to phy retrain req/resp} share opcodes with RXDESKEW EQ Preset req/resp.
 // ====================================================================================================
 
@@ -196,16 +195,15 @@ module unit_LINKSPEED_partner (
     // FSM Next-State Logic
     // ─────────────────────────────────────────────────────────────────────────
     // Priority:
-    //   P1 (highest): Watchdog OR TRAINERROR req received → TO_TRAINERROR
-    //   P2:           !linkspeed_en                       → IDLE
-    //   P3:           Normal FSM case transitions
+    //   P1:           !linkspeed_en → IDLE
+    //   P2:           Normal FSM case transitions
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
-        // P2: Session teardown.
+        // P1: Session teardown.
         if (!linkspeed_en) begin
             next_state = LINKSPEED_PTR_IDLE;
         end
-        // P3: Normal transitions.
+        // P2: Normal transitions.
         else begin
             case (current_state)
 

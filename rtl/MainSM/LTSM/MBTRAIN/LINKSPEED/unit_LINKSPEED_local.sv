@@ -269,21 +269,20 @@ module unit_LINKSPEED_local (
     // FSM Next-State Logic
     // ─────────────────────────────────────────────────────────────────────────
     // Priority levels:
-    //   P1 (highest): Watchdog OR TRAINERROR req received → TO_TRAINERROR
-    //   P2:           !linkspeed_en                       → IDLE
-    //   P3:           Normal FSM case statement
+    //   P1:           !linkspeed_en → IDLE
+    //   P2:           Normal FSM case statement
     //
-    // NOTE: There is NO "Role B" P3 override in this module.
+    // NOTE: There is NO "Role B" P2 override in this module.
     //   The PARTNER FSM on our die exclusively handles {exit to phy retrain req}
     //   received from the remote LOCAL. Our LOCAL has zero responsibility for
     //   responding to the remote LOCAL's requests (hierarchy.md §6).
     // =========================================================================
     always_comb begin : NEXT_STATE_PROC
-        // P2: Session teardown.
+        // P1: Session teardown.
         if (!linkspeed_en) begin
             next_state = LINKSPEED_LCL_IDLE;
         end
-        // P3: Normal FSM transitions.
+        // P2: Normal FSM transitions.
         else begin
             case (current_state)
 

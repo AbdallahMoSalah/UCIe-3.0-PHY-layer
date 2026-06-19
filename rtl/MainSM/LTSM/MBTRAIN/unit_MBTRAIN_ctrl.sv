@@ -14,19 +14,19 @@
 // activate. There is therefore no longer a separate local_*_en / partner_*_en here.
 //
 // Sequence:
-//   1. VALVREF         (Rx Valid Lane Vref)
-//   2. DATAVREF        (Rx Data Lanes Vref)
-//   3. SPEEDIDLE       (Link Speed Negotiation)
-//   4. TXSELFCAL       (Tx Self-Calibration)
-//   5. RXCLKCAL        (I/Q & Clock Lock)
-//   6. VALTRAINCENTER  (Tx Valid PI Centering)
-//   7. VALTRAINVREF    (Rx Valid Vref Training)
-//   8. DATATRAINCENTER1(Tx Data PI Centering - Pass 1)
-//   9. DATATRAINVREF   (Rx Data Vref Training)
-//   10. RXDESKEW       (Rx Data Deskew & EQ-Preset Loop)
+//   1. VALVREF          (Rx Valid Lane Vref)
+//   2. DATAVREF         (Rx Data Lanes Vref)
+//   3. SPEEDIDLE        (Link Speed Negotiation)
+//   4. TXSELFCAL        (Tx Self-Calibration)
+//   5. RXCLKCAL         (I/Q & Clock Lock)
+//   6. VALTRAINCENTER   (Tx Valid PI Centering)
+//   7. VALTRAINVREF     (Rx Valid Vref Training)
+//   8. DATATRAINCENTER1 (Tx Data PI Centering - Pass 1)
+//   9. DATATRAINVREF    (Rx Data Vref Training)
+//   10. RXDESKEW        (Rx Data Deskew & EQ-Preset Loop)
 //   11. DATATRAINCENTER2(Tx Data PI Centering - Pass 2)
-//   12. LINKSPEED      (Link Stability Check)
-//   13. REPAIR         (Width Degradation)
+//   12. LINKSPEED       (Link Stability Check)
+//   13. REPAIR          (Width Degradation)
 //
 // ====================================================================================================
 
@@ -294,8 +294,8 @@ module unit_MBTRAIN_ctrl (
                         else if (linkspeed_repair_req) begin
                             next_state = REPAIR;
                         end
-                        else begin
-                            ltsm_trainerror_req = 1'b1;
+                        else begin // This `esle` block can't happen at all. We added it for more safety. we can remove it.
+                            ltsm_trainerror_req = 1'b1        ;
                             next_state          = MBTRAIN_DONE;
                         end
                     end

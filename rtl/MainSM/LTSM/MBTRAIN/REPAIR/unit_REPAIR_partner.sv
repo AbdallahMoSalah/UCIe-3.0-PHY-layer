@@ -181,7 +181,7 @@ module unit_REPAIR_partner (
             if (state_n_0 == ltsm_state_n_pkg::LOG_MBTRAIN_VALVREF && update_data_lane_mask_by_mbinit_result) begin
                 mb_rx_data_lane_mask_r <= mbinit_rx_data_lane_mask;
                 mb_tx_data_lane_mask_r <= mbinit_tx_data_lane_mask;
-                update_data_lane_mask_by_mbinit_result <= 1'b0;
+                update_data_lane_mask_by_mbinit_result <= 1'b0    ;
             end
 
             // ------------------------------------------------------------------
@@ -190,7 +190,7 @@ module unit_REPAIR_partner (
             //   3'b000 = degrade not possible on Die B
             //   other  = Die B's TX will use these lanes
             // ------------------------------------------------------------------
-            if (current_state == REPAIR_PTR_WAIT_DEGRADE
+            else if (current_state == REPAIR_PTR_WAIT_DEGRADE
                     && rx_sb_msg_valid && rx_sb_msg == MBTRAIN_REPAIR_apply_degrade_req) begin
                 remote_local_tx_code_r <= rx_msginfo[2:0];
             end
@@ -215,7 +215,7 @@ module unit_REPAIR_partner (
             //   Case C — BOTH have specific degrades (neither is full_width_code):
             //     → TX = our code,   RX = remote code
             // ------------------------------------------------------------------
-            if (current_state == REPAIR_PTR_SEND_DEGRADE && width_degrade_feasible
+            else if (current_state == REPAIR_PTR_SEND_DEGRADE && width_degrade_feasible
                     && remote_local_tx_code_r != CODE_NONE) begin
                 if (remote_local_tx_code_r == full_width_code) begin
                     // Case A: Die B said all lanes functional → use our own code

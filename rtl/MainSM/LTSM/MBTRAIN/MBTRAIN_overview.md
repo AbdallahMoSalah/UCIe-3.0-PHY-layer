@@ -24,6 +24,8 @@ LTSM consists of the following group of states:
    8.  `MBTRAIN.DATATRAINCENTER1` — Transmitter PI training for Data lanes (Pass 1).
    9.  `MBTRAIN.DATATRAINVREF` — Receiver Vref training for Data lanes.
    10. `MBTRAIN.RXDESKEW` — Data lanes deskew and Equalization (EQ) preset tuning loop.
+       - *Loopback to DTC1*: If calibration target is not met, the FSM loops back to `DATATRAINCENTER1` (up to 4 iterations).
+       - *Exit to DTC2*: Transition to `DATATRAINCENTER2` upon successful deskew, or when the loop count is exhausted / no progress is made.
    11. `MBTRAIN.DATATRAINCENTER2` — Transmitter PI training for Data lanes (Pass 2).
    12. `MBTRAIN.LINKSPEED` — Link stability verification at the final operating rate.
        - *Link Stable*: Advance to `LINKINIT`.
@@ -448,8 +450,8 @@ Every sub-state and component has a dedicated testbench. You can run each testbe
 
 ### Windows (PowerShell):
 
-| Sub-system / FSM | Listfile Config | Top Testbench Module | Execution Command |
-| :--- | :--- | :--- | :--- |
+| Sub-system / FSM               | Listfile Config            | Top Testbench Module          | Execution Command                                                                           |
+| :----------------------------- | :------------------------- | :---------------------------- | :------------------------------------------------------------------------------------------ |
 | **RX D2C Point Test**          | `unit_RX_D2C_PT`           | `unit_RX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_RX_D2C_PT           -TOP unit_RX_D2C_PT_tb           -MODE run` |
 | **TX D2C Point Test**          | `unit_TX_D2C_PT`           | `unit_TX_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG unit_TX_D2C_PT           -TOP unit_TX_D2C_PT_tb           -MODE run` |
 | **D2C Point Test Sub-wrapper** | `wrapper_D2C_PT`           | `wrapper_D2C_PT_tb`           | `.\run_sim.ps1 -CONFIG wrapper_D2C_PT           -TOP wrapper_D2C_PT_tb           -MODE run` |
@@ -760,81 +762,104 @@ Keep these critical rules in mind when writing or modifying SystemVerilog module
 This section details all legal flow paths, entry points, state transitions, and test scenarios designed to verify the LTSM sequencer (`unit_MBTRAIN_ctrl.sv` and `wrapper_MBTRAIN.sv`).
 
 ### 17.1. MBTRAIN Flow Paths & Entry Points
-
 The LTSM MBTRAIN sub-state sequences through up to 13 dedicated substates. Depending on the previous LTSM state history (`state_n_1`) or external requests (such as wake-up from low power states or retrain requests), training can start at different entry points:
 
 1. **From MBINIT (Nominal Entry)**: Starts at the first substate, `VALVREF`.
-2. **From L1 Exit (L1/L1_L2 Wake-up)**: Entered directly at `SPEEDIDLE` when `state_n_1 == LOG_L1 || (state_n_1 == LOG_L1_L2 && is_state_n_1_l1)` (and not `LOG_L2`). The link retains the previously negotiated speed parameter.
-Note: `is_state_n_1_l1` should always be 1 in our design so, we removed it. Now the condition is `state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2`.
+2. **From L1 Exit (L1/L1_L2 Wake-up)**: Entered directly at `SPEEDIDLE` when `state_n_1 == LOG_L1 || state_n_1 == LOG_L1_L2`. The link retains the previously negotiated speed parameter.
 3. **From PHYRETRAIN (Retrain Entry)**: Re-enters MBTRAIN at specific entry points based on the request type:
    * Re-entry at `SPEEDIDLE` (if `mbtrain_speedidle_req == 1`)
    * Re-entry at `TXSELFCAL` (if `mbtrain_txselfcal_req == 1`)
    * Re-entry at `REPAIR`    (if `mbtrain_repair_req == 1`)
+4. **Loopback Flow (From RXDESKEW to DATATRAINCENTER1)**: During `RXDESKEW` calibration (High Speed only), if the calibration criteria are not met, the FSM loops back to `DATATRAINCENTER1` to negotiate a new transmitter Equalization (EQ) preset.
+   * **Iteration Limit**: This loopback is permitted a maximum of **4 times** (tracked via `partner_arc_cnt`).
+   * **Exit Conditions**:
+     * *Success Exit*: If the receiver eye width meets target range, the FSM exits the loop to `DATATRAINCENTER2`.
+     * *Limit Reached / No Progress Exit*: If the loop limit of 4 is reached, or if the negotiated best preset does not change from the previous iteration, the FSM exits the loop to `DATATRAINCENTER2` (proceeding with training rather than generating an error).
+     * *Fatal Failure*: If the partner FSM receives a DTC1 loopback request after the loop count has already reached 4, it transitions to `TRAINERROR`.
 
 ```mermaid
 graph TD
     %% Entry Points (Outside MBTRAIN)
-    MBINIT_ENTRY[/"From MBINIT"/] --> VALVREF["1. VALVREF"]
-    L1_ENTRY[/"From L1 (L1 Exit)"/] -.-> SPEEDIDLE["3. SPEEDIDLE"]
-    RETRAIN_ENTRY[/"From PHYRETRAIN"/] -.-> SPEEDIDLE
-    RETRAIN_ENTRY -.-> TXSELFCAL["4. TXSELFCAL"]
-    RETRAIN_ENTRY -.-> REPAIR["13. REPAIR"]
+    MBINIT_ENTRY["From MBINIT"] --> VALVREF["[1] VALVREF"]
+    L1_ENTRY["From L1 (L1 Exit)"] -.-> SPEEDIDLE["[3] SPEEDIDLE"]
+    RETRAIN_ENTRY["From PHYRETRAIN"] -.-> SPEEDIDLE
+    RETRAIN_ENTRY -.-> TXSELFCAL["[4] TXSELFCAL"]
+    RETRAIN_ENTRY -.-> REPAIR["[13] REPAIR"]
 
     %% Nominal sequence
-    VALVREF --> DATAVREF["2. DATAVREF"]
+    VALVREF --> DATAVREF["[2] DATAVREF"]
     DATAVREF --> SPEEDIDLE
     SPEEDIDLE --> TXSELFCAL
-    TXSELFCAL --> RXCLKCAL["5. RXCLKCAL"]
-    RXCLKCAL --> VALTRAINCENTER["6. VALTRAINCENTER"]
-    VALTRAINCENTER --> VALTRAINVREF["7. VALTRAINVREF"]
-    VALTRAINVREF --> DATATRAINCENTER1["8. DATATRAINCENTER1"]
-    DATATRAINCENTER1 --> DATATRAINVREF["9. DATATRAINVREF"]
-    DATATRAINVREF --> RXDESKEW["10. RXDESKEW"]
-    RXDESKEW --> DATATRAINCENTER2["11. DATATRAINCENTER2"]
-    DATATRAINCENTER2 --> LINKSPEED["12. LINKSPEED"]
+    TXSELFCAL --> RXCLKCAL["[5] RXCLKCAL"]
+    RXCLKCAL --> VALTRAINCENTER["[6] VALTRAINCENTER"]
+    VALTRAINCENTER --> VALTRAINVREF["[7] VALTRAINVREF"]
+    VALTRAINVREF --> DATATRAINCENTER1["[8] DATATRAINCENTER1"]
+    DATATRAINCENTER1 --> DATATRAINVREF["[9] DATATRAINVREF"]
+    DATATRAINVREF --> RXDESKEW["[10] RXDESKEW"]
+    RXDESKEW --> DATATRAINCENTER2["[11] DATATRAINCENTER2"]
+    DATATRAINCENTER2 --> LINKSPEED["[12] LINKSPEED"]
 
     %% Loopback / Refinement Arc
     RXDESKEW -->|DTC1 Loopback Request| DATATRAINCENTER1
 
     %% Exit Paths from LINKSPEED (To Outside MBTRAIN)
-    LINKSPEED -->|Success & Stable| LINKINIT(("LINKINIT"))
+    LINKSPEED -->|Success & Stable| LINKINIT["LINKINIT"]
     LINKSPEED -->|Speed Degrade Request| SPEEDIDLE
     LINKSPEED -->|Width Degrade Request| REPAIR
-    LINKSPEED -->|PHY Retrain Request| PHYRETRAIN(("PHYRETRAIN"))
-    LINKSPEED -->|Unrecoverable Fail / Exhausted| TRAINERROR{{"TRAINERROR"}}
+    LINKSPEED -->|PHY Retrain Request| PHYRETRAIN["PHYRETRAIN"]
 
     %% REPAIR loop
     REPAIR -->|Valid Degrade| TXSELFCAL
     REPAIR -->|Invalid / Exhausted| TRAINERROR
 
-    %% Individual state failures (Timeout or architectural check)
-    VALVREF -->|Fail| TRAINERROR
-    DATAVREF -->|Fail| TRAINERROR
-    SPEEDIDLE -->|Fail| TRAINERROR
-    TXSELFCAL -->|Fail| TRAINERROR
-    RXCLKCAL -->|Fail| TRAINERROR
-    VALTRAINCENTER -->|Fail| TRAINERROR
-    VALTRAINVREF -->|Fail| TRAINERROR
-    DATATRAINCENTER1 -->|Fail| TRAINERROR
-    DATATRAINVREF -->|Fail| TRAINERROR
-    RXDESKEW -->|Fail| TRAINERROR
-    DATATRAINCENTER2 -->|Fail| TRAINERROR
+    %% Individual substate architectural failures (No timeouts here)
+    SPEEDIDLE -->|Speed Degrade Fail| TRAINERROR
+    RXCLKCAL -->|IQ Shift Out of Range| TRAINERROR
+    RXDESKEW -->|Loop Count Exceeded| TRAINERROR
+    REPAIR -->|Width Degrade Fail| TRAINERROR
 
     %% Style definitions for Outside states
     style MBINIT_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
     style L1_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
     style RETRAIN_ENTRY fill:#f1f3f4,stroke:#5f6368,stroke-width:2px,stroke-dasharray: 5 5
 
-    style LINKINIT fill:#e6f4ea,stroke:#137333,stroke-width:3px
-    style PHYRETRAIN fill:#e8f0fe,stroke:#1a73e8,stroke-width:3px
-    style TRAINERROR fill:#fce8e6,stroke:#c5221f,stroke-width:3px
+    style LINKINIT fill:#e6f4ea,stroke:#137333,stroke-width:3px,stroke-dasharray: 5 5
+    style PHYRETRAIN fill:#e8f0fe,stroke:#1a73e8,stroke-width:3px,stroke-dasharray: 5 5
+    style TRAINERROR fill:#fce8e6,stroke:#c5221f,stroke-width:3px,stroke-dasharray: 5 5
 ```
 
 ---
 
-### 17.2. Detailed Architectural Causes for TRAINERROR Transitions
+### 17.2. The RXDESKEW to DATATRAINCENTER1 (DTC1) Loopback Arc
 
-Beyond the global 8ms timeout watchdog, the LTSM MBTRAIN sub-modules perform local checks that trigger an immediate transition to `TRAINERROR` if violated:
+During **RXDESKEW** (active in High-Speed mode only), the receiver measures the eye width across all active lanes. If the calibration results do not meet the minimum target, the controller can loop back to **DATATRAINCENTER1** (DTC1) to request a new transmitter EQ preset from the partner and recalibrate the settings.
+
+* **Loopback Activation Conditions**: The loopback arc is taken if:
+  1. The operating speed is in High Speed mode (> 32 GT/s).
+  2. The measured eye width does not meet the target (`best_min_eye_width < MIN_DESIRED_SWEEP_RANGE`).
+  3. All fresh EQ presets have been attempted, and the partner's transmitter has re-applied the best seen preset.
+  4. The accumulated loopback counter (`dtc1_arc_cnt` / `partner_arc_cnt`) is less than 4 (`partner_arc_cnt < 3'd4`).
+  5. The best EQ preset found in the current iteration differs from the best preset of the previous loopback session (`old_best_preset != best_preset`), demonstrating that new tuning information is available.
+* **Iteration Limit**: The loopback is permitted a maximum of **4 times** (`MAX_ARC_LIMIT = 4`). The counter is authoritatively tracked on the Partner FSM on the same die (`dtc1_arc_cnt` / `partner_arc_cnt_out`), ensuring both local and partner modules enforce the same budget.
+* **Exit Conditions from the Loop**:
+  1. **Success Exit (To DTC2)**: If `best_min_eye_width >= MIN_DESIRED_SWEEP_RANGE`, the loop exits successfully. The Local FSM transitions to `SEND_END_REQ`, sends the end handshake, and exits to `DATATRAINCENTER2` (DTC2).
+  2. **Exhausted / No Progress Exit (To DTC2)**: If the loop limit is reached (`partner_arc_cnt == 3'd4`), or if the best preset did not change compared to the previous loopback iteration (`old_best_preset == best_preset`), the FSM exits the loop to `SEND_END_REQ` and continues to `DATATRAINCENTER2` (accepting the best calibration achieved without throwing an error).
+  3. **Fatal Error Exit (To TRAINERROR)**: If the partner FSM receives an `{exit to DATATRAINCENTER1 req}` message when `dtc1_arc_cnt == 3'd4`, it transitions directly to `TO_TRAINERROR`.
+
+---
+
+### 17.3. Detailed Architectural Causes for TRAINERROR Transitions
+
+> [!IMPORTANT]
+> **No Timeout Logic in MBTRAIN Sub-states**:
+> All possible timeout occurrences leading to `TRAINERROR` do **NOT** happen from the MBTRAIN sub-states themselves. The individual sub-state FSMs (both local and partner) do not handle timeout actions:
+> 1. They do **not** generate any timeout enable signal.
+> 2. They do **not** receive any timeout occurrence/occurred signal.
+> 3. Within the sub-states, there is **no request** to transition to `TRAINERROR` due to timeout.
+>
+> The sole source that manages the timeout counter and monitors the timeout occurred signal is the parent **LTSM controller** (the top-level controller that will be implemented in the future, not now). The sub-state FSMs execute their training algorithms indefinitely until they complete, hit a local architectural check failure, or are aborted from the outside by the LTSM controller deasserting their enable inputs.
+
+Beyond the global 8ms timeout watchdog managed by the parent LTSM controller, the LTSM MBTRAIN sub-modules perform local checks that trigger an immediate transition to `TRAINERROR` if violated:
 
 1. **SPEEDIDLE - Lowest Speed Rate Violation**:
    * **Cause**: Entered to perform speed degradation (`state_n_1 == LOG_MBTRAIN_LINKSPEED || state_n_1 == LOG_PHYRETRAIN`), but the negotiated speed is already at the lowest rate (`3'b000` / 4 GT/s).
@@ -848,21 +873,18 @@ Beyond the global 8ms timeout watchdog, the LTSM MBTRAIN sub-modules perform loc
 4. **REPAIR - Width Degradation Not Feasible**:
    * **Cause**: Lane repair fails because width degradation is not supported or not feasible.
    * **Mechanism**: During REPAIR negotiation, if either side determines degradation cannot be completed (local TX code is `3'b000` or received partner code is `3'b000` "degrade not possible"), the Local/Partner FSMs transition to `REPAIR_LCL_TO_TRAINERROR`/`REPAIR_PTR_TO_TRAINERROR` and assert `trainerror_req`.
-5. **LINKSPEED - Unstable Link with No Feasible Recovery (Controller Level)**:
-   * **Cause**: `LINKSPEED` completes (`linkspeed_done == 1`) but the link is unstable and cannot recover via further speed degrades or width degradation.
-   * **Mechanism**: Controller `unit_MBTRAIN_ctrl.sv` evaluates the return request flags from `wrapper_LINKSPEED`. If all flags (`linkspeed_speedidle_req`, `linkspeed_repair_req`, `linkspeed_phyretrain_req`, and `linkspeed_linkinit_req`) are low, the sequencer combinationally asserts `ltsm_trainerror_req = 1'b1` and advances to `MBTRAIN_DONE`.
 
 ---
 
-### 17.3. Scenario Matrix
+### 17.4. Scenario Matrix
 
 The verification scenarios are classified into six groups:
 
 #### Group A: Normal Success Flow (Golden Path)
-| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
-| :--- | :--- | :--- | :--- | :---: |
-| **A1** | Golden Path (MBINIT Entry) | Enters from `MBINIT` (`VALVREF` start). All substates succeed; `RXDESKEW` succeeds; `LINKSPEED` stable. | VALVREF → DATAVREF → SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
-| **A2** | Golden Path (L1 Exit Entry) | Enters from `L1` or `L1_L2` exit (`SPEEDIDLE` start, `state_n_1 == LOG_L1 || LOG_L1_L2`). Previous speed is kept; all substates succeed. | SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| Scenario | Scenario Name               | Description / Conditions                                                                                | Expected Flow Path                                                                                                                                                                | Result |
+| :------- | :-------------------------- | :------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----: |
+| **A1**   | Golden Path (MBINIT Entry)  | Enters from `MBINIT` (`VALVREF` start). All substates succeed; `RXDESKEW` succeeds; `LINKSPEED` stable. | VALVREF → DATAVREF → SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| **A2**   | Golden Path (L1 Exit Entry) | Enters from `L1` or `L1_L2` exit (`SPEEDIDLE` start, `state_n_1 == LOG_L1` OR `state_n_1 == LOG_L1_L2`). Previous speed is kept; all substates succeed. | SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
 
 #### Group B: Speed Degrade Flow
 | Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
@@ -887,29 +909,20 @@ The verification scenarios are classified into six groups:
 | **C4** | Width Degrade Exhausted (x8 → x4) | E.g. x8 → x4 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR** | **PASS** |
 
 #### Group D: PHY Retrain Flow
+| Scenario | Scenario Name                  | Description / Conditions                                                          | Expected Flow Path                                                                                                            | Result |
+| :------- | :----------------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :----: |
+| **D1**   | PHY Retrain Request            | `LINKSPEED` detects parameter change (`params_changed = 1`).                      | ... → LINKSPEED → **PHYRETRAIN**                                                                                              | **PASS** |
+| **D2**   | PHY Retrain Then Success       | Controller re-enters MBTRAIN after a `PHYRETRAIN` request, and training succeeds. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> VALVREF → ... → LINKSPEED → **LINKINIT**                        | **PASS** |
+| **D3**   | PHY Retrain Then Speed Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires speed degrade.       | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> ... → LINKSPEED → **SPEEDIDLE** (fallback) → ... → **LINKINIT** | **PASS** |
+
+#### Group E: Training Failure & Abort Flows
 | Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
 | :--- | :--- | :--- | :--- | :---: |
-| **D1** | PHY Retrain Request | `LINKSPEED` detects parameter change (`params_changed = 1`). | ... → LINKSPEED → **PHYRETRAIN** | **PASS** |
-| **D2** | PHY Retrain Then Success | Controller re-enters MBTRAIN after a `PHYRETRAIN` request, and training succeeds. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> VALVREF → ... → LINKSPEED → **LINKINIT** | **PASS** |
-| **D3** | PHY Retrain Then Speed Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires speed degrade. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> ... → LINKSPEED → **SPEEDIDLE** (fallback) → ... → **LINKINIT** | **PASS** |
-
-#### Group E: Training Failure Flow
-These scenarios test individual substate failures. Any substate asserting `trainerror_req` must trigger an immediate transition to `TRAINERROR`.
-
-| Scenario | Scenario Name | Expected Flow Path |
-| :--- | :--- | :--- |
-| **E1** | `VALVREF` Failure | VALVREF → **TRAINERROR** (due to watchdog timeout) |
-| **E2** | `DATAVREF` Failure | VALVREF → DATAVREF → **TRAINERROR** (due to watchdog timeout) |
-| **E3** | `SPEEDIDLE` Failure | ... → SPEEDIDLE → **TRAINERROR** (due to speed degrade error or timeout) |
-| **E4** | `TXSELFCAL` Failure | ... → TXSELFCAL → **TRAINERROR** (due to watchdog timeout) |
-| **E5** | `RXCLKCAL` Failure | ... → RXCLKCAL → **TRAINERROR** (due to IQ phase out of range or timeout) |
-| **E6** | `VALTRAINCENTER` Failure | ... → VALTRAINCENTER → **TRAINERROR** (due to watchdog timeout) |
-| **E7** | `VALTRAINVREF` Failure | ... → VALTRAINVREF → **TRAINERROR** (due to watchdog timeout) |
-| **E8** | `DATATRAINCENTER1` Failure | ... → DATATRAINCENTER1 → **TRAINERROR** (due to watchdog timeout) |
-| **E9** | `DATATRAINVREF` Failure | ... → DATATRAINVREF → **TRAINERROR** (due to watchdog timeout) |
-| **E10** | `RXDESKEW` Failure | ... → RXDESKEW → **TRAINERROR** (due to loopback arc count > 4 or timeout) |
-| **E11** | `DATATRAINCENTER2` Failure | ... → DATATRAINCENTER2 → **TRAINERROR** (due to watchdog timeout) |
-| **E12** | `LINKSPEED` Unrecoverable Fail | ... → LINKSPEED → **TRAINERROR** (due to no recovery paths or timeout) |
+| **E1** | Global Watchdog Timeout | Parent LTSM controller watchdog timer expires during any active substate. | Substate → **TRAINERROR** (forced abort by deasserting enable from top-level LTSM controller) | **PASS** |
+| **E2** | `SPEEDIDLE` Degrade Failure | `SPEEDIDLE` is entered to degrade speed, but the negotiated speed is already at the lowest rate (4 GT/s). | SPEEDIDLE → **TRAINERROR** (due to Speed Degrade Error) | **PASS** |
+| **E3** | `RXCLKCAL` IQ Failure | Residual clock phase shift adjustment required during IQ calibration exceeds the Tx TCKN driver physical limit. | RXCLKCAL → **TRAINERROR** (due to IQ phase out of range) | **PASS** |
+| **E4** | `RXDESKEW` Loop Failure | The partner FSM receives an exit-to-DTC1 loopback request after the loop count has already reached 4. | RXDESKEW → **TRAINERROR** (due to loop count limit exceeded) | **PASS** |
+| **E5** | `REPAIR` Width Failure | Lane repair fails because width degradation is not supported or not feasible (negotiation code `3'b000` is exchanged). | REPAIR → **TRAINERROR** (due to width degrade not possible) | **PASS** |
 
 #### Group F: Asynchronous Error Injection
 | Scenario | Scenario Name | Description / Conditions | Expected Behavior |
