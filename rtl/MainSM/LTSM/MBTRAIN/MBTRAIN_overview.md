@@ -201,7 +201,8 @@ output logic        sweep_en,        // High while substate is sweeping
 input  logic [N:0]  swept_code,      // Current sweeping code sent to PHY lanes
 input  logic [N:0]  best_code[0:15], // Optimal midpoint calculated by the engine
 input  logic [N:0]  min_eye_width,   // Narrowest eye-margin detected across lanes
-input  logic        sweep_done       // Sweep completed successfully
+input  logic        sweep_done,      // Sweep completed successfully
+input  logic [15:0] d2c_perlane_pass // External D2C point-test results to know the Data lanes that pass.
 ```
 
 ### PHY Code Drive and Latching Rules
