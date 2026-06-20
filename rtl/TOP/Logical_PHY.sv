@@ -180,12 +180,7 @@ module Logical_PHY #(
     output RDI_state                         pl_state_sts,
     output logic                             pl_max_speedmode,
     output logic [2:0]                       pl_speedmode,
-    output logic [2:0]                       pl_lnk_cfg,
-
-    // RDI_SM DVSEC status inputs
-    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Capability_7to4,
-    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Status_17to11,
-    input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Status_10to7
+    output logic [2:0]                       pl_lnk_cfg
 );
 
     // =========================================================================
@@ -194,12 +189,11 @@ module Logical_PHY #(
 
     // Sideband PLL clock generator (800 MHz)
     logic sb_pll_clock;
-    real  sb_pll_period;
 
     sb_pll u_sb_pll (
         .en           (1'b1),
         .clk          (sb_pll_clock),
-        .local_period (sb_pll_period)
+        .local_period ()
     );
 
     // Clock divider by 8 to get 100 MHz for clk_sb
@@ -254,9 +248,7 @@ module Logical_PHY #(
     // ---- RDI_SM <-> LTSM / MB ----
     RDI_state    rdi_state_w;      // RDI_SM.rdi_state -> LTSM.rdi_state
     logic        traffic_req_w;    // SideBand_Top.traffic_req -> RDI_SM.traffic_req
-    logic        rdi_lclk_g;       // RDI_SM.lclk_g (raw gated clock - unused)
-    logic        rdi_lclk_g_en;    // RDI_SM.lclk_g_en (enable level: 1=clock on)
-    logic        mb_lclk_g;        // qualified clock-enable -> mb_die.lclk_g (CLK_EN)
+    logic        rdi_lclk_g;       // RDI_SM.lclk_g (enable level: 1=clock on, 0=gate) -> mb_die.lclk_g
     logic        stall_done_w;     // RDI_SM.stall_done (latched into mapper enable)
 
     // ---- LTSM macro-state + gated clock ----
@@ -338,29 +330,19 @@ module Logical_PHY #(
     end
 
     assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched;
-
-    // -------------------------------------------------------------------------
-    // RDI PM clock-gating qualifier  [INTEGRATION ADDITION - flagged for review]
-    // -------------------------------------------------------------------------
-    // mb_die.lclk_g is an active-high CLK_EN into a latch-based clock gate (the
-    // working MB_SB_LTSM TB tied it to 1'b1).  RDI's lclk_g output is a *gated
-    // clock*, not an enable, so it cannot drive CLK_EN directly; we use RDI's
-    // ungating enable level (rdi_lclk_g_en: 1=clock on) instead.
+    //==========================================================================
     //
-    // RDI also marks the clock gateable whenever pl_state_sts is Reset, and the
-    // RDI SM sits in Reset for the whole LTSM training run, so its enable would
-    // stop the MB TX clock and hang training.  PM clock-gating is only
-    // meaningful once trained (ACTIVE) and entering L1/L2, so honour RDI's
-    // enable only in ACTIVE/L1/L2 and force the clock on while training.
-    wire ltsm_pm_phase = (current_ltsm_state == ACTIVE) ||
-                         (current_ltsm_state == L1)     ||
-                         (current_ltsm_state == L2);
-    // Active-high gate request (1 = gate/stop the MB TX clock).  RDI requests
-    // gating when its enable level is low (rdi_lclk_g_en==0); honour it only in
-    // the PM phase (ACTIVE/L1/L2) and never gate while the LTSM is training.
-    wire mb_clk_gate = ltsm_pm_phase & ~rdi_lclk_g_en;
-    assign mb_lclk_g = ~mb_clk_gate;   // mb_die clk-gate CLK_EN: 1 = clock on
-
+    //==========================================================================
+    logic sticky_sb_pattern_detected;
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin 
+            sticky_sb_pattern_detected <= 1'b0;
+        end else if (current_ltsm_state == SBINIT) begin
+            sticky_sb_pattern_detected <= 1'b0;
+        end else if (sb_det_pattern_rcvd) begin
+            sticky_sb_pattern_detected <= 1'b1;
+        end
+    end
     // =========================================================================
     // 4. Module Instantiations
     // =========================================================================
@@ -388,7 +370,7 @@ module Logical_PHY #(
         .i_valid_pattern_en   (mb_valid_pattern_en),
         .i_pll_en             (1'b1),
         .i_pll_speed_sel      (mb_pll_speed_sel),
-        .lclk_g               (mb_lclk_g),
+        .lclk_g               (rdi_lclk_g),
         .i_clk_pattern_en     (mb_clk_pattern_en),
         .i_clk_embedded_en    (mb_clk_embedded_en),
         .i_mb_tx_trk_lane_sel                  (mb_tx_trk_lane_sel),
@@ -538,6 +520,7 @@ module Logical_PHY #(
         // is no longer a port here. Training is started via phy_start below.
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
         .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd),
+        .sb_det_pattern_rcvd_sticky            (sticky_sb_pattern_detected),
         .SPMW                                  (SPMW),
 
         // Capability configuration (to MBINIT)
@@ -670,28 +653,29 @@ module Logical_PHY #(
         .pl_lnk_cfg                                 (pl_lnk_cfg),
 
         // Sideband DVSEC status
-        .UCIe_Link_DVSEC_UCIe_Link_Capability_7to4  (UCIe_Link_DVSEC_UCIe_Link_Capability_7to4),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_17to11    (UCIe_Link_DVSEC_UCIe_Link_Status_17to11),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_10to7     (UCIe_Link_DVSEC_UCIe_Link_Status_10to7),
+        .UCIe_Link_DVSEC_UCIe_Link_Capability_7to4  (reg_Max_Link_Speed_cap),
+        .UCIe_Link_DVSEC_UCIe_Link_Status_17to11    (reg_Link_Speed_enable_status),
+        .UCIe_Link_DVSEC_UCIe_Link_Status_10to7     (reg_Link_Width_enable_status),
 
         // Sideband RDI message path
         .Link_Mgmt_Msg_Receive                      (rdi_msg_rcvd),
-        .valid_r                                     (rdi_vld_rcvd),
+        .valid_r                                    (rdi_vld_rcvd),
         .Link_Mgmt_Msg_Send                         (rdi_msg_send),
-        .valid_s                                     (rdi_vld_send),
+        .valid_s                                    (rdi_vld_send),
 
         // Clock handshake
         .traffic_req                                (traffic_req_w),
         .clk_handshake_done                         (clk_handshake_done),
+        .sticky_sb_pattern_detected                 (sticky_sb_pattern_detected),
 
         // MainBand interface
         .lclk_g                                     (rdi_lclk_g),
-        .lclk_g_en                                  (rdi_lclk_g_en),
         .stall_done                                 (stall_done_w),
         .pl_error                                   (mb_valid_frame_error),
 
         // LTSM interface
         .state_sts                                  (current_ltsm_state),
+        .phy_start_ucie_link_training_ctrl_out      (phy_start_ucie_link_training_ctrl_out),
         .rdi_state                                  (rdi_state_w)
     );
 

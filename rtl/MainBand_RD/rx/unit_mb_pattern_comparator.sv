@@ -46,8 +46,8 @@ module unit_mb_pattern_comparator #(
     input  wire                  i_pattern_mode,                    // 1 = perlane id pattern, 0 = LFSR pattern
     input  wire                  i_clear_error,
     // ---------------- Patterns (the two inputs) ----------------
-    input  logic [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
-    input  logic [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
+    input  wire [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
+    input  wire [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
     input  logic                  i_pcmp_enable,
     // ---------------- Results ----------------
     output reg                   o_done,                      // test complete, results valid

@@ -130,10 +130,7 @@ module Logical_PHY_tb;
         .lp_stallack(lp_stallack0), .lp_linkerror(lp_linkerror0),
         .pl_clk_req(pl_clk_req0), .pl_stallreq(pl_stallreq0), .pl_wake_ack(pl_wake_ack0),
         .pl_trainerror(pl_trainerror0), .pl_inband_pres(), .pl_phyinrecenter(),
-        .pl_state_sts(pl_state_sts0), .pl_max_speedmode(), .pl_speedmode(), .pl_lnk_cfg(),
-        .UCIe_Link_DVSEC_UCIe_Link_Capability_7to4(4'h0),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_17to11(4'h0),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_10to7(4'h0)
+        .pl_state_sts(pl_state_sts0), .pl_max_speedmode(), .pl_speedmode(), .pl_lnk_cfg()
     );
 
     Logical_PHY #(.CLK_FRQ_HZ(LTSM_CLK_FRQ), .NUM_LANES(NUM_LANES)) u_die1 (
@@ -167,10 +164,7 @@ module Logical_PHY_tb;
         .lp_stallack(lp_stallack1), .lp_linkerror(lp_linkerror1),
         .pl_clk_req(pl_clk_req1), .pl_stallreq(pl_stallreq1), .pl_wake_ack(pl_wake_ack1),
         .pl_trainerror(pl_trainerror1), .pl_inband_pres(), .pl_phyinrecenter(),
-        .pl_state_sts(pl_state_sts1), .pl_max_speedmode(), .pl_speedmode(), .pl_lnk_cfg(),
-        .UCIe_Link_DVSEC_UCIe_Link_Capability_7to4(4'h0),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_17to11(4'h0),
-        .UCIe_Link_DVSEC_UCIe_Link_Status_10to7(4'h0)
+        .pl_state_sts(pl_state_sts1), .pl_max_speedmode(), .pl_speedmode(), .pl_lnk_cfg()
     );
 
     // Shrink the RDI timers (1us / 16ms) so they are simulatable.
@@ -198,7 +192,13 @@ module Logical_PHY_tb;
         else        begin lp_clk_ack1 <= pl_clk_req1; lp_stallack1 <= pl_stallreq1; end
     end
 
-    // Auto-clear the training trigger once out of RESET/NOP
+    // Auto-clear the training trigger once out of RESET/NOP.  phy_start only needs
+    // to cover the initial RESET window: it holds RDI's gating FSM ungated so the
+    // LTSM can climb RESET->SBINIT.  From SBINIT on, phyinrecenter keeps the clock
+    // ungated; in LINKINIT the RDI clk-handshake (pl_clk_req) does.  It MUST be low
+    // by LINKINIT because linkinit.sv treats start_ucie_link_training as a
+    // re-train/error trigger while waiting for RDI Active (and ACTIVE.sv treats it
+    // as TRAINERROR), so a held-high bit would abort bring-up.
     always @(posedge lclk0) if (ln0 != LOG_RESET && ln0 != LOG_NOP) phy_start0 <= 1'b0;
     always @(posedge lclk1) if (ln1 != LOG_RESET && ln1 != LOG_NOP) phy_start1 <= 1'b0;
 
@@ -225,7 +225,10 @@ module Logical_PHY_tb;
     // =========================================================================
     task automatic reset_system();
         rst_n         = 1'b0;
-        phy_start0    = 1'b0; phy_start1    = 1'b0;
+        // "Start UCIe Link Training" is pre-armed on both dies before reset release
+        // so RDI's gating FSM keeps each MB clock ungated from the first RESET cycle
+        // (no gap in which the scaled idle timer could gate and freeze the LTSM).
+        phy_start0    = 1'b1; phy_start1    = 1'b0;
         block_sideband= 1'b0;
         corrupt_0to1  = '0;   corrupt_1to0  = '0;
         lp_data0='0; lp_data1='0; lp_irdy0=1'b0; lp_irdy1=1'b0; lp_valid0=1'b0; lp_valid1=1'b0;
@@ -246,7 +249,9 @@ module Logical_PHY_tb;
     task automatic do_bringup(output bit ok, input int tmo = 200000);
         ok = 1'b0;
         lp_state_req0 = Nop; lp_state_req1 = Nop;
-        phy_start0 = 1'b1;
+        // Both dies' software writes "Start UCIe Link Training" (spec p.124); each
+        // die needs the trigger to hold its own MB clock ungated through training.
+        phy_start0 = 1'b1; phy_start1 = 1'b0;
         fork
             begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
             begin wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
@@ -291,7 +296,7 @@ module Logical_PHY_tb;
         $display("\nT=%0t | [SC2] Watchdog (sideband blocked)...", $time);
         reset_system();
         block_sideband = 1'b1;
-        phy_start0 = 1'b1;
+        phy_start0 = 1'b1; phy_start1 = 1'b0;
         fork
             begin wait (m_error); $display("T=%0t | [SC2] die0 TRAINERROR as expected.", $time); end
             begin wait (m_done);  $error("T=%0t | [SC2] reached ACTIVE with blocked SB?", $time); fails++; end

@@ -8,6 +8,14 @@ module unit_gating_logic#(
     input  logic phyinrecenter,
     input  logic pl_clk_req,
     input  logic ungating_req,
+    // phy_start (phy_start_ucie_link_training_ctrl_out): asserted while the LTSM
+    // is waiting in RESET to begin link training and de-asserts once training
+    // advances out of RESET.  It is an internal (non-adapter) trigger, so the
+    // adapter AWAKE handshake cannot cover the RESET->SBINIT window; treat it
+    // like ungating_req here so the MB clock stays on through training start
+    // (after which phyinrecenter keeps it on for the rest of training).
+    input  logic phy_start,
+    input  logic sticky_sb_pattern_detected,
     input  RDI_state pl_state_sts,
     output logic lclk_g,
     output logic ungating_done
@@ -45,7 +53,9 @@ module unit_gating_logic#(
                               ~phyinrecenter &&
                               ~pl_clk_req    &&
                               ~ungating_req  &&
-                              ~inband_block) begin
+                              ~phy_start     &&
+                              ~inband_block  &&
+                              ~sticky_sb_pattern_detected) begin
                         GATING_cs <= GATING;
                         counter <= 0;
                     end
@@ -55,8 +65,13 @@ module unit_gating_logic#(
                     end
                 end
             GATING:begin
-                if (pl_clk_req || ungating_req || phyinrecenter ||
-                    ~gateable || inband_block)
+                if (pl_clk_req ||
+                    ungating_req ||
+                    phyinrecenter ||
+                    phy_start ||
+                    ~gateable ||
+                    inband_block ||
+                    sticky_sb_pattern_detected)
                     GATING_cs <= UNGATING;
                 else
                     GATING_cs <= GATING;
@@ -64,7 +79,7 @@ module unit_gating_logic#(
         endcase
     end
 
-assign lclk_g = (GATING_cs == GATING)? 0 : lclk;
+assign lclk_g = !(GATING_cs == GATING);
 assign ungating_done = (GATING_cs == UNGATING);
 
 endmodule

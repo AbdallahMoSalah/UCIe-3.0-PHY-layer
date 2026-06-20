@@ -59,6 +59,11 @@ module LTSM_wrapper #(
     output logic        timeout_8ms_occured,
     output logic        busy_flag,
 
+    // RESET-state completion (high once the 4 ms dwell + a training trigger are
+    // both satisfied, held until the LTSM leaves RESET). Forwarded to the RDI
+    // gating logic to clear its sideband-pattern ungate latch at RESET exit.
+    output logic        RESET_state_done,
+
     // State log registers (shift & latch history)
     output logic [7:0]  log0_state_n,
     output logic        log0_lane_reversal,
@@ -72,6 +77,7 @@ module LTSM_wrapper #(
     // =========================================================================
     input  logic        phy_start_ucie_link_training_ctrl_out,
     input  logic        sb_det_pattern_rcvd,
+    input  logic        sb_det_pattern_rcvd_sticky,
 
     // SPMW strap
     input  logic        SPMW,
@@ -739,10 +745,14 @@ module LTSM_wrapper #(
         .rst_n                                 (rst_n),
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
         .Adapter_training_req                  (Adapter_training_req),//
-        .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd),
+        .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd_sticky),
         .RESET_enable                          (reset_en),
         .RESET_state_done                      (reset_done)
     );
+
+    // Forward RESET completion out of the wrapper (RDI gating clears its
+    // sideband-pattern ungate latch on this).
+    assign RESET_state_done = reset_done;
 
     // =========================================================================
     // 2. SBINIT

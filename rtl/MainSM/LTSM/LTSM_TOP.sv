@@ -42,6 +42,10 @@ module LTSM_TOP #(
     output logic                 link_training_retraining,
     output logic                 link_status,
     output logic                 timeout_8ms_occured,
+
+    // RESET-state completion, forwarded to RDI gating (clears the SB-pattern
+    // ungate latch at RESET exit).
+
     output logic [7:0]           log0_state_n,
     output logic                 log0_lane_reversal,
     output logic                 log0_width_degrade,
@@ -54,6 +58,7 @@ module LTSM_TOP #(
     // =========================================================================
     input  logic                 phy_start_ucie_link_training_ctrl_out,
     input  logic                 sb_det_pattern_rcvd,
+    input  logic                 sb_det_pattern_rcvd_sticky,
     input  logic                 SPMW,
 
     // =========================================================================
@@ -218,7 +223,7 @@ module LTSM_TOP #(
         .link_training_retraining               (link_training_retraining),
         .link_status                            (link_status),
         .timeout_8ms_occured                    (timeout_8ms_occured),
-        
+
         .log0_state_n                           (log0_state_n),
         .log0_lane_reversal                     (log0_lane_reversal),
         .log0_width_degrade                     (log0_width_degrade),
@@ -228,6 +233,7 @@ module LTSM_TOP #(
 
         .phy_start_ucie_link_training_ctrl_out  (phy_start_ucie_link_training_ctrl_out),
         .sb_det_pattern_rcvd                    (sb_det_pattern_rcvd),
+        .sb_det_pattern_rcvd_sticky             (sb_det_pattern_rcvd_sticky),
         .SPMW                                   (SPMW),
         .mb_rx_max_err_thresh_aggr              (mb_rx_max_err_thresh_aggr),
         .mb_rx_max_err_thresh_perlane           (mb_rx_max_err_thresh_perlane),

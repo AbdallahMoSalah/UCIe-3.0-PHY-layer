@@ -36,19 +36,24 @@ module RDI_SM (
     output logic                    clk_handshake_done  ,
 
     //Interface with MB
+    // Clock-gate ENABLE level for the MB TX clock gate (1 = clock on, 0 = gated),
+    // driven by the gating FSM (UNGATING => 1, GATING => 0).
     output logic                    lclk_g              ,
-    // Clock-gate ENABLE level for the MB TX clock gate (1 = clock on, 0 = gated).
-    // lclk_g above is a *gated clock*; the MB unit_clk_gate wants an active-high
-    // enable, so this mirrors the gating FSM's ungating_done for that purpose.
-    output logic                    lclk_g_en           ,
     output logic                    stall_done          ,
     input  logic                    pl_error            ,
 
     //Interface with LTSM
     input  LTSM_state_e             state_sts                                   ,
+    // LTSM "start link training" control (asserted while waiting in RESET to
+    // begin training); used by the gating FSM to keep the MB clock ungated
+    // through the RESET->SBINIT training-start window.
+    input  logic                    phy_start_ucie_link_training_ctrl_out       ,
+    input  logic                    sticky_sb_pattern_detected,
     // RDI state status forwarded to the LTSM (mirrors the internal
     // wrapper_sm rdi_state_sts so the LTSM can observe the RDI SM state)
-    output RDI_state                rdi_state
+    output RDI_state                rdi_state,
+
+    input  logic                    RESET_state_done
 );
 
     // =========================================================================
@@ -145,6 +150,8 @@ module RDI_SM (
         .phyinrecenter      (phyinrecenter),
         .pl_clk_req         (pl_clk_req),
         .ungating_req       (ungating_req),
+        .phy_start          (phy_start_ucie_link_training_ctrl_out),
+        .sticky_sb_pattern_detected (sticky_sb_pattern_detected),
         .pl_state_sts       (pl_state_sts),
         .lclk_g             (lclk_g),
         .ungating_done      (ungating_done)
@@ -191,8 +198,5 @@ module RDI_SM (
 
     // Forward the internal RDI state status out to the LTSM.
     assign rdi_state = rdi_state_sts;
-
-    // Expose the clock-gate enable level (1 = ungated/clock-on) for the MB.
-    assign lclk_g_en = ungating_done;
 
 endmodule
