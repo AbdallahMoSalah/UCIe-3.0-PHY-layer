@@ -30,8 +30,6 @@ module unit_retrain_state (
     typedef enum logic [3:0] {
         state_disabled,   // Inactive; waiting for EN to go high
         idle,             // Retrain active; scanning inputs for exit triggers
-        le_req_send,      // LinkError handshake: sending REQ to peer
-        le_resp_send,     // LinkError handshake: sending RSP to peer
         lr_req_send,      // LinkReset handshake: sending REQ to peer
         lr_resp_send,     // LinkReset handshake: sending RSP to peer
         d_req_send,       // Disable handshake: sending REQ to peer
@@ -39,7 +37,6 @@ module unit_retrain_state (
         active_hs,        // Active re-entry: Active handshake sub-SM running
         nop_rcvd,         // NOP received during LINKINIT; waiting for lp_state_req=Active
         active,           // Active handshake done; wait for EN=0
-        linkerror,        // Settled into LinkError; wait for EN=0
         linkreset,        // Settled into LinkReset; wait for EN=0
         disabled          // Settled into Disabled; wait for EN=0
     } retrain_sub_state;
@@ -76,13 +73,7 @@ module unit_retrain_state (
                 // IDLE
                 // -------------------------------------------------------------
                 idle: begin
-                    if (lp_linkerror) begin
-                        cs           <= le_req_send;
-                        message_send <= RDI_LINK_ERROR_REQ;
-                    end else if (message_receive == RDI_LINK_ERROR_REQ) begin
-                        cs           <= le_resp_send;
-                        message_send <= RDI_LINK_ERROR_RSP;
-                    end else if (message_receive == RDI_LINK_RESET_REQ) begin
+                    if (message_receive == RDI_LINK_RESET_REQ) begin
                         cs           <= lr_resp_send;
                         message_send <= RDI_LINK_RESET_RSP;
                     end else if (lp_state_req == LinkReset) begin
@@ -103,20 +94,6 @@ module unit_retrain_state (
                         cs                    <= active_hs;
                         Active_handshake_strt <= 1'b1;
                     end
-                end
-
-                le_req_send: begin
-                    message_send <= NOP;
-                    if (message_receive == RDI_LINK_ERROR_RSP) begin
-                        cs         <= linkerror;
-                        next_state <= LinkError;
-                    end
-                end
-
-                le_resp_send: begin
-                    message_send <= NOP;
-                    cs           <= linkerror;
-                    next_state   <= LinkError;
                 end
 
                 lr_req_send: begin
@@ -162,7 +139,7 @@ module unit_retrain_state (
                     end
                 end
 
-                active, linkerror, linkreset, disabled: begin
+                active, linkreset, disabled: begin
                     // Transition handled by EN de-assertion logic
                 end
 

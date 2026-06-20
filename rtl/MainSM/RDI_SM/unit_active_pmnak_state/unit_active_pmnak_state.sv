@@ -30,8 +30,6 @@ module unit_active_pmnak_state (
         STATE_DISABLED  = 16'h0001,   // Inactive module state
         IDLE            = 16'h0002,   // Awaiting new incoming requests or messages
         STALL_HANDSHAKE = 16'h0004,   // Coordinating with pipeline stall request logic
-        LE_SEND_REQ     = 16'h0008,   // Link Error handshake: Sending request
-        LE_SEND_RESP    = 16'h0010,   // Link Error handshake: Sending response
         ACTIVE          = 16'h0020,   // Loopback / confirm active state
         D_SEND_REQ      = 16'h0040,   // Disable handshake: Sending request
         D_SEND_RESP     = 16'h0080,   // Disable handshake: Sending response
@@ -39,7 +37,6 @@ module unit_active_pmnak_state (
         RT_SEND_RESP    = 16'h0200,   // Retrain handshake: Sending response
         LR_SEND_REQ     = 16'h0400,   // Link Reset handshake: Sending request
         LR_SEND_RESP    = 16'h0800,   // Link Reset handshake: Sending response
-        LINK_ERROR      = 16'h1000,   // Settled into LinkError
         DISABLED        = 16'h2000,   // Settled into Disabled
         RETRAIN         = 16'h4000,   // Settled into Retrain
         LINK_RESET      = 16'h8000    // Settled into LinkReset
@@ -88,13 +85,7 @@ module unit_active_pmnak_state (
 
                 // --- IDLE ---
                 IDLE: begin
-                    if (message_receive == RDI_LINK_ERROR_REQ) begin
-                        current_state <= LE_SEND_RESP;
-                        message_send  <= RDI_LINK_ERROR_RSP;
-                    end else if (lp_linkerror) begin
-                        current_state <= LE_SEND_REQ;
-                        message_send  <= RDI_LINK_ERROR_REQ;
-                    end else if (lp_state_req == Active) begin
+                    if (lp_state_req == Active) begin
                         current_state <= ACTIVE;
                         next_state    <= Active;
                     end else if (message_receive == RDI_DISABLE_REQ) begin
@@ -162,21 +153,6 @@ module unit_active_pmnak_state (
                     end
                 end
 
-                // --- LINK ERROR HANDSHAKE ---
-                LE_SEND_REQ: begin
-                    message_send <= NOP;
-                    if (message_receive == RDI_LINK_ERROR_RSP) begin
-                        current_state <= LINK_ERROR;
-                        next_state    <= LinkError;
-                    end
-                end
-
-                LE_SEND_RESP: begin
-                    message_send  <= NOP;
-                    current_state <= LINK_ERROR;
-                    next_state    <= LinkError;
-                end
-                
                 D_SEND_REQ: begin
                     message_send <= NOP;
                     if (message_receive == RDI_DISABLE_RSP) begin
@@ -222,11 +198,6 @@ module unit_active_pmnak_state (
                 // ==========================================
                 // Settled Terminal States
                 // ==========================================
-                LINK_ERROR: begin
-                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
-                    flow <= FLOW_DISABLE_RSP;
-                end
-
                 ACTIVE: begin
                     // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
                     flow <= FLOW_DISABLE_RSP;

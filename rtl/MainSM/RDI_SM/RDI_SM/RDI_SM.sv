@@ -2,7 +2,10 @@ import RDI_SM_pkg::*;
 import UCIe_pkg::*;
 import LTSM_state_pkg::*;
 
-module RDI_SM (
+module RDI_SM #(
+    // 8 ms sideband-message handshake timeout (cycles). Default = 8 ms @ 2 GHz.
+    parameter int MSG_TIMEOUT_CYCLES = 16_000_000
+)(
     //Interface with Adapter
     input  logic                    lclk                ,
     input  logic                    rst_n               ,
@@ -89,7 +92,9 @@ module RDI_SM (
     // Submodule Instantiations
     // =========================================================================
 
-    wrapper_sm sm (
+    wrapper_sm #(
+        .MSG_TIMEOUT_CYCLES (MSG_TIMEOUT_CYCLES)
+    ) sm (
         .lclk                   (lclk),
         .rst_n                  (rst_n),
         .state_sts              (state_sts),

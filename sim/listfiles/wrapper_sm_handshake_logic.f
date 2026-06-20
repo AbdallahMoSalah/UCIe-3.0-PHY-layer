@@ -22,6 +22,7 @@ rtl/MainSM/RDI_SM/unit_disabled_state/unit_disabled_state.sv
 // RDI SM Top-level Logic
 rtl/MainSM/RDI_SM/unit_main_controller/unit_main_controller.sv
 rtl/MainSM/RDI_SM/unit_message_send_MUX/unit_message_send_MUX.sv
+rtl/MainSM/RDI_SM/message_timeout_handler/message_timeout_handler.sv
 rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv
 
 // Handshake Logic Sub-modules

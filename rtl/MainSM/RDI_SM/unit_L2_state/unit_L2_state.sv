@@ -30,14 +30,11 @@ module unit_L2_state (
         idle,             // 1: Scanning for exit triggers
         lr_send_resp,     // 2: LinkReset flow (peer-initiated)
         lr_send_req,      // 3: LinkReset flow (adapter-initiated)
-        le_send_resp,     // 4: LinkError flow (peer-initiated)
-        le_send_req,      // 5: LinkError flow (local detect)
         d_send_req,       // 6: Disable flow (adapter-initiated)
         d_send_resp,      // 7: Disable flow (peer-initiated)
         training,         // 8: Active re-entry: waiting for Peer REQ or Done
         reset,            // 9: Active re-entry: finalized, waiting for EN=0
         linkreset,        // 10: Stable LinkReset state, waiting for EN=0
-        linkerror,        // 11: Stable LinkError state, waiting for EN=0
         disabled          // 12: Stable Disabled state, waiting for EN=0
     } l2_sub_state;
 
@@ -72,12 +69,6 @@ module unit_L2_state (
                 end else if (lp_state_req == LinkReset) begin
                     cs           <= lr_send_req;
                     message_send <= RDI_LINK_RESET_REQ;
-                end else if (message_receive == RDI_LINK_ERROR_REQ) begin
-                    cs           <= le_send_resp;
-                    message_send <= RDI_LINK_ERROR_RSP;
-                end else if (lp_linkerror) begin
-                    cs           <= le_send_req;
-                    message_send <= RDI_LINK_ERROR_REQ;
                 end else if (lp_state_req == Disabled) begin
                     cs           <= d_send_req;
                     message_send <= RDI_DISABLE_REQ;
@@ -107,20 +98,6 @@ module unit_L2_state (
                 next_state   <= LinkReset;
             end
 
-            le_send_req: begin
-                message_send <= NOP;
-                if (message_receive == RDI_LINK_ERROR_RSP)begin
-                    cs         <= linkerror;
-                    next_state <= LinkError;
-                end
-            end
-
-            le_send_resp: begin
-                message_send <= NOP;
-                cs           <= linkerror;
-                next_state   <= LinkError;
-            end
-
             d_send_req: begin
                 message_send <= NOP;
                 if (message_receive == RDI_DISABLE_RSP) begin
@@ -143,7 +120,7 @@ module unit_L2_state (
                 end
             end
 
-            reset, linkreset, linkerror, disabled: begin
+            reset, linkreset, disabled: begin
                 // Transition handled by EN de-assertion logic
             end
 

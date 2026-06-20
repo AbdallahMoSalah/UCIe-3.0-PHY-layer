@@ -35,8 +35,6 @@ module unit_active_state (
     typedef enum logic [25:0] {
         STATE_DISABLED  = 26'h0000001,
         IDLE            = 26'h0000002,
-        LE_SEND_RESP    = 26'h0000004,
-        LE_SEND_REQ     = 26'h0000008,
         STALL_HANDSHAKE = 26'h0000010,
         RT_SEND_REQ     = 26'h0000020,
         RT_SEND_RESP    = 26'h0000040,
@@ -52,7 +50,6 @@ module unit_active_state (
         L2_SEND_RESP    = 26'h0010000,
         L1              = 26'h0020000,
         L2              = 26'h0040000,
-        LINK_ERROR      = 26'h0080000,
         RETRAIN         = 26'h0100000,
         LINK_RESET      = 26'h0200000,
         DISABLED        = 26'h0400000,
@@ -104,13 +101,7 @@ module unit_active_state (
 
                 // --- IDLE STATE ---
                 IDLE: begin
-                    if (message_receive == RDI_LINK_ERROR_REQ) begin
-                        current_state <= LE_SEND_RESP; 
-                        message_send  <= RDI_LINK_ERROR_RSP;
-                    end else if (lp_linkerror) begin
-                        current_state <= LE_SEND_REQ; 
-                        message_send  <= RDI_LINK_ERROR_REQ;
-                    end else if (lp_state_req == Retrain || pl_error || state_sts == PHYRETRAIN) begin
+                    if (lp_state_req == Retrain || pl_error || state_sts == PHYRETRAIN) begin
                         flow          <= FLOW_RETRAIN_REQ;
                         current_state <= STALL_HANDSHAKE;
                         stall_req     <= 1'b1;
@@ -228,25 +219,6 @@ module unit_active_state (
                     current_state <= IDLE;
                     message_send  <= NOP;
                     flow          <= FLOW_RETRAIN_REQ;
-                end
-
-                // --- LINK ERROR HANDSHAKE STATES ---
-                LE_SEND_REQ: begin
-                    message_send <= NOP;
-                    if (message_receive == RDI_LINK_ERROR_RSP) begin
-                        current_state <= LINK_ERROR;
-                        next_state    <= LinkError;
-                    end
-                end
-                
-                LE_SEND_RESP: begin
-                    message_send  <= NOP;
-                    current_state <= LINK_ERROR;
-                    next_state    <= LinkError;
-                end
-                
-                LINK_ERROR: begin
-                    // When en is de-asserted, the outer always block resets current_state to STATE_DISABLED
                 end
 
                 // --- RETRAIN HANDSHAKE STATES ---

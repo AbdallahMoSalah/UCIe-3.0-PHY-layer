@@ -23,10 +23,7 @@ module unit_reset_state (
     output msg_no_e message_send             // Outgoing message to be sent appropriately
 );
     typedef enum logic[3:0] {idle,
-                             le_req, 
-                             le_resp, 
-                             linkerror, 
-                             d_req, 
+                             d_req,
                              d_resp, 
                              disabled, 
                              lr_req, 
@@ -58,16 +55,8 @@ module unit_reset_state (
                 message_send<=NOP;
                 next_state<=Reset;
                 Active_handshake_strt<=0;
-                if (lp_linkerror) begin 
-                    message_send<=RDI_LINK_ERROR_REQ;
-                    cs<=le_req;
-                end
-                else if (lp_state_req == Nop) 
+                if (lp_state_req == Nop)
                     cs<=NOP_rcvd;
-                else if (message_receive == RDI_LINK_ERROR_REQ) begin
-                    message_send<=RDI_LINK_ERROR_RSP;
-                    cs<= le_resp;
-                end   
                 else if (message_receive== RDI_DISABLE_REQ) begin
                     message_send<=RDI_DISABLE_RSP;
                     cs<= d_resp;
@@ -79,26 +68,6 @@ module unit_reset_state (
                 else if(state_sts==LINKINIT)begin
                     cs<=INPP;
                 end
-            end
-//===========================================================
-            le_req: begin   
-                message_send<=NOP;             
-                if (message_receive == RDI_LINK_ERROR_RSP)begin
-                    cs <= linkerror;
-                    next_state<=LinkError;
-                    message_send<=NOP;
-                end
-            end
-//===========================================================
-            le_resp: begin
-                cs <= linkerror;
-                next_state<=LinkError;
-                message_send<=NOP;
-            end
-//===========================================================
-            // linkerror: Main LinkError resting state. Exits to idle upon disable.
-            linkerror: begin
-                // Transition handled by EN de-assertion logic
             end
 //===========================================================
             d_req: begin
@@ -141,11 +110,7 @@ module unit_reset_state (
 //===========================================================
             // NOP_rcvd: Resting state waiting for target active, linkreset, or disable states
             NOP_rcvd: begin
-                if (lp_linkerror) begin
-                    message_send <= RDI_LINK_ERROR_REQ;
-                    cs <= le_req;
-                end
-                else if (lp_state_req == Active & state_sts == LINKINIT) begin
+                if (lp_state_req == Active & state_sts == LINKINIT) begin
                     cs <= active_hs;
                     Active_handshake_strt<=1;
                 end
@@ -162,14 +127,10 @@ module unit_reset_state (
             end
 //===========================================================
             training: begin
-                if (lp_linkerror) begin
-                    message_send <= RDI_LINK_ERROR_REQ;
-                    cs <= le_req;
-                end
                 // Active was requested before LINKINIT; once LINKINIT is seen
                 // (and Active is still held) initiate the Active handshake
                 // directly without requiring lp_state_req to toggle back to Nop.
-                else if (state_sts == LINKINIT && lp_state_req == Active) begin
+                if (state_sts == LINKINIT && lp_state_req == Active) begin
                     cs <= active_hs;
                     Active_handshake_strt <= 1;
                 end
@@ -178,11 +139,7 @@ module unit_reset_state (
             end
 //===========================================================
             INPP: begin
-                if (lp_linkerror) begin
-                    message_send <= RDI_LINK_ERROR_REQ;
-                    cs <= le_req;
-                end
-                else if (lp_state_req == Nop)
+                if (lp_state_req == Nop)
                     cs <= NOP_rcvd;
             end
 //===========================================================

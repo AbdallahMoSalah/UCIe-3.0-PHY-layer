@@ -452,7 +452,7 @@ module Logical_PHY #(
         .rst_main_n       (rst_n),
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_n),
-        .phy_in_reset     (1'b0),
+        .phy_in_reset     ((current_ltsm_state == RESET)),
         .pmo_en           (reg_PMO_enable_status),
 
         .sb_pll_clock     (sb_pll_clock),

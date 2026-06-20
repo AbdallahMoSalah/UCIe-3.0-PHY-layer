@@ -14,7 +14,13 @@ module unit_main_controller(
     input RDI_state Active_PMNAK_next_state,
     input LTSM_state_e state_sts,
     input logic rst_n,
- 
+
+    // message_timeout_handler interface
+    input  logic error,                       // block: a SB-message handshake errored
+    input  logic handshake_done,              // block: link-error handshake finished
+    output logic start_linkerror_handshake,   // ctrl: kick off the link-error handshake
+    output logic le_mux_sel,                  // ctrl: give the block the message MUX
+
     output logic Active_EN,
     output logic L1_EN,
     output logic L2_EN,
@@ -31,7 +37,12 @@ module unit_main_controller(
     output logic pm_exit,
     output RDI_state rdi_state_sts
 );
-    assign inband_pres = (((rdi_state_sts == Reset)&&(state_sts == LINKINIT))||
+    // High while the link-error handshake (driven by message_timeout_handler) is
+    // in progress: the normal per-state next-state logic is frozen until the
+    // block reports handshake_done, after which we force the LinkError state.
+    logic le_active;
+
+    assign inband_pres =(((rdi_state_sts == Reset)&&(state_sts == LINKINIT))||
                            (rdi_state_sts == Active)||
                            (rdi_state_sts == Active_PMNAK)||
                            (rdi_state_sts == L_1)||
@@ -58,6 +69,38 @@ module unit_main_controller(
             Reset_EN <= 1'b1; // Start in Reset
             LinkError_EN <= 1'b0;
             rdi_state_sts <= Reset;
+            le_active <= 1'b0;
+            start_linkerror_handshake <= 1'b0;
+            le_mux_sel <= 1'b0;
+        end else if (le_active) begin
+            // ----------------------------------------------------------------
+            // Link-error handshake in progress.  Hold the block's start/MUX
+            // grant and freeze all state transitions until the block finishes,
+            // then disable every state and enter LinkError.
+            // ----------------------------------------------------------------
+            start_linkerror_handshake <= 1'b1;
+            le_mux_sel                <= 1'b1;
+            if (handshake_done) begin
+                le_active                 <= 1'b0;
+                start_linkerror_handshake <= 1'b0;
+                le_mux_sel                <= 1'b0;
+                Active_EN       <= 1'b0;
+                L1_EN           <= 1'b0;
+                L2_EN           <= 1'b0;
+                Retrain_EN      <= 1'b0;
+                Active_PMNAK_EN <= 1'b0;
+                LinkReset_EN    <= 1'b0;
+                Disable_EN      <= 1'b0;
+                Reset_EN        <= 1'b0;
+                LinkError_EN    <= 1'b1;
+                rdi_state_sts   <= LinkError;
+            end
+        end else if (error && (rdi_state_sts != LinkError)) begin
+            // Block flagged a sideband-message handshake error: arm the
+            // link-error handshake and hand the MUX to the block.
+            le_active                 <= 1'b1;
+            start_linkerror_handshake <= 1'b1;
+            le_mux_sel                <= 1'b1;
         end else begin
 
         if ((state_sts == TRAINERROR )&&

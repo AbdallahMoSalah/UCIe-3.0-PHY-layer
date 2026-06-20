@@ -2,7 +2,10 @@ import RDI_SM_pkg::*;
 import LTSM_state_pkg::*;
 import UCIe_pkg::*;
 
-module wrapper_sm(
+module wrapper_sm #(
+    // 8 ms sideband-message handshake timeout (cycles). Default = 8 ms @ 2 GHz.
+    parameter int MSG_TIMEOUT_CYCLES = 16_000_000
+)(
     input  logic           lclk,
     input  logic           rst_n,      // Added rst_n as requested for completeness
     input  LTSM_state_e    state_sts,
@@ -60,6 +63,17 @@ module wrapper_sm(
     logic start_time_1us;
     logic time_16ms;
     logic time_1us;
+
+    // --- message_timeout_handler interconnect ---
+    logic    mth_error;                     // block -> controller
+    logic    mth_handshake_done;            // block -> controller
+    logic    start_linkerror_handshake;     // controller -> block
+    logic    le_mux_sel;                    // controller -> block & MUX
+    msg_no_e le_message_send;               // block -> MUX
+    // Monitor is gated off while the RDI is already resting in LinkError so the
+    // block cannot re-trigger on itself.
+    logic    monitor_en;
+    assign   monitor_en = (rdi_state_sts != LinkError);
 
     // --- Combinational Assignments for Aggregated Signals ---
     assign stall_req = Active_stall_req | Active_PMNAK_stall_req;
@@ -220,6 +234,10 @@ module wrapper_sm(
         .Retrain_next_state(Retrain_next_state),
         .Active_PMNAK_next_state(Active_PMNAK_next_state),
         .state_sts(state_sts),
+        .error(mth_error),
+        .handshake_done(mth_handshake_done),
+        .start_linkerror_handshake(start_linkerror_handshake),
+        .le_mux_sel(le_mux_sel),
         .Active_EN(Active_EN),
         .L1_EN(L1_EN),
         .L2_EN(L2_EN),
@@ -246,7 +264,25 @@ module wrapper_sm(
         .L2_message_send(L2_message_send),
         .LinkReset_message_send(LinkReset_message_send),
         .rdi_state_sts(rdi_state_sts),
+        .le_mux_sel(le_mux_sel),
+        .le_message_send(le_message_send),
         .message_send(message_send)
+    );
+
+    // Combined 8 ms sideband-message timeout watcher + Link-Error handshake.
+    message_timeout_handler #(
+        .TIMEOUT_CYCLES (MSG_TIMEOUT_CYCLES)
+    ) u_message_timeout_handler (
+        .lclk                      (lclk),
+        .rst_n                     (rst_n),
+        .message_send              (message_send),
+        .message_receive           (message_receive),
+        .lp_linkerror              (lp_linkerror),
+        .monitor_en                (monitor_en),
+        .start_linkerror_handshake (start_linkerror_handshake),
+        .error                     (mth_error),
+        .handshake_done            (mth_handshake_done),
+        .le_message_send           (le_message_send)
     );
 
 endmodule

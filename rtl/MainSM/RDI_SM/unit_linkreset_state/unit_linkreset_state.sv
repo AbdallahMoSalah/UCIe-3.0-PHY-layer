@@ -26,7 +26,6 @@ module unit_linkreset_state (
         state_disable,   // 0: Initial/Inactive state
         idle,            // 1: Waiting for exit triggers
         reset_st,        // 2: Exit triggered towards Reset (on lp_state_req=Active)
-        linkerror_st,    // 3: Exit triggered towards LinkError
         d_send_req,      // 4: Disable flow (adapter-initiated)
         d_send_resp,     // 5: Disable flow (peer-initiated)
         disabled_st      // 6: Stable Disabled state
@@ -59,10 +58,7 @@ module unit_linkreset_state (
             idle: begin
                 if (lp_state_req == Active) begin
                     cs <= reset_st;
-                end 
-                else if (lp_linkerror) begin
-                    cs <= linkerror_st;
-                end 
+                end
                 else if (lp_state_req == Disabled) begin
                     cs           <= d_send_req;
                     message_send <= RDI_DISABLE_REQ;
@@ -75,10 +71,6 @@ module unit_linkreset_state (
 
             reset_st: begin
                 next_state <= Reset;
-            end
-
-            linkerror_st: begin
-                next_state <= LinkError;
             end
 
             d_send_req: begin

@@ -20,22 +20,33 @@ module unit_message_send_MUX(
     // Control input
     input  RDI_state       rdi_state_sts,              // Current RDI status state
 
+    // Link-error handshake override (driven by message_timeout_handler via the
+    // main controller).  When le_mux_sel is high the block owns the outgoing
+    // sideband message, taking priority over the per-state sources.
+    input  logic           le_mux_sel,                 // Block owns the message bus
+    input  msg_no_e        le_message_send,            // Message from the block
+
     // Selected message output
     output msg_no_e        message_send                // Final message to be transmitted
 );
 
     // Combinational multiplexing logic based on the current RDI status state
     always_comb begin
-        case(rdi_state_sts)
-            Reset:        message_send = Reset_message_send;
-            Retrain:      message_send = Retrain_message_send;
-            Active:       message_send = Active_message_send;
-            Active_PMNAK: message_send = Active_PMNAK_message_send;
-            L_1:          message_send = L1_message_send;
-            L_2:          message_send = L2_message_send;
-            LinkReset:    message_send = LinkReset_message_send;
-            default:      message_send = NOP; // Default to No-Operation if state is unhandled or Nop
-        endcase
+        if (le_mux_sel) begin
+            // Link-error handshake in progress: block has priority.
+            message_send = le_message_send;
+        end else begin
+            case(rdi_state_sts)
+                Reset:        message_send = Reset_message_send;
+                Retrain:      message_send = Retrain_message_send;
+                Active:       message_send = Active_message_send;
+                Active_PMNAK: message_send = Active_PMNAK_message_send;
+                L_1:          message_send = L1_message_send;
+                L_2:          message_send = L2_message_send;
+                LinkReset:    message_send = LinkReset_message_send;
+                default:      message_send = NOP; // Default to No-Operation if state is unhandled or Nop
+            endcase
+        end
     end
 
 endmodule

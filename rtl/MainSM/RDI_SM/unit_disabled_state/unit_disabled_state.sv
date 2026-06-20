@@ -23,9 +23,8 @@ module unit_disabled_state (
     // -------------------------------------------------------------------------
     typedef enum logic [1:0] {
         state_disabled, // 0: Initial/Inactive state
-        idle,           // 1: Waiting for exit triggers (Active req or LinkError)
-        reset_st,       // 2: Exit triggered towards Reset
-        linkerror_st    // 3: Exit triggered towards LinkError
+        idle,           // 1: Waiting for exit triggers (Active req)
+        reset_st        // 2: Exit triggered towards Reset
     } d_sub_state;
 
     d_sub_state cs; 
@@ -52,17 +51,11 @@ module unit_disabled_state (
             idle: begin
                 if (lp_state_req == Active) begin
                     cs <= reset_st;
-                end else if (lp_linkerror) begin
-                    cs <= linkerror_st;
                 end
             end
 
             reset_st: begin
                 next_state <= Reset;
-            end
-
-            linkerror_st: begin
-                next_state <= LinkError;
             end
 
             default: cs <= state_disabled;
