@@ -55,10 +55,6 @@ module unit_VALVREF_partner (
 
         // MB TX Lane Control: moved to wrapper_VALVREF as static assigns
         // (spec §4.5.3.4.1: Clock TX active, Valid TX active=VALTRAIN, Data/Track TX held low)
-        // output logic [1:0]  mb_tx_clk_lane_sel  ,
-        // output logic [1:0]  mb_tx_data_lane_sel ,
-        // output logic [1:0]  mb_tx_val_lane_sel  ,
-        // output logic [1:0]  mb_tx_trk_lane_sel  ,
         // MB RX Lane Control: moved to wrapper_VALVREF as static assigns
         // output logic        mb_rx_clk_lane_sel  ,
         // output logic        mb_rx_data_lane_sel ,
@@ -237,10 +233,6 @@ module unit_VALVREF_partner (
         tx_data_field    = 64'h0;
 
         // MB TX defaults (moved to wrapper as static assigns)
-        // mb_tx_clk_lane_sel  = 2'b01;
-        // mb_tx_data_lane_sel = 2'b00;
-        // mb_tx_val_lane_sel  = 2'b01;
-        // mb_tx_trk_lane_sel  = 2'b00;
 
         case (current_state)
 

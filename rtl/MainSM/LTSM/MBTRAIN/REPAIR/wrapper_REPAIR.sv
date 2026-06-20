@@ -54,10 +54,6 @@ module wrapper_REPAIR (
         input  ltsm_state_n_pkg::state_n_e state_n_0,
 
         // MB Signals (multiplexed from Local/Partner based on which is active)
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
         output logic        mb_rx_clk_lane_sel,
         output logic        mb_rx_data_lane_sel,
         output logic        mb_rx_val_lane_sel,
@@ -196,10 +192,6 @@ module wrapper_REPAIR (
     //   CLK TX=01, DATA/VAL/TRK TX=00, CLK RX=1, DATA/VAL/TRK RX=0.
     //   wrapper_MBTRAIN ss_active gates these when substate is not active.
     // =========================================================================
-    assign mb_tx_clk_lane_sel  = 2'b01;
-    assign mb_tx_data_lane_sel = 2'b00;
-    assign mb_tx_val_lane_sel  = 2'b00;
-    assign mb_tx_trk_lane_sel  = 2'b00;
     assign mb_rx_clk_lane_sel  = 1'b1;
     assign mb_rx_data_lane_sel = 1'b0;
     assign mb_rx_val_lane_sel  = 1'b0;

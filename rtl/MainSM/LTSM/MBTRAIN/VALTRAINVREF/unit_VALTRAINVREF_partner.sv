@@ -27,10 +27,6 @@ module unit_VALTRAINVREF_partner (
 
         // MB TX Lane Control: moved to wrapper_VALTRAINVREF as static assigns
         // (spec §4.5.3.4.6: CLK TX active, VAL TX active=VALTRAIN, DATA/TRK TX held low)
-        // output logic [1:0]  mb_tx_clk_lane_sel  ,
-        // output logic [1:0]  mb_tx_data_lane_sel ,
-        // output logic [1:0]  mb_tx_val_lane_sel  ,
-        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         //=====================================//
         // Partner Sweep Enable:               //

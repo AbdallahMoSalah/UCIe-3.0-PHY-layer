@@ -234,8 +234,6 @@ module LTSM_wrapper #(
     logic        mbtrain_partner_sweep_en;
     logic [15:0] mbtrain_sweep_active_lanes;
 
-    logic [1:0]  mbtrain_sub_tx_clk_lane_sel, mbtrain_sub_tx_data_lane_sel;
-    logic [1:0]  mbtrain_sub_tx_val_lane_sel, mbtrain_sub_tx_trk_lane_sel;
     logic        mbtrain_sub_rx_clk_lane_sel, mbtrain_sub_rx_data_lane_sel;
     logic        mbtrain_sub_rx_val_lane_sel, mbtrain_sub_rx_trk_lane_sel;
 
@@ -957,10 +955,6 @@ module LTSM_wrapper #(
         .phy_tx_eq_preset_en        (),
 
         // Mainband lane selectors (routed by the mainband mux during MBTRAIN)
-        .substate_mb_tx_clk_lane_sel  (mbtrain_sub_tx_clk_lane_sel),
-        .substate_mb_tx_data_lane_sel (mbtrain_sub_tx_data_lane_sel),
-        .substate_mb_tx_val_lane_sel  (mbtrain_sub_tx_val_lane_sel),
-        .substate_mb_tx_trk_lane_sel  (mbtrain_sub_tx_trk_lane_sel),
         .substate_mb_rx_clk_lane_sel  (mbtrain_sub_rx_clk_lane_sel),
         .substate_mb_rx_data_lane_sel (mbtrain_sub_rx_data_lane_sel),
         .substate_mb_rx_val_lane_sel  (mbtrain_sub_rx_val_lane_sel),

@@ -46,10 +46,6 @@ module unit_DATATRAINCENTER2_local #(
 
         // MB TX Lane Control: moved to wrapper_DATATRAINCENTER2 as static assigns
         // (spec §4.5.3.4.11: CLK TX=01, DATA/VAL/TRK TX=00)
-        // output logic [1:0]  mb_tx_clk_lane_sel  ,
-        // output logic [1:0]  mb_tx_data_lane_sel ,
-        // output logic [1:0]  mb_tx_val_lane_sel  ,
-        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         //=====================================//
         // D2C Sweep Interface:                //

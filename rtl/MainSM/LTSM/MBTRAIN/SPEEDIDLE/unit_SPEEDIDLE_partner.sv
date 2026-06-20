@@ -27,10 +27,6 @@ module unit_SPEEDIDLE_partner (
         // output logic [2:0]  phy_negotiated_speed,
 
         // // MB TX/RX Lane Control
-        // output logic [1:0]  mb_tx_clk_lane_sel,
-        // output logic [1:0]  mb_tx_data_lane_sel,
-        // output logic [1:0]  mb_tx_val_lane_sel,
-        // output logic [1:0]  mb_tx_trk_lane_sel,
         // output logic        mb_rx_clk_lane_sel,
         // output logic        mb_rx_data_lane_sel,
         // output logic        mb_rx_val_lane_sel,

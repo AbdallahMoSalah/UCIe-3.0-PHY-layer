@@ -38,8 +38,6 @@ module unit_RXCLKCAL_partner
         input  logic        iq_partner_error,
 
         // MB TX Lane Control Outputs (Partner FSM controls transmitter settings)
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
         output logic        mb_tx_pattern_en,
 
         // Sideband Interface
@@ -233,8 +231,6 @@ module unit_RXCLKCAL_partner
     end
 
     // Transmitter Select Controls
-    assign mb_tx_clk_lane_sel = clk_active ? 2'b01 : 2'b00;
-    assign mb_tx_trk_lane_sel = clk_active ? 2'b01 : 2'b00;
     assign mb_tx_pattern_en   = clk_active;
 
 endmodule

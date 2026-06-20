@@ -82,10 +82,6 @@ module unit_REPAIR_partner (
 
         // MB TX/RX Lane Control: moved to wrapper_REPAIR as static assigns
         // (spec §4.5.3.4.13: CLK TX=01, DATA/VAL/TRK TX=00, CLK RX=1, DATA/VAL/TRK RX=0)
-        // output logic [1:0]  mb_tx_clk_lane_sel,
-        // output logic [1:0]  mb_tx_data_lane_sel,
-        // output logic [1:0]  mb_tx_val_lane_sel,
-        // output logic [1:0]  mb_tx_trk_lane_sel,
         // output logic        mb_rx_clk_lane_sel,
         // output logic        mb_rx_data_lane_sel,
         // output logic        mb_rx_val_lane_sel,

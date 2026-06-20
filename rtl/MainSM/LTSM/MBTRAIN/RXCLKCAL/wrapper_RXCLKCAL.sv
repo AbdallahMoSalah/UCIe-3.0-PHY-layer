@@ -64,10 +64,6 @@ module wrapper_RXCLKCAL (
         // =========================================================================
         // Group 4: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
         output logic        mb_rx_clk_lane_sel,
         output logic        mb_rx_data_lane_sel,
         output logic        mb_rx_val_lane_sel,
@@ -198,8 +194,6 @@ module wrapper_RXCLKCAL (
         .iq_partner_en                  (iq_partner_en                  ),
         .iq_partner_done                (iq_partner_done                ),
         .iq_partner_error               (iq_partner_error               ),
-        .mb_tx_clk_lane_sel             (mb_tx_clk_lane_sel             ),
-        .mb_tx_trk_lane_sel             (mb_tx_trk_lane_sel             ),
         .mb_tx_pattern_en               (mb_tx_pattern_en               ),
         .tx_sb_msg_valid                (partner_tx_sb_msg_valid        ),
         .tx_sb_msg                      (partner_tx_sb_msg              ),
@@ -259,8 +253,6 @@ module wrapper_RXCLKCAL (
         partner_tx_sb_msg_valid    ? partner_tx_data_field  :
         iq_partner_tx_data_field;
 
-    assign mb_tx_data_lane_sel   = 2'b00;
-    assign mb_tx_val_lane_sel    = 2'b00;
     assign mb_rx_data_lane_sel   = 1'b0;
     assign mb_rx_val_lane_sel    = 1'b0;
 

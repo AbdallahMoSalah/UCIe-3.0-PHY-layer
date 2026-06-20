@@ -51,10 +51,6 @@ module wrapper_VALVREF #(
         // =========================================================================
         // Group 5: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Low; 01: Active clock; 10: Tri-state
-        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Low; 01: Active data ; 10: Tri-state
-        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Low; 01: Active valid; 10: Tri-state
-        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Low; 01: Active track; 10: Tri-state
         output logic        mb_rx_clk_lane_sel,             // 0: Disabled; 1: Enabled
         output logic        mb_rx_data_lane_sel,            // 0: Disabled; 1: Enabled
         output logic        mb_rx_val_lane_sel,             // 0: Disabled; 1: Enabled
@@ -171,10 +167,6 @@ module wrapper_VALVREF #(
     //   Local   (RX side): Clock RX enabled, Valid RX enabled; Data/Track RX disabled.
     //   All go to zero when valvref_en=0 (FSM is in IDLE).
     // =========================================================================
-    assign mb_tx_clk_lane_sel  = 2'b01;  // Active clock when enabled
-    assign mb_tx_data_lane_sel = 2'b00;  // Always held low
-    assign mb_tx_val_lane_sel  = 2'b01;  // VALTRAIN when enabled
-    assign mb_tx_trk_lane_sel  = 2'b00;  // Always held low
     assign mb_rx_clk_lane_sel  = 1'b1 ;  // Enabled when active
     assign mb_rx_data_lane_sel = 1'b0 ;  // Always disabled
     assign mb_rx_val_lane_sel  = 1'b1 ;  // Enabled when active

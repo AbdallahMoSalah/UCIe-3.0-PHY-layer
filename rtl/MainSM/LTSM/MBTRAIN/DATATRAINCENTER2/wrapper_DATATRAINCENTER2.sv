@@ -36,10 +36,6 @@ module wrapper_DATATRAINCENTER2 #(
         // =========================================================================
         // Group 5: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
         output logic        mb_rx_clk_lane_sel,
         output logic        mb_rx_data_lane_sel,
         output logic        mb_rx_val_lane_sel,
@@ -127,10 +123,6 @@ module wrapper_DATATRAINCENTER2 #(
     //   Partner (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
     //   wrapper_MBTRAIN ss_active gates these when substate is not active.
     // =========================================================================
-    assign mb_tx_clk_lane_sel  = 2'b01;
-    assign mb_tx_data_lane_sel = 2'b00;
-    assign mb_tx_val_lane_sel  = 2'b00;
-    assign mb_tx_trk_lane_sel  = 2'b00;
     assign mb_rx_clk_lane_sel  = 1'b1;
     assign mb_rx_data_lane_sel = 1'b1;
     assign mb_rx_val_lane_sel  = 1'b1;

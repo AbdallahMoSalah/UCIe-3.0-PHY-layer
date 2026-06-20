@@ -24,10 +24,6 @@ module wrapper_TXSELFCAL (
         output logic        phy_tx_selfcal_en,
 
         // MB Signals
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
         output logic        mb_rx_clk_lane_sel,
         output logic        mb_rx_data_lane_sel,
         output logic        mb_rx_val_lane_sel,
@@ -115,10 +111,6 @@ module wrapper_TXSELFCAL (
     //   "Data, Clock, Valid, and Track Receivers are permitted to be disabled."
     // These values are constant regardless of FSM state.
     // =========================================================================
-    assign mb_tx_clk_lane_sel  = 2'b10; // Tri-state
-    assign mb_tx_data_lane_sel = 2'b10; // Tri-state
-    assign mb_tx_val_lane_sel  = 2'b10; // Tri-state
-    assign mb_tx_trk_lane_sel  = 2'b10; // Tri-state
     assign mb_rx_clk_lane_sel  = 1'b0;  // Disabled
     assign mb_rx_data_lane_sel = 1'b0;  // Disabled
     assign mb_rx_val_lane_sel  = 1'b0;  // Disabled

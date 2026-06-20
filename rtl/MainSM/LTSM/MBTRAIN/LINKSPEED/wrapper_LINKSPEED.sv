@@ -117,10 +117,6 @@ module wrapper_LINKSPEED (
         // =========================================================================
         // Group 7: MB Signals (Mainband Control)
         // =========================================================================
-        output logic [1:0]  mb_tx_clk_lane_sel,                // 00: Low; 01: Active; 11: Elec-Idle
-        output logic [1:0]  mb_tx_data_lane_sel,               // 00: Low; 01: Active; 11: Elec-Idle
-        output logic [1:0]  mb_tx_val_lane_sel,                // 00: Low; 01: Active; 11: Elec-Idle
-        output logic [1:0]  mb_tx_trk_lane_sel,                // 00: Low (always)
         output logic        mb_rx_clk_lane_sel,                // 0: Disabled; 1: Enabled
         output logic        mb_rx_data_lane_sel,               // 0: Disabled; 1: Enabled
         output logic        mb_rx_val_lane_sel,                // 0: Disabled; 1: Enabled
@@ -299,18 +295,10 @@ module wrapper_LINKSPEED (
         // ── MB TX defaults (spec §4.5.3.4.12 idle posture) ──
         // LOCAL error path: drive TX to Electrical Idle.
         if (lcl_tx_elec_idle) begin
-            mb_tx_trk_lane_sel  = 2'b11; // Track TX: always held Low.
-            mb_tx_clk_lane_sel  = 2'b11;
-            mb_tx_data_lane_sel = 2'b11;
-            mb_tx_val_lane_sel  = 2'b11;
         end
         // LOCAL D2C TX: activate Data and Valid TX.
         // local_sweep_en is already the sweep_en output of u_LINKSPEED_local — reused directly.
         else begin
-            mb_tx_trk_lane_sel  = 2'b00; // Track TX: always held Low.
-            mb_tx_data_lane_sel = 2'b00; // Held Low by default.
-            mb_tx_val_lane_sel  = 2'b00; // Held Low by default.
-            mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
         end
 
         // ── MB RX defaults (enabled per spec; PARTNER disables on error path) ──

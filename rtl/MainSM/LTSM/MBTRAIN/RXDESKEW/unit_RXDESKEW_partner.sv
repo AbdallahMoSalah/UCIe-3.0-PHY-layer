@@ -118,10 +118,6 @@ module unit_RXDESKEW_partner #(
         // MB TX signals moved to wrapper_RXDESKEW as static/conditional assigns:
         // (spec §4.5.3.4.10: CLK TX=speed-dep, DATA/VAL/TRK TX=00)
         // Speed and clock-mode inputs also moved to wrapper.
-        // output logic [1:0]  mb_tx_clk_lane_sel  ,
-        // output logic [1:0]  mb_tx_data_lane_sel ,
-        // output logic [1:0]  mb_tx_val_lane_sel  ,
-        // output logic [1:0]  mb_tx_trk_lane_sel  ,
 
         // Speed and Clock Mode Inputs (moved to wrapper):
         // input  logic        is_high_speed        ,

@@ -72,10 +72,6 @@ module wrapper_RXDESKEW #(
         // =========================================================================
         // Group 5: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Low; 01: Active clock; 10: Tri-state
-        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Low; 01: Active data; 10: Tri-state
-        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Low; 01: Active valid; 10: Tri-state
-        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Low; 01: Active track; 10: Tri-state
         output logic        mb_rx_clk_lane_sel,             // 0: Disabled; 1: Enabled
         output logic        mb_rx_data_lane_sel,            // 0: Disabled; 1: Enabled
         output logic        mb_rx_val_lane_sel,             // 0: Disabled; 1: Enabled
@@ -222,10 +218,6 @@ module wrapper_RXDESKEW #(
     assign mb_rx_val_lane_sel  = 1'b1;
     assign mb_rx_trk_lane_sel  = 1'b0;
     // CLK TX: free-running if >32GT/s or continuous clock mode; else held low
-    assign mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-    assign mb_tx_data_lane_sel = 2'b00; // Held low while Local sweeps
-    assign mb_tx_val_lane_sel  = 2'b00; // Held low while Local sweeps
-    assign mb_tx_trk_lane_sel  = 2'b00; // Always held low per spec
 
 endmodule
 
