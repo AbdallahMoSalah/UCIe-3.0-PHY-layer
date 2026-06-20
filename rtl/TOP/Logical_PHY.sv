@@ -61,8 +61,10 @@ module Logical_PHY #(
 
     // Observability outputs
     output logic                             lclk,
+    output logic                             clk_sb,   // divided SB clock (Reg_Access / Reg_File domain)
     output logic [8*N_BYTES-1:0]             pl_data,
     output logic                             pl_valid,
+    output logic                             pl_error,
 
     // =========================================================================
     // MainBand Serial Interface
@@ -115,6 +117,7 @@ module Logical_PHY #(
     output logic [7:0]                       log0_state_n_minus_1,
     output logic [7:0]                       log0_state_n_minus_2,
     output logic [7:0]                       log1_state_n_minus_3,
+    output logic                             phy_rm_link_err_i,
 
     // RESET-state triggers / strap
     input  logic                             phy_start_ucie_link_training_ctrl_out,
@@ -196,9 +199,7 @@ module Logical_PHY #(
         .local_period ()
     );
 
-    // Clock divider by 8 to get 100 MHz for clk_sb
-    logic clk_sb;
-
+    // Clock divider by 8 to get 100 MHz for clk_sb (now exposed as an output port)
     ClkDiv #(
         .RangeWidth (8)
     ) u_clk_div_sb (
@@ -330,6 +331,12 @@ module Logical_PHY #(
     end
 
     assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched;
+
+    always_comb begin
+        phy_rm_link_err_i = (rdi_msg_rcvd == RDI_LINK_ERROR_REQ)
+                            && rdi_vld_rcvd;
+    end
+
     //==========================================================================
     //
     //==========================================================================
@@ -343,6 +350,10 @@ module Logical_PHY #(
             sticky_sb_pattern_detected <= 1'b1;
         end
     end
+    //==========================================================================
+    //
+    //==========================================================================
+    assign pl_error = mb_valid_frame_error;
     // =========================================================================
     // 4. Module Instantiations
     // =========================================================================

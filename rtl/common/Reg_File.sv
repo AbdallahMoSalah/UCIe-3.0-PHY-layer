@@ -646,12 +646,9 @@ always_comb begin
     rt_test_ctrl_r[63:36] = 28'b11111111111111111111111111;
     
 end
-logic rt_link_test_start_ctrl_out;
-logic rt_apply_module_0_lane_repair_ctrl_out;
-logic inject_stuck_at_fault_ctrl_out;
-
-logic [6:0] module_0_lane_repair_id_ctrl_out;
-
+// rt_link_test_start_ctrl_out / rt_apply_module_0_lane_repair_ctrl_out /
+// inject_stuck_at_fault_ctrl_out / module_0_lane_repair_id_ctrl_out are module
+// output ports (declared in the port list); driven directly by the assigns below.
 assign rt_link_test_start_ctrl_out = rt_test_ctrl_r[6];
 assign rt_apply_module_0_lane_repair_ctrl_out = rt_test_ctrl_r[2];
 assign inject_stuck_at_fault_ctrl_out = rt_test_ctrl_r[7];

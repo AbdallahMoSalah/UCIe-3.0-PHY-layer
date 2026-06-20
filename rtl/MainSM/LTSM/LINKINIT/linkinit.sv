@@ -64,11 +64,14 @@ always @(*) begin
                 ns            = idle;
                 linkinit_done = 1'b1;
             end
-            // Failure: explicit re-training trigger detected
-            else if (start_ucie_link_training) begin
-                ns             = link_error;
-                linkinit_error = 1'b1;
-            end
+            // NOTE: previously a high start_ucie_link_training here forced
+            // link_error.  With "Start UCIe Link Training" now sourced from the
+            // Reg_File (UCIe Link Control[10]), that bit is held high for the
+            // whole training window and only auto-clears at completion, so it is
+            // legitimately still asserted while LINKINIT waits for RDI Active.
+            // Treating it as a re-train/error trigger here deadlocks bring-up,
+            // so the abort path is removed; the 8 ms watchdog in the
+            // ltsm_controller still covers a genuinely stuck LINKINIT.
         end
 
         // LINK_ERROR: Error state, stays here until enable is de-asserted
