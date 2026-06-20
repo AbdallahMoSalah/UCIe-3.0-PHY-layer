@@ -47,18 +47,18 @@ module UCIe_PHY #(
     parameter real PLL_PERIOD_NS  = 0.5,
     parameter int  RX_ALIGN_DELAY = 2,
     parameter int  CLK_FRQ_HZ     = 800_000_000,
-    parameter int  MAX_LINK_WIDTH_CAP = 0,
-    parameter int  MAX_LINK_SPEED_CAP = 4'h5,
-    parameter int  SPMW_CAP           = 0,
-    parameter int  PMO_CAP            = 1,
-    parameter int  PSPT_CAP           = 0,
-    parameter int  L2SPD_CAP          = 0,
-    parameter int  SUPPORTEDVSWING_CAP = 5'h01,
-    parameter int  CLK_MODE_CAP       = 2'b10,
-    parameter int  CLK_PHASE_CAP      = 2'b00,
-    parameter int  TARR_CAP           = 1'b0,
-    parameter int  ADVANCED_PKG_CAP   = 1'b0,
-    parameter int  MODULE_ID          = 16'b0
+    parameter logic [2:0] MAX_LINK_WIDTH_CAP  = 3'd0,
+    parameter logic [3:0] MAX_LINK_SPEED_CAP  = 4'h5,
+    parameter logic       SPMW_CAP            = 1'b0,
+    parameter logic       PMO_CAP             = 1'b1,
+    parameter logic       PSPT_CAP            = 1'b0,
+    parameter logic       L2SPD_CAP           = 1'b0,
+    parameter logic [4:0] SUPPORTEDVSWING_CAP = 5'h01,
+    parameter logic [1:0] CLK_MODE_CAP        = 2'b10,
+    parameter logic [1:0] CLK_PHASE_CAP       = 2'b00,
+    parameter logic       TARR_CAP            = 1'b0,
+    parameter logic       ADVANCED_PKG_CAP    = 1'b0,
+    parameter logic [1:0] MODULE_ID           = 2'b0
 )(
     // =========================================================================
     // System Reset
@@ -156,7 +156,7 @@ module UCIe_PHY #(
     // These used to be top-level ports; they are now internal nets.
     // -------------------------------------------------------------------------
     logic        SPMW;
-    assign       SPMW = SPMW_CAP[0];
+    assign       SPMW = SPMW_CAP;
 
     // Reg_File -> Logical_PHY control
     logic        phy_start_ucie_link_training_ctrl_out;

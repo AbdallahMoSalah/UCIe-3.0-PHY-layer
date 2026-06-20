@@ -51,9 +51,7 @@ module RDI_SM (
     input  logic                    sticky_sb_pattern_detected,
     // RDI state status forwarded to the LTSM (mirrors the internal
     // wrapper_sm rdi_state_sts so the LTSM can observe the RDI SM state)
-    output RDI_state                rdi_state,
-
-    input  logic                    RESET_state_done
+    output RDI_state                rdi_state
 );
 
     // =========================================================================
