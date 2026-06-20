@@ -9,9 +9,9 @@ module unit_rx_deser_tb_s3;
     parameter PLL_PERIOD = 2.0;
     parameter MB_PERIOD  = PLL_PERIOD * (DATA_WIDTH/2);
 
-    reg  pll_clk;
-    reg  mb_clk;
-    reg  rst_n;
+    logic  pll_clk;
+    logic  mb_clk;
+    logic  rst_n;
 
     initial pll_clk = 0;
     always #(PLL_PERIOD / 2.0) pll_clk = ~pll_clk;
@@ -19,22 +19,22 @@ module unit_rx_deser_tb_s3;
     initial mb_clk = 0;
     always #(MB_PERIOD / 2.0) mb_clk = ~mb_clk;
 
-    reg  [DATA_WIDTH-1:0] valid_tx_word;
-    reg  [DATA_WIDTH-1:0] data_tx_word;
-    reg                   tx_ser_en;
+    logic  [DATA_WIDTH-1:0] valid_tx_word;
+    logic  [DATA_WIDTH-1:0] data_tx_word;
+    logic                   tx_ser_en;
 
-    wire                  valid_serial_out;
-    wire                  data_serial_out;
+    logic                  valid_serial_out;
+    logic                  data_serial_out;
 
-    wire                  rx_pll_clk;
+    logic                  rx_pll_clk;
     assign #0.5 rx_pll_clk = pll_clk;
 
-    wire [DATA_WIDTH-1:0] valid_shift_reg;
-    wire                  valid_des_state;
-    wire [3:0]            valid_des_count;
-    wire                  valid_frame_pulse;
-    wire [DATA_WIDTH-1:0] rx_par_data;
-    wire                  rx_data_valid;
+    logic [DATA_WIDTH-1:0] valid_shift_reg;
+    logic                  valid_des_state;
+    logic [3:0]            valid_des_count;
+    logic                  valid_frame_pulse;
+    logic [DATA_WIDTH-1:0] rx_par_data;
+    logic                  rx_data_valid;
 
     // TX Serializers
     unit_mb_serializer #(.DATA_WIDTH(DATA_WIDTH)) u_tx_valid_ser (
@@ -91,10 +91,10 @@ module unit_rx_deser_tb_s3;
     integer pass_count = 0;
     integer fail_count = 0;
 
-    reg [DATA_WIDTH-1:0] expected_data;
-    reg                  waiting_for_result;
+    logic [DATA_WIDTH-1:0] expected_data;
+    logic                  waiting_for_result;
 
-    reg prev_valid_frame_pulse;
+    logic prev_valid_frame_pulse;
     always @(negedge pll_clk or negedge rst_n) begin
         if (!rst_n)
             prev_valid_frame_pulse <= 1'b0;
@@ -102,7 +102,7 @@ module unit_rx_deser_tb_s3;
             prev_valid_frame_pulse <= valid_frame_pulse;
     end
 
-    wire valid_frame_edge = valid_frame_pulse & ~prev_valid_frame_pulse;
+    logic valid_frame_edge = valid_frame_pulse & ~prev_valid_frame_pulse;
 
     always @(posedge valid_frame_edge) begin
         $display("  [DET]  T=%0t  Valid frame detected  shift_reg=0x%08h",

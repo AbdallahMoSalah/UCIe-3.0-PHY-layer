@@ -7,33 +7,33 @@
 module unit_valid_deserializer_s3 #(
     parameter DATA_WIDTH = 32
 )(
-    input  wire                   pll_clk,
-    input  wire                   mb_clk,
-    input  wire                   i_rst_n,
-    input  wire                   i_en,
-    input  wire                   ser_data_in,
-    input  wire                   i_valid_pulse,
+    input  logic                   pll_clk,
+    input  logic                   mb_clk,
+    input  logic                   i_rst_n,
+    input  logic                   i_en,
+    input  logic                   ser_data_in,
+    input  logic                   i_valid_pulse,
 
-    output wire [DATA_WIDTH-1:0]    o_shift_reg,
+    output logic [DATA_WIDTH-1:0]    o_shift_reg,
     output logic [DATA_WIDTH-1:0]   o_valid_frame_data,
     output logic                    o_valid_frame_vld,
-    output reg                      o_count_16       // 0..15 counter
+    output logic                      o_count_16       // 0..15 counter
     
 );
 
-reg [DATA_WIDTH-1:0] shift_reg;
-reg                  r_data_pos;
-reg                  prev_ser_data_in;
-reg                  o_state;          // frame-align FSM: 0 = IDLE, 1 = RUNNING
-reg [3:0]            o_count;          // 0..15 bit-pair counter (16 pll-cycles = one 32-bit word)
+logic [DATA_WIDTH-1:0] shift_reg;
+logic                  r_data_pos;
+logic                  prev_ser_data_in;
+logic                  o_state;          // frame-align FSM: 0 = IDLE, 1 = RUNNING
+logic [3:0]            o_count;          // 0..15 bit-pair counter (16 pll-cycles = one 32-bit word)
 
 
 // FIFO signals
-wire [DATA_WIDTH-1:0] fifo_rd_data;
-wire                  rvalid;
-wire                  wfull;
-wire                  wready;
-wire                  rempty;
+logic [DATA_WIDTH-1:0] fifo_rd_data;
+logic                  rvalid;
+logic                  wfull;
+logic                  wready;
+logic                  rempty;
 
 // Capture even bit on posedge pll_clk
 always @(posedge pll_clk or negedge i_rst_n) begin

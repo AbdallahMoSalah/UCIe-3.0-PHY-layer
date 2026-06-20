@@ -3,17 +3,17 @@ module unit_demapper #(
     parameter NUM_LANES = 16 ,
     parameter WIDTH     = 32  
 ) (
-    input  wire                     i_clk,
-    input  wire                     i_rst_n,
-    input  wire   [WIDTH-1:0] i_lane_0,  i_lane_1,  i_lane_2,  i_lane_3,
-    input  wire   [WIDTH-1:0] i_lane_4,  i_lane_5,  i_lane_6,  i_lane_7,
-    input  wire   [WIDTH-1:0] i_lane_8,  i_lane_9,  i_lane_10, i_lane_11,
-    input  wire   [WIDTH-1:0] i_lane_12, i_lane_13, i_lane_14, i_lane_15,
-    input  wire                     demapper_en,
-    input  wire                     rx_data_valid,
-    input  wire [2:0]               i_width_deg_demap,
-    output reg                      pl_valid,
-    output reg    [8*N_BYTES-1:0]   o_out_data
+    input  logic                     i_clk,
+    input  logic                     i_rst_n,
+    input  logic   [WIDTH-1:0] i_lane_0,  i_lane_1,  i_lane_2,  i_lane_3,
+    input  logic   [WIDTH-1:0] i_lane_4,  i_lane_5,  i_lane_6,  i_lane_7,
+    input  logic   [WIDTH-1:0] i_lane_8,  i_lane_9,  i_lane_10, i_lane_11,
+    input  logic   [WIDTH-1:0] i_lane_12, i_lane_13, i_lane_14, i_lane_15,
+    input  logic                     demapper_en,
+    input  logic                     rx_data_valid,
+    input  logic [2:0]               i_width_deg_demap,
+    output logic                      pl_valid,
+    output logic    [8*N_BYTES-1:0]   o_out_data
 );
 
     //============================================================
@@ -36,7 +36,7 @@ module unit_demapper #(
     localparam CLOCK_CYCLES_8  = NUM_WORDS / 8;  //2 cycle
     localparam CLOCK_CYCLES_4  = NUM_WORDS / 4;  //4 cycle
 
-    reg [1:0] cycle_count;
+    logic [1:0] cycle_count;
 
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin

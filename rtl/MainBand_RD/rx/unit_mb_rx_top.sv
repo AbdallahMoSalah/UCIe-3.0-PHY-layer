@@ -139,10 +139,10 @@ module unit_mb_rx_top #(
     assign o_rx_en = o_data_valid;
 
     logic i_valid_pulse;
-    wire [DATA_WIDTH-1:0] valid_shift_reg;
-    wire                  valid_count_16;
-    wire [DATA_WIDTH-1:0] valid_frame_data;
-    wire                  valid_frame_vld;
+    logic [DATA_WIDTH-1:0] valid_shift_reg;
+    logic                  valid_count_16;
+    logic [DATA_WIDTH-1:0] valid_frame_data;
+    logic                  valid_frame_vld;
 
     unit_valid_deserializer_s3 #(
         .DATA_WIDTH (DATA_WIDTH)
@@ -173,7 +173,7 @@ module unit_mb_rx_top #(
     // =========================================================================
     // 2. Data-lane deserializers (gated by the frame pulse)
     // =========================================================================
-    wire [NUM_LANES-1:0] data_valid_lane;
+    logic [NUM_LANES-1:0] data_valid_lane;
 
     genvar gi;
     generate
@@ -198,7 +198,7 @@ module unit_mb_rx_top #(
     // =========================================================================
     // 4. LFSR_RX : descramble + locally-generated reference (o_final_gene)
     // =========================================================================
-    wire [DATA_WIDTH-1:0] lfsr_final_gene [0:NUM_LANES-1];
+    logic [DATA_WIDTH-1:0] lfsr_final_gene [0:NUM_LANES-1];
     logic i_data_valid;
 
     unit_lfsr_rx #(

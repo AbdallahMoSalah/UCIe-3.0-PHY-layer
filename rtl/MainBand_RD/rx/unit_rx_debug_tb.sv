@@ -8,16 +8,16 @@ module unit_rx_debug_tb;
     parameter PLL_PERIOD = 2.0;
     parameter MB_PERIOD  = PLL_PERIOD * (DATA_WIDTH/2); // 32ns
 
-    reg  pll_clk, mb_clk, rst_n;
+    logic  pll_clk, mb_clk, rst_n;
     initial pll_clk = 0;
     always #(PLL_PERIOD / 2.0) pll_clk = ~pll_clk;
     initial mb_clk = 0;
     always #(MB_PERIOD / 2.0) mb_clk = ~mb_clk;
 
     // TX: 2 serializers (valid + data), SAME timing
-    reg  [DATA_WIDTH-1:0] valid_tx_word, data_tx_word;
-    reg                   tx_ser_en;
-    wire                  valid_serial, data_serial;
+    logic  [DATA_WIDTH-1:0] valid_tx_word, data_tx_word;
+    logic                   tx_ser_en;
+    logic                  valid_serial, data_serial;
 
     unit_mb_serializer #(.DATA_WIDTH(DATA_WIDTH)) u_tx_valid (
         .mb_clk(mb_clk), .PLL_clk(pll_clk), .i_rst_n(rst_n),
@@ -29,7 +29,7 @@ module unit_rx_debug_tb;
     );
 
     // RX: 2 free-running deserializers (valid + data)
-    wire [DATA_WIDTH-1:0] valid_shift, data_shift;
+    logic [DATA_WIDTH-1:0] valid_shift, data_shift;
 
     unit_valid_deserializer #(.DATA_WIDTH(DATA_WIDTH)) u_valid_des (
         .pll_clk(pll_clk), .i_rst_n(rst_n),
@@ -43,7 +43,7 @@ module unit_rx_debug_tb;
     // Track when the valid pattern appears
     integer neg_cnt;
     initial neg_cnt = 0;
-    reg found;
+    logic found;
     initial found = 0;
 
     always @(negedge pll_clk) begin
@@ -57,8 +57,8 @@ module unit_rx_debug_tb;
     end
 
     // Also try: use the existing unit_mb_deserializer with counter to see what it gets
-    wire [DATA_WIDTH-1:0] ref_valid_out, ref_data_out;
-    wire ref_valid_done, ref_data_done;
+    logic [DATA_WIDTH-1:0] ref_valid_out, ref_data_out;
+    logic ref_valid_done, ref_data_done;
 
     unit_mb_deserializer #(.DATA_WIDTH(DATA_WIDTH)) u_ref_valid (
         .MB_clk(mb_clk), .pll_clk(pll_clk), .i_rst_n(rst_n),

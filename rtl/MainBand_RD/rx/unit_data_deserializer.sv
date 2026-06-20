@@ -6,26 +6,26 @@
 module unit_data_deserializer_s3 #(
     parameter DATA_WIDTH = 32
 )(
-    input  wire                   mb_clk,
-    input  wire                   pll_clk,
-    input  wire                   i_rst_n,
-    input  wire                   i_en,
-    input  wire                   ser_data_in,
-    input  wire                   i_valid_frame_pulse,
+    input  logic                   mb_clk,
+    input  logic                   pll_clk,
+    input  logic                   i_rst_n,
+    input  logic                   i_en,
+    input  logic                   ser_data_in,
+    input  logic                   i_valid_frame_pulse,
 
-    output reg  [DATA_WIDTH-1:0]  o_par_data,
-    output reg                    o_data_valid
+    output logic  [DATA_WIDTH-1:0]  o_par_data,
+    output logic                    o_data_valid
 );
 
-reg [DATA_WIDTH-1:0] shift_reg;
-reg                  r_data_pos;
+logic [DATA_WIDTH-1:0] shift_reg;
+logic                  r_data_pos;
 
 // FIFO signals
-wire [DATA_WIDTH-1:0] fifo_rd_data;
-wire                  rvalid;
-wire                  wfull;
-wire                  wready;
-wire                  rempty;
+logic [DATA_WIDTH-1:0] fifo_rd_data;
+logic                  rvalid;
+logic                  wfull;
+logic                  wready;
+logic                  rempty;
 
 always @(posedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin

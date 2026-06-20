@@ -33,8 +33,8 @@ module unit_mb_pattern_comparator #(
     parameter int NUM_LANES  = 16,   // Valid Lanes per module (x16 Standard Package => N = 16)
     parameter int WIDTH      = 32    // UI (bits) per Lane per clock
 )(
-    input  wire                  i_clk,
-    input  wire                  i_rst_n,
+    input  logic                  i_clk,
+    input  logic                  i_rst_n,
 
     // ---------------- Control ----------------
     input  wire                  i_enable,             // run a comparison test while high
@@ -46,9 +46,9 @@ module unit_mb_pattern_comparator #(
     input  wire                  i_pattern_mode,                    // 1 = perlane id pattern, 0 = LFSR pattern
     input  wire                  i_clear_error,
     // ---------------- Patterns (the two inputs) ----------------
-    input  wire [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
-    input  wire [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
-    input  wire                  i_pcmp_enable,
+    input  logic [WIDTH-1:0]      i_local_pattern [0:NUM_LANES-1],   // local / expected
+    input  logic [WIDTH-1:0]      i_rx_pattern    [0:NUM_LANES-1],   // received from partner
+    input  logic                  i_pcmp_enable,
     // ---------------- Results ----------------
     output reg                   o_done,                      // test complete, results valid
     output reg  [NUM_LANES-1:0]  o_per_lane_pass,             // 1 = Lane PASS, sticky (Fig 4-28 / per-lane ID)
@@ -70,7 +70,7 @@ module unit_mb_pattern_comparator #(
     // Per-cycle combinational mismatch evaluation
     // =========================================================================
     // Bitwise mismatch per Lane, masked Lanes contribute nothing.
-    wire [WIDTH-1:0] mismatch_masked [0:NUM_LANES-1];
+    logic [WIDTH-1:0] mismatch_masked [0:NUM_LANES-1];
 
     genvar g;
     generate
@@ -82,9 +82,9 @@ module unit_mb_pattern_comparator #(
     endgenerate
 
     // Per-Lane bit-error count this cycle, and aggregate UI-error count this cycle.
-    reg  [15:0]      lane_inc [0:NUM_LANES-1];   // mismatched bits per Lane this cycle
-    reg  [WIDTH-1:0] ui_any_mismatch;            // OR of all unmasked Lanes, per UI position
-    reg  [15:0]      agg_inc;                    // number of UIs with >=1 error this cycle
+    logic  [15:0]      lane_inc [0:NUM_LANES-1];   // mismatched bits per Lane this cycle
+    logic  [WIDTH-1:0] ui_any_mismatch;            // OR of all unmasked Lanes, per UI position
+    logic  [15:0]      agg_inc;                    // number of UIs with >=1 error this cycle
 
     integer li, bi;
     always @(*) begin
@@ -116,7 +116,7 @@ module unit_mb_pattern_comparator #(
     reg [15:0]  aggregate_error_counter;
     integer k;
     always @(posedge i_clk or negedge i_rst_n) begin
-        reg [4:0] temp_ctr;
+        logic [4:0] temp_ctr;
         if (!i_rst_n) begin
             state                     <= S_IDLE;
             iter_ctr                  <= 16'd0;
