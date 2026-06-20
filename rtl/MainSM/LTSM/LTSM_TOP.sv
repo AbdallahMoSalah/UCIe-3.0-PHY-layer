@@ -38,8 +38,6 @@ module LTSM_TOP #(
     // Status / observability
     // =========================================================================
     output LTSM_state_e          current_ltsm_state,
-    output state_n_e             current_ltsm_state_n,
-
 
     output logic                 link_training_retraining,
     output logic                 link_status,
@@ -152,7 +150,8 @@ module LTSM_TOP #(
     output logic [1:0]           mb_tx_clk_lane_sel,
     output logic [1:0]           mb_tx_trk_lane_sel,
     input  logic                 start_bit,
-
+    output logic [11:0]          mb_rx_max_err_thresh_perlane,
+    output logic [15:0]          mb_rx_max_err_thresh_aggr,
     // =========================================================================
     // unit_mb_die-facing RESULT inputs (to the interface)
     // =========================================================================
@@ -204,7 +203,6 @@ module LTSM_TOP #(
     // derived interface inputs
     wire         w_active                  = (current_ltsm_state == ACTIVE);
     wire         w_mb_rx_vcomp_mode        = !(current_ltsm_state == MBINIT);
-    wire         w_clk_embedded_en         = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
 
     // =========================================================================
     // LTSM
@@ -216,7 +214,6 @@ module LTSM_TOP #(
         .rst_n                                  (rst_n),
 
         .current_ltsm_state                     (current_ltsm_state),
-        .current_ltsm_state_n                   (current_ltsm_state_n),
 
         .link_training_retraining               (link_training_retraining),
         .link_status                            (link_status),
@@ -232,8 +229,8 @@ module LTSM_TOP #(
         .phy_start_ucie_link_training_ctrl_out  (phy_start_ucie_link_training_ctrl_out),
         .sb_det_pattern_rcvd                    (sb_det_pattern_rcvd),
         .SPMW                                   (SPMW),
-        .mb_rx_max_err_thresh_aggr              (),
-        .mb_rx_max_err_thresh_perlane           (),
+        .mb_rx_max_err_thresh_aggr              (mb_rx_max_err_thresh_aggr),
+        .mb_rx_max_err_thresh_perlane           (mb_rx_max_err_thresh_perlane),
         .mb_tx_clk_sampling                     (),
         .mb_tx_clk_sampling_en                  (),
         .mb_tx_iter_count                       (),
@@ -318,9 +315,10 @@ module LTSM_TOP #(
         .mb_rx_lfsr_rst                         (w_mb_rx_lfsr_rst),
         .mb_rx_data_lane_sel                    (w_mb_rx_data_lane_sel),
         .mb_rx_val_lane_sel                     (w_mb_rx_val_lane_sel),
-        .mb_rx_pattern_mode                     (w_mb_rx_pattern_mode),//what is this????????????????????
+        .mb_rx_pattern_mode                     (w_mb_rx_pattern_mode),
         .mb_rx_pattern_setup                    (w_mb_rx_pattern_setup),
         .mb_rx_data_pattern_sel                 (w_mb_rx_data_pattern_sel),
+        .clk_embedded_en                        (clk_embedded_en),
         // (remaining LTSM mainband outputs are intentionally left unconnected —
         //  the project interface does not consume them)
 
@@ -398,7 +396,7 @@ module LTSM_TOP #(
         .clear_error_req                        (w_clear_error_req),
         .mb_rx_data_lane_map                    (w_mb_rx_data_lane_mask),
         .mb_tx_data_lane_map                    (w_mb_tx_data_lane_mask),
-        .mb_clk_embedded_en                     (w_clk_embedded_en),
+        .mb_clk_embedded_en                     (clk_embedded_en),
 
         // LTSM status out
         .mb_rx_perlane_pass                     (w_mb_rx_perlane_pass),

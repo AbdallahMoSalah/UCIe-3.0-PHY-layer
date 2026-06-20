@@ -89,6 +89,8 @@ module unit_tx_top #(
     // Serialized physical outputs (DDR)  (diagram names)
     // -------------------------------------------------------------------------
     output logic                    lclk,                   //  RDI LCLK
+    output logic                    pll_clk,                //  RDI PLL CLK
+    output logic                    gated_lclk,             // gated lclk for MB TX
     output logic [NUM_LANES-1:0]    TD_P,                   // serialized data lanes 0-15
     output logic                    TVLD_P,                 // serialized valid lane
     output logic                    TCKP_P,                 // differential clock +
@@ -108,8 +110,7 @@ module unit_tx_top #(
     // =========================================================================
 
     // ----- unit_mb_pll high-speed clock -------------------------------------------
-    logic       gated_lclk;         // gated lclk for MB TX
-    logic       pll_clk;            // high-speed serialization clock
+    logic       clk;                // high-speed serialization clock
     real        pll_period;         // PLL period (ps) – debug only, unused downstream
 
     // ----- Mapper → LFSR_TX (16 parallel lane words) -------------------------
@@ -153,12 +154,12 @@ module unit_tx_top #(
     unit_mb_pll u_mb_pll (
         .en            (1'b1),
         .speed_sel     (i_pll_speed_sel),
-        .clk           (pll_clk),
+        .clk           (clk),
         .local_period  (pll_period)
     );
 
     unit_clkdiv  u_clk_div (
-        .i_ref_clk     (pll_clk),
+        .i_ref_clk     (clk),
         .i_rst_n       (i_rst_n),
         .i_clk_en      (1'b1),
         .i_div_ratio   (8'd16),
@@ -169,6 +170,12 @@ module unit_tx_top #(
         .CLK_EN   (lclk_g),
         .CLK      (lclk),
         .GATED_CLK(gated_lclk)
+    );
+
+    unit_clk_gate u_clk_gate_pll (
+        .CLK_EN   (lclk_g),
+        .CLK      (clk),
+        .GATED_CLK(pll_clk)
     );
 
     // =========================================================================

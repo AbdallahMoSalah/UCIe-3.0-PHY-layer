@@ -58,17 +58,11 @@ module Logical_PHY #(
     input  logic                             lp_irdy,
     input  logic                             lp_valid,
     output logic                             pl_trdy,
-    input  logic [1:0]                       i_pll_speed_sel,
-    input  logic [15:0]                      i_pcmp_thr_per_lane,
-    input  logic [15:0]                      i_pcmp_thr_aggregate,
-    input  logic [15:0]                      i_vcmp_thr,
 
     // Observability outputs
     output logic                             lclk,
-    output logic                             o_pll_clk,
-    output logic [8*N_BYTES-1:0]             o_out_data,
-    output logic                             o_pl_valid,
-    output logic [15:0]                      o_pcmp_agg_err_cnt,
+    output logic [8*N_BYTES-1:0]             pl_data,
+    output logic                             pl_valid,
 
     // =========================================================================
     // MainBand Serial Interface
@@ -93,9 +87,6 @@ module Logical_PHY #(
     output logic                             TXDATASB,
     input  logic                             RXDATASB,
 
-    // Sideband traffic-ready (traffic_req is now internal: SB -> RDI_SM)
-    input  logic                             traffic_rdy,
-
     // Adapter Interface (RDI Control / config over sideband)
     input  logic [31:0]                      lp_cfg,
     input  logic                             lp_cfg_vld,
@@ -118,8 +109,6 @@ module Logical_PHY #(
     // =========================================================================
     // LTSM Controls & Observability
     // =========================================================================
-    output LTSM_state_e                      current_ltsm_state,
-    output state_n_e                         current_ltsm_state_n,
     output logic [7:0]                       log0_state_n,
     output logic                             log0_lane_reversal,
     output logic                             log0_width_degrade,
@@ -129,7 +118,6 @@ module Logical_PHY #(
 
     // RESET-state triggers / strap
     input  logic                             phy_start_ucie_link_training_ctrl_out,
-    input  logic                             Adapter_training_req,
     input  logic                             SPMW,
 
     // Capability configuration (to MBINIT)
@@ -163,6 +151,11 @@ module Logical_PHY #(
     output logic                             reg_PMO_enable_status,
     output logic                             reg_L2SPD_enable_status,
     output logic                             reg_PSPT_enable_status,
+    output logic                             timeout_8ms_occured,
+    input  logic                             start_bit,
+    output logic                             busy_flag,
+    output logic                             link_training_retraining,
+    output logic                             link_status,
 
     // D2C / comparison thresholds + per-lane compare mask
     input  logic [11:0]                      cfg_max_err_thresh_perlane,
@@ -188,8 +181,6 @@ module Logical_PHY #(
     output logic                             pl_max_speedmode,
     output logic [2:0]                       pl_speedmode,
     output logic [2:0]                       pl_lnk_cfg,
-    output logic                             clk_handshake_done,
-    output logic                             stall_done,      // observability
 
     // RDI_SM DVSEC status inputs
     input  logic [3:0]                       UCIe_Link_DVSEC_UCIe_Link_Capability_7to4,
@@ -243,7 +234,7 @@ module Logical_PHY #(
     logic        sb_det_pattern_req;
     logic [2:0]  sbinit_req_iter_count;
     logic        sb_det_pattern_rcvd;
-
+    logic [2:0]  mb_pll_speed_sel;
     // Casting wires for SideBand_Top LTSM message IDs
     logic [7:0]  ltsm_msg_n_send;
     logic [7:0]  ltsm_msg_no_rcvd;
@@ -267,6 +258,14 @@ module Logical_PHY #(
     logic        rdi_lclk_g_en;    // RDI_SM.lclk_g_en (enable level: 1=clock on)
     logic        mb_lclk_g;        // qualified clock-enable -> mb_die.lclk_g (CLK_EN)
     logic        stall_done_w;     // RDI_SM.stall_done (latched into mapper enable)
+
+    // ---- LTSM macro-state + gated clock ----
+    // (current_ltsm_state used to be auto-declared via the LTSM status port; it was
+    //  dropped from the Logical_PHY port list during the interface edit, so it must
+    //  be declared explicitly here — it is a multi-bit enum compared against
+    //  ACTIVE/L1/L2 and wired to typed ports, not a 1-bit implicit net.)
+    LTSM_state_e          current_ltsm_state;  // LTSM_TOP.current_ltsm_state (macro state)
+    logic                 gated_lclk;          // mb_die.gated_lclk -> SideBand/LTSM clock
 
     // ---- LTSM <-> MainBand die control/result wires ----
     logic                 ltsm_mapper_en;   // LTSM mapper enable (pre-gate)
@@ -292,6 +291,16 @@ module Logical_PHY #(
     logic [NUM_LANES-1:0] mb_rx_data_deser_en;
     logic                 mb_rx_valid_deser_en;
     logic                 mb_clk_embedded_en;
+    logic [11:0]          mb_rx_max_err_thresh_perlane;
+    logic [15:0]          mb_rx_max_err_thresh_aggr;
+
+    // MB TX per-stream tri-state lane selects (LTSM -> mb_die tri_state_buff.en):
+    // 2-bit each {[1]=Hi-Z, [0]=drive data vs 0}. MUST be 2-bit explicit decls,
+    // else implicit 1-bit nets would drop bit[1] and break tri-stating (en==2'b10).
+    logic [1:0]           mb_tx_trk_lane_sel;
+    logic [1:0]           mb_tx_clk_lane_sel;
+    logic [1:0]           mb_tx_val_lane_sel;
+    logic [1:0]           mb_tx_data_lane_sel;
 
     logic                 mb_lfsr_tx_done;
     logic                 mb_valid_done;
@@ -318,7 +327,7 @@ module Logical_PHY #(
     // precedes an ACTIVE-exit state change).  Hence the latch output is inverted.
     // =========================================================================
     logic stall_done_latched;
-
+    logic clk_handshake_done;
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n)
             stall_done_latched <= 1'b0;
@@ -329,7 +338,6 @@ module Logical_PHY #(
     end
 
     assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched;
-    assign stall_done   = stall_done_w;   // observability
 
     // -------------------------------------------------------------------------
     // RDI PM clock-gating qualifier  [INTEGRATION ADDITION - flagged for review]
@@ -379,10 +387,14 @@ module Logical_PHY #(
         .i_reversal_en        (mb_reversal_en),
         .i_valid_pattern_en   (mb_valid_pattern_en),
         .i_pll_en             (1'b1),
-        .i_pll_speed_sel      (i_pll_speed_sel),
+        .i_pll_speed_sel      (mb_pll_speed_sel),
         .lclk_g               (mb_lclk_g),
         .i_clk_pattern_en     (mb_clk_pattern_en),
         .i_clk_embedded_en    (mb_clk_embedded_en),
+        .i_mb_tx_trk_lane_sel                  (mb_tx_trk_lane_sel),
+        .i_mb_tx_clk_lane_sel                  (mb_tx_clk_lane_sel),
+        .i_mb_tx_val_lane_sel                  (mb_tx_val_lane_sel),
+        .i_mb_tx_data_lane_sel                 (mb_tx_data_lane_sel),
 
         // RX control
         .i_state              (mb_state),
@@ -390,14 +402,14 @@ module Logical_PHY #(
         .i_pcmp_enable        (mb_pcmp_enable),
         .i_pcmp_mode          (mb_pcmp_mode),
         .i_pcmp_lane_mask     (mb_pcmp_lane_mask),
-        .i_pcmp_thr_per_lane  (i_pcmp_thr_per_lane),
-        .i_pcmp_thr_aggregate (i_pcmp_thr_aggregate),
+        .i_pcmp_thr_per_lane  (mb_rx_max_err_thresh_perlane),
+        .i_pcmp_thr_aggregate (mb_rx_max_err_thresh_aggr),
         .i_pcmp_iter_count    (mb_pcmp_iter_count),
         .i_pcmp_pattern_mode  (mb_pcmp_pattern_mode),
         .i_pcmp_clear         (mb_pcmp_clear),
         .i_vcmp_enable        (mb_vcmp_enable),
         .i_vcmp_mode          (mb_vcmp_mode),
-        .i_vcmp_thr           (i_vcmp_thr),
+        .i_vcmp_thr           (mb_rx_max_err_thresh_perlane),
         .i_vcmp_clear         (mb_vcmp_clear),
         .i_clk_detector_en    (mb_clk_detector_en),
         .i_rx_data_deser_en   (mb_rx_data_deser_en),
@@ -419,17 +431,16 @@ module Logical_PHY #(
 
         // clocks / status
         .lclk                 (lclk),
-        .o_pll_clk            (o_pll_clk),
+        .gated_lclk           (gated_lclk),
         .o_lfsr_tx_done       (mb_lfsr_tx_done),
         .o_valid_done         (mb_valid_done),
         .o_clk_done           (mb_clk_done),
 
         // RX results + observability
-        .o_out_data           (o_out_data),
-        .o_pl_valid           (o_pl_valid),
+        .o_out_data           (pl_data),
+        .o_pl_valid           (pl_valid),
         .o_pcmp_done          (mb_pcmp_done),
         .o_pcmp_per_lane_pass (mb_pcmp_per_lane_pass),
-        .o_pcmp_agg_err_cnt   (o_pcmp_agg_err_cnt),
         .o_pcmp_agg_error     (mb_pcmp_agg_error),
         .o_vcmp_done          (mb_vcmp_done),
         .o_vcmp_pass          (mb_vcmp_pass),
@@ -444,6 +455,7 @@ module Logical_PHY #(
         .GAP_WIDTH  (GAP_WIDTH)
     ) u_sideband_top (
         .clk_main         (lclk),
+        .clk_ltsm         (gated_lclk),
         .rst_main_n       (rst_n),
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_n),
@@ -463,7 +475,7 @@ module Logical_PHY #(
         .det_pat_rcvd     (sb_det_pattern_rcvd),
 
         .traffic_req      (traffic_req_w),
-        .traffic_rdy      (traffic_rdy),
+        .traffic_rdy      (clk_handshake_done),
 
         // RDI message path (driven by RDI_SM)
         .RDI_msg_no_send  (rdi_msg_no_send_bus),
@@ -508,12 +520,11 @@ module Logical_PHY #(
         .CLK_FRQ_HZ (CLK_FRQ_HZ),
         .NUM_LANES  (NUM_LANES)
     ) u_ltsm_top (
-        .clk                                   (lclk),
+        .clk                                   (gated_lclk),
         .rst_n                                 (rst_n),
 
-        // Status / observability
+        // Status
         .current_ltsm_state                    (current_ltsm_state),
-        .current_ltsm_state_n                  (current_ltsm_state_n),
         .log0_state_n                          (log0_state_n),
         .log0_lane_reversal                    (log0_lane_reversal),
         .log0_width_degrade                    (log0_width_degrade),
@@ -522,8 +533,10 @@ module Logical_PHY #(
         .log1_state_n_minus_3                  (log1_state_n_minus_3),
 
         // RESET-state triggers / strap
+        // NOTE: Adapter_training_req is now generated internally inside
+        // LTSM_wrapper from the lp_state_req Nop->Active edge (in RESET), so it
+        // is no longer a port here. Training is started via phy_start below.
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
-        .Adapter_training_req                  (Adapter_training_req),
         .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd),
         .SPMW                                  (SPMW),
 
@@ -585,6 +598,7 @@ module Logical_PHY #(
 
         // unit_mb_die-facing CONTROL outputs
         .i_mapper_en                           (ltsm_mapper_en),
+        .mb_pll_speed_sel                      (mb_pll_speed_sel),
         .i_width_deg_tx                        (mb_width_deg_tx),
         .i_width_deg_rx                        (mb_width_deg_rx),
         .i_lfsr_state                          (mb_lfsr_state),
@@ -606,7 +620,18 @@ module Logical_PHY #(
         .i_rx_data_deser_en                    (mb_rx_data_deser_en),
         .i_rx_valid_deser_en                   (mb_rx_valid_deser_en),
         .i_clk_embedded_en                     (mb_clk_embedded_en),
-
+        .mb_tx_trk_lane_sel                    (mb_tx_trk_lane_sel),
+        .mb_tx_clk_lane_sel                    (mb_tx_clk_lane_sel),
+        .mb_tx_val_lane_sel                    (mb_tx_val_lane_sel),
+        .mb_tx_data_lane_sel                   (mb_tx_data_lane_sel),
+        .busy_flag                             (busy_flag),
+        .link_status                           (link_status),
+        .link_training_retraining              (link_training_retraining),
+        .start_bit                             (start_bit),
+        .timeout_8ms_occured                   (timeout_8ms_occured),
+        .mb_rx_max_err_thresh_perlane          (mb_rx_max_err_thresh_perlane),
+        .mb_rx_max_err_thresh_aggr             (mb_rx_max_err_thresh_aggr),
+        
         // unit_mb_die-facing RESULT inputs
         .o_lfsr_tx_done                        (mb_lfsr_tx_done),
         .o_valid_done                          (mb_valid_done),

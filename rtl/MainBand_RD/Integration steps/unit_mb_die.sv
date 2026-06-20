@@ -60,18 +60,22 @@ module unit_mb_die #(
     input  logic                    i_pcmp_enable,
     input  logic                    i_pcmp_mode,
     input  logic [NUM_LANES-1:0]    i_pcmp_lane_mask,
-    input  logic [15:0]             i_pcmp_thr_per_lane,
+    input  logic [11:0]             i_pcmp_thr_per_lane,
     input  logic [15:0]             i_pcmp_thr_aggregate,
     input  logic [15:0]             i_pcmp_iter_count,
     input  logic                    i_pcmp_pattern_mode,
     input  logic                    i_pcmp_clear,
     input  logic                    i_vcmp_enable,
     input  logic                    i_vcmp_mode,
-    input  logic [15:0]             i_vcmp_thr,
+    input  logic [11:0]             i_vcmp_thr,
     input  logic                    i_vcmp_clear,
     input  logic                    i_clk_detector_en,
     input  logic [NUM_LANES-1:0]    i_rx_data_deser_en,
     input  logic                    i_rx_valid_deser_en,
+    input  logic [1:0]              i_mb_tx_trk_lane_sel,
+    input  logic [1:0]              i_mb_tx_clk_lane_sel,
+    input  logic [1:0]              i_mb_tx_val_lane_sel,
+    input  logic [1:0]              i_mb_tx_data_lane_sel,
 
     // ------------------------------------------------ RX serial in (partner TX)
     input  logic [NUM_LANES-1:0]    i_RD_P,
@@ -89,7 +93,7 @@ module unit_mb_die #(
 
     // ------------------------------------------------ clocks / status
     output logic                    lclk,
-    output logic                    o_pll_clk,
+    output logic                    gated_lclk,
     output logic                    o_lfsr_tx_done,
     output logic                    o_valid_done,
     output logic                    o_clk_done,
@@ -99,7 +103,6 @@ module unit_mb_die #(
     output logic                    o_pl_valid,
     output logic                    o_pcmp_done,
     output logic [NUM_LANES-1:0]    o_pcmp_per_lane_pass,
-    output logic [15:0]             o_pcmp_agg_err_cnt,
     output logic                    o_pcmp_agg_error,
     output logic                    o_vcmp_done,
     output logic                    o_vcmp_pass,
@@ -109,8 +112,13 @@ module unit_mb_die #(
     output logic                    o_track_pass
 );
 
-    wire pll_clk_int;
     wire rx_pll_clk;
+    wire pll_clk;
+    logic [NUM_LANES-1:0] TD_P;
+    logic TVLD_P;
+    logic TCKP_P;
+    logic TCKN_P;
+    logic TTRK_P;
 
     // =========================================================================
     // 1. TX datapath
@@ -136,22 +144,22 @@ module unit_mb_die #(
         .i_clk_pattern_en   (i_clk_pattern_en),
         .i_clk_embedded_en  (i_clk_embedded_en),
         .lclk               (lclk),
-        .TD_P               (o_TD_P),
-        .TVLD_P             (o_TVLD_P),
-        .TCKP_P             (o_TCKP_P),
-        .TCKN_P             (o_TCKN_P),
-        .TTRK_P             (o_TTRK_P),
+        .gated_lclk         (gated_lclk),
+        .pll_clk            (pll_clk),
+        .TD_P               (TD_P),
+        .TVLD_P             (TVLD_P),
+        .TCKP_P             (TCKP_P),
+        .TCKN_P             (TCKN_P),
+        .TTRK_P             (TTRK_P),
         .o_lfsr_tx_done     (o_lfsr_tx_done),
         .o_valid_done       (o_valid_done),
         .o_clk_done         (o_clk_done)
     );
 
-    assign pll_clk_int = u_tx_top.pll_clk;
-    assign o_pll_clk   = pll_clk_int;
     // RX-local clock for the clk-pattern detector: quarter-period shift of this
     // die's own PLL clock (fixed at the elaboration speed; the clock test only
     // runs once, at the slowest speed, before any PLL speed change).
-    assign #(PLL_PERIOD_NS/4.0) rx_pll_clk = pll_clk_int;
+    assign rx_pll_clk = pll_clk;
 
     // =========================================================================
     // 2. RX datapath. Samples the partner's forwarded clock (i_RCKP_P) delayed a
@@ -167,7 +175,7 @@ module unit_mb_die #(
     ) u_rx_top (
         .i_rst_n              (i_rst_n),
         .i_pll_clk            (rx_pll_clk),
-        .i_mb_clk             (lclk),
+        .i_mb_clk             (gated_lclk),
         .i_period             (u_tx_top.pll_period),
 
         .i_RD_P               (i_RD_P),
@@ -203,7 +211,6 @@ module unit_mb_die #(
 
         .o_pcmp_done          (o_pcmp_done),
         .o_pcmp_per_lane_pass (o_pcmp_per_lane_pass),
-        .o_pcmp_agg_err_cnt   (o_pcmp_agg_err_cnt),
         .o_pcmp_agg_error     (o_pcmp_agg_error),
 
         .o_vcmp_done          (o_vcmp_done),
@@ -214,5 +221,39 @@ module unit_mb_die #(
         .o_clk_n_pass         (o_clk_n_pass),
         .o_track_pass         (o_track_pass)
     );
+    genvar lane_idx;
+    generate
+        for (lane_idx = 0; lane_idx < NUM_LANES; lane_idx = lane_idx + 1) begin : gen_data_ser
+            tri_state_buff
+                u_tri_state_buff_data (
+                .data_in (TD_P[lane_idx]),
+                .en      (i_mb_tx_data_lane_sel),
+                .data_out(o_TD_P[lane_idx])
+            );
+        end
+    endgenerate
 
+    tri_state_buff u_tri_state_buff_valid (
+        .data_in (TVLD_P),
+        .en      (i_mb_tx_val_lane_sel),
+        .data_out(o_TVLD_P)
+    );
+
+    tri_state_buff u_tri_state_buff_clk_p (
+        .data_in (TCKP_P),
+        .en      (i_mb_tx_clk_lane_sel),
+        .data_out(o_TCKP_P)
+    );
+
+    tri_state_buff u_tri_state_buff_clk_n (
+        .data_in (TCKN_P),
+        .en      (i_mb_tx_clk_lane_sel),
+        .data_out(o_TCKN_P)
+    );
+
+    tri_state_buff u_tri_state_buff_track (
+        .data_in (TTRK_P),
+        .en      (i_mb_tx_trk_lane_sel),
+        .data_out(o_TTRK_P)
+    );
 endmodule

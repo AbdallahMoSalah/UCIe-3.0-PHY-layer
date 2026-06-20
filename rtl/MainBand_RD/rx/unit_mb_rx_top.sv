@@ -71,7 +71,7 @@ module unit_mb_rx_top #(
     input  logic                    i_pcmp_enable,
     input  logic                    i_pcmp_mode,            // 0 per-lane, 1 aggregate
     input  logic [NUM_LANES-1:0]    i_pcmp_lane_mask,
-    input  logic [15:0]             i_pcmp_thr_per_lane,
+    input  logic [11:0]             i_pcmp_thr_per_lane,
     input  logic [15:0]             i_pcmp_thr_aggregate,
     input  logic [15:0]             i_pcmp_iter_count,
     input  logic                    i_pcmp_pattern_mode,    // 1 per-lane ID, 0 LFSR
@@ -80,7 +80,7 @@ module unit_mb_rx_top #(
     // ----------------------------------------------- valid comparator control
     input  logic                    i_vcmp_enable,
     input  logic                    i_vcmp_mode,            // 0 = 16 consec, 1 = threshold
-    input  logic [15:0]             i_vcmp_thr,
+    input  logic [11:0]             i_vcmp_thr,
     input  logic                    i_vcmp_clear,
 
     // ----------------------------------------------- clock detector control
@@ -96,7 +96,6 @@ module unit_mb_rx_top #(
     // ----------------------------------------------- pattern comparator results
     output logic                    o_pcmp_done,
     output logic [NUM_LANES-1:0]    o_pcmp_per_lane_pass,
-    output logic [15:0]             o_pcmp_agg_err_cnt,
     output logic                    o_pcmp_agg_error,
 
     // ----------------------------------------------- valid comparator results
@@ -260,7 +259,6 @@ module unit_mb_rx_top #(
         .i_pcmp_enable                  (o_pattern_comp_en),
         .o_done                         (o_pcmp_done),
         .o_per_lane_pass                (o_pcmp_per_lane_pass),
-        .o_aggregate_error_counter      (o_pcmp_agg_err_cnt),
         .o_aggregate_error              (o_pcmp_agg_error)
     );
 

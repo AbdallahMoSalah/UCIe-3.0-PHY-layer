@@ -79,12 +79,6 @@ module unit_TX_D2C_PT_local (
         output logic        mb_tx_val_pattern_sel      , // 0: VALTRAIN/functional, 1: Held Low.
         input  logic        mb_tx_pattern_count_done   , // 0: TX pattern generator is transmitting. 1: Completed all iterations.
 
-        // TX Lane Logical selection (Determines pattern/low/tri-state):
-        output logic [1:0]  mb_tx_trk_lane_sel         , // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_clk_lane_sel         , // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_val_lane_sel         , // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-        output logic [1:0]  mb_tx_data_lane_sel        , // 00: Driven Low, 01: Active pattern, 1x: Tri-stated.
-
         //=====================================//
         // Mainband RX Control Signals:        //
         //=====================================//
@@ -220,12 +214,6 @@ module unit_TX_D2C_PT_local (
         mb_tx_data_pattern_sel           = d2c_data_pattern_sel;
         mb_tx_val_pattern_sel            = d2c_val_pattern_sel;
 
-        // Transmitter initiated Data, Valid, and Track Transmitters drive low when not performing actions
-        mb_tx_trk_lane_sel               = 2'b00; // 00: Driven Low
-        mb_tx_clk_lane_sel               = 2'b00; // 00: Driven Low (Differential Low / Quadrature Low)
-        mb_tx_val_lane_sel               = 2'b00; // 00: Driven Low
-        mb_tx_data_lane_sel              = 2'b00; // 00: Driven Low
-
         // Error outputs mapping
         d2c_perlane_pass                 = d2c_perlane_pass_r;          // 16-bit: each bit = 1 means that lane passed
         d2c_aggr_pass                    = d2c_aggr_pass_r;             // 1-bit: 1=Pass, 0=Fail
@@ -300,12 +288,6 @@ module unit_TX_D2C_PT_local (
             TX_PT_PATTERN_GEN: begin
                 mb_tx_pattern_en    = 1'b1;
                 mb_tx_lfsr_en       = (d2c_data_pattern_sel == 2'b00 && d2c_pattern_setup[0]==1'b1); // Enable TX LFSR scrambler in LFSR mode
-
-                // Lane selections are active during pattern generation
-                mb_tx_clk_lane_sel  = d2c_pattern_setup[2] ? 2'b01 : 2'b00;
-                mb_tx_val_lane_sel  = d2c_pattern_setup[1] ? 2'b01 : 2'b00;
-                mb_tx_data_lane_sel = d2c_pattern_setup[0] ? 2'b01 : 2'b00;
-                mb_tx_trk_lane_sel  = 2'b00; // Track is held low during point test
             end
 
             // UCIe 3.0 Reference Content:

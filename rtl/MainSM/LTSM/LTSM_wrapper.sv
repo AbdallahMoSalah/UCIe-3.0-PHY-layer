@@ -48,8 +48,6 @@ module LTSM_wrapper #(
     // Status / observability
     // =========================================================================
     output LTSM_state_e current_ltsm_state,
-    output state_n_e    current_ltsm_state_n,
-
 
 
 
@@ -181,7 +179,7 @@ module LTSM_wrapper #(
     output logic [11:0] mb_rx_max_err_thresh_perlane,
     output logic [15:0] mb_rx_max_err_thresh_aggr,
     output logic [2:0]  mb_pll_speed_sel,
-
+    output logic        clk_embedded_en,
     // =========================================================================
     // Unified mainband status inputs (from mainband_ltsm_interface)
     // =========================================================================
@@ -220,9 +218,10 @@ module LTSM_wrapper #(
 
     // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
     logic mbtrain_speedidle_req;
-
+    
+    state_n_e    current_ltsm_state_n;
     logic timeout_timer_en, timer_rst_n;
-
+    assign clk_embedded_en = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
     // =========================================================================
     // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
     // =========================================================================
@@ -277,7 +276,6 @@ module LTSM_wrapper #(
     // state_n_0 must read LOG_RESET / LOG_SBINIT during init (drives the internal
     // soft_rst_n) and LOG_MBTRAIN_VALVREF throughout MBTRAIN (REPAIR.partner gates
     // its mbinit-lane-mask update on this). It is NOT a live substate tracker.
-    state_n_e    mbtrain_state_n_0;
 
     // MBTRAIN analog-settle timer
     localparam int unsigned MBTRAIN_SETTLE_DELAY = 16;
@@ -351,8 +349,6 @@ module LTSM_wrapper #(
     logic [15:0] d2c_tx_msginfo;
     logic [63:0] d2c_tx_data_field;
 
-    logic [1:0]  d2c_mb_tx_trk_lane_sel, d2c_mb_tx_clk_lane_sel;
-    logic [1:0]  d2c_mb_tx_val_lane_sel, d2c_mb_tx_data_lane_sel;
     logic        d2c_mb_rx_trk_lane_sel, d2c_mb_rx_clk_lane_sel;
     logic        d2c_mb_rx_val_lane_sel, d2c_mb_rx_data_lane_sel;
     logic        d2c_mb_tx_pattern_en;
@@ -565,13 +561,6 @@ module LTSM_wrapper #(
                                                               : d2cpt_partner_tx_pt_en;
     assign sweep_active_lanes_mux = (current_ltsm_state == MBTRAIN) ? mbtrain_sweep_active_lanes
                                                                     : active_lanes;
-
-    always_comb begin
-        if      (current_ltsm_state == RESET)  mbtrain_state_n_0 = LOG_RESET;
-        else if (current_ltsm_state == SBINIT) mbtrain_state_n_0 = LOG_SBINIT;
-        else                                   mbtrain_state_n_0 = LOG_MBTRAIN_VALVREF;
-    end
-
     // =========================================================================
     // TRAINERROR HANDSHAKE INTEGRATION
     // =========================================================================
@@ -915,8 +904,8 @@ module LTSM_wrapper #(
         // Entry-context (static), per verified MBTRAIN contract — see above.
         // state_n_1 = DATAVREF selects the normal first-pass SPEEDIDLE entry
         // (re-entry from PHYRETRAIN/L1/L2 is not wired yet, so always normal).
-        .state_n_0                  (mbtrain_state_n_0),
-        .state_n_1                  (LOG_MBTRAIN_DATAVREF),
+        .state_n_0                  (state_n_e'(log0_state_n)),
+        .state_n_1                  (state_n_e'(log0_state_n_minus_1)),
 
         .param_negotiated_max_speed (reg_Link_Speed_enable_status_reg[2:0]),
         .is_continuous_clk_mode     (reg_Clock_mode_enable_status_reg),
@@ -1097,10 +1086,6 @@ module LTSM_wrapper #(
         .cfg_max_err_thresh_perlane (cfg_max_err_thresh_perlane),
         .cfg_max_err_thresh_aggr    (cfg_max_err_thresh_aggr),
 
-        .mb_tx_trk_lane_sel  (d2c_mb_tx_trk_lane_sel),
-        .mb_tx_clk_lane_sel  (d2c_mb_tx_clk_lane_sel),
-        .mb_tx_val_lane_sel  (d2c_mb_tx_val_lane_sel),
-        .mb_tx_data_lane_sel (d2c_mb_tx_data_lane_sel),
         .mb_rx_trk_lane_sel  (d2c_mb_rx_trk_lane_sel),
         .mb_rx_clk_lane_sel  (d2c_mb_rx_clk_lane_sel),
         .mb_rx_val_lane_sel  (d2c_mb_rx_val_lane_sel),
@@ -1214,10 +1199,6 @@ module LTSM_wrapper #(
         mb_rx_compare_setup          = 2'b00;
         clear_error_req              = 1'b0;
 
-        mb_tx_trk_lane_sel           = 2'b00;
-        mb_tx_clk_lane_sel           = 2'b00;
-        mb_tx_val_lane_sel           = 2'b00;
-        mb_tx_data_lane_sel          = 2'b00;
         mb_rx_trk_lane_sel           = 1'b0;
         mb_rx_clk_lane_sel           = 1'b0;
         mb_rx_val_lane_sel           = 1'b0;
@@ -1250,10 +1231,6 @@ module LTSM_wrapper #(
             mb_tx_val_pattern_sel        = d2c_mb_tx_val_pattern_sel;
             mb_rx_compare_en             = d2c_mb_rx_compare_en;
             mb_rx_compare_setup          = d2c_mb_rx_compare_setup;
-            mb_tx_trk_lane_sel           = d2c_mb_tx_trk_lane_sel;
-            mb_tx_clk_lane_sel           = d2c_mb_tx_clk_lane_sel;
-            mb_tx_val_lane_sel           = d2c_mb_tx_val_lane_sel;
-            mb_tx_data_lane_sel          = d2c_mb_tx_data_lane_sel;
             mb_rx_trk_lane_sel           = d2c_mb_rx_trk_lane_sel;
             mb_rx_clk_lane_sel           = d2c_mb_rx_clk_lane_sel;
             mb_rx_val_lane_sel           = d2c_mb_rx_val_lane_sel;
@@ -1289,53 +1266,10 @@ module LTSM_wrapper #(
             clear_error_req        = mbinit_clear_error_req;
             mb_rx_val_lane_sel     = (current_ltsm_state_n >= LOG_MBINIT_REPAIRVAL);
             mb_rx_data_lane_sel    = (current_ltsm_state_n >= LOG_MBINIT_REVERSALMB);
-            case (current_ltsm_state_n)
-                LOG_MBINIT_PARAM: begin
-                    mb_tx_trk_lane_sel=2'b10;
-                    mb_tx_clk_lane_sel = 2'b10;
-                    mb_tx_val_lane_sel = 2'b10;
-                    mb_tx_data_lane_sel = 2'b10;
-                end 
-                LOG_MBINIT_CAL: begin
-                    mb_tx_trk_lane_sel=2'b10;
-                    mb_tx_clk_lane_sel=2'b10;
-                    mb_tx_val_lane_sel =2'b10;
-                    mb_tx_data_lane_sel=2'b10;
-                end
-                LOG_MBINIT_REPAIRVAL: begin
-                    mb_tx_trk_lane_sel=2'b01;
-                    mb_tx_clk_lane_sel=2'b01;
-                    mb_tx_val_lane_sel =2'b01;
-                    mb_tx_data_lane_sel=2'b00;
-                end
-                LOG_MBINIT_REVERSALMB: begin
-                    mb_tx_trk_lane_sel=2'b01;
-                    mb_tx_clk_lane_sel=2'b01;
-                    mb_tx_val_lane_sel =2'b01;
-                    mb_tx_data_lane_sel=2'b01;
-                end
-                LOG_MBINIT_REPAIRMB: begin
-                    mb_tx_trk_lane_sel=2'b01;
-                    mb_tx_clk_lane_sel=2'b01;
-                    mb_tx_val_lane_sel =2'b01;
-                    mb_tx_data_lane_sel=2'b01;
-                end
-                default: begin
-                    mb_tx_trk_lane_sel = 2'b00;
-                    mb_tx_clk_lane_sel = 2'b00;
-                    mb_tx_val_lane_sel = 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;
-                end
-                
-            endcase
         end
         else if (current_ltsm_state == MBTRAIN) begin
             // No sweep running (d2c_active handled above): the active MBTRAIN
             // substate owns the MB lane selectors; RXCLKCAL owns the clk pattern.
-            mb_tx_clk_lane_sel    = mbtrain_sub_tx_clk_lane_sel;
-            mb_tx_data_lane_sel   = mbtrain_sub_tx_data_lane_sel;
-            mb_tx_val_lane_sel    = mbtrain_sub_tx_val_lane_sel;
-            mb_tx_trk_lane_sel    = mbtrain_sub_tx_trk_lane_sel;
             mb_rx_clk_lane_sel    = mbtrain_sub_rx_clk_lane_sel;
             mb_rx_data_lane_sel   = mbtrain_sub_rx_data_lane_sel;
             mb_rx_val_lane_sel    = mbtrain_sub_rx_val_lane_sel;
@@ -1347,16 +1281,80 @@ module LTSM_wrapper #(
         else if (current_ltsm_state == ACTIVE) begin
             mb_rx_val_lane_sel     = 1'b1;
             mb_rx_data_lane_sel    = 1'b1;
-            mb_tx_trk_lane_sel     = 2'b01;
-            mb_tx_clk_lane_sel     = 2'b01;
-            mb_tx_val_lane_sel     = 2'b01;
-            mb_tx_data_lane_sel    = 2'b01;
         end
 
         if (!d2c_active) begin
             mb_rx_pattern_setup    = mb_tx_pattern_setup;
             mb_rx_data_pattern_sel = mb_tx_data_pattern_sel;
         end
+    end
+
+    // mb_tx_trk_lane_sel, mb_tx_clk_lane_sel, mb_tx_val_lane_sel, mb_tx_data_lane_sel from MainSM (direct)
+    always_comb begin
+        mb_tx_trk_lane_sel=2'b01;
+        mb_tx_clk_lane_sel=2'b01;
+        mb_tx_val_lane_sel=2'b01;
+        mb_tx_data_lane_sel=2'b01;
+        case (current_ltsm_state_n)
+                LOG_RESET,
+                LOG_SBINIT,
+                LOG_MBINIT_PARAM,
+                LOG_MBINIT_CAL,
+                LOG_MBTRAIN_TXSELFCAL,
+                LOG_TRAINERROR,
+                LOG_L1_L2:
+                begin
+                    mb_tx_trk_lane_sel=2'b10;
+                    mb_tx_clk_lane_sel=2'b10;
+                    mb_tx_val_lane_sel =2'b10;
+                    mb_tx_data_lane_sel=2'b10;
+                end
+                LOG_MBINIT_REPAIRCLK: begin
+                    mb_tx_val_lane_sel  = 2'b10; // Hi-Z (not trained yet)
+                    mb_tx_data_lane_sel = 2'b10; // Hi-Z (not trained yet)
+                end
+                LOG_MBINIT_REPAIRVAL: begin
+                    mb_tx_data_lane_sel=2'b00;
+                end
+                LOG_MBTRAIN_RXCLKCAL:
+                begin
+                    mb_tx_val_lane_sel = 2'b00;
+                    mb_tx_data_lane_sel = 2'b00;
+                end
+                LOG_MBTRAIN_VALVREF,
+                LOG_MBTRAIN_VALTRAINCENTER,
+                LOG_MBTRAIN_VALTRAINVREF:
+                begin
+                    mb_tx_trk_lane_sel = 2'b00;
+                    mb_tx_data_lane_sel = 2'b00;
+                end
+                LOG_MBTRAIN_DATAVREF,
+                LOG_MBTRAIN_DATATRAINCENTER1,
+                LOG_MBTRAIN_DATATRAINVREF,
+                LOG_MBTRAIN_RXDESKEW,
+                LOG_MBTRAIN_DATATRAINCENTER2,
+                LOG_MBTRAIN_LINKSPEED:
+                begin
+                    mb_tx_trk_lane_sel = 2'b00;
+                end
+                LOG_MBTRAIN_SPEEDIDLE,
+                LOG_LINKINIT,
+                LOG_PHYRETRAIN,
+                LOG_MBTRAIN_REPAIR:
+                begin
+                    mb_tx_trk_lane_sel = 2'b00;
+                    mb_tx_clk_lane_sel = 2'b00;
+                    mb_tx_val_lane_sel = 2'b00;
+                    mb_tx_data_lane_sel = 2'b00;
+                end
+                default: begin
+                    mb_tx_trk_lane_sel = 2'b01;
+                    mb_tx_clk_lane_sel = 2'b01;
+                    mb_tx_val_lane_sel = 2'b01;
+                    mb_tx_data_lane_sel = 2'b01;
+                end
+                
+            endcase
     end
 
     // =========================================================================

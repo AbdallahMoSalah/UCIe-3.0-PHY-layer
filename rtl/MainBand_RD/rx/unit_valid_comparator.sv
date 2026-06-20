@@ -37,7 +37,7 @@ module unit_valid_comparator #(
     // ---------------- Control ----------------
     input  logic              i_enable,                 // run a comparison test while high
     input  logic              i_mode,                   // 0 = 16 consecutive iterations, 1 = bit-error threshold
-    input  logic [15:0]       i_max_error_threshold,    // bit-error threshold (mode 1)
+    input  logic [11:0]       i_max_error_threshold,    // bit-error threshold (mode 1)
     input  logic              i_clear_error,
 
     // ---------------- Received data ----------------

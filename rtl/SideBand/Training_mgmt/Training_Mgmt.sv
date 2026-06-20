@@ -13,6 +13,7 @@ module Training_Mgmt #(
 )(
     // Clock and Reset
     input  logic         clk_main,     // Main SM domain (LTSM/RDI_SM)
+    input  logic         clk_ltsm,
     input  logic         rst_main_n,
     input  logic         clk_sb,       // Sideband domain
     input  logic         rst_sb_n,
@@ -93,7 +94,7 @@ module Training_Mgmt #(
         .ADDR_WIDTH (FIFO_ADDR_WIDTH),
         .ASYNC      (1)
     ) u_ltsm_tx_fifo (
-        .W_CLK   (clk_main),
+        .W_CLK   (clk_ltsm),
         .WRST_N  (rst_main_n),
         .WINC    (ltsm_vld_send),
         .WR_DATA ({msg_data_send, msg_info_send, ltsm_msg_n_send}),

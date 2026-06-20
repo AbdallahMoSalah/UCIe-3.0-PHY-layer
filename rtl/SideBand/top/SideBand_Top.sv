@@ -17,6 +17,7 @@ module SideBand_Top #(
     // System Clock and Reset
     // =========================================================================
     input  logic         clk_main,
+    input  logic         clk_ltsm,
     input  logic         rst_main_n,
     input  logic         clk_sb,
     input  logic         rst_sb_n,
@@ -213,6 +214,7 @@ module SideBand_Top #(
     Training_Mgmt u_training_mgmt (
         // Clock and Reset
         .clk_main         (clk_main),
+        .clk_ltsm         (clk_ltsm),
         .rst_main_n       (rst_main_n),
         .clk_sb           (clk_sb),
         .rst_sb_n         (rst_sb_n),

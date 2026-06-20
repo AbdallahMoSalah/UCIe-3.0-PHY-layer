@@ -22,6 +22,7 @@ rtl/common/FIFO/fifo.sv
 rtl/common/CLK_GATE.sv
 rtl/common/PULSE_GEN.v
 rtl/common/ClkDiv.sv
+rtl/common/tri_state_buff.sv
 
 # ---- SideBand RTL ------------------------------------------------------------
 rtl/SideBand/sb_pll.sv

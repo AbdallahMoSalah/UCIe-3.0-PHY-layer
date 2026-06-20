@@ -154,12 +154,6 @@ module wrapper_D2C_sweep #(
     // =========================================================================
     // Group 7: MB Signals — TX (outputs from wrapper_D2C_PT to MB hardware)
     // =========================================================================
-    // TX lane select encoding: 00=Driven Low, 01=Active pattern, 1x=Tri-stated.
-    output logic [1:0]  mb_tx_trk_lane_sel,               // 00: Low; 01: Active tracking; 1x: Tri-state.
-    output logic [1:0]  mb_tx_clk_lane_sel,               // 00: Low; 01: Active clock;    1x: Tri-state.
-    output logic [1:0]  mb_tx_val_lane_sel,               // 00: Low; 01: Active valid;    1x: Tri-state.
-    output logic [1:0]  mb_tx_data_lane_sel,              // 00: Low; 01: Active data;     1x: Tri-state.
-
     // 0: TX in static idle; 1: Drive active training pattern on configured TX lanes.
     output logic        mb_tx_pattern_en,
 
@@ -411,10 +405,6 @@ module wrapper_D2C_sweep #(
         .cfg_max_err_thresh_aggr       (cfg_max_err_thresh_aggr      ), // Aggregate max error threshold.
 
         // ── Group 3: MB TX (external — to MB hardware) ─────────────────────
-        .mb_tx_trk_lane_sel            (mb_tx_trk_lane_sel           ), // TX tracking lane mode.
-        .mb_tx_clk_lane_sel            (mb_tx_clk_lane_sel           ), // TX clock lane mode.
-        .mb_tx_val_lane_sel            (mb_tx_val_lane_sel           ), // TX valid lane mode.
-        .mb_tx_data_lane_sel           (mb_tx_data_lane_sel          ), // TX data lane mode.
         .mb_tx_pattern_en              (mb_tx_pattern_en             ), // TX active pattern enable.
         .mb_tx_pattern_setup           (mb_tx_pattern_setup          ), // TX pattern components.
         .mb_tx_lfsr_en                 (mb_tx_lfsr_en                ), // TX LFSR scrambler enable.

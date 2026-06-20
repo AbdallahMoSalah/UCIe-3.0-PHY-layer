@@ -40,7 +40,7 @@ module unit_mb_pattern_comparator #(
     input  wire                  i_enable,             // run a comparison test while high
     input  wire                  i_comparison_mode,    // 0 = Per-Lane, 1 = Aggregate (Table 7-11 [59])
     input  wire [NUM_LANES-1:0]  i_lane_mask,          // 1 = Lane masked / excluded (Training Setup 3)
-    input  wire [15:0]           i_max_error_threshold_per_lane,    // per-Lane threshold  (9.5.3.29)
+    input  wire [11:0]           i_max_error_threshold_per_lane,    // per-Lane threshold  (9.5.3.29)
     input  wire [15:0]           i_max_error_threshold_aggregate,   // aggregate threshold (9.5.3.29)
     input  wire [15:0]           i_iteration_count,                 // # compare cycles per test (e.g. 128); hold stable during a test
     input  wire                  i_pattern_mode,                    // 1 = perlane id pattern, 0 = LFSR pattern
@@ -52,7 +52,6 @@ module unit_mb_pattern_comparator #(
     // ---------------- Results ----------------
     output reg                   o_done,                      // test complete, results valid
     output reg  [NUM_LANES-1:0]  o_per_lane_pass,             // 1 = Lane PASS, sticky (Fig 4-28 / per-lane ID)
-    output reg  [15:0]           o_aggregate_error_counter,   // 16-bit module error counter (Fig 4-29)
     output reg                   o_aggregate_error             // 1 = Fail: aggregate count > threshold
 );
     // =========================================================================
@@ -114,7 +113,7 @@ module unit_mb_pattern_comparator #(
     reg [15:0] iter_ctr;
     reg [15:0] lane_err_accum [0:NUM_LANES-1];   // accumulated bit errors per Lane
     reg [4:0]  consecutive_ctr [0:NUM_LANES-1];  // 16 consecutive successful iterations counter
-
+    reg [15:0]  aggregate_error_counter;
     integer k;
     always @(posedge i_clk or negedge i_rst_n) begin
         reg [4:0] temp_ctr;
@@ -123,7 +122,7 @@ module unit_mb_pattern_comparator #(
             iter_ctr                  <= 16'd0;
             o_done                    <= 1'b0;
             o_per_lane_pass           <= '0;
-            o_aggregate_error_counter <= 16'd0;
+            aggregate_error_counter <= 16'd0;
             o_aggregate_error          <= 1'b0;
             for (k = 0; k < NUM_LANES; k = k + 1) begin
                 lane_err_accum[k]  <= 16'd0;
@@ -133,7 +132,7 @@ module unit_mb_pattern_comparator #(
             state                     <= S_IDLE;
             iter_ctr                  <= 16'd0;
             o_done                    <= 1'b0;
-            o_aggregate_error_counter <= 16'd0;
+            aggregate_error_counter <= 16'd0;
             o_aggregate_error          <= 1'b0;
             for (k = 0; k < NUM_LANES; k = k + 1) begin
                 lane_err_accum[k]  <= 16'd0;
@@ -153,7 +152,7 @@ module unit_mb_pattern_comparator #(
                     if (i_enable) begin
                         // Start a fresh test: clear all accumulators / results.
                         iter_ctr                  <= 16'd0;
-                        o_aggregate_error_counter <= 16'd0;
+                        aggregate_error_counter <= 16'd0;
                         o_aggregate_error          <= 1'b0;
                         for (k = 0; k < NUM_LANES; k = k + 1) begin
                             lane_err_accum[k]  <= 16'd0;
@@ -226,10 +225,10 @@ module unit_mb_pattern_comparator #(
                         if (i_comparison_mode == 1'b1) begin
                             // ---- Aggregate comparison ----
                             // OR Lanes per UI, count error UIs, saturate at 16'hFFFF.
-                            if (o_aggregate_error_counter > (16'hFFFF - agg_inc))
-                                o_aggregate_error_counter <= 16'hFFFF;
+                            if (aggregate_error_counter > (16'hFFFF - agg_inc))
+                                aggregate_error_counter <= 16'hFFFF;
                             else
-                                o_aggregate_error_counter <= o_aggregate_error_counter + agg_inc;
+                                aggregate_error_counter <= aggregate_error_counter + agg_inc;
                         end
 
                         // 3. Counter and state transitions
@@ -244,7 +243,7 @@ module unit_mb_pattern_comparator #(
                 S_DONE: begin
                     o_done <= 1'b1;
                     // Aggregate result: Pass if error count is within threshold.
-                    o_aggregate_error <= (o_aggregate_error_counter > i_max_error_threshold_aggregate);
+                    o_aggregate_error <= (aggregate_error_counter > i_max_error_threshold_aggregate);
                     if (!i_enable)
                         state <= S_IDLE;
                 end

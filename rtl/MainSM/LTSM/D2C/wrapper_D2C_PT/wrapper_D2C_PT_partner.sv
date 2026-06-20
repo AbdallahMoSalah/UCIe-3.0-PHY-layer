@@ -35,10 +35,6 @@ module wrapper_D2C_PT_partner (
         // =========================================================================
         // Group 3: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic [1:0]  mb_tx_trk_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_clk_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_val_lane_sel,             // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_data_lane_sel,            // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
         output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
         output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
         output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
@@ -129,10 +125,6 @@ module wrapper_D2C_PT_partner (
     logic [15:0] rx_mb_tx_iter_count;           // Number of burst-idle loops
     logic [1:0]  rx_mb_tx_data_pattern_sel;     // Training pattern type
     logic        rx_mb_tx_val_pattern_sel;      // Valid pattern select
-    logic [1:0]  rx_mb_tx_trk_lane_sel;         // Tx Tracking Lane logical mode
-    logic [1:0]  rx_mb_tx_clk_lane_sel;         // Tx Clock Lane logical mode
-    logic [1:0]  rx_mb_tx_val_lane_sel;         // Tx Valid Lane logical mode
-    logic [1:0]  rx_mb_tx_data_lane_sel;        // Tx Data Lanes logical mode
     logic        rx_tx_sb_msg_valid;            // Sideband transmit request pulse
     logic [7:0]  rx_tx_sb_msg;                  // MsgCode of sideband message to transmit
     logic [15:0] rx_tx_msginfo;                 // 16-bit message information payload to transmit
@@ -199,10 +191,6 @@ module wrapper_D2C_PT_partner (
         .mb_tx_data_pattern_sel         (rx_mb_tx_data_pattern_sel   ), // Output data pattern selection
         .mb_tx_val_pattern_sel          (rx_mb_tx_val_pattern_sel    ), // Output Valid pattern selection
         .mb_tx_pattern_count_done       (mb_tx_pattern_count_done    ), // Input transmitter done handshake status
-        .mb_tx_trk_lane_sel             (rx_mb_tx_trk_lane_sel       ), // Output Tx Tracking Lane logical mode
-        .mb_tx_clk_lane_sel             (rx_mb_tx_clk_lane_sel       ), // Output Tx Clock Lane logical mode
-        .mb_tx_val_lane_sel             (rx_mb_tx_val_lane_sel       ), // Output Tx Valid Lane logical mode
-        .mb_tx_data_lane_sel            (rx_mb_tx_data_lane_sel      ), // Output Tx Data Lanes logical mode
         .tx_sb_msg_valid                (rx_tx_sb_msg_valid          ), // Output Sideband transmit request pulse
         .tx_sb_msg                      (rx_tx_sb_msg                ), // Output MsgCode to transmit
         .tx_msginfo                     (rx_tx_msginfo               ), // Output message info payload to transmit
@@ -230,11 +218,6 @@ module wrapper_D2C_PT_partner (
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Track Transmitters drive low.
             //        * Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)"
-            mb_tx_trk_lane_sel              = 2'b00                          ; // TX partner only has RX control
-            mb_tx_clk_lane_sel              = 2'b00                          ; // TX partner only has RX control
-            mb_tx_val_lane_sel              = 2'b00                          ; // TX partner only has RX control
-            mb_tx_data_lane_sel             = 2'b00                          ; // TX partner only has RX control
-
             mb_rx_trk_lane_sel              = tx_mb_rx_trk_lane_sel          ;
             mb_rx_clk_lane_sel              = tx_mb_rx_clk_lane_sel          ;
             mb_rx_val_lane_sel              = tx_mb_rx_val_lane_sel          ;
@@ -265,11 +248,6 @@ module wrapper_D2C_PT_partner (
             mb_tx_data_pattern_sel          = 2'b00                          ; // TX partner only has RX control
             mb_tx_val_pattern_sel           = 1'b0                           ; // TX partner only has RX control
         end else if (rx_pt_en) begin
-            mb_tx_trk_lane_sel              = rx_mb_tx_trk_lane_sel          ;
-            mb_tx_clk_lane_sel              = rx_mb_tx_clk_lane_sel          ;
-            mb_tx_val_lane_sel              = rx_mb_tx_val_lane_sel          ;
-            mb_tx_data_lane_sel             = rx_mb_tx_data_lane_sel         ;
-
             // The Reference Says for the "Receiver initiated Data to Clock Point Test":
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Clock Receivers are enabled.
@@ -306,10 +284,6 @@ module wrapper_D2C_PT_partner (
             mb_tx_val_pattern_sel           = rx_mb_tx_val_pattern_sel       ;
         end else begin
             // All inactive default safe ties:
-            mb_tx_clk_lane_sel              = 2'b00                          ;
-            mb_tx_data_lane_sel             = 2'b00                          ;
-            mb_tx_val_lane_sel              = 2'b00                          ;
-            mb_tx_trk_lane_sel              = 2'b00                          ;
             mb_rx_clk_lane_sel              = 1'b0                           ;
             mb_rx_data_lane_sel             = 1'b0                           ;
             mb_rx_val_lane_sel              = 1'b0                           ;

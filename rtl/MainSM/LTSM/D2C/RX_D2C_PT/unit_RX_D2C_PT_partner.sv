@@ -62,13 +62,6 @@ module unit_RX_D2C_PT_partner (
         output logic        mb_tx_val_pattern_sel   , // 0: VALTRAIN/functional, 1: Held Low. (Decoded from rx_data_field[5:3].)
         input  logic        mb_tx_pattern_count_done, // 0: TX pattern generator transmitting. 1: TX pattern generator completed all iterations.
 
-        //-------------------- MB Rx/Tx Lane Logical and Physical Lanes --------------------//
-        // Tx Lane Logical Selection:
-        output logic [1:0]  mb_tx_trk_lane_sel      , // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_clk_lane_sel      , // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_val_lane_sel      , // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-        output logic [1:0]  mb_tx_data_lane_sel     , // 00: Driven Low, 01: Active pattern, 10: Tri-stated. (For Tx)
-
         //=====================================//
         // Sideband Control Signals:           //
         //=====================================//
@@ -187,11 +180,6 @@ module unit_RX_D2C_PT_partner (
         mb_tx_lfsr_rst           = 1'b0;
         mb_tx_clk_sampling_en    = 1'b0;
 
-        mb_tx_clk_lane_sel       = 2'b00;
-        mb_tx_data_lane_sel      = 2'b00;
-        mb_tx_val_lane_sel       = 2'b00;
-        mb_tx_trk_lane_sel       = 2'b00;
-
         mb_tx_pattern_setup      = mb_tx_pattern_setup_r;
         mb_tx_iter_count         = mb_tx_iter_count_r;
         mb_tx_idle_count         = mb_tx_idle_count_r;
@@ -254,11 +242,6 @@ module unit_RX_D2C_PT_partner (
             RX_PT_PATTERN_GEN: begin
                 mb_tx_pattern_en    = 1'b1             ;
                 mb_tx_lfsr_en       = decoded_lfsr_en_r;
-
-                mb_tx_clk_lane_sel  = 2'b01;
-                mb_tx_data_lane_sel = {1'b0, mb_tx_pattern_setup_r[0]};
-                mb_tx_val_lane_sel  = {1'b0, mb_tx_pattern_setup_r[1]};
-                mb_tx_trk_lane_sel  = 2'b00;
             end
 
             // UCIe 3.0 Reference Content:
