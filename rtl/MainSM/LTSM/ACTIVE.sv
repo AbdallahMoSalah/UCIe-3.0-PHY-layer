@@ -74,13 +74,15 @@ module ACTIVE (
 
     // ---------------- Output logic ----------------
     always_comb begin 
+        active_error = 1'b0;
+        next_ltsm_state = CTRL_NOP;
         case (current_state)
             IDLE: begin
-                active_error = 0;
+                active_error = 1'b0;
                 next_ltsm_state = CTRL_NOP;
             end
             ACTIVE_RUN: begin
-                active_error = 0;
+                active_error = 1'b0;
                 next_ltsm_state = CTRL_ACTIVE;
             end
             TRAINERROR: begin
@@ -89,19 +91,19 @@ module ACTIVE (
             end
             PHYRETRAIN: begin
                 next_ltsm_state = CTRL_PHYRETRAIN;
-                active_error = 0;
+                active_error = 1'b0;
             end
             L1: begin
                 next_ltsm_state = CTRL_L1;
-                active_error = 0;
+                active_error = 1'b0;
             end
             L2: begin
                 next_ltsm_state = CTRL_L2;
-                active_error = 0;
+                active_error = 1'b0;
             end
             default: begin
                 next_ltsm_state = CTRL_NOP;
-                active_error = 0;
+                active_error = 1'b0;
             end
         endcase
     end

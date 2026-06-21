@@ -992,7 +992,6 @@ module LTSM_wrapper #(
         .rst_n                    (rst_n),
         .rdi_state_sts            (rdi_state),
         .Linkinit_enable          (linkinit_en),
-        .start_ucie_link_training (phy_start_ucie_link_training_ctrl_out),
         .linkinit_done            (linkinit_done),
         .linkinit_error           (linkinit_error)
     );
