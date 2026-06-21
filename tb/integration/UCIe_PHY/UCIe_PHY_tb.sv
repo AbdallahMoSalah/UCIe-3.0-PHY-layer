@@ -149,14 +149,14 @@ module UCIe_PHY_tb;
     wire clk_sb1 = u_die1.clk_sb;
 
     // Shrink the RDI timers (1us / 16ms) so they are simulatable.
-    defparam u_die0.u_logical_phy.u_rdi_sm.sm.u_unit_Timer.CLK_FREQ = RDI_CLK_FRQ;
-    defparam u_die0.u_logical_phy.u_rdi_sm.gating_logic.CLK_FREQ     = RDI_CLK_FRQ;
-    defparam u_die1.u_logical_phy.u_rdi_sm.sm.u_unit_Timer.CLK_FREQ = RDI_CLK_FRQ;
-    defparam u_die1.u_logical_phy.u_rdi_sm.gating_logic.CLK_FREQ     = RDI_CLK_FRQ;
+    defparam u_die0.u_main_sm.u_rdi_sm.sm.u_unit_Timer.CLK_FREQ = RDI_CLK_FRQ;
+    defparam u_die0.u_main_sm.u_rdi_sm.gating_logic.CLK_FREQ     = RDI_CLK_FRQ;
+    defparam u_die1.u_main_sm.u_rdi_sm.sm.u_unit_Timer.CLK_FREQ = RDI_CLK_FRQ;
+    defparam u_die1.u_main_sm.u_rdi_sm.gating_logic.CLK_FREQ     = RDI_CLK_FRQ;
 
     // LTSM macro-state observation (state_n lives inside the LTSM wrapper).
-    assign ln0 = u_die0.u_logical_phy.u_ltsm_top.u_ltsm.current_ltsm_state_n;
-    assign ln1 = u_die1.u_logical_phy.u_ltsm_top.u_ltsm.current_ltsm_state_n;
+    assign ln0 = u_die0.u_main_sm.u_ltsm_top.u_ltsm.current_ltsm_state_n;
+    assign ln1 = u_die1.u_main_sm.u_ltsm_top.u_ltsm.current_ltsm_state_n;
 
     // =========================================================================
     // Per-die adapter handshake responders (CLK-ack / STALL-ack follow request)
@@ -341,7 +341,7 @@ module UCIe_PHY_tb;
         @(negedge lclk0);
         lp_state_req0 = L_1;
         fork
-            begin wait (u_die1.u_logical_phy.u_rdi_sm.sm.u_unit_active_state.current_state == 26'h0800000);
+            begin wait (u_die1.u_main_sm.u_rdi_sm.sm.u_unit_active_state.current_state == 26'h0800000);
                   @(negedge lclk1); lp_state_req1 = L_1; end
             begin repeat (8000) @(posedge lclk0); $error("[SC3] TO: die1 never reached WAIT"); fails++; end
         join_any

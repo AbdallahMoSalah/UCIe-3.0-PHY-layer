@@ -86,7 +86,15 @@ module unit_tx_top #(
     input  logic                    i_clk_embedded_en,      // continuous embedded-clock mode
 
     // -------------------------------------------------------------------------
-    // Serialized physical outputs (DDR)  (diagram names)
+    // tri_state_buffer per-group enables (drive / Hi-Z / 0 of each TX output)
+    // -------------------------------------------------------------------------
+    input  logic [1:0]              i_mb_tx_data_lane_sel,  // data-lane tri-state enable
+    input  logic [1:0]              i_mb_tx_val_lane_sel,   // valid-lane tri-state enable
+    input  logic [1:0]              i_mb_tx_clk_lane_sel,   // clk_p/clk_n tri-state enable
+    input  logic [1:0]              i_mb_tx_trk_lane_sel,   // track-lane tri-state enable
+
+    // -------------------------------------------------------------------------
+    // Serialized physical outputs (DDR)  (diagram names) — tri-stated
     // -------------------------------------------------------------------------
     output logic                    lclk,                   //  RDI LCLK
     output logic                    pll_clk,                //  RDI PLL CLK
@@ -148,6 +156,13 @@ module unit_tx_top #(
     logic [31:0] valid_word;           // 32-bit TVLD pattern word
     logic        valid_ser_en;         // unit_valid_tx serializer-enable
 
+    // ----- pre-tri-state serial nets (drive the tri_state_buffer) ------------
+    logic [NUM_LANES-1:0] td_p_pre;    // reversed data lanes  → tri-state in
+    logic                 tvld_p_pre;  // valid lane           → tri-state in
+    logic                 tckp_p_pre;  // differential clock + → tri-state in
+    logic                 tckn_p_pre;  // differential clock - → tri-state in
+    logic                 ttrk_p_pre;  // clock tracking       → tri-state in
+
     // =========================================================================
     // 0a. MB_PLL  (active RTL – generates the high-speed serialization clock)
     // =========================================================================
@@ -187,9 +202,9 @@ module unit_tx_top #(
         .i_rst_n         (i_rst_n),
         .clk_pattern_en  (i_clk_pattern_en),
         .clk_embedded_en (i_clk_embedded_en),
-        .o_clk_p         (TCKP_P),
-        .o_clk_n         (TCKN_P),
-        .track           (TTRK_P),
+        .o_clk_p         (tckp_p_pre),
+        .o_clk_n         (tckn_p_pre),
+        .track           (ttrk_p_pre),
         .o_done          (o_clk_done)
     );
 
@@ -291,7 +306,7 @@ module unit_tx_top #(
     ) u_tx_reversal (
         .i_reversal_en (i_reversal_en),
         .i_TD_P        (TD_P_int),
-        .o_TD_P        (TD_P)
+        .o_TD_P        (td_p_pre)
     );
 
     // =========================================================================
@@ -305,7 +320,29 @@ module unit_tx_top #(
         .i_rst_n (i_rst_n),
         .Ser_en  (valid_ser_en),
         .in_data (valid_word),
-        .SER_out (TVLD_P)
+        .SER_out (tvld_p_pre)
+    );
+
+    // =========================================================================
+    // 6.  TX output tri-state buffers (data x16 + valid + clk_p/clk_n + track)
+    // =========================================================================
+    tri_state_buffer #(
+        .NUM_LANES (NUM_LANES)
+    ) u_tri_state_buffer (
+        .i_TD_P                (td_p_pre),
+        .i_TVLD_P              (tvld_p_pre),
+        .i_TCKP_P              (tckp_p_pre),
+        .i_TCKN_P              (tckn_p_pre),
+        .i_TTRK_P              (ttrk_p_pre),
+        .i_mb_tx_data_lane_sel (i_mb_tx_data_lane_sel),
+        .i_mb_tx_val_lane_sel  (i_mb_tx_val_lane_sel),
+        .i_mb_tx_clk_lane_sel  (i_mb_tx_clk_lane_sel),
+        .i_mb_tx_trk_lane_sel  (i_mb_tx_trk_lane_sel),
+        .o_TD_P                (TD_P),
+        .o_TVLD_P              (TVLD_P),
+        .o_TCKP_P              (TCKP_P),
+        .o_TCKN_P              (TCKN_P),
+        .o_TTRK_P              (TTRK_P)
     );
 
 endmodule

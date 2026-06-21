@@ -19,7 +19,7 @@ module SideBand_Top #(
     input  logic         clk_main,
     input  logic         clk_ltsm,
     input  logic         rst_main_n,
-    input  logic         clk_sb,
+    output logic         clk_sb,       // 100 MHz derived from sb_pll (÷8); fed to Reg_File
     input  logic         rst_sb_n,
 
     // =========================================================================
@@ -31,7 +31,6 @@ module SideBand_Top #(
     // =========================================================================
     // External Sideband Serial Interface
     // =========================================================================
-    input  logic         sb_pll_clock, // Used as clk_serial in sb_serializer
     input  logic         RXCKSB,       // Clock from remote serializer
     output logic         TXCKSB,       // Clock forwarded to remote deserializer
     output logic         TXDATASB,
@@ -133,6 +132,27 @@ module SideBand_Top #(
     logic [127:0] completion_msg;
     logic         completion_vld;
     logic         completion_rdy;
+
+    // =========================================================================
+    // 0. Sideband clock generation (sb_pll → ÷8 → clk_sb)
+    // =========================================================================
+    logic sb_pll_clock;   // 800 MHz high-speed serialization clock (internal)
+
+    sb_pll u_sb_pll (
+        .en           (1'b1),
+        .clk          (sb_pll_clock),
+        .local_period ()
+    );
+
+    ClkDiv #(
+        .RangeWidth (8)
+    ) u_clk_div_sb (
+        .i_ref_clk   (sb_pll_clock),
+        .i_rst_n     (rst_sb_n),
+        .i_clk_en    (1'b1),
+        .i_div_ratio (8'd8),
+        .o_div_clk   (clk_sb)
+    );
 
     // =========================================================================
     // SerDes Modules

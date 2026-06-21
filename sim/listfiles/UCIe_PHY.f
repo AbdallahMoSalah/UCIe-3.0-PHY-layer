@@ -23,6 +23,7 @@ rtl/common/CLK_GATE.sv
 rtl/common/PULSE_GEN.v
 rtl/common/ClkDiv.sv
 rtl/common/tri_state_buff.sv
+rtl/common/tri_state_buffer.sv
 
 # ---- SideBand RTL ------------------------------------------------------------
 rtl/SideBand/sb_pll.sv
@@ -207,8 +208,10 @@ rtl/MainBand_RD/rx/unit_mb_rx_top.sv
 # ---- Register File (chapter-9 config/status block) ---------------------------
 rtl/common/Reg_File.sv
 
+# ---- Main State Machine (LTSM_TOP + RDI_SM) ----------------------------------
+rtl/MainSM/MainSM.sv
+
 # ---- Wrappers under test -----------------------------------------------------
-rtl/TOP/Logical_PHY.sv
 rtl/TOP/UCIe_PHY.sv
 
 # ---- Testbench ---------------------------------------------------------------
