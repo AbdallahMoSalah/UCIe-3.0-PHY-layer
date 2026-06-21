@@ -25,6 +25,7 @@
 module unit_ltsm_controller
 import ltsm_state_n_pkg::*;
 import LTSM_state_pkg::*;
+import RDI_SM_pkg::*;
 (
     input  logic        clk,
     input  logic        rst_n,
@@ -74,6 +75,7 @@ import LTSM_state_pkg::*;
     input  logic        second_timeout_occured,
     // ---------------------------------------------------------------- status
     output LTSM_state_e current_ltsm_state,
+    input RDI_state rdi_state,
 
     // ---------------------------------------------------------------- handshakes for remaining states
     output logic        phyretrain_en,
@@ -107,6 +109,8 @@ import LTSM_state_pkg::*;
         else        current_state <= next_state;
     end
 
+
+    assign rdi_requested_trainerror = (rdi_state == LinkError || rdi_state == LinkReset || rdi_state == Disabled);
     // =========================================================================
     // NEXT-STATE LOGIC (linear Step-1 walk)
     // =========================================================================
@@ -120,19 +124,20 @@ import LTSM_state_pkg::*;
             next_state = CTRL_TRAINERROR;
         end else begin
             case (current_state)
-                CTRL_RESET:    if (reset_done)         next_state = CTRL_SBINIT;
+                CTRL_RESET:    if(rdi_requested_trainerror) next_state = CTRL_TRAINERROR;
+                               else if (reset_done)         next_state = CTRL_SBINIT;
                 
-                CTRL_SBINIT:   if (sbinit_error)       next_state = CTRL_TRAINERROR;
+                CTRL_SBINIT:   if (sbinit_error || rdi_requested_trainerror)       next_state = CTRL_TRAINERROR;
                                else if (sbinit_done)   next_state = CTRL_MBINIT;
                                
-                CTRL_MBINIT:   if (te_handshake_done)  next_state = CTRL_TRAINERROR;
+                CTRL_MBINIT:   if (te_handshake_done || rdi_requested_trainerror)  next_state = CTRL_TRAINERROR;
                                else if (mbinit_done)   next_state = CTRL_MBTRAIN;
                                
-                CTRL_MBTRAIN:  if (te_handshake_done)  next_state = CTRL_TRAINERROR;
+                CTRL_MBTRAIN:  if (te_handshake_done || rdi_requested_trainerror)  next_state = CTRL_TRAINERROR;
                                else if (mbtrain_phyretrain_req) next_state = CTRL_PHYRETRAIN;
                                else if (mbtrain_done)        next_state = CTRL_LINKINIT;
                                
-                CTRL_LINKINIT: if (te_handshake_done)  next_state = CTRL_TRAINERROR;
+                CTRL_LINKINIT: if (te_handshake_done || rdi_requested_trainerror)  next_state = CTRL_TRAINERROR;
                                else if (linkinit_done) next_state = CTRL_ACTIVE;
                                
                 CTRL_ACTIVE:   if (active_next_ltsm_state == CTRL_TRAINERROR)
@@ -140,7 +145,7 @@ import LTSM_state_pkg::*;
                                else if (active_next_ltsm_state != CTRL_ACTIVE && active_next_ltsm_state != CTRL_NOP)
                                    next_state = active_next_ltsm_state;
                                    
-                CTRL_PHYRETRAIN: if (phyretrain_done)  next_state = CTRL_MBTRAIN;
+                CTRL_PHYRETRAIN: if (phyretrain_done || rdi_requested_trainerror)  next_state = CTRL_MBTRAIN;
 
                 // L1 exit -> MBTRAIN re-entering at SPEEDIDLE (see
                 // mbtrain_speedidle_req below); error -> TRAINERROR

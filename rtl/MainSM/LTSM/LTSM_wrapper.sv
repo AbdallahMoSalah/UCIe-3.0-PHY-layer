@@ -665,6 +665,7 @@ module LTSM_wrapper #(
         .second_timeout_occured(second_timeout_occured),
         // ACTIVE-resolved next state — drives the ACTIVE exit (PHYRETRAIN/L1/L2/TRAINERROR)
         .active_next_ltsm_state (active_next_ltsm_state),
+        .rdi_state           (rdi_state),
 
         .current_ltsm_state  (current_ltsm_state)
     );
