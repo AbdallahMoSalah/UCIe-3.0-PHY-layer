@@ -8,10 +8,10 @@
 # =============================================================================
 
 # ── Testbench ──────────────────────────────────────────────────────────────
-rtl/MainBand/MB_TOP/MB_die_to_die_tb.sv
+rtl/MainBand/MB_TOP/mb_die2die_tb.sv
 
 # ── Top-level wrapper ──────────────────────────────────────────────────────
-rtl/MainBand/MB_TOP/MB_TOP.sv
+rtl/MainBand/MB_TOP/mb_die.sv
 
 # ── TX path ────────────────────────────────────────────────────────────────
 rtl/MainBand/MB_TX_TOP/MB_TX_TOP.sv
