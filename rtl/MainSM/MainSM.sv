@@ -22,14 +22,16 @@ import RDI_SM_pkg::*;
 // are now exposed as MainSM ports and wired identically by UCIe_PHY.
 //
 // Glue kept inside MainSM (was inside Logical_PHY):
-//   * stall_done latch + mapper-enable gating  -> mb_mapper_en
+//   * mapper-enable gating  -> mb_mapper_en (the stall latch now lives inside
+//     the RDI stall handshake; MainSM just gates with its "data path stalled"
+//     level, stall_done_latched_w)
 //   * sticky SBINIT pattern-detected flop
 //   * phy_rm_link_err_i decode from the RDI receive message
 //
 // Internal-only nets (never leave MainSM):
 //   * current_ltsm_state (also exported for SideBand phy_in_reset / observ.)
 //   * rdi_state_w        (RDI_SM.rdi_state -> LTSM.rdi_state)
-//   * ltsm_mapper_en, stall_done_w, stall_done_latched
+//   * ltsm_mapper_en, stall_done_latched_w
 //   * the msg_no_e <-> [7:0] casts for both the LTSM and RDI message buses
 // =============================================================================
 
@@ -222,36 +224,23 @@ module MainSM #(
     assign rdi_msg_rcvd        = msg_no_e'(rdi_msg_no_rcvd_bus); // [7:0] -> msg_no_e
 
     // RDI_SM <-> LTSM
-    RDI_state    rdi_state_w;      // RDI_SM.rdi_state -> LTSM.rdi_state
-    logic        ltsm_mapper_en;   // LTSM mapper enable (pre-gate)
-    logic        stall_done_w;     // RDI_SM.stall_done (latched into mapper enable)
+    RDI_state    rdi_state_w;          // RDI_SM.rdi_state -> LTSM.rdi_state
+    logic        ltsm_mapper_en;       // LTSM mapper enable (pre-gate)
+    logic        stall_done_latched_w; // RDI_SM "data path stalled" level (latched stall)
 
     // =========================================================================
-    // stall_done latch + mapper-enable gating
+    // mapper-enable gating
     // -------------------------------------------------------------------------
-    // The RDI stall_done pulse is captured into a level (SR flop on lclk) that
-    // represents "data path stalled":
-    //   * set   by stall_done   (RDI stall handshake complete -> stall the path)
-    //   * clear when the LTSM mapper enable falls (acts as the latch reset)
-    // The mapper is enabled in ACTIVE (ltsm_mapper_en) while NOT stalled, so data
-    // flows in steady ACTIVE and is held off only during an RDI stall.
+    // The "data path stalled" level is now produced inside the RDI stall
+    // handshake (unit_stall_handshake): it captures the stall_done pulse and
+    // holds it until the LTSM mapper enable falls. Here we just gate the mapper
+    // enable with it, so data flows in steady ACTIVE (ltsm_mapper_en) and is
+    // held off only during an RDI stall.
     // =========================================================================
-    logic stall_done_latched;
-    always_ff @(posedge lclk or negedge rst_n) begin
-        if (!rst_n)
-            stall_done_latched <= 1'b0;
-        else if (!ltsm_mapper_en)      // enable low -> clear the latch
-            stall_done_latched <= 1'b0;
-        else if (stall_done_w)         // set on stall_done (stalled)
-            stall_done_latched <= 1'b1;
-    end
+    assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched_w;
 
-    assign mb_mapper_en = ltsm_mapper_en & ~stall_done_latched;
-
-    always_comb begin
-        phy_rm_link_err_i = (rdi_msg_rcvd == RDI_LINK_ERROR_REQ)
+    assign phy_rm_link_err_i = (rdi_msg_rcvd == RDI_LINK_ERROR_REQ)
                             && rdi_vld_rcvd;
-    end
 
     // =========================================================================
     // sticky SBINIT pattern-detected flop
@@ -442,7 +431,9 @@ module MainSM #(
 
         // MainBand interface
         .lclk_g                                     (rdi_lclk_g),
-        .stall_done                                 (stall_done_w),
+        .stall_done                                 (),
+        .mapper_en                                  (ltsm_mapper_en),
+        .stall_done_latched                         (stall_done_latched_w),
         .pl_error                                   (mb_valid_frame_error),
 
         // LTSM interface

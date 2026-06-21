@@ -1,6 +1,8 @@
 module unit_stall_handshake(
-    input lp_stallack, lclk, stall_req, rst_n,
-    output pl_stallreq, stall_done
+    input  lp_stallack, lclk, stall_req, rst_n,
+    input  mapper_en,
+    output pl_stallreq, stall_done,
+    output logic stall_done_latched
 );
 
 typedef enum logic [1:0] { IDLE, STALLREQ, STALLACK, STALLDONE } state;
@@ -38,4 +40,20 @@ end
 
 assign pl_stallreq = (STALL_state == STALLREQ)||(STALL_state ==STALLACK);
 assign stall_done = (STALL_state ==STALLACK);
+
+// -------------------------------------------------------------------------
+// Mapper-stall latch (relocated here from the MainSM glue): capture the
+// stall_done pulse into a level ("data path stalled") held until the LTSM
+// mapper enable falls, so the stall handshake fully owns this signal.
+//   * set   on stall_done   (handshake reached STALLACK)
+//   * clear when mapper_en falls (acts as the latch reset)
+// -------------------------------------------------------------------------
+always @(posedge lclk or negedge rst_n) begin
+    if (!rst_n)
+        stall_done_latched <= 1'b0;
+    else if (!mapper_en)        // enable low -> clear the latch
+        stall_done_latched <= 1'b0;
+    else if (stall_done)        // set on stall_done (stalled)
+        stall_done_latched <= 1'b1;
+end
 endmodule

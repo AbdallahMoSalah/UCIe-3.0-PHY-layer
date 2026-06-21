@@ -43,6 +43,8 @@ module RDI_SM #(
     // driven by the gating FSM (UNGATING => 1, GATING => 0).
     output logic                    lclk_g              ,
     output logic                    stall_done          ,
+    input  logic                    mapper_en           ,
+    output logic                    stall_done_latched  ,
     input  logic                    pl_error            ,
 
     //Interface with LTSM
@@ -128,8 +130,10 @@ module RDI_SM #(
         // STALL Handshake
         .lp_stallack            (lp_stallack),
         .stall_req              (stall_req),
+        .mapper_en              (mapper_en),
         .pl_stallreq            (pl_stallreq),
         .stall_done             (stall_done),
+        .stall_done_latched     (stall_done_latched),
 
         // Active Handshake
         .Active_handshake_strt  (Active_handshake_strt),

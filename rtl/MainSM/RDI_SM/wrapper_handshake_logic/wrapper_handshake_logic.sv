@@ -12,8 +12,10 @@ module wrapper_handshake_logic(
     // STALL Handshake
     input  logic lp_stallack,
     input  logic stall_req,
+    input  logic mapper_en,
     output logic pl_stallreq,
     output logic stall_done,
+    output logic stall_done_latched,
     
     // Active handshake
     input  logic Active_handshake_strt,
@@ -52,9 +54,11 @@ module wrapper_handshake_logic(
         .lp_stallack(lp_stallack),
         .lclk(lclk),
         .rst_n(rst_n),
-        .stall_req(stall_req), 
+        .stall_req(stall_req),
+        .mapper_en(mapper_en),
         .pl_stallreq(pl_stallreq),
-        .stall_done(stall_done)
+        .stall_done(stall_done),
+        .stall_done_latched(stall_done_latched)
     );
 
     unit_active_handshake u4 (
