@@ -1,0 +1,37 @@
+4.5.3.4.8 MBTRAIN.DATATRAINCENTER1
+In this state, the UCIe Module performs Data-to-Clock training (including valid). LFSR patterns 
+described in Section 4.4.1 must be used in this state. The Track Transmitter is held Low. When not 
+performing the actions relevant to this state:
+• Clock Receivers are enabled
+• Data and Valid Transmitters are held low
+• Data and Valid Receivers are enabled
+• If the operating speed is <= 32 GT/s AND Strobe mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are held differential low (for differential clocking) or 
+simultaneous low (for Quadrature clocking)
+• If the operating speed is > 32 GT/s OR continuous clock mode was advertised by the UCIe Module 
+Partner, then the Clock Transmitters are providing the free-running forwarded clock
+• If the operating speed is > 32 GT/s, the UCIe Module sets the TX EQ presets to an 
+implementation-specific default when entering this state for the first time since RESET exit or a 
+speed degrade; otherwise, the TX EQ presets are set to the value for the current speed from the 
+last exit from MBTRAIN.RXDESKEW.
+Following is the MBTRAIN.DATATRAINCENTER1 sequence:
+1. The UCIe Module sends the {MBTRAIN.DATATRAINCENTER1 start req} sideband message. When 
+{MBTRAIN.DATATRAINCENTER1 start req} sideband message is received, the UCIe Module 
+Partner responds with {MBTRAIN.DATATRAINCENTER1 start resp}.
+2. The UCIe Module must perform one or more Transmitter-initiated Data-to-Clock eye width sweeps 
+(see Section 4.5.1.2) (AND/OR) one or more Transmitter-initiated Data-to-Clock point tests (see 
+Section 4.5.1.1) to determine the correct data to clock centering and adjust Transmitter per-bit 
+deskew (if needed).
+a. The Transmitter must be set up to send 4K UI of continuous mode LFSR pattern described in 
+Section 4.4.1. The LFSR pattern on data must be accompanied by correct valid framing on the 
+Valid Lane as described in Section 4.1.2. The Receiver must be set up to perform per Lane 
+comparison.
+b. Detection on a Receiver Lane is considered successful if total error count is less than the set 
+error threshold (see Section 9.5.3.29).
+3. If the test is a success, the UCIe Module must set the clock phase to sample the data eye 
+at the optimal point to maximize eye margins. The UCIe Module must send 
+{MBTRAIN.DATATRAINCENTER1 end req} sideband message. When 
+{MBTRAIN.DATATRAINCENTER1 end req} sideband message is received, the UCIe Module Partner 
+responds with {MBTRAIN.DATATRAINCENTER1 end resp}. Once the UCIe Module has sent and 
+received the {MBTRAIN.DATATRAINCENTER1 end resp} sideband message, it must exit to 
+MBTRAIN.DATATRAINVREF.

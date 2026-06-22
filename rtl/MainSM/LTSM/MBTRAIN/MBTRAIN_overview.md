@@ -121,7 +121,7 @@ Calibration substates rely on point-testing the clock-to-data alignment. This is
 | **`DATATRAINVREF`** | Receiver-initiated (`RX_D2C_PT`) | RX Vref (Data Lanes) | Active Data Lanes | 1. Local sends `{DATATRAINVREF start req}`, Partner replies `{DATATRAINVREF start resp}`.<br>2. Local sweeps RX Vref on Data Lanes.<br>3. Local sends `{DATATRAINVREF end req}`, Partner replies `{DATATRAINVREF end resp}`. |
 | **`RXDESKEW`** | Receiver-initiated (`RX_D2C_PT`) | RX Deskew Delay Code | Active Data Lanes | 1. Local sends `{RXDESKEW start req}`, Partner replies `{RXDESKEW start resp}`.<br>2. Local sweeps RX Deskew delay on Data Lanes.<br>3. Local sends `{RXDESKEW end req}`, Partner replies `{RXDESKEW end resp}`. |
 | **`DATATRAINCENTER2`** | Transmitter-initiated (`TX_D2C_PT`) | TX PI Code (Data Lanes - Pass 2) | Active Data Lanes | 1. Local sends `{DATATRAINCENTER2 start req}`, Partner replies `{DATATRAINCENTER2 start resp}`.<br>2. Local sweeps TX PI phase on Data Lanes.<br>3. Local sends `{DATATRAINCENTER2 end req}`, Partner replies `{DATATRAINCENTER2 end resp}`. |
-| **`LINKSPEED`** | Transmitter-initiated (`TX_D2C_PT`) | None (Single Point Stability Test) | Active Data Lanes + Valid | 1. Local sends `{LINKSPEED start req}`, Partner replies `{LINKSPEED start resp}`.<br>2. Local runs a single-point D2C Point Test at optimized settings to check Link stability.<br>3. Local sends `{LINKSPEED done req}`, Partner replies `{LINKSPEED done resp}`. |
+| **`LINKSPEED`** | Transmitter-initiated (`TX_D2C_PT`) | None (Single Point Stability Test) | Active Data Lanes + Valid | 1. Local sends `{LINKSPEED start req}`, Partner replies `{LINKSPEED start resp}`.<br>2. Local runs a single-point D2C Point Test at optimized settings to check Link stability.<br>3. Local sends `{LINKSPEED done req}`, Partner replies `{LINKSPEED done resp}`. (See Section 17.3 for detailed error recovery and retrain handshakes) |
 
 ---
 
@@ -352,61 +352,37 @@ UCIe-3.0-PHY-layer/
 │               ├── unit_MBTRAIN_ctrl.sv              
 │               └── wrapper_MBTRAIN.sv
 ├── sim/
-│   ├── listfiles/
-│   │   ├── unit_MBTRAIN_ctrl.f                           # ✅ Completed.
-│   │   ├── unit_RX_D2C_PT.f                              # ✅ Completed.
-│   │   ├── unit_TX_D2C_PT.f                              # ✅ Completed.
-│   │   ├── wrapper_D2C_PT.f                              # ✅ Completed.
-│   │   ├── wrapper_D2C_PT_top.f                          # ✅ listfile for wrapper_D2C_PT_top_tb          simulation.
-│   │   ├── wrapper_DATATRAINCENTER1.f                    # ✅ listfile for wrapper_DATATRAINCENTER1_tb    simulation.
-│   │   ├── wrapper_DATATRAINCENTER2.f                    # ✅ listfile for wrapper_DATATRAINCENTER2_tb    simulation.
-│   │   ├── wrapper_DATATRAINVREF.f                       # ✅ listfile for wrapper_DATATRAINVREF_tb       simulation.
-│   │   ├── wrapper_DATAVREF.f                            # ✅ listfile for wrapper_DATAVREF_tb            simulation.
-│   │   ├── wrapper_LINKSPEED.f                           # ✅ listfile for wrapper_LINKSPEED_tb           simulation.
-│   │   ├── wrapper_MBTRAIN_class_based.f                 # ✅ listfile for wrapper_MBTRAIN_class_based_tb simulation.
-│   │   ├── wrapper_REPAIR.f                              # ✅ listfile for wrapper_REPAIR_tb              simulation.
-│   │   ├── wrapper_RXCLKCAL.f                            # ✅ listfile for wrapper_RXCLKCAL_tb            simulation.
-│   │   ├── wrapper_RXDESKEW.f                            # ✅ listfile for wrapper_RXDESKEW_tb            simulation.
-│   │   ├── wrapper_SPEEDIDLE.f                           # ✅ listfile for wrapper_SPEEDIDLE_tb           simulation.
-│   │   ├── wrapper_TXSELFCAL.f                           # ✅ listfile for wrapper_TXSELFCAL_tb           simulation.
-│   │   ├── wrapper_VALTRAINCENTER.f                      # ✅ listfile for wrapper_VALTRAINCENTER_tb      simulation.
-│   │   ├── wrapper_VALTRAINVREF.f                        # ✅ listfile for wrapper_VALTRAINVREF_tb        simulation.
-│   │   ├── wrapper_VALVREF.f                             # ✅ listfile for wrapper_VALVREF_tb             simulation.
-│   │   └── wrapper_MBTRAIN.f
-│   └── waves/
-│       ├── unit_DATATRAINCENTER1_tb.do
-│       ├── unit_DATATRAINCENTER2_tb.do
-│       ├── unit_DATATRAINVREF_tb.do
-│       ├── unit_DATAVREF_tb.do
-│       ├── unit_LINKSPEED_tb.do
-│       ├── unit_MBTRAIN_ctrl_tb.do
-│       ├── unit_REPAIR_tb.do
-│       ├── unit_RXCLKCAL_tb.do
-│       ├── unit_RXDESKEW_tb.do
-│       ├── unit_RX_D2C_PT_tb.do
-│       ├── unit_SPEEDIDLE_tb.do
-│       ├── unit_TXSELFCAL_tb.do
-│       ├── unit_TX_D2C_PT_tb.do
-│       ├── unit_VALTRAINCENTER_tb.do
-│       ├── unit_VALTRAINVREF_tb.do
-│       ├── unit_VALVREF_tb.do
-│       ├── wrapper_D2C_PT_tb.do
-│       └── wrapper_MBTRAIN_tb.do
+│   └── listfiles/
+│       ├── unit_RX_D2C_PT.f                              # ✅ Completed.
+│       ├── unit_TX_D2C_PT.f                              # ✅ Completed.
+│       ├── wrapper_D2C_PT.f                              # ✅ listfile for wrapper_D2C_PT_tb              simulation.
+│       ├── wrapper_DATATRAINCENTER1.f                    # ✅ listfile for wrapper_DATATRAINCENTER1_tb    simulation.
+│       ├── wrapper_DATATRAINCENTER2.f                    # ✅ listfile for wrapper_DATATRAINCENTER2_tb    simulation.
+│       ├── wrapper_DATATRAINVREF.f                       # ✅ listfile for wrapper_DATATRAINVREF_tb       simulation.
+│       ├── wrapper_DATAVREF.f                            # ✅ listfile for wrapper_DATAVREF_tb            simulation.
+│       ├── wrapper_LINKSPEED.f                           # ✅ listfile for wrapper_LINKSPEED_tb           simulation.
+│       ├── wrapper_REPAIR.f                              # ✅ listfile for wrapper_REPAIR_tb              simulation.
+│       ├── wrapper_RXCLKCAL.f                            # ✅ listfile for wrapper_RXCLKCAL_tb            simulation.
+│       ├── wrapper_RXDESKEW.f                            # ✅ listfile for wrapper_RXDESKEW_tb            simulation.
+│       ├── wrapper_SPEEDIDLE.f                           # ✅ listfile for wrapper_SPEEDIDLE_tb           simulation.
+│       ├── wrapper_TXSELFCAL.f                           # ✅ listfile for wrapper_TXSELFCAL_tb           simulation.
+│       ├── wrapper_VALTRAINCENTER.f                      # ✅ listfile for wrapper_VALTRAINCENTER_tb      simulation.
+│       ├── wrapper_VALTRAINVREF.f                        # ✅ listfile for wrapper_VALTRAINVREF_tb        simulation.
+│       ├── wrapper_VALVREF.f                             # ✅ listfile for wrapper_VALVREF_tb             simulation.
+│       ├── wrapper_MBTRAIN.f                             # ✅ listfile for wrapper_MBTRAIN_tb             simulation.
+│       └── wrapper_MBTRAIN_class_based.f                 # ✅ listfile for wrapper_MBTRAIN_class_based_tb simulation.
 └── tb/
     ├── unit/
     │   └── MainSM/
     │       └── LTSM/
-    │           ├── D2C_PT/
-    │           │   ├── unit_RX_D2C_PT_tb.sv              # ✅ Completed.
-    │           │   └── unit_TX_D2C_PT_tb.sv              # ✅ Completed.
-    │           └── MBTRAIN/
-    │               └── unit_MBTRAIN_ctrl_tb.sv           # ✅ Completed.
+    │           └── D2C_PT/
+    │               ├── unit_RX_D2C_PT_tb.sv              # ✅ Completed.
+    │               └── unit_TX_D2C_PT_tb.sv              # ✅ Completed.
     └── wrapper/
         └── MainSM/
             └── LTSM/
                 ├── D2C_PT/
-                │   ├── wrapper_D2C_PT_tb.sv              # ✅ Completed.
-                │   └── wrapper_D2C_PT_top_tb.sv          # ✅ Verified: top-level TB covering all 6 test types + 100 randomized iterations.
+                │   └── wrapper_D2C_PT_tb.sv              # ✅ Completed.
                 └── MBTRAIN/
                     ├── common/
                     │   ├── ltsm_tb_attachments.sv        # ✅ Completed: TB attachments.
@@ -440,7 +416,7 @@ UCIe-3.0-PHY-layer/
                     ├── wrapper_VALTRAINCENTER_tb.sv   # ✅ Completed & Verified.
                     ├── wrapper_VALTRAINVREF_tb.sv     # ✅ Completed & Verified.
                     ├── wrapper_VALVREF_tb.sv          # ✅ Completed & Verified.
-                    └── wrapper_MBTRAIN_tb.sv          # ✅ It works but need more scenarios.
+                    └── wrapper_MBTRAIN_tb.sv          # ✅ It works but need more scenarios. so, we created "wrapper_MBTRAIN_class_based_tb".
 ```
 
 ---
@@ -633,72 +609,72 @@ To compile and verify `wrapper_MBTRAIN.sv` successfully, implement the following
 
 For quick lookup without parsing `UCIe_pkg.sv` directly, the following sideband message code mappings (enum `msg_no_e`) are implemented:
 
-| Message Symbolic Name | Enum Value | MsgInfo / Data Contents and Description |
-| :--- | :--- | :--- |
-| `MBTRAIN_VALVREF_start_req`  | `d35` | Starts Rx Valid Vref training. MsgInfo: `16'h0`.   |
-| `MBTRAIN_VALVREF_start_resp` | `d36` | Acknowledges start. MsgInfo: `16'h0`.              |
-| `MBTRAIN_VALVREF_end_req`    | `d37` | Finishes Rx Valid Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALVREF_end_resp`   | `d38` | Acknowledges finish. MsgInfo: `16'h0`.             |
-| `MBTRAIN_DATAVREF_start_req`  | `d39` | Starts Rx Data Vref calibration. MsgInfo: `16'h0`.   |
-| `MBTRAIN_DATAVREF_start_resp` | `d40` | Acknowledges start. MsgInfo: `16'h0`.                |
-| `MBTRAIN_DATAVREF_end_req`    | `d41` | Finishes Rx Data Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATAVREF_end_resp`   | `d42` | Acknowledges finish. MsgInfo: `16'h0`.               |
-| `MBTRAIN_SPEEDIDLE_done_req`  | `d43` | Speed negotiation done request. MsgInfo: `16'h0`.  |
-| `MBTRAIN_SPEEDIDLE_done_resp` | `d44` | Speed negotiation done response. MsgInfo: `16'h0`. |
-| `MBTRAIN_TXSELFCAL_Done_req`  | `d45` | Transmitter self-cal done request. MsgInfo: `16'h0`.  |
-| `MBTRAIN_TXSELFCAL_Done_resp` | `d46` | Transmitter self-cal done response. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_start_req`        | `d47` | Starts Rx clock and IQ calibration. MsgInfo: `16'h0`.     |
-| `MBTRAIN_RXCLKCAL_start_resp`       | `d48` | Acknowledges start. MsgInfo: `16'h0`.                     |
-| `MBTRAIN_RXCLKCAL_TCKN_L_shift_req` | `d49` | Request remote transmitter shift clock. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXCLKCAL_TCKN_L_shift_resp`| `d50` | Acknowledges shift request. MsgInfo: `16'h0`.             |
-| `MBTRAIN_RXCLKCAL_done_req`         | `d51` | Clock cal done request. MsgInfo: `16'h0`.                 |
-| `MBTRAIN_RXCLKCAL_done_resp`        | `d52` | Clock cal done response. MsgInfo: `16'h0`.                |
-| `MBTRAIN_VALTRAINCENTER_start_req` | `d53` | Starts Valid PI calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINCENTER_start_resp`| `d54` | Acknowledges start. MsgInfo: `16'h0`.          |
-| `MBTRAIN_VALTRAINCENTER_done_req`  | `d55` | Valid PI done request. MsgInfo: `16'h0`.       |
-| `MBTRAIN_VALTRAINCENTER_done_resp` | `d56` | Valid PI done response. MsgInfo: `16'h0`.      |
-| `MBTRAIN_VALTRAINVREF_start_req`  | `d57` | Starts Valid Rx Vref training. MsgInfo: `16'h0`.   |
-| `MBTRAIN_VALTRAINVREF_start_resp` | `d58` | Acknowledges start. MsgInfo: `16'h0`.              |
-| `MBTRAIN_VALTRAINVREF_end_req`    | `d59` | Finishes Valid Rx Vref training. MsgInfo: `16'h0`. |
-| `MBTRAIN_VALTRAINVREF_end_resp`   | `d60` | Acknowledges finish. MsgInfo: `16'h0`.             |
-| `MBTRAIN_DATATRAINCENTER1_start_req` | `d61` | Starts Data PI Pass 1 training. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER1_start_resp`| `d62` | Acknowledges start. MsgInfo: `16'h0`.             |
-| `MBTRAIN_DATATRAINCENTER1_end_req`   | `d63` | Finishes Data PI Pass 1. MsgInfo: `16'h0`.        |
-| `MBTRAIN_DATATRAINCENTER1_end_resp`  | `d64` | Acknowledges finish. MsgInfo: `16'h0`.            |
-| `MBTRAIN_DATATRAINVREF_start_req`  | `d65` | Starts Data Rx Vref calibration. MsgInfo: `16'h0`.   |
-| `MBTRAIN_DATATRAINVREF_start_resp` | `d66` | Acknowledges start. MsgInfo: `16'h0`.                |
-| `MBTRAIN_DATATRAINVREF_end_req`    | `d67` | Finishes Data Rx Vref calibration. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINVREF_end_resp`   | `d68` | Acknowledges finish. MsgInfo: `16'h0`.               |
-| `MBTRAIN_RXDESKEW_start_req`                    | `d69` | Starts Rx deskew calibration. MsgInfo: `16'h0`.  |
-| `MBTRAIN_RXDESKEW_start_resp`                   | `d70` | Acknowledges start. MsgInfo: `16'h0`.            |
-| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req` | `d73` | Request loopback to DTC1. MsgInfo: `16'h0`.      |
-| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp`| `d74` | Acknowledges loopback request. MsgInfo: `16'h0`. |
-| `MBTRAIN_RXDESKEW_end_req`                      | `d75` | Finishes Rx deskew. MsgInfo: `16'h0`.            |
-| `MBTRAIN_RXDESKEW_end_resp`                     | `d76` | Acknowledges finish. MsgInfo: `16'h0`.           |
-| `MBTRAIN_DATATRAINCENTER2_start_req` | `d77` | Starts Data PI Pass 2 training. MsgInfo: `16'h0`. |
-| `MBTRAIN_DATATRAINCENTER2_start_resp`| `d78` | Acknowledges start. MsgInfo: `16'h0`.             |
-| `MBTRAIN_DATATRAINCENTER2_end_req`   | `d79` | Finishes Data PI Pass 2. MsgInfo: `16'h0`.        |
-| `MBTRAIN_DATATRAINCENTER2_end_resp`  | `d80` | Acknowledges finish. MsgInfo: `16'h0`.            |
-| `MBTRAIN_LINKSPEED_start_req`                                             | `d81` | Starts Link stability point test. MsgInfo: `16'h0`.     |
-| `MBTRAIN_LINKSPEED_start_resp`                                            | `d82` | Acknowledges start. MsgInfo: `16'h0`.                   |
-| `MBTRAIN_LINKSPEED_error_req`                                             | `d83` | Reports link stable test failed. MsgInfo: `16'h0`.      |
-| `MBTRAIN_LINKSPEED_error_resp`                                            | `d84` | Acknowledges error report. MsgInfo: `16'h0`.            |
-| `MBTRAIN_LINKSPEED_exit_to_repair_req`                                    | `d85` | Requests exit path to REPAIR. MsgInfo: `16'h0`.         |
-| `MBTRAIN_LINKSPEED_exit_to_repair_resp`                                   | `d86` | Acknowledges exit to REPAIR. MsgInfo: `16'h0`.          |
-| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_req`                             | `d87` | Requests speed degradation downshift. MsgInfo: `16'h0`. |
-| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp`                            | `d88` | Acknowledges speed degradation. MsgInfo: `16'h0`.       |
-| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_req` | `d89` | Requests exit to PHYRETRAIN. MsgInfo: `16'h0`.          |
-| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR_MBTRAIN_RXDESKEW_EQ_Preset_resp`| `d90` | Acknowledges exit to PHYRETRAIN. MsgInfo: `16'h0`.      |
-| `MBTRAIN_LINKSPEED_done_req`                                              | `d91` | Stable test passed request. MsgInfo: `16'h0`.           |
-| `MBTRAIN_LINKSPEED_done_resp`                                             | `d92` | Stable test passed response. MsgInfo: `16'h0`.          |
-| `MBTRAIN_REPAIR_init_req`          | `d93` | Starts link repair (degrade width). MsgInfo: `16'h0`.        |
-| `MBTRAIN_REPAIR_init_resp`         | `d94` | Acknowledges repair start. MsgInfo: `16'h0`.                 |
-| `MBTRAIN_REPAIR_apply_degrade_req` | `d95` | Local sends degraded lane map. MsgInfo: `[2:0] tx_map_code`. |
-| `MBTRAIN_REPAIR_apply_degrade_resp`| `d96` | Acknowledges registered degraded map. MsgInfo: `16'h0`.      |
-| `MBTRAIN_REPAIR_end_req`           | `d97` | Finishes REPAIR substate. MsgInfo: `16'h0`.                  |
-| `MBTRAIN_REPAIR_end_resp`          | `d98` | Acknowledges finish. MsgInfo: `16'h0`.                       |
-| `TRAINERROR_Entry_req`  | `d107`| Enter global TRAINERROR state. MsgInfo: `16'h0`. |
-| `TRAINERROR_Entry_resp` | `d108`| Acknowledge TRAINERROR entry. MsgInfo: `16'h0`.  |
+| Message Symbolic Name                                                            | Enum Value | MsgInfo / Data Contents and Description                                                                                                                                                     |
+| :------------------------------------------------------------------------------- | :--------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MBTRAIN_VALVREF_start_req`                                                      | `d35`      | Starts Rx Valid Vref training. MsgInfo: `16'h0`.                                                                                                                                            |
+| `MBTRAIN_VALVREF_start_resp`                                                     | `d36`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_VALVREF_end_req`                                                        | `d37`      | Finishes Rx Valid Vref training. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_VALVREF_end_resp`                                                       | `d38`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_DATAVREF_start_req`                                                     | `d39`      | Starts Rx Data Vref calibration. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_DATAVREF_start_resp`                                                    | `d40`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_DATAVREF_end_req`                                                       | `d41`      | Finishes Rx Data Vref calibration. MsgInfo: `16'h0`.                                                                                                                                        |
+| `MBTRAIN_DATAVREF_end_resp`                                                      | `d42`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_SPEEDIDLE_done_req`                                                     | `d43`      | Speed negotiation done request. MsgInfo: `16'h0`.                                                                                                                                           |
+| `MBTRAIN_SPEEDIDLE_done_resp`                                                    | `d44`      | Speed negotiation done response. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_TXSELFCAL_Done_req`                                                     | `d45`      | Transmitter self-cal done request. MsgInfo: `16'h0`.                                                                                                                                        |
+| `MBTRAIN_TXSELFCAL_Done_resp`                                                    | `d46`      | Transmitter self-cal done response. MsgInfo: `16'h0`.                                                                                                                                       |
+| `MBTRAIN_RXCLKCAL_start_req`                                                     | `d47`      | Starts Rx clock and IQ calibration. MsgInfo: `16'h0`.                                                                                                                                       |
+| `MBTRAIN_RXCLKCAL_start_resp`                                                    | `d48`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_RXCLKCAL_TCKN_L_shift_req`                                              | `d49`      | Request remote transmitter shift clock. MsgInfo: `16'h0`.                                                                                                                                   |
+| `MBTRAIN_RXCLKCAL_TCKN_L_shift_resp`                                             | `d50`      | Acknowledges shift request. MsgInfo: `16'h0`.                                                                                                                                               |
+| `MBTRAIN_RXCLKCAL_done_req`                                                      | `d51`      | Clock cal done request. MsgInfo: `16'h0`.                                                                                                                                                   |
+| `MBTRAIN_RXCLKCAL_done_resp`                                                     | `d52`      | Clock cal done response. MsgInfo: `16'h0`.                                                                                                                                                  |
+| `MBTRAIN_VALTRAINCENTER_start_req`                                               | `d53`      | Starts Valid PI calibration. MsgInfo: `16'h0`.                                                                                                                                              |
+| `MBTRAIN_VALTRAINCENTER_start_resp`                                              | `d54`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_VALTRAINCENTER_done_req`                                                | `d55`      | Valid PI done request. MsgInfo: `16'h0`.                                                                                                                                                    |
+| `MBTRAIN_VALTRAINCENTER_done_resp`                                               | `d56`      | Valid PI done response. MsgInfo: `16'h0`.                                                                                                                                                   |
+| `MBTRAIN_VALTRAINVREF_start_req`                                                 | `d57`      | Starts Valid Rx Vref training. MsgInfo: `16'h0`.                                                                                                                                            |
+| `MBTRAIN_VALTRAINVREF_start_resp`                                                | `d58`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_VALTRAINVREF_end_req`                                                   | `d59`      | Finishes Valid Rx Vref training. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_VALTRAINVREF_end_resp`                                                  | `d60`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_DATATRAINCENTER1_start_req`                                             | `d61`      | Starts Data PI Pass 1 training. MsgInfo: `16'h0`.                                                                                                                                           |
+| `MBTRAIN_DATATRAINCENTER1_start_resp`                                            | `d62`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_DATATRAINCENTER1_end_req`                                               | `d63`      | Finishes Data PI Pass 1. MsgInfo: `16'h0`.                                                                                                                                                  |
+| `MBTRAIN_DATATRAINCENTER1_end_resp`                                              | `d64`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_DATATRAINVREF_start_req`                                                | `d65`      | Starts Data Rx Vref calibration. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_DATATRAINVREF_start_resp`                                               | `d66`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_DATATRAINVREF_end_req`                                                  | `d67`      | Finishes Data Rx Vref calibration. MsgInfo: `16'h0`.                                                                                                                                        |
+| `MBTRAIN_DATATRAINVREF_end_resp`                                                 | `d68`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_RXDESKEW_start_req`                                                     | `d69`      | Starts Rx deskew calibration. MsgInfo: `16'h0`.                                                                                                                                             |
+| `MBTRAIN_RXDESKEW_start_resp`                                                    | `d70`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_req`                                  | `d73`      | Request loopback to DTC1. MsgInfo: `16'h0`.                                                                                                                                                 |
+| `MBTRAIN_RXDESKEW_exit_to_DATATRAINCENTER1_resp`                                 | `d74`      | Acknowledges loopback request. MsgInfo: `16'h0`.                                                                                                                                            |
+| `MBTRAIN_RXDESKEW_end_req`                                                       | `d75`      | Finishes Rx deskew. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_RXDESKEW_end_resp`                                                      | `d76`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_DATATRAINCENTER2_start_req`                                             | `d77`      | Starts Data PI Pass 2 training. MsgInfo: `16'h0`.                                                                                                                                           |
+| `MBTRAIN_DATATRAINCENTER2_start_resp`                                            | `d78`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_DATATRAINCENTER2_end_req`                                               | `d79`      | Finishes Data PI Pass 2. MsgInfo: `16'h0`.                                                                                                                                                  |
+| `MBTRAIN_DATATRAINCENTER2_end_resp`                                              | `d80`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `MBTRAIN_LINKSPEED_start_req`                                                    | `d81`      | Starts Link stability point test. MsgInfo: `16'h0`.                                                                                                                                         |
+| `MBTRAIN_LINKSPEED_start_resp`                                                   | `d82`      | Acknowledges start. MsgInfo: `16'h0`.                                                                                                                                                       |
+| `MBTRAIN_LINKSPEED_error_req`                                                    | `d83`      | Reports link stable test failed. MsgInfo: `16'h0`.                                                                                                                                          |
+| `MBTRAIN_LINKSPEED_error_resp`                                                   | `d84`      | Acknowledges error report. MsgInfo: `16'h0`.                                                                                                                                                |
+| `MBTRAIN_LINKSPEED_exit_to_repair_req`                                           | `d85`      | Requests exit path to REPAIR. MsgInfo: `16'h0`.                                                                                                                                             |
+| `MBTRAIN_LINKSPEED_exit_to_repair_resp`                                          | `d86`      | Acknowledges exit to REPAIR. MsgInfo: `16'h0`.                                                                                                                                              |
+| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_req`                                    | `d87`      | Requests speed degradation downshift. MsgInfo: `16'h0`.                                                                                                                                     |
+| `MBTRAIN_LINKSPEED_exit_to_speed_degrade_resp`                                   | `d88`      | Acknowledges speed degradation. MsgInfo: `16'h0`.                                                                                                                                           |
+| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR`<br>`_MBTRAIN_RXDESKEW_EQ_Preset_req`  | `d89`      | Requests exit to PHYRETRAIN (MsgInfo: `16'h0`). Also, means<br>Requests changing the partner Tx EQ Preset.                                                                                  |
+| `MBTRAIN_LINKSPEED_exit_to_phy_retrain_OR`<br>`_MBTRAIN_RXDESKEW_EQ_Preset_resp` | `d90`      | Acknowledges exit to PHYRETRAIN (MsgInfo: `16'h0`). Also, means<br>Acknowledges to know if the Tx EQ preset accepted or not <br>(MsgInfo \[0\]: `is accepted?`, MsgInfo \[15:1\]: `15'h0`). |
+| `MBTRAIN_LINKSPEED_done_req`                                                     | `d91`      | Stable test passed request. MsgInfo: `16'h0`.                                                                                                                                               |
+| `MBTRAIN_LINKSPEED_done_resp`                                                    | `d92`      | Stable test passed response. MsgInfo: `16'h0`.                                                                                                                                              |
+| `MBTRAIN_REPAIR_init_req`                                                        | `d93`      | Starts link repair (degrade width). MsgInfo: `16'h0`.                                                                                                                                       |
+| `MBTRAIN_REPAIR_init_resp`                                                       | `d94`      | Acknowledges repair start. MsgInfo: `16'h0`.                                                                                                                                                |
+| `MBTRAIN_REPAIR_apply_degrade_req`                                               | `d95`      | Local sends degraded lane map. MsgInfo: `[2:0] tx_map_code`.                                                                                                                                |
+| `MBTRAIN_REPAIR_apply_degrade_resp`                                              | `d96`      | Acknowledges registered degraded map. MsgInfo: `16'h0`.                                                                                                                                     |
+| `MBTRAIN_REPAIR_end_req`                                                         | `d97`      | Finishes REPAIR substate. MsgInfo: `16'h0`.                                                                                                                                                 |
+| `MBTRAIN_REPAIR_end_resp`                                                        | `d98`      | Acknowledges finish. MsgInfo: `16'h0`.                                                                                                                                                      |
+| `TRAINERROR_Entry_req`                                                           | `d107`     | Enter global TRAINERROR state. MsgInfo: `16'h0`.                                                                                                                                            |
+| `TRAINERROR_Entry_resp`                                                          | `d108`     | Acknowledge TRAINERROR entry. MsgInfo: `16'h0`.                                                                                                                                             |
 
 ---
 
@@ -849,7 +825,53 @@ During **RXDESKEW** (active in High-Speed mode only), the receiver measures the 
 
 ---
 
-### 17.3. Detailed Architectural Causes for TRAINERROR Transitions
+### 17.3. The LINKSPEED Detailed Decision and Exit Flows
+
+In **LINKSPEED**, the decoupled FSM modules (Local and Partner) coordinate the final link quality stability check. Depending on the test outcome and register status, the substate branches into one of four possible exit paths:
+
+1. **Nominal Success (To LINKINIT)**:
+   - **Condition**: All active lanes pass the single-point D2C test, and either `PHY_IN_RETRAIN == 0`, or it is set but `params_changed == 0`.
+   - **Handshake**: Local sends `{MBTRAIN.LINKSPEED done req}`, Partner responds with `{MBTRAIN.LINKSPEED done resp}`.
+   - **Exit**: Both FSMs transition to the LINKINIT exit state (`linkspeed_done = 1`, `linkinit_req = 1`).
+
+2. **PHY Retrain Path (To PHYRETRAIN)**:
+   - **Condition**: All active lanes pass the single-point D2C test, but the link was entered via PHY Retrain (`PHY_IN_RETRAIN == 1`) and a register change has been detected (`params_changed == 1`).
+   - **Handshake**: Local sends `{MBTRAIN.LINKSPEED exit to phy retrain req}`, Partner responds with `{MBTRAIN.LINKSPEED exit to phy retrain resp}`.
+   - **Exit**: Both FSMs transition to the PHYRETRAIN exit state (`linkspeed_done = 1`, `phyretrain_req = 1`).
+
+3. **Error Recovery: Width Degradation (To REPAIR)**:
+   - **Condition**: One or more active lanes fail the D2C stability test, and a degraded width map is feasible (`width_degrade_feasible == 1`).
+   - **Handshake**:
+     - Local drives its transmitters to Electrical Idle (`tx_elec_idle = 1`) and sends `{MBTRAIN.LINKSPEED error req}`.
+     - Partner disables its receivers (`rx_elec_idle = 1`) and responds with `{MBTRAIN.LINKSPEED error resp}`.
+     - Upon receiving the response, Local asserts `PHY_IN_RETRAIN_rst` for 1 cycle to clear the retrain flag.
+     - Local then sends `{MBTRAIN.LINKSPEED exit to repair req}`.
+     - Partner responds with `{MBTRAIN.LINKSPEED exit to repair resp}` (unless initiating speed degrade).
+   - **Exit**: Both FSMs transition to the REPAIR exit state (`linkspeed_done = 1`, `repair_req = 1`).
+
+4. **Error Recovery: Speed Degradation (To SPEEDIDLE)**:
+   - **Condition**: One or more active lanes fail the D2C stability test, and width degradation is not feasible (`width_degrade_feasible == 0` / already degraded/unsupported).
+   - **Handshake**:
+     - Local drives transmitters to Electrical Idle (`tx_elec_idle = 1`) and sends `{MBTRAIN.LINKSPEED error req}`.
+     - Partner disables receivers (`rx_elec_idle = 1`) and responds with `{MBTRAIN.LINKSPEED error resp}`.
+     - Upon receiving the response, Local asserts `PHY_IN_RETRAIN_rst` for 1 cycle.
+     - Local sends `{MBTRAIN.LINKSPEED exit to speed degrade req}`.
+     - Partner responds with `{MBTRAIN.LINKSPEED exit to speed degrade resp}`.
+   - **Exit**: Both FSMs transition to the SPEEDIDLE exit state (`linkspeed_done = 1`, `speedidle_req = 1`).
+
+#### Cross-Die Handshake Coordination Rules:
+* **Asymmetric Failures**: If our die's Local FSM detected no errors (sent `{done req}` and is in `WAIT_DONE_RESP`), but the remote die's Local FSM detected errors (and sent `{error req}`):
+  - Our Local FSM receives the partner's `{error req}`, abandons its outstanding `{done req}`, and enters `WAIT_RECOVERY_REQ`.
+  - Our Partner FSM receives the partner's `{error req}`, enters receiver Electrical Idle (`rx_elec_idle = 1`), and responds with `{error resp}`.
+  - Our Local FSM waits in `WAIT_RECOVERY_REQ` for the remote Local to send a recovery request:
+    - If `{exit to speed degrade req}` is received, our Local transitions to `SPEEDIDLE`.
+    - If `{exit to repair req}` is received, our Local transitions to `REPAIR`.
+* **Priority Override**:
+  - Speed degradation takes priority over width degradation. If a Local has sent `{exit to repair req}` but receives `{exit to speed degrade req}` from the partner, it must abandon the repair request, respond to the speed degrade request with `{exit to speed degrade resp}`, and transition to `SPEEDIDLE`.
+
+---
+
+### 17.4. Detailed Architectural Causes for TRAINERROR Transitions
 
 > [!IMPORTANT]
 > **No Timeout Logic in MBTRAIN Sub-states**:
@@ -858,7 +880,7 @@ During **RXDESKEW** (active in High-Speed mode only), the receiver measures the 
 > 2. They do **not** receive any timeout occurrence/occurred signal.
 > 3. Within the sub-states, there is **no request** to transition to `TRAINERROR` due to timeout.
 >
-> The sole source that manages the timeout counter and monitors the timeout occurred signal is the parent **LTSM controller** (the top-level controller that will be implemented in the future, not now). The sub-state FSMs execute their training algorithms indefinitely until they complete, hit a local architectural check failure, or are aborted from the outside by the LTSM controller deasserting their enable inputs.
+> The sole source that manages the timeout counter and monitors the timeout occurred signal is the parent **LTSM controller** (the top-level controller). The sub-state FSMs execute their training algorithms indefinitely until they complete, hit a local architectural check failure, or are aborted from the outside by the LTSM controller deasserting their enable inputs.
 
 Beyond the global 8ms timeout watchdog managed by the parent LTSM controller, the LTSM MBTRAIN sub-modules perform local checks that trigger an immediate transition to `TRAINERROR` if violated:
 
@@ -877,15 +899,15 @@ Beyond the global 8ms timeout watchdog managed by the parent LTSM controller, th
 
 ---
 
-### 17.4. Scenario Matrix
+### 17.5. Scenario Matrix
 
 The verification scenarios are classified into six groups:
 
 #### Group A: Normal Success Flow (Golden Path)
-| Scenario | Scenario Name               | Description / Conditions                                                                                | Expected Flow Path                                                                                                                                                                | Result |
-| :------- | :-------------------------- | :------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----: |
-| **A1**   | Golden Path (MBINIT Entry)  | Enters from `MBINIT` (`VALVREF` start). All substates succeed; `RXDESKEW` succeeds; `LINKSPEED` stable. | VALVREF → DATAVREF → SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
-| **A2**   | Golden Path (L1 Exit Entry) | Enters from `L1` or `L1_L2` exit (`SPEEDIDLE` start, `state_n_1 == LOG_L1` OR `state_n_1 == LOG_L1_L2`). Previous speed is kept; all substates succeed. | SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| Scenario | Scenario Name               | Description / Conditions                                                                                                                                | Expected Flow Path                                                                                                                                                                |  Result  |
+| :------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
+| **A1**   | Golden Path (MBINIT Entry)  | Enters from `MBINIT` (`VALVREF` start). All substates succeed; `RXDESKEW` succeeds; `LINKSPEED` stable.                                                 | VALVREF → DATAVREF → SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| **A2**   | Golden Path (L1 Exit Entry) | Enters from `L1` or `L1_L2` exit (`SPEEDIDLE` start, `state_n_1 == LOG_L1` OR `state_n_1 == LOG_L1_L2`). Previous speed is kept; all substates succeed. | SPEEDIDLE → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT**                      | **PASS** |
 
 #### Group B: Speed Degrade Flow
 | Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
@@ -902,19 +924,20 @@ The verification scenarios are classified into six groups:
 > * If any other width configuration issues an unsupported degrade request (e.g. degrading directly from x16 to x4), the controller exits to `TRAINERROR`.
 > * Only one degradation level is allowed per training session. A second degrade request exits to `TRAINERROR`.
 
-| Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |
-| :--- | :--- | :--- | :--- | :---: |
-| **C1** | Width Degrade x16 → x8 | `is_x16_module = 1` and `is_x8_module = 0`. `LINKSPEED` detects lane instability; width degrade is allowed. | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT** | **PASS** |
-| **C2** | Width Degrade x8 → x4 | `is_x16_module = 0` and `is_x8_module = 1`. `LINKSPEED` detects lane instability; width degrade is allowed. | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT** | **PASS** |
-| **C3** | Width Degrade Exhausted (x16 → x8) | E.g. x16 → x8 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR** | **PASS** |
-| **C4** | Width Degrade Exhausted (x8 → x4) | E.g. x8 → x4 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR** | **PASS** |
+| Scenario | Scenario Name                      | Description / Conditions                                                                                       | Expected Flow Path                                                                                                   |  Result  |
+| :------- | :--------------------------------- | :------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- | :------: |
+| **C1**   | Width Degrade x16 → x8             | `is_x16_module = 1` and `is_x8_module = 0`. `LINKSPEED` detects lane instability; width degrade is allowed.    | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT**                                            | **PASS** |
+| **C2**   | Width Degrade x8 → x4              | `is_x16_module = 0` and `is_x8_module = 1`. `LINKSPEED` detects lane instability; width degrade is allowed.    | ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **REPAIR** → TXSELFCAL → ... → LINKSPEED → **LINKINIT** | **PASS** |
+| **C3**   | Width Degrade Exhausted (x16 → x8) | E.g. x16 → x8 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`. | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR**                                     | **PASS** |
+| **C4**   | Width Degrade Exhausted (x8 → x4)  | E.g. x8 → x4 → second degrade request. Second degrade is not possible (code `3'b000`); exits to `TRAINERROR`.  | ... → LINKSPEED → REPAIR → TXSELFCAL → ... → LINKSPEED → REPAIR → **TRAINERROR**                                     | **PASS** |
 
 #### Group D: PHY Retrain Flow
-| Scenario | Scenario Name                  | Description / Conditions                                                          | Expected Flow Path                                                                                                            | Result |
-| :------- | :----------------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :----: |
-| **D1**   | PHY Retrain Request            | `LINKSPEED` detects parameter change (`params_changed = 1`).                      | ... → LINKSPEED → **PHYRETRAIN**                                                                                              | **PASS** |
-| **D2**   | PHY Retrain Then Success       | Controller re-enters MBTRAIN after a `PHYRETRAIN` request, and training succeeds. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> VALVREF → ... → LINKSPEED → **LINKINIT**                        | **PASS** |
-| **D3**   | PHY Retrain Then Speed Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires speed degrade.       | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> ... → LINKSPEED → **SPEEDIDLE** (fallback) → ... → **LINKINIT** | **PASS** |
+| Scenario | Scenario Name                  | Description / Conditions                                                          | Expected Flow Path                                                                                                                                                                                                                        |  Result  |
+| :------- | :----------------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
+| **D1**   | PHY Retrain Request            | `LINKSPEED` detects parameter change (`params_changed = 1`).                      | ... → LINKSPEED → **PHYRETRAIN**                                                                                                                                                                                                          | **PASS** |
+| **D2**   | PHY Retrain Then Success       | Controller re-enters MBTRAIN after a `PHYRETRAIN` request, and training succeeds. | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> **TXSELFCAL** → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT**                        | **PASS** |
+| **D3**   | PHY Retrain Then Speed Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires speed degrade.       | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> **SPEEDIDLE** (fallback) → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT** | **PASS** |
+| **D4**   | PHY Retrain Then Width Degrade | Controller re-enters MBTRAIN after `PHYRETRAIN` and requires width repair.        | MBTRAIN → LINKSPEED → **PHYRETRAIN** <br> *New session:* <br> **REPAIR** → TXSELFCAL → RXCLKCAL → VALTRAINCENTER → VALTRAINVREF → DATATRAINCENTER1 → DATATRAINVREF → RXDESKEW → DATATRAINCENTER2 → LINKSPEED → **LINKINIT**               | **PASS** |
 
 #### Group E: Training Failure & Abort Flows
 | Scenario | Scenario Name | Description / Conditions | Expected Flow Path | Result |

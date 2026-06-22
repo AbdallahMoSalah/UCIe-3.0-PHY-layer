@@ -1,0 +1,28 @@
+4.5.3.4.1 MBTRAIN.VALVREF
+Receiver reference voltage (Vref) to sample the incoming Valid is optimized in this state. The data 
+rate on the mainband continues to be at the lowest supported data rate (4 GT/s). The UCIe Module 
+Partner must set the forwarded clock phase at the center of the data UI on its mainband Transmitters. 
+The UCIe Module must sample the pattern on Valid signal with the forwarded clock. All data Lanes and 
+Track must be held low during Valid Lane reference voltage training. Track Receivers are permitted to 
+be disabled. When not performing the actions relevant to this state:
+• Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for 
+Quadrature clocking)
+• Clock Receivers are enabled
+The sequence for Valid Receiver reference voltage adjustment is as follows:
+1. The UCIe Module must send the {MBTRAIN.VALVREF start req} sideband message and wait for a 
+response. When {MBTRAIN.VALVREF start req} sideband message is received, the UCIe Module 
+Partner responds with {MBTRAIN.VALVREF start resp}.
+2. UCIe Module optimizes Vref on its Valid Receiver by adjusting Receiver reference voltage and 
+performing one or more Receiver-initiated Data-to-Clock point tests (see Section 4.5.1.3) (AND/
+OR) one or more Receiver-initiated Data-to-Clock eye width sweeps (see Section 4.5.1.4).
+a. The transmit pattern must be set to send 128 iterations of continuous mode “VALTRAIN” (four 
+1s and four 0s) pattern (see Table 4-5). This pattern must not be scrambled. The Receiver must 
+be set up to perform comparison on the Valid Lane.
+b. Detection on a Receiver Lane is considered successful if “VALTRAIN” pattern detection errors 
+are less than the set threshold (per Lane comparison threshold in Section 9.5.3.29).
+c. It should be noted that LFSR RESET has no impact in MBTRAIN.VALVREF.
+3. The UCIe Module must send {MBTRAIN.VALVREF end req} sideband message after the Vref 
+optimization (One way to perform Vref Optimization is to step through Vref and perform Step 2 at 
+each setting). When {MBTRAIN.VALVREF end req} is received, the UCIe Module Partner must 
+respond with {MBTRAIN.VALVREF end resp}. When the UCIe Module has sent and received the 
+sideband message {MBTRAIN.VALVREF end resp}, it must exit to MBTRAIN.DATAVREF.

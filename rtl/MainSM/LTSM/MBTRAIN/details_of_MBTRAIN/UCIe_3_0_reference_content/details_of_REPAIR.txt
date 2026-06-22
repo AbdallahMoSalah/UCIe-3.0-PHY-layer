@@ -1,0 +1,42 @@
+4.5.3.4.13 MBTRAIN.REPAIR
+This state can be entered from PHYRETRAIN or from MBINIT.LINKSPEED. For Advanced package, this 
+state will be used to apply repair and for Standard package, this state will be used for Link width 
+degrade. Track, Data, and Valid Transmitters are held low. Clock Transmitters are held differential low 
+(for differential clocking) or simultaneous low (for Quadrature clocking).
+For Advanced Package, if the number of repair resources currently available is greater than or equal 
+to the number of Lanes encountering errors, repair must be applied:
+1. The UCIe Module sends the sideband message {MBTRAIN.REPAIR init req} for its Transmitter and 
+the UCIe Module Partner responds with {MBTRAIN.REPAIR init resp}.
+2. If Lane repair is possible, the UCIe Module applies repair on its Transmitter Lanes as described in 
+Section 4.3.1 and sends {MBTRAIN.REPAIR Apply repair req} sideband message. The UCIe 
+Module Partner applies repair as described in Section 4.3.1 and responds with {MBTRAIN.REPAIR 
+Apply repair resp} sideband message once the required repair is applied.
+3. The UCIe Module must send {MBTRAIN.REPAIR end req} sideband message and waits for a 
+response. The UCIe Module Partner must then respond with {MBTRAIN.REPAIR end resp}. When 
+a UCIe Module has sent and received {MBTRAIN.REPAIR end resp}, it must exit to 
+MBTRAIN.TXSELFCAL.
+For a x16 Standard package, if the Lanes encountering errors are all contained within the set of 
+Lane 0 through Lane 7 or Lane 8 through Lane 15, the width must be degraded to a x8 Link using the 
+set of Lanes without errors (Lane 0 ... Lane 7 OR Lane 8 ... Lane 15). Likewise, for a x8 Standard 
+package, if the Lanes encountering errors are all contained within the set of Lane 0 through Lane 3 
+or Lane 4 through Lane 7, the width must be degraded to a x4 Link using the set of Lanes without 
+errors (Lane 0 through Lane 3 or Lane 4 through Lane 7).
+1. The UCIe Module sends the sideband message {MBTRAIN.REPAIR init req} and the Receiver 
+responds with {MBTRAIN.REPAIR init resp}.
+2. The UCIe Module must send the {MBTRAIN.REPAIR apply degrade req} sideband message, 
+indicating the functional Lanes on its Transmitter using one of the logical Lane map encodings 
+from Table 4-9. Encodings 100b and 101b can be used only when the SPMW bit is set to 1 or the 
+UCIe-S x8 bit was set to 1 in the transmitted or received {MBINIT.PARAM configuration req} 
+sideband message. If the remote Link partner indicated a width degrade in the functional Lanes, 
+the UCIe Module must apply the corresponding width degrade to its Receiver. If the remote Link 
+partner indicated all Lanes are functional, the UCIe Module sets its Transmitter and Receiver to 
+the logical lane map corresponding to the functional Lane encoding determined on its Transmitter. 
+The UCIe Module sends the {MBTRAIN.REPAIR apply degrade resp} sideband message after 
+setting its Transmitter and Receiver lanes to the relevant logical lane map and proceeds to Step 3
+if a degrade is possible or if all Lanes are functional. If a “Degrade not possible” encoding is sent 
+or received in the {MBTRAIN.REPAIR apply degrade req} sideband message, the UCIe Module 
+must exit to TRAINERROR after performing the TRAINERROR handshake.
+3. The UCIe Module must send the {MBTRAIN.REPAIR end req} sideband message and wait for a 
+response. The UCIe Module Partner must then respond with the {MBTRAIN.REPAIR end resp} 
+sideband message. When UCIe Module has sent and received the {MBTRAIN.REPAIR end resp} 
+sideband message, the UCIe Module must exit to MBTRAIN.TXSELFCAL.
