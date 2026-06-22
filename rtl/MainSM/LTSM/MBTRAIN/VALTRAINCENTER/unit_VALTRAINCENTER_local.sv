@@ -111,6 +111,15 @@ module unit_VALTRAINCENTER_local #(
         end
     end
 
+    // // === DEBUG: VALTRAINCENTER state transitions ===
+    // // synopsys translate_off
+    // always_ff @(posedge lclk) begin
+    //     if (valtraincenter_en && (current_state != next_state))
+    //         $display("T=%0t | [VALTRAINCENTER_LCL DEBUG %m] state: %0d -> %0d, sweep_done=%b, rx_sb_msg_valid=%b, rx_sb_msg=%h",
+    //                  $time, current_state, next_state, sweep_done, rx_sb_msg_valid, rx_sb_msg);
+    // end
+    // // synopsys translate_on
+
     always_comb begin : NEXT_STATE_PROC
         next_state = current_state;
 

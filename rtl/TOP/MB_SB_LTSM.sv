@@ -159,32 +159,14 @@ module MB_SB_LTSM #(
     input  RDI_state                         rdi_state,
     input  RDI_state                         lp_state_req   // Adapter-requested RDI state (L1 wake)
 );
-    // =========================================================================
-    // 1. Clocks and Resets Generation
-    // =========================================================================
-    
-    // Sideband PLL clock generator (800 MHz)
-    logic sb_pll_clock;
-    real  sb_pll_period;
-
-    sb_pll u_sb_pll (
-        .en           (1'b1),
-        .clk          (sb_pll_clock),
-        .local_period (sb_pll_period)
-    );
-
-    // Clock divider by 8 to get 100 MHz for clk_sb
+    // clk_sb is driven as output by u_sideband_top
     logic clk_sb;
 
-    ClkDiv #(
-        .RangeWidth (8)
-    ) u_clk_div_sb (
-        .i_ref_clk   (sb_pll_clock),
-        .i_rst_n     (rst_n),
-        .i_clk_en    (1'b1),
-        .i_div_ratio (8'd8),
-        .o_div_clk   (clk_sb)
-    );
+    // 2-bit lane selects for tri-state buffers (LTSM -> mb_die)
+    logic [1:0]           mb_tx_trk_lane_sel;
+    logic [1:0]           mb_tx_clk_lane_sel;
+    logic [1:0]           mb_tx_val_lane_sel;
+    logic [1:0]           mb_tx_data_lane_sel;
 
     // =========================================================================
     // 2. Internal Signals
@@ -217,6 +199,21 @@ module MB_SB_LTSM #(
 
     logic phy_in_reset = (current_ltsm_state == RESET ||
                           current_ltsm_state == SBINIT);
+                          
+    logic [11:0] mb_rx_max_err_thresh_perlane;
+    logic [15:0] mb_rx_max_err_thresh_aggr;
+    logic        gated_lclk;
+
+    logic sticky_sb_pattern_detected;
+    always_ff @(posedge lclk or negedge rst_n) begin
+        if (!rst_n) begin 
+            sticky_sb_pattern_detected <= 1'b0;
+        end else if (current_ltsm_state == SBINIT) begin
+            sticky_sb_pattern_detected <= 1'b0;
+        end else if (sb_det_pattern_rcvd) begin
+            sticky_sb_pattern_detected <= 1'b1;
+        end
+    end
                           
     // MainBand Control/Status intermediate connections between u_ltsm_top and u_mb_die
     logic [2:0]           mb_pll_speed_sel;   // LTSM-driven PLL speed select -> u_mb_die
@@ -320,9 +317,14 @@ module MB_SB_LTSM #(
         .o_TCKN_P             (o_TCKN_P),
         .o_TTRK_P             (o_TTRK_P),
 
+        .i_mb_tx_trk_lane_sel                  (mb_tx_trk_lane_sel),
+        .i_mb_tx_clk_lane_sel                  (mb_tx_clk_lane_sel),
+        .i_mb_tx_val_lane_sel                  (mb_tx_val_lane_sel),
+        .i_mb_tx_data_lane_sel                 (mb_tx_data_lane_sel),
+
         // clocks / status
         .lclk                 (lclk),
-        .o_pll_clk            (o_pll_clk),
+        .gated_lclk           (gated_lclk),
         .o_lfsr_tx_done       (mb_lfsr_tx_done),
         .o_valid_done         (mb_valid_done),
         .o_clk_done           (mb_clk_done),
@@ -332,7 +334,6 @@ module MB_SB_LTSM #(
         .o_pl_valid           (o_pl_valid),
         .o_pcmp_done          (mb_pcmp_done),
         .o_pcmp_per_lane_pass (mb_pcmp_per_lane_pass),
-        .o_pcmp_agg_err_cnt   (o_pcmp_agg_err_cnt),
         .o_pcmp_agg_error     (mb_pcmp_agg_error),
         .o_vcmp_done          (mb_vcmp_done),
         .o_vcmp_pass          (mb_vcmp_pass),
@@ -352,8 +353,7 @@ module MB_SB_LTSM #(
         .rst_sb_n         (rst_n),
         .phy_in_reset     (1'b0),
         .pmo_en           (reg_PMO_enable_status),
-        
-        .sb_pll_clock     (sb_pll_clock),
+        .clk_ltsm         (lclk),
         .RXCKSB           (RXCKSB),
         .TXCKSB           (TXCKSB),
         .TXDATASB         (TXDATASB),
@@ -410,12 +410,11 @@ module MB_SB_LTSM #(
         .CLK_FRQ_HZ (CLK_FRQ_HZ),
         .NUM_LANES  (NUM_LANES)
     ) u_ltsm_top (
-        .clk                                   (lclk), // Driven by lclk coming out of u_mb_die
+        .clk                                   (lclk),
         .rst_n                                 (rst_n),
 
         // Status / observability
         .current_ltsm_state                    (current_ltsm_state),
-        .current_ltsm_state_n                  (current_ltsm_state_n),
         .link_training_retraining              (link_training_retraining),
         .link_status                           (link_status),
         .timeout_8ms_occured                   (timeout_8ms_occured),
@@ -430,6 +429,7 @@ module MB_SB_LTSM #(
         // RESET-state triggers / strap
         .phy_start_ucie_link_training_ctrl_out (phy_start_ucie_link_training_ctrl_out),
         .sb_det_pattern_rcvd                   (sb_det_pattern_rcvd),
+        .sb_det_pattern_rcvd_sticky            (sticky_sb_pattern_detected),
         .SPMW                                  (SPMW),
 
         // Capability configuration (to MBINIT)
@@ -525,15 +525,22 @@ module MB_SB_LTSM #(
         .o_clk_n_pass                          (mb_clk_n_pass),
         .i_aggr_err                            (mb_pcmp_agg_error),
         .o_track_pass                          (mb_track_pass),
-        .mb_tx_data_lane_sel                   (),
-        .mb_tx_val_lane_sel                    (),
-        .mb_tx_clk_lane_sel                    (),
-        .mb_tx_trk_lane_sel                    (),
+        .mb_tx_data_lane_sel                   (mb_tx_data_lane_sel),
+        .mb_tx_val_lane_sel                    (mb_tx_val_lane_sel),
+        .mb_tx_clk_lane_sel                    (mb_tx_clk_lane_sel),
+        .mb_tx_trk_lane_sel                    (mb_tx_trk_lane_sel),
 
         // PLL-speed / params-changed / busy-bit
         .mb_pll_speed_sel                      (mb_pll_speed_sel),
         .busy_flag                             (busy_flag),
-        .start_bit                             (start_bit)
+        .start_bit                             (start_bit),
+        .mb_rx_max_err_thresh_perlane          (mb_rx_max_err_thresh_perlane),
+        .mb_rx_max_err_thresh_aggr             (mb_rx_max_err_thresh_aggr)
     );
+
+    // Expose outputs
+    assign o_pll_clk = 1'b0;
+    assign o_pcmp_agg_err_cnt = {15'b0, mb_pcmp_agg_error};
+    assign current_ltsm_state_n = state_n_e'(log0_state_n);
 
 endmodule

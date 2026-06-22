@@ -500,15 +500,15 @@ always_comb begin
     PSPT_enable_status         = local_pspt_negotiated_status;
 
     if(current_state == MB_S0_IDLE) begin
-        TARR_enable_status         = 0;
-        Clock_Phase_enable_status  = clk_phase_sel;
-        Clock_mode_enable_status   = clk_mode_sel;
-        Link_Speed_enable_status   = link_speed_sel;
-        Link_Width_enable_status   = UCIE_x8 ? 4'h1 : 4'h2;
+        TARR_enable_status         = 1'b0;
+        Clock_Phase_enable_status  = 1'b0;
+        Clock_mode_enable_status   = 1'b0;
+        Link_Speed_enable_status   = 1'b0;
+        Link_Width_enable_status   = 4'h2;
     
-        PMO_enable_status          = 0;
-        L2SPD_enable_status        = 0;
-        PSPT_enable_status         = 0;
+        PMO_enable_status          = 1'b0;
+        L2SPD_enable_status        = 1'b0;
+        PSPT_enable_status         = 1'b0;
     end
     else if (sb_param_rx_valid && (sb_param_rx_msg_id == MBINIT_PARAM_configuration_req)) begin
         Link_Speed_enable_status  = lookahead_Link_speed;
@@ -530,32 +530,32 @@ always_ff @(posedge clk or negedge rst_n) begin
     // DEFAULT = LOCAL (safe before partner arrives)
     ////////////////////////////////////////////////////////
     if(!rst_n) begin
-        local_TARR_negotiated_status               <= 0;
-        local_SFES_negotiated                      <= SFES_sel;
-        local_clk_phase_negotiated_status          <= clk_phase_sel;
-        local_clk_mode_negotiated_status           <= clk_mode_sel;
-        local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
-        local_Link_width_enabled_status            <= UCIE_x8 ? 4'h1 : 4'h2;
+        local_TARR_negotiated_status               <= 1'b0;
+        local_SFES_negotiated                      <= 1'b0;
+        local_clk_phase_negotiated_status          <= 1'b0;
+        local_clk_mode_negotiated_status           <= 1'b0;
+        local_Link_speed_enabled_negotiate_status  <= 1'b0;
+        local_Link_width_enabled_status            <= 4'h2;
         
-        local_pmo_negotiated_status                <= 0;
-        local_l2spd_negotiated_status              <= 0;
-        local_pspt_negotiated_status               <= 0;
+        local_pmo_negotiated_status                <= 1'b0;
+        local_l2spd_negotiated_status              <= 1'b0;
+        local_pspt_negotiated_status               <= 1'b0;
         local_so_negotiated                        <= so;
         local_mtp_negotiated                       <= mtp;
     end
     else if(current_state == MB_S0_IDLE) begin
-        local_TARR_negotiated_status               <= 0;
-        local_SFES_negotiated                      <= SFES_sel;
-        local_clk_phase_negotiated_status          <= clk_phase_sel;
-        local_clk_mode_negotiated_status           <= clk_mode_sel;
-        local_Link_speed_enabled_negotiate_status  <= link_speed_sel;
-        local_Link_width_enabled_status            <= UCIE_x8 ? 4'h1 : 4'h2;
+        local_TARR_negotiated_status               <= 1'b0;
+        local_SFES_negotiated                      <= 1'b0;
+        local_clk_phase_negotiated_status          <= 1'b0;
+        local_clk_mode_negotiated_status           <= 1'b0;
+        local_Link_speed_enabled_negotiate_status  <= 1'b0;
+        local_Link_width_enabled_status            <= 4'h2;
         
-        local_pmo_negotiated_status                <= 0;
-        local_l2spd_negotiated_status              <= 0;
-        local_pspt_negotiated_status               <= 0;
-        local_so_negotiated                        <= so;
-        local_mtp_negotiated                       <= mtp;
+        local_pmo_negotiated_status                <= 1'b0;
+        local_l2spd_negotiated_status              <= 1'b0;
+        local_pspt_negotiated_status               <= 1'b0;
+        local_so_negotiated                        <= 1'b0;
+        local_mtp_negotiated                       <= 1'b0;
     end
     ////////////////////////////////////////////////////////
     // S1 NEGOTIATION (when partner S1 valid)

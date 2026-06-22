@@ -181,7 +181,8 @@ module UCIe_PHY #(
     logic        reg_PMO_enable_status;
     logic        reg_L2SPD_enable_status;
     logic        reg_PSPT_enable_status;
-    logic        timeout_8ms_occured;
+    logic        state_timeout_8ms_occured;
+    logic        sb_msg_timeout_8ms;
     logic        busy_flag;
     logic        link_training_retraining;
     logic        link_status;
@@ -485,7 +486,8 @@ module UCIe_PHY #(
         .reg_PMO_enable_status                 (reg_PMO_enable_status),
         .reg_L2SPD_enable_status               (reg_L2SPD_enable_status),
         .reg_PSPT_enable_status                (reg_PSPT_enable_status),
-        .timeout_8ms_occured                   (timeout_8ms_occured),
+        .state_timeout_8ms_occured             (state_timeout_8ms_occured),
+        .sb_msg_timeout_8ms                    (sb_msg_timeout_8ms),
         .start_bit                             (start_bit),
         .busy_flag                             (busy_flag),
         .link_training_retraining              (link_training_retraining),
@@ -676,8 +678,8 @@ module UCIe_PHY #(
         .err_capture_en                            (pl_trainerror),
 
         // --- Error Log 1 (1090h) ---
-        .phy_state_timeout_i                       (timeout_8ms_occured),
-        .phy_sb_timeout_i                          (1'b0),
+        .phy_state_timeout_i                       (state_timeout_8ms_occured),
+        .phy_sb_timeout_i                          (sb_msg_timeout_8ms),
         .phy_rm_link_err_i                         (phy_rm_link_err_i),
         .phy_internal_err_i                        (1'b0),
 

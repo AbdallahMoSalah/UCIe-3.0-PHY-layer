@@ -1212,4 +1212,46 @@ module MB_SB_LTSM_tb;
         $finish;
     end
 
+    always @(posedge lclk0) begin
+        if (current_ltsm_state_n0 == LOG_ACTIVE) begin
+            $display("[MON0] t=%0t valid_deser_en=%b data_deser_en=%h state=%b count=%d shift_reg=%h, mapper_ready=%b, buf_full=%b, push=%b, out_scramble_en=%b, pl_valid=%b, out_data=%h, RVLD=%b, lp_valid=%b",
+                $time,
+                u_die0.u_mb_die.i_rx_valid_deser_en,
+                u_die0.u_mb_die.i_rx_data_deser_en,
+                u_die0.u_mb_die.u_rx_top.u_valid_des.o_state,
+                u_die0.u_mb_die.u_rx_top.u_valid_des.o_count,
+                u_die0.u_mb_die.u_rx_top.u_valid_des.shift_reg,
+                u_die0.u_mb_die.u_tx_top.u_mapper.mapper_ready,
+                u_die0.u_mb_die.u_tx_top.u_mapper.buf_full,
+                u_die0.u_mb_die.u_tx_top.u_mapper.push,
+                u_die0.u_mb_die.u_tx_top.u_mapper.out_scramble_en,
+                o_pl_valid0,
+                o_out_data0,
+                i_RVLD_P0,
+                lp_valid0
+            );
+        end
+    end
+
+    always @(posedge lclk1) begin
+        if (current_ltsm_state_n1 == LOG_ACTIVE) begin
+            $display("[MON1] t=%0t valid_deser_en=%b data_deser_en=%h state=%b count=%d shift_reg=%h, mapper_ready=%b, buf_full=%b, push=%b, out_scramble_en=%b, pl_valid=%b, out_data=%h, RVLD=%b, lp_valid=%b",
+                $time,
+                u_die1.u_mb_die.i_rx_valid_deser_en,
+                u_die1.u_mb_die.i_rx_data_deser_en,
+                u_die1.u_mb_die.u_rx_top.u_valid_des.o_state,
+                u_die1.u_mb_die.u_rx_top.u_valid_des.o_count,
+                u_die1.u_mb_die.u_rx_top.u_valid_des.shift_reg,
+                u_die1.u_mb_die.u_tx_top.u_mapper.mapper_ready,
+                u_die1.u_mb_die.u_tx_top.u_mapper.buf_full,
+                u_die1.u_mb_die.u_tx_top.u_mapper.push,
+                u_die1.u_mb_die.u_tx_top.u_mapper.out_scramble_en,
+                o_pl_valid1,
+                o_out_data1,
+                i_RVLD_P1,
+                lp_valid1
+            );
+        end
+    end
+
 endmodule

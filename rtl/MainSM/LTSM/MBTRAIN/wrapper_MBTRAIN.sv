@@ -330,6 +330,15 @@ module wrapper_MBTRAIN #(
 
     assign trainerror_detected = |ss_trainerror_req;
 
+    // // === DEBUG: ss_trainerror_req vector monitoring ===
+    // // synopsys translate_off
+    // always @(*) begin
+    //     if (trainerror_detected)
+    //         $display("T=%0t | [MBTRAIN WRAPPER DEBUG %m] trainerror_detected=1! ss_trainerror_req=%b (VALVREF[0]..REPAIR[12])",
+    //                  $time, ss_trainerror_req);
+    // end
+    // // synopsys translate_on
+
     assign local_sweep_en     = |ss_local_sweep_en;
     assign partner_sweep_en   = |ss_partner_sweep_en;
     assign sweep_active_lanes = active_rx_lanes;

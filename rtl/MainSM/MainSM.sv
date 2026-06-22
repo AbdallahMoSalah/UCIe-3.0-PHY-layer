@@ -97,11 +97,12 @@ module MainSM #(
     output logic                             reg_PMO_enable_status,
     output logic                             reg_L2SPD_enable_status,
     output logic                             reg_PSPT_enable_status,
-    output logic                             timeout_8ms_occured,
+    output logic                             state_timeout_8ms_occured,
     input  logic                             start_bit,
     output logic                             busy_flag,
     output logic                             link_training_retraining,
     output logic                             link_status,
+    output logic                             sb_msg_timeout_8ms,
 
     // D2C / comparison thresholds + per-lane compare mask
     input  logic [11:0]                      cfg_max_err_thresh_perlane,
@@ -369,7 +370,7 @@ module MainSM #(
         .link_status                           (link_status),
         .link_training_retraining              (link_training_retraining),
         .start_bit                             (start_bit),
-        .timeout_8ms_occured                   (timeout_8ms_occured),
+        .timeout_8ms_occured                   (state_timeout_8ms_occured),
         .mb_rx_max_err_thresh_perlane          (mb_rx_max_err_thresh_perlane),
         .mb_rx_max_err_thresh_aggr             (mb_rx_max_err_thresh_aggr),
 
@@ -428,6 +429,7 @@ module MainSM #(
         .traffic_req                                (traffic_req),
         .clk_handshake_done                         (clk_handshake_done),
         .sticky_sb_pattern_detected                 (sticky_sb_pattern_detected),
+        .sb_msg_timeout                             (sb_msg_timeout_8ms),
 
         // MainBand interface
         .lclk_g                                     (rdi_lclk_g),

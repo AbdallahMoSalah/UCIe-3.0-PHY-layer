@@ -102,6 +102,14 @@ module unit_SPEEDIDLE_local (
         end
     end
 
+    // always_ff @(posedge lclk) begin
+    //     if (speedidle_en) begin
+    //         $display("T=%0t | [SPEEDIDLE DEBUG %m] state=%s, speedidle_en=%b, soft_rst_n=%b, state_n_1=%s, param_negotiated_max_speed=%h, internal_phy_negotiated_speed=%h", 
+    //                  $time, current_state.name(), speedidle_en, soft_rst_n, state_n_1.name(), param_negotiated_max_speed, internal_phy_negotiated_speed);
+    //     end
+    // end
+
+
     always_comb begin : NEXT_STATE_LOGIC
         next_state = current_state;
 

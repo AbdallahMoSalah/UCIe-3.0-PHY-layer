@@ -155,14 +155,14 @@ module unit_REPAIR_partner (
     always_ff @(posedge lclk or negedge rst_n) begin : STATE_REG
         if (!rst_n) begin
             current_state          <= REPAIR_PTR_IDLE;
-            mb_rx_data_lane_mask_r <= 3'b000;
-            mb_tx_data_lane_mask_r <= 3'b000;
+            mb_rx_data_lane_mask_r <= mbinit_rx_data_lane_mask;
+            mb_tx_data_lane_mask_r <= mbinit_tx_data_lane_mask;
             remote_local_tx_code_r <= 3'b000;
             update_data_lane_mask_by_mbinit_result <= 1'b1;
         end else if (!soft_rst_n) begin
             current_state          <= REPAIR_PTR_IDLE;
-            mb_rx_data_lane_mask_r <= 3'b000;
-            mb_tx_data_lane_mask_r <= 3'b000;
+            mb_rx_data_lane_mask_r <= mbinit_rx_data_lane_mask;
+            mb_tx_data_lane_mask_r <= mbinit_tx_data_lane_mask;
             remote_local_tx_code_r <= 3'b000;
             update_data_lane_mask_by_mbinit_result <= 1'b1;
         end else begin

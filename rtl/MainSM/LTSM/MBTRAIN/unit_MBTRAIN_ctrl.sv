@@ -177,6 +177,18 @@ module unit_MBTRAIN_ctrl (
         end
     end
 
+    // // === DEBUG: MBTRAIN state transition and trainerror monitoring ===
+    // // synopsys translate_off
+    // always_ff @(posedge lclk) begin
+    //     if (mbtrain_en && (current_state != next_state))
+    //         $display("T=%0t | [MBTRAIN_CTRL DEBUG %m] state transition: %s -> %s, trainerror_detected=%b",
+    //                  $time, current_state.name(), next_state.name(), trainerror_detected);
+    //     if (mbtrain_en && trainerror_detected)
+    //         $display("T=%0t | [MBTRAIN_CTRL DEBUG %m] >>> trainerror_detected=1 in state %s! ltsm_trainerror_req=%b",
+    //                  $time, current_state.name(), ltsm_trainerror_req);
+    // end
+    // // synopsys translate_on
+
     // Combinational Next State & Output Logic
     always_comb begin
         // Default Outputs — all enables inactive

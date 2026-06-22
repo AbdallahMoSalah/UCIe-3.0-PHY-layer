@@ -142,7 +142,7 @@ import RDI_SM_pkg::*;
                                
                 CTRL_ACTIVE:   if (active_next_ltsm_state == CTRL_TRAINERROR)
                                    next_state = CTRL_TRAINERROR;
-                               else if (active_next_ltsm_state != CTRL_ACTIVE && active_next_ltsm_state != CTRL_NOP)
+                               else if (active_next_ltsm_state != CTRL_ACTIVE && active_next_ltsm_state != CTRL_RESET)
                                    next_state = active_next_ltsm_state;
                                    
                 CTRL_PHYRETRAIN: if (phyretrain_done || rdi_requested_trainerror)  next_state = CTRL_MBTRAIN;

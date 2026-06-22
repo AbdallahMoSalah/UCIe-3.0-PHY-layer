@@ -383,6 +383,8 @@ module LTSM_wrapper #(
     logic        reg_PMO_enable_status_reg;
     logic        reg_L2SPD_enable_status_reg;
     logic        reg_PSPT_enable_status_reg;
+    logic UCIe_x8_reg;
+    logic [3:0] param_negotiated_speed;
 
     logic busy_bit_rst;
 
@@ -419,6 +421,8 @@ module LTSM_wrapper #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             mb_pll_speed_sel_reg <= 3'b000;
+        end else if(current_ltsm_state_n == LOG_RESET) begin
+            mb_pll_speed_sel_reg <= 3'b000;
         end else if (current_ltsm_state_n == LOG_MBTRAIN_SPEEDIDLE) begin
             mb_pll_speed_sel_reg <= reg_Link_Speed_enable_status[2:0];
         end
@@ -426,7 +430,9 @@ module LTSM_wrapper #(
     always_comb begin
         mb_pll_speed_sel = mb_pll_speed_sel_reg;
 
-        if (current_ltsm_state_n == LOG_MBTRAIN_SPEEDIDLE) begin
+        if(current_ltsm_state_n == LOG_RESET) begin 
+            mb_pll_speed_sel = 3'b000;
+        end else if (current_ltsm_state_n == LOG_MBTRAIN_SPEEDIDLE) begin
             mb_pll_speed_sel = reg_Link_Speed_enable_status[2:0];
         end
     end
@@ -486,10 +492,30 @@ module LTSM_wrapper #(
         end
     end
 
-    assign log0_state_n         = log0_state_n_reg;
-    assign log0_state_n_minus_1 = log0_state_n_minus_1_reg;
-    assign log0_state_n_minus_2 = log0_state_n_minus_2_reg;
-    assign log1_state_n_minus_3 = log1_state_n_minus_3_reg;
+    logic [4:0] log0_state_n_comb;        
+    logic [4:0] log0_state_n_minus_1_comb;
+    logic [4:0] log0_state_n_minus_2_comb;
+    logic [4:0] log1_state_n_minus_3_comb;
+    
+    always_comb begin
+        log0_state_n_comb         = log0_state_n_reg[4:0];
+        log0_state_n_minus_1_comb = log0_state_n_minus_1_reg[4:0];
+        log0_state_n_minus_2_comb = log0_state_n_minus_2_reg[4:0];
+        log1_state_n_minus_3_comb = log1_state_n_minus_3_reg[4:0];
+        
+        if (current_log_state != log0_state_n_reg[4:0]) begin
+            log0_state_n_comb         = {3'b0, current_log_state};
+            log0_state_n_minus_1_comb = log0_state_n_reg;
+            log0_state_n_minus_2_comb = log0_state_n_minus_1_reg;
+            log1_state_n_minus_3_comb = log0_state_n_minus_2_reg;
+        end
+        
+    end
+
+    assign log0_state_n         = log0_state_n_comb;
+    assign log0_state_n_minus_1 = log0_state_n_minus_1_comb;
+    assign log0_state_n_minus_2 = log0_state_n_minus_2_comb;
+    assign log1_state_n_minus_3 = log1_state_n_minus_3_comb;
 
     assign log0_width_degrade   = (mb_tx_data_lane_mask != 3'b011);
     assign log0_lane_reversal   = mb_lane_reversal_req;
@@ -583,14 +609,21 @@ module LTSM_wrapper #(
     // Watchdog reset on handshake start
     logic reset_timer_on_handshake_start;
     assign reset_timer_on_handshake_start = te_handshake_en && !te_local_error_trigger &&
-                                            (mbinit_error || mbtrain_ltsm_trainerror_req || linkinit_error);
+                                            ((mbinit_error && (current_ltsm_state == MBINIT)) || 
+                                             (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) || 
+                                             (linkinit_error && (current_ltsm_state == LINKINIT)));
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             te_local_error_trigger <= 1'b0;
         end else if (te_handshake_en) begin
-            // Trigger handshake on mbinit_error, mbtrain_error, linkinit_error, or timeout_8ms_occured
-            if (mbinit_error || mbtrain_ltsm_trainerror_req || linkinit_error || timeout_8ms_occured) begin
+            // Trigger handshake on mbinit_error (in MBINIT), mbtrain_error (in MBTRAIN), linkinit_error (in LINKINIT), or timeout_8ms_occured
+            if ((mbinit_error && (current_ltsm_state == MBINIT)) || 
+                (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) || 
+                (linkinit_error && (current_ltsm_state == LINKINIT)) || 
+                timeout_8ms_occured) begin
+                // $display("T=%0t | [TRAINERROR DEBUG %m] TRIGGERED! mbinit_error=%b, mbtrain_ltsm_trainerror_req=%b, linkinit_error=%b, timeout_8ms_occured=%b, current_ltsm_state=%s, current_log_state=%s",
+                //          $time, mbinit_error, mbtrain_ltsm_trainerror_req, linkinit_error, timeout_8ms_occured, current_ltsm_state.name(), current_log_state.name());
                 if (te_local_error_trigger) begin
                     // If already running, a second timeout clears it
                     if (timeout_8ms_occured) begin
@@ -722,6 +755,18 @@ module LTSM_wrapper #(
         else        timer_rst_n_q <= ~(substate_changing || reset_timer_on_handshake_start);
     end
     assign timer_rst_n = timer_rst_n_q;
+
+    // // === DEBUG: Watchdog timer monitoring ===
+    // // synopsys translate_off
+    // always_ff @(posedge clk) begin
+    //     if (substate_changing)
+    //         $display("T=%0t | [WATCHDOG DEBUG %m] substate_changing=1: prev=%s -> cur=%s, timer_rst_n_q will go LOW next cycle",
+    //                  $time, prev_log_state.name(), current_log_state.name());
+    //     if (timeout_8ms_occured && timeout_timer_en)
+    //         $display("T=%0t | [WATCHDOG DEBUG %m] >>> TIMEOUT FIRED! current_ltsm_state=%s, current_log_state=%s, prev_log_state=%s, timer_rst_n=%b, te_local_error_trigger=%b",
+    //                  $time, current_ltsm_state.name(), current_log_state.name(), prev_log_state.name(), timer_rst_n, te_local_error_trigger);
+    // end
+    // // synopsys translate_on
 
     // =========================================================================
     // 8 ms WATCHDOG TIMER (internal)
@@ -916,11 +961,11 @@ module LTSM_wrapper #(
         .state_n_0                  (state_n_e'(log0_state_n)),
         .state_n_1                  (state_n_e'(log0_state_n_minus_1)),
 
-        .param_negotiated_max_speed (reg_Link_Speed_enable_status_reg[2:0]),
+        .param_negotiated_max_speed (param_negotiated_speed[2:0]),
         .is_continuous_clk_mode     (reg_Clock_mode_enable_status_reg),
         .rf_cap_SPMW                (SPMW),
-        .rf_ctrl_target_link_width  (reg_Link_Width_enable_status_reg),
-        .param_UCIe_S_x8            (1'b0),
+        .rf_ctrl_target_link_width  (reg_Target_Link_Width_ctrl),
+        .param_UCIe_S_x8            (UCIe_x8_reg),
 
         .PHY_IN_RETRAIN             (PHY_IN_RETRAIN),
         .params_changed             (start_bit),
@@ -1364,7 +1409,31 @@ module LTSM_wrapper #(
     // =========================================================================
     // SEQUENTIAL LATCHING & LOOKAHEAD FOR MBINIT OUTPUTS
     // =========================================================================
+    function automatic logic [3:0] get_width_code(logic [2:0] map);
+        case (map)
+            3'b011:  return 4'h2; // x16
+            3'b001:  return 4'h1; // x8 lower
+            3'b010:  return 4'h1; // x8 upper
+            3'b100:  return 4'h0; // x4 lower
+            3'b101:  return 4'h0; // x4 upper
+            default: return 4'h0;
+        endcase
+    endfunction
 
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            UCIe_x8_reg <= 1'b0;
+            param_negotiated_speed <= 4'h0;
+        end
+        else if(current_ltsm_state_n == LOG_RESET) begin
+            UCIe_x8_reg <= 1'b0;
+            param_negotiated_speed <= 4'h0;
+        end
+        else if(current_ltsm_state_n == LOG_MBINIT_CAL)begin
+            UCIe_x8_reg <= mbinit_reg_Link_Width_enable_status == 4'h1 ? 1'b1: 1'b0;
+            param_negotiated_speed <= reg_Link_Speed_enable_status_reg;
+        end
+    end
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -1374,19 +1443,19 @@ module LTSM_wrapper #(
             reg_Clock_Phase_enable_status_reg <= 1'b0;
             reg_Clock_mode_enable_status_reg  <= 1'b0;
             reg_TARR_enable_status_reg        <= 1'b0;
-            reg_Link_Width_enable_status_reg  <= 4'h0;
+            reg_Link_Width_enable_status_reg  <= 4'h2;
             reg_Link_Speed_enable_status_reg  <= 4'h0;
             reg_PMO_enable_status_reg         <= 1'b0;
             reg_L2SPD_enable_status_reg       <= 1'b0;
             reg_PSPT_enable_status_reg        <= 1'b0;
-        end else if (current_ltsm_state == RESET || current_ltsm_state == SBINIT) begin
+        end else if (current_ltsm_state == RESET) begin
             mb_rx_data_lane_mask_reg          <= 3'b011;
             mb_tx_data_lane_mask_reg          <= 3'b011;
             mb_lane_reversal_req_reg          <= 1'b0;
             reg_Clock_Phase_enable_status_reg <= 1'b0;
             reg_Clock_mode_enable_status_reg  <= 1'b0;
             reg_TARR_enable_status_reg        <= 1'b0;
-            reg_Link_Width_enable_status_reg  <= 4'h0;
+            reg_Link_Width_enable_status_reg  <= 4'h2;
             reg_Link_Speed_enable_status_reg  <= 4'h0;
             reg_PMO_enable_status_reg         <= 1'b0;
             reg_L2SPD_enable_status_reg       <= 1'b0;
@@ -1404,9 +1473,20 @@ module LTSM_wrapper #(
             reg_L2SPD_enable_status_reg       <= mbinit_reg_L2SPD_enable_status;
             reg_PSPT_enable_status_reg        <= mbinit_reg_PSPT_enable_status;
         end else if (current_ltsm_state == MBTRAIN) begin
-            mb_rx_data_lane_mask_reg          <= mbtrain_mb_rx_data_lane_mask;
-            mb_tx_data_lane_mask_reg          <= mbtrain_mb_tx_data_lane_mask;
+            // Only latch the MBTRAIN-final lane masks when MBTRAIN is done
+            // (mbtrain_ltsm_linkinit_req = 1).  Capturing every cycle would
+            // overwrite the MBINIT-negotiated mask with the REPAIR_partner's
+            // soft-reset default (3'b011) during the early substates of MBTRAIN.
+            if (current_ltsm_state_n != LOG_MBTRAIN_VALVREF) begin
+                if (mbtrain_mb_rx_data_lane_mask != 3'b000)
+                    mb_rx_data_lane_mask_reg      <= mbtrain_mb_rx_data_lane_mask;
+                if (mbtrain_mb_tx_data_lane_mask != 3'b000)
+                    mb_tx_data_lane_mask_reg      <= mbtrain_mb_tx_data_lane_mask;
+            end
             reg_Link_Speed_enable_status_reg  <= {1'b0,mbtrain_phy_negotiated_speed};
+        end
+        else if(current_ltsm_state_n == LOG_LINKINIT)begin
+            reg_Link_Width_enable_status_reg <= get_width_code(mb_tx_data_lane_mask_reg);
         end
     end
 
@@ -1423,7 +1503,7 @@ module LTSM_wrapper #(
         reg_L2SPD_enable_status       = reg_L2SPD_enable_status_reg;
         reg_PSPT_enable_status        = reg_PSPT_enable_status_reg;
 
-        if (current_ltsm_state == RESET || current_ltsm_state == SBINIT) begin
+        if (current_ltsm_state == RESET) begin
             mb_rx_data_lane_mask          = 3'b011;
             mb_tx_data_lane_mask          = 3'b011;
             mb_lane_reversal_req          = 1'b0;
@@ -1448,9 +1528,18 @@ module LTSM_wrapper #(
             reg_L2SPD_enable_status       = mbinit_reg_L2SPD_enable_status;
             reg_PSPT_enable_status        = mbinit_reg_PSPT_enable_status;
         end else if (current_ltsm_state == MBTRAIN) begin
-            mb_rx_data_lane_mask          = mbtrain_mb_rx_data_lane_mask;
-            mb_tx_data_lane_mask          = mbtrain_mb_tx_data_lane_mask;
+            // Present the final MBTRAIN-computed masks only when MBTRAIN is done;
+            // before that, keep the MBINIT-negotiated value from the register.
+            if (current_ltsm_state_n != LOG_MBTRAIN_VALVREF) begin
+                if (mbtrain_mb_rx_data_lane_mask != 3'b000)
+                    mb_rx_data_lane_mask      = mbtrain_mb_rx_data_lane_mask;
+                if (mbtrain_mb_tx_data_lane_mask != 3'b000)
+                    mb_tx_data_lane_mask      = mbtrain_mb_tx_data_lane_mask;
+            end
             reg_Link_Speed_enable_status  = {1'b0,mbtrain_phy_negotiated_speed};
+        end
+        else if(current_ltsm_state_n == LOG_LINKINIT)begin
+            reg_Link_Width_enable_status = get_width_code(mb_tx_data_lane_mask_reg);
         end
     end
 
