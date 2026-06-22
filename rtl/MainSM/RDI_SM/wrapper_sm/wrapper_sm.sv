@@ -15,6 +15,7 @@ module wrapper_sm #(
     input  msg_no_e        message_receive,
     input  logic           Active_handshake_done,
     input  logic           stall_done,
+    output  logic           sb_msg_timeout,
     
     output logic           stall_req,
     output logic           Active_handshake_strt,
@@ -282,6 +283,7 @@ module wrapper_sm #(
         .start_linkerror_handshake (start_linkerror_handshake),
         .error                     (mth_error),
         .handshake_done            (mth_handshake_done),
+        .sb_msg_timeout            (sb_msg_timeout),
         .le_message_send           (le_message_send)
     );
 

@@ -11,7 +11,7 @@ logs/
 *_lib*.qdb
 *_lib*.qpg
 *_lib*.qtl
-
+vish_stacktrace.vstf
 # Questa internal dirs
 @_opt/
 _opt/

@@ -44,12 +44,7 @@ package ltsm_state_n_pkg;
         CTRL_PHYRETRAIN   = 4'd6,
         CTRL_L1           = 4'd7,
         CTRL_L2           = 4'd8,
-        CTRL_TRAINERROR   = 4'd9,
-        CTRL_NOP          = 4'd10,
-        // TRAINERROR entry handshake sub-phases (UCIe 3.0 §4.5.3.8)
-        CTRL_TE_REQ_SEND  = 4'd11, // initiator: drive {TRAINERROR Entry req} until SB FIFO accepts
-        CTRL_TE_REQ_WAIT  = 4'd12, // initiator: wait for {TRAINERROR Entry resp} or 8 ms timeout
-        CTRL_TE_RESP_SEND = 4'd13  // responder: drive {TRAINERROR Entry resp} until SB FIFO accepts
+        CTRL_TRAINERROR   = 4'd9
     } ltsm_ctrl_state_e;
 
     // for current `mbinit` sub-state

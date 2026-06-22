@@ -75,11 +75,11 @@ module ACTIVE (
     // ---------------- Output logic ----------------
     always_comb begin 
         active_error = 1'b0;
-        next_ltsm_state = CTRL_NOP;
+        next_ltsm_state = CTRL_RESET;
         case (current_state)
             IDLE: begin
                 active_error = 1'b0;
-                next_ltsm_state = CTRL_NOP;
+                next_ltsm_state = CTRL_RESET;
             end
             ACTIVE_RUN: begin
                 active_error = 1'b0;
@@ -102,7 +102,7 @@ module ACTIVE (
                 active_error = 1'b0;
             end
             default: begin
-                next_ltsm_state = CTRL_NOP;
+                next_ltsm_state = CTRL_RESET;
                 active_error = 1'b0;
             end
         endcase

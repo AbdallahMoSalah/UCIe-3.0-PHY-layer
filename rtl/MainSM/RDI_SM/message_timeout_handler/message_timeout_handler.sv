@@ -47,6 +47,7 @@ module message_timeout_handler #(
     input  logic    start_linkerror_handshake,  // from controller
     output logic    error,                      // to controller
     output logic    handshake_done,             // to controller
+    output logic    sb_msg_timeout,
 
     // Message driven onto the MUX while the block owns it (le_mux_sel from ctrl)
     output msg_no_e le_message_send
@@ -88,7 +89,7 @@ module message_timeout_handler #(
     // request held across several cycles only (re)arms the timer once).
     wire req_event = is_req(message_send) && (message_send != msg_send_prev);
     // Timer has expired while running.
-    wire timeout   = timer_active && (cnt == 0);
+    assign sb_msg_timeout   = timer_active && (cnt == 0);
 
     always_ff @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin
@@ -132,7 +133,7 @@ module message_timeout_handler #(
                             state        <= ERR_WAIT;
                             timer_active <= 1'b0;
                             cnt          <= TIMEOUT_CYCLES;
-                        end else if (timeout || lp_linkerror) begin
+                        end else if (sb_msg_timeout || lp_linkerror) begin
                             role         <= INITIATOR;
                             state        <= ERR_WAIT;
                             timer_active <= 1'b0;
@@ -169,7 +170,7 @@ module message_timeout_handler #(
                         timer_active <= 1'b0;
                         cnt          <= TIMEOUT_CYCLES;
                         state        <= DONE;
-                    end else if (timeout) begin
+                    end else if (sb_msg_timeout) begin
                         timer_active <= 1'b0;
                         cnt          <= TIMEOUT_CYCLES;
                         state        <= DONE;

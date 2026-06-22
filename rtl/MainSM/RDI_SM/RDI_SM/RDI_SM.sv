@@ -34,6 +34,7 @@ module RDI_SM #(
     input  logic                    valid_r                                      ,
     output msg_no_e                 Link_Mgmt_Msg_Send                          ,
     output logic                    valid_s                                      ,
+    output logic                    sb_msg_timeout                               ,
 
     input  logic                    traffic_req         ,
     output logic                    clk_handshake_done  ,
@@ -106,6 +107,7 @@ module RDI_SM #(
         .message_receive        (message_receive),
         .Active_handshake_done  (Active_handshake_done),
         .stall_done             (stall_done),
+        .sb_msg_timeout         (sb_msg_timeout),
 
         .stall_req              (stall_req),
         .Active_handshake_strt  (Active_handshake_strt),
