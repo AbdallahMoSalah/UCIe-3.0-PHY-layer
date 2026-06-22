@@ -10,7 +10,7 @@
 // are hard-wired by the top LTSM module, not by this block.
 
 module RESET #(
-    parameter int CLK_FRQ_HZ = 800000000
+    parameter int CLK_FRQ_HZ = 125_000_000
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -31,11 +31,13 @@ module RESET #(
 
     timeout_counter #(
         .CLK_FRQ_HZ(CLK_FRQ_HZ),
-        .TIME_OUT  (4)
+        .TIME_OUT  (4),
+        .SPEED_AWARE(0)
     ) reset_4ms_counter (
         .clk            (clk),
         .timeout_rst_n  (rst_n),
         .enable_timeout (timer_enable),
+        .speed_sel      (3'b000),       // unused (SPEED_AWARE=0)
         .timeout_expired(RESET_4ms_done)
     );
 

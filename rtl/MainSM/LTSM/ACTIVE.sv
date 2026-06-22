@@ -13,6 +13,20 @@ module ACTIVE (
     output logic active_error,
     output ltsm_ctrl_state_e next_ltsm_state
 );
+    //--------------------------------------
+    //edge detector for start_ucie_link_training
+    //--------------------------------------
+    logic Start_UCIe_Link_Training_edge;
+    logic Start_UCIe_Link_Training_d;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            Start_UCIe_Link_Training_d <= 1'b0;
+        end else begin
+            Start_UCIe_Link_Training_d <= Start_UCIe_Link_Training;
+        end
+    end
+    assign Start_UCIe_Link_Training_edge = Start_UCIe_Link_Training & ~Start_UCIe_Link_Training_d;
+    //--------------------------------------
 
     // ---------------- FSM ----------------
     typedef enum logic [2:0] {
@@ -58,7 +72,7 @@ module ACTIVE (
                     if (rdi_state == LinkError || 
                         rdi_state == LinkReset || 
                         rdi_state == Disabled  || 
-                        Start_UCIe_Link_Training) next_state = TRAINERROR;
+                        Start_UCIe_Link_Training_edge) next_state = TRAINERROR;
                     else if (rdi_state == L_1) next_state = L1;
                     else if (rdi_state == L_2) next_state = L2;
                     else if (rdi_state == Retrain) next_state = PHYRETRAIN;

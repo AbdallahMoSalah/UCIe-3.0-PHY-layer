@@ -467,15 +467,26 @@ module unit_LINKSPEED_local (
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
-        else if (!soft_rst_n || !linkspeed_en) begin
+        else if (!soft_rst_n) begin
             in_electrical_idle_r    <= 1'b0;
             linkspeed_success_lanes <= 16'h0;
         end
         else begin
+            // in_electrical_idle_r is a LINKSPEED-local flag (drives MB TX
+            // Elec-Idle on the error path); clear it whenever LINKSPEED is not
+            // enabled.
+            if (!linkspeed_en)
+                in_electrical_idle_r <= 1'b0;
+
             if (current_state == LINKSPEED_LCL_EVAL_RESULT) begin
                 // in_electrical_idle_r: held throughout the error path; drives MB TX Elec-Idle.
                 in_electrical_idle_r    <= error_detected_w;
-                // linkspeed_success_lanes: passed to MBTRAIN.REPAIR to identify which lanes need repair.
+                // linkspeed_success_lanes: passed to MBTRAIN.REPAIR to identify
+                // which lanes need repair. REPAIR runs AFTER LINKSPEED finishes
+                // (linkspeed_en deasserts), so this MUST be held across the
+                // LINKSPEED->REPAIR transition and only reset on a hard/soft
+                // reset — clearing it on !linkspeed_en wiped the per-lane result
+                // exactly when REPAIR needed it (degrade was reported infeasible).
                 linkspeed_success_lanes <= final_perlane_pass_w;
                 // NOTE: d2c_fail_r and local_phy_retrain_r are NOT latched here.
                 // The EVAL_RESULT next-state logic reads error_detected_w and

@@ -35,11 +35,11 @@ import RDI_SM_pkg::*;
 // =============================================================================
 
 module LTSM_wrapper #(
-    parameter int CLK_FRQ_HZ         = 800000000,
-    parameter int MAX_VAL_VREF_CODE  = 127,
-    parameter int MAX_DATA_VREF_CODE = 127,
-    parameter int MAX_PI_PHASE_CODE  = 127,
-    parameter int MAX_DESKEW_CODE    = 127
+    parameter int CLK_FRQ_HZ         = 125_000_000,
+    parameter int MAX_VAL_VREF_CODE  = 32'd16,
+    parameter int MAX_DATA_VREF_CODE = 32'd16,
+    parameter int MAX_PI_PHASE_CODE  = 32'd16,
+    parameter int MAX_DESKEW_CODE    = 32'd16
 )(
     input  logic        clk,
     input  logic        rst_n,
@@ -770,14 +770,21 @@ module LTSM_wrapper #(
 
     // =========================================================================
     // 8 ms WATCHDOG TIMER (internal)
+    // -------------------------------------------------------------------------
+    // SPEED_AWARE: derive the 8 ms cycle count from the live mb_pll_speed_sel
+    // (gated_lclk = mb_PLL/16) so it is a true 8 ms at whatever speed the link
+    // is running — not a fraction/multiple of it as a fixed CLK_FRQ_HZ would
+    // give once speed negotiation changes the clock.
     // =========================================================================
     timeout_counter #(
-        .CLK_FRQ_HZ (CLK_FRQ_HZ),
-        .TIME_OUT   (8)
+        .CLK_FRQ_HZ  (CLK_FRQ_HZ),
+        .TIME_OUT    (8),
+        .SPEED_AWARE (1'b1)
     ) u_timer_8ms (
         .clk             (clk),
         .timeout_rst_n   (timer_rst_n),
         .enable_timeout  (timeout_timer_en),
+        .speed_sel       (mb_pll_speed_sel),
         .timeout_expired (timeout_8ms_occured)
     );
 
@@ -929,11 +936,13 @@ module LTSM_wrapper #(
     //   * mbtrain_*_req re-entry inputs tied 0 (PHYRETRAIN/L1/L2 re-enter at VALVREF)
     wrapper_MBTRAIN #(
         // Must match the wrapper_D2C_sweep ranges above so swept/best code widths agree.
-        .MAX_VAL_VREF_CODE  (2),
-        .MAX_DATA_VREF_CODE (2),
-        .MAX_DATA_PI_CODE   (2), .MIN_DATA_PI_CODE (0),
-        .MAX_VAL_PI_CODE    (2),
-        .MAX_DESKEW_CODE    (2), .MIN_DESKEW_CODE  (0)
+        .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE),
+        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE),
+        .MAX_DATA_PI_CODE   (MAX_PI_PHASE_CODE),
+        .MIN_DATA_PI_CODE   (1),
+        .MAX_VAL_PI_CODE    (MAX_PI_PHASE_CODE),
+        .MAX_DESKEW_CODE    (MAX_DESKEW_CODE),
+        .MIN_DESKEW_CODE    (1)
     ) u_mbtrain (
         .lclk                       (clk),
         .rst_n                      (rst_n),
@@ -1109,11 +1118,16 @@ module LTSM_wrapper #(
         // fits the integration TB's per-scenario lclk budget. Codes are inert in
         // this TB (the mainband model ignores analog codes), so range size only
         // affects sim time, not functional coverage of the training sequence.
-        .MAX_VAL_VREF_CODE  (2), .MIN_VAL_VREF_CODE  (1),
-        .MAX_DATA_VREF_CODE (2), .MIN_DATA_VREF_CODE (1),
-        .MAX_DATA_PI_CODE   (2), .MIN_DATA_PI_CODE   (0),
-        .MAX_VAL_PI_CODE    (2), .MIN_VAL_PI_CODE    (0),
-        .MAX_DESKEW_CODE    (2), .MIN_DESKEW_CODE    (0)
+        .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE), 
+        .MIN_VAL_VREF_CODE  (1),
+        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE), 
+        .MIN_DATA_VREF_CODE (1),
+        .MAX_DATA_PI_CODE   (MAX_PI_PHASE_CODE), 
+        .MIN_DATA_PI_CODE   (1),
+        .MAX_VAL_PI_CODE    (MAX_PI_PHASE_CODE), 
+        .MIN_VAL_PI_CODE    (1),
+        .MAX_DESKEW_CODE    (MAX_DESKEW_CODE), 
+        .MIN_DESKEW_CODE    (1)
     ) u_d2c (
         .lclk  (clk),
         .rst_n (rst_n),
