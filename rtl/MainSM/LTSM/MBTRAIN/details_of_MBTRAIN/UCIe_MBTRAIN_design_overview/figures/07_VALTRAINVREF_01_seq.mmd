@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Local
+    participant Partner
+
+    Note over Local: SEND_START_REQ
+    rect rgb(240,240,255)
+        Note over Partner: WAIT_START_REQ
+        Local->>Partner: VALTRAINVREF_start_req (d57)
+        Note over Local: WAIT_START_RESP
+        Note over Partner: SEND_START_RESP
+        Partner-->>Local: VALTRAINVREF_start_resp (d58)
+    end
+    rect rgb(240,255,240)
+        Note over Local: SWEEP
+        Note over Partner: WAIT_END_REQ
+        Note over Local,Partner: Valid sweep completes <br/> latches best Vref midpoint code
+        Note over Local: SEND_END_REQ
+    end
+    rect rgb(255,240,240)
+        Local->>Partner: VALTRAINVREF_end_req (d59)
+        Note over Local: WAIT_END_RESP
+        Note over Partner: SEND_END_RESP
+        Partner-->>Local: VALTRAINVREF_end_resp (d60)
+    end
+    Note over Local: TO_DATATRAINCENTER1
+    Note over Partner: TO_DATATRAINCENTER1

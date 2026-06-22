@@ -1,0 +1,16 @@
+flowchart TD
+IQ_PTR_IDLE(["IQ_PTR_IDLE"])
+IQ_PTR_LISTEN(["IQ_PTR_LISTEN"])
+IQ_PTR_SEND_SHIFT_RESP(["IQ_PTR_SEND_SHIFT_RESP"])
+IQ_PTR_DONE(["IQ_PTR_DONE"])
+IQ_PTR_ERROR(["IQ_PTR_ERROR"])
+START4((" "))
+
+START4 --> IQ_PTR_IDLE
+IQ_PTR_IDLE -->|"iq_partner_en == 1"| IQ_PTR_LISTEN
+IQ_PTR_LISTEN -->|"rx_sb_msg == MBTRAIN_RXCLKCAL_TCKN_L_shift_req"| IQ_PTR_SEND_SHIFT_RESP
+IQ_PTR_LISTEN -->|"rx_sb_msg == MBTRAIN_RXCLKCAL_done_req"| IQ_PTR_DONE
+IQ_PTR_SEND_SHIFT_RESP -->|"phy_tx_tckn_shift_out_of_range == 1"| IQ_PTR_ERROR
+IQ_PTR_SEND_SHIFT_RESP -->|"phy_tx_tckn_shift_out_of_range == 0"| IQ_PTR_LISTEN
+IQ_PTR_DONE -->|"iq_partner_en == 0"| IQ_PTR_IDLE
+IQ_PTR_ERROR -->|"iq_partner_en == 0"| IQ_PTR_IDLE

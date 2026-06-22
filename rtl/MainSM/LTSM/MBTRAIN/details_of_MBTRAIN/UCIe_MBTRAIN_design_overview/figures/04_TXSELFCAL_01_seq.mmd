@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant Local
+    participant Partner
+
+    Note over Local: EXECUTE
+    Note over Partner: WAIT_REQ
+    Note over Local,Partner: Analog calibration feedback settles
+    Note over Local: SEND_REQ
+        Local->>Partner: TXSELFCAL_Done_req (d45)
+    Note over Local: WAIT_RESP
+    Note over Partner: SEND_RESP
+        Partner-->>Local: TXSELFCAL_Done_resp (d46)
+    Note over Local: TO_RXCLKCAL
+    Note over Partner: DONE

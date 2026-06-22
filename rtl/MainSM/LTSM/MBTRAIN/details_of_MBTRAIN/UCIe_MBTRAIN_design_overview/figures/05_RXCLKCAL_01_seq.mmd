@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant Local
+    participant Partner
+
+    Note over Local: SEND_START_REQ
+    rect rgb(240,240,255)
+        Note over Partner: WAIT_START_REQ
+        Local->>Partner: RXCLKCAL_start_req (d47)
+        Note over Local: WAIT_START_RESP
+        Note over Partner: SEND_START_RESP
+        Partner-->>Local: RXCLKCAL_start_resp (d48)
+    end
+    rect rgb(240,255,240)
+        Note over Local: INIT_LOCK
+        Note over Partner: IQ_LOOP
+        Note over Local,Partner: Clock lock timer completes
+        Note over Local: IQ_LOOP
+        Note over Local,Partner: Calculates residual shift needed <br/> sends shift command
+        Local->>Partner: RXCLKCAL_TCKN_L_shift_req (d49)
+        Note over Partner: SEND_SHIFT_RESP
+        Partner-->>Local: RXCLKCAL_TCKN_L_shift_resp (d50)
+        Note over Local,Partner: Repeats loops if shift > 0, <br/> once shift == 0, exits loop
+        Note over Local: SEND_DONE_REQ
+    end
+    rect rgb(255,240,240)
+        Local->>Partner: RXCLKCAL_done_req (d51)
+        Note over Local: WAIT_DONE_RESP
+        Note over Partner: SEND_DONE_RESP
+        Partner-->>Local: RXCLKCAL_done_resp (d52)
+    end
+    Note over Local: TO_VALTRAINCENTER
+    Note over Partner: TO_VALTRAINCENTER
