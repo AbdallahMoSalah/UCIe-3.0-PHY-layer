@@ -13,6 +13,8 @@ module unit_valid_deserializer_s3 #(
     input  logic                   i_en,
     input  logic                   ser_data_in,
     input  logic                   i_valid_pulse,
+    input  logic                   i_vcmp_enable,
+    input  logic                   i_vcmp_done,
 
     output logic [DATA_WIDTH-1:0]    o_shift_reg,
     output logic [DATA_WIDTH-1:0]   o_valid_frame_data,
@@ -24,7 +26,7 @@ module unit_valid_deserializer_s3 #(
 logic [DATA_WIDTH-1:0] shift_reg;
 logic                  r_data_pos;
 logic                  prev_ser_data_in;
-logic                  o_state;          // frame-align FSM: 0 = IDLE, 1 = RUNNING
+logic [1:0]            o_state;          // frame-align FSM: 0 = IDLE, 1 = RUNNING
 logic [3:0]            o_count;          // 0..15 bit-pair counter (16 pll-cycles = one 32-bit word)
 
 
@@ -62,21 +64,42 @@ always @(negedge pll_clk or negedge i_rst_n) begin
         prev_ser_data_in <= ser_data_in;
 
         case (o_state)
-            1'b0: begin // IDLE
+            2'b00: begin // IDLE
                 // Detect rising edge on valid lane (meaning frame is starting)
                 if (ser_data_in && !prev_ser_data_in) begin
-                    o_state <= 1'b1; // RUNNING
+                    o_state <= 2'b01; // RUNNING
                     o_count <= 4'd0;
+                    if (i_vcmp_enable) begin
+                        o_state <= 2'b10;
+                    end
                 end
             end
 
-            1'b1: begin // RUNNING
+            2'b01: begin // RUNNING
                 if (o_count == 4'd15) begin
                     if (ser_data_in && !prev_ser_data_in) begin
-                        o_state <= 1'b1; // Start next frame immediately
+                        o_state <= 2'b01; // Start next frame immediately
                         o_count <= 4'd0;
                     end else begin
-                        o_state <= 1'b0; // transition to IDLE
+                        o_state <= 2'b00; // transition to IDLE
+                        o_count <= 4'd0;
+                    end
+                end else begin
+                    o_count <= o_count + 4'd1;
+                end
+            end
+            2'b10: begin // compare
+                if (o_count == 4'd15) begin
+                    if (~i_vcmp_enable || i_vcmp_done) begin
+                        if (ser_data_in && !prev_ser_data_in) begin
+                            o_state <= 2'b01; // Start next frame immediately
+                            o_count <= 4'd0;
+                        end else begin
+                            o_state <= 2'b00; // transition to IDLE
+                            o_count <= 4'd0;
+                        end
+                    end else begin
+                        o_state <= 2'b10; // compare
                         o_count <= 4'd0;
                     end
                 end else begin

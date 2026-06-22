@@ -154,6 +154,10 @@ module unit_mb_rx_top #(
         .ser_data_in (i_RVLD_P),
         .o_shift_reg (valid_shift_reg),
         .o_count_16  (valid_count_16),
+
+        .i_vcmp_enable(i_vcmp_enable),
+        .i_vcmp_done  (o_vcmp_done),
+
         
         .i_valid_pulse(i_valid_pulse),
         .o_valid_frame_data (valid_frame_data),
