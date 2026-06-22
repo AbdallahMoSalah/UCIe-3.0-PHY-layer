@@ -35,178 +35,186 @@ import RDI_SM_pkg::*;
 // =============================================================================
 
 module LTSM_wrapper #(
-    parameter int CLK_FRQ_HZ         = 125_000_000,
-    parameter int MAX_VAL_VREF_CODE  = 32'd16,
-    parameter int MAX_DATA_VREF_CODE = 32'd16,
-    parameter int MAX_PI_PHASE_CODE  = 32'd16,
-    parameter int MAX_DESKEW_CODE    = 32'd16
-)(
-    input  logic        clk,
-    input  logic        rst_n,
+        parameter int CLK_FRQ_HZ         = 125_000_000,
+        parameter int MAX_VAL_VREF_CODE  = 32'd3,
+        parameter int MAX_DATA_VREF_CODE = 32'd3,
+        parameter int MAX_PI_PHASE_CODE  = 32'd3,
+        parameter int MAX_DESKEW_CODE    = 32'd3
+    )(
+        input  logic        clk,
+        input  logic        rst_n,
 
-    // =========================================================================
-    // Status / observability
-    // =========================================================================
-    output LTSM_state_e current_ltsm_state,
-
-
+        // =========================================================================
+        // Status / observability
+        // =========================================================================
+        output LTSM_state_e current_ltsm_state,
 
 
 
-    // Rigster File Interface
-    output logic        link_training_retraining,
-    output logic        link_status,
-    output logic        timeout_8ms_occured,
-    output logic        busy_flag,
 
-    // RESET-state completion (high once the 4 ms dwell + a training trigger are
-    // both satisfied, held until the LTSM leaves RESET). Forwarded to the RDI
-    // gating logic to clear its sideband-pattern ungate latch at RESET exit.
-    output logic        RESET_state_done,
 
-    // State log registers (shift & latch history)
-    output logic [7:0]  log0_state_n,
-    output logic        log0_lane_reversal,
-    output logic        log0_width_degrade,
-    output logic [7:0]  log0_state_n_minus_1,
-    output logic [7:0]  log0_state_n_minus_2,
-    output logic [7:0]  log1_state_n_minus_3,
+        // Rigster File Interface
+        output logic        link_training_retraining,
+        output logic        link_status,
+        output logic        timeout_8ms_occured,
+        output logic        busy_flag,
 
-    // =========================================================================
-    // RESET-state triggers
-    // =========================================================================
-    input  logic        phy_start_ucie_link_training_ctrl_out,
-    input  logic        sb_det_pattern_rcvd,
-    input  logic        sb_det_pattern_rcvd_sticky,
+        // RESET-state completion (high once the 4 ms dwell + a training trigger are
+        // both satisfied, held until the LTSM leaves RESET). Forwarded to the RDI
+        // gating logic to clear its sideband-pattern ungate latch at RESET exit.
+        output logic        RESET_state_done,
 
-    // SPMW strap
-    input  logic        SPMW,
+        // State log registers (shift & latch history)
+        output logic [7:0]  log0_state_n,
+        output logic        log0_lane_reversal,
+        output logic        log0_width_degrade,
+        output logic [7:0]  log0_state_n_minus_1,
+        output logic [7:0]  log0_state_n_minus_2,
+        output logic [7:0]  log1_state_n_minus_3,
 
-    // =========================================================================
-    // Capability configuration (to MBINIT) — matches current MBINIT ports
-    // =========================================================================
-    input  logic        start_bit,
-    input  logic        reg_phy_x8_mode_ctrl,
-    input  logic        reg_TARR_support_local_cap,
-    input  logic        reg_L2SPD_support_local_cap,
-    input  logic        reg_PSPT_support_local_cap,
-    input  logic        reg_PMO_support_local_cap,
-    input  logic [3:0]  reg_Max_Link_Speed_cap,
-    input  logic [4:0]  reg_Supported_TX_Vswing,
-    input  logic        reg_so,
-    input  logic        reg_mtp,
-    input  logic [1:0]  reg_Module_ID,
-    input  logic [1:0]  reg_Clock_Phase_cap,
-    input  logic [1:0]  reg_Clock_mode_cap,
-    input  logic        reg_TARR_support_local_ctrl,
-    input  logic        reg_PMO_support_local_ctrl,
-    input  logic        reg_Clock_Phase_ctrl,
-    input  logic        reg_Clock_mode_ctrl,
-    input  logic        reg_L2SPD_support_local_ctrl,
-    input  logic        reg_PSPT_support_local_ctrl,
-    input  logic [3:0]  reg_Target_Link_Width_ctrl,
-    input  logic [3:0]  reg_Target_Link_Speed_ctrl,
+        // =========================================================================
+        // RESET-state triggers
+        // =========================================================================
+        input  logic        phy_start_ucie_link_training_ctrl_out,
+        input  logic        sb_det_pattern_rcvd,
+        input  logic        sb_det_pattern_rcvd_sticky,
 
-    // Capability status (from MBINIT, passed through)
-    output logic        reg_Clock_Phase_enable_status,
-    output logic        reg_Clock_mode_enable_status,
-    output logic        reg_TARR_enable_status,
-    output logic [3:0]  reg_Link_Width_enable_status,
-    output logic [3:0]  reg_Link_Speed_enable_status,
-    output logic        reg_PMO_enable_status,
-    output logic        reg_L2SPD_enable_status,
-    output logic        reg_PSPT_enable_status,
+        // SPMW strap
+        input  logic        SPMW,
 
-    // D2C / comparison thresholds (from Register File)
-    input  logic [11:0] cfg_max_err_thresh_perlane,
-    input  logic [15:0] cfg_max_err_thresh_aggr,
+        // =========================================================================
+        // Capability configuration (to MBINIT) — matches current MBINIT ports
+        // =========================================================================
+        input  logic        start_bit,
+        input  logic        reg_phy_x8_mode_ctrl,
+        input  logic        reg_TARR_support_local_cap,
+        input  logic        reg_L2SPD_support_local_cap,
+        input  logic        reg_PSPT_support_local_cap,
+        input  logic        reg_PMO_support_local_cap,
+        input  logic [3:0]  reg_Max_Link_Speed_cap,
+        input  logic [4:0]  reg_Supported_TX_Vswing,
+        input  logic        reg_so,
+        input  logic        reg_mtp,
+        input  logic [1:0]  reg_Module_ID,
+        input  logic [1:0]  reg_Clock_Phase_cap,
+        input  logic [1:0]  reg_Clock_mode_cap,
+        input  logic        reg_TARR_support_local_ctrl,
+        input  logic        reg_PMO_support_local_ctrl,
+        input  logic        reg_Clock_Phase_ctrl,
+        input  logic        reg_Clock_mode_ctrl,
+        input  logic        reg_L2SPD_support_local_ctrl,
+        input  logic        reg_PSPT_support_local_ctrl,
+        input  logic [3:0]  reg_Target_Link_Width_ctrl,
+        input  logic [3:0]  reg_Target_Link_Speed_ctrl,
 
-    // =========================================================================
-    // Sideband message bus (to/from SideBand_Top)
-    // =========================================================================
-    input  logic        sb_rx_valid,
-    input  msg_no_e     sb_rx_msg_id,
-    input  logic [15:0] sb_rx_MsgInfo,
-    input  logic [63:0] sb_rx_data_Field,
+        // Capability status (from MBINIT, passed through)
+        output logic        reg_Clock_Phase_enable_status,
+        output logic        reg_Clock_mode_enable_status,
+        output logic        reg_TARR_enable_status,
+        output logic [3:0]  reg_Link_Width_enable_status,
+        output logic [3:0]  reg_Link_Speed_enable_status,
+        output logic        reg_PMO_enable_status,
+        output logic        reg_L2SPD_enable_status,
+        output logic        reg_PSPT_enable_status,
 
-    output logic        sb_tx_valid,
-    input  logic        sb_ltsm_rdy,
-    output msg_no_e     sb_tx_msg_id,
-    output logic [15:0] sb_tx_MsgInfo,
-    output logic [63:0] sb_tx_data_Field,
+        // D2C / comparison thresholds (from Register File)
+        input  logic [11:0] cfg_max_err_thresh_perlane,
+        input  logic [15:0] cfg_max_err_thresh_aggr,
 
-    // SBINIT sideband pattern handshake (to SideBand_Top Link Controller)
-    input  logic        sb_iter_done,
-    output logic        sb_pattern_mode,
-    output logic        sb_det_pattern_req,
-    output logic [2:0]  sbinit_req_iter_count,
+        // =========================================================================
+        // Sideband message bus (to/from SideBand_Top)
+        // =========================================================================
+        input  logic        sb_rx_valid,
+        input  msg_no_e     sb_rx_msg_id,
+        input  logic [15:0] sb_rx_MsgInfo,
+        input  logic [63:0] sb_rx_data_Field,
 
-    // =========================================================================
-    // Unified mainband control outputs (to mainband_ltsm_interface)
-    // =========================================================================
-    output logic        mb_tx_pattern_en,
-    output logic [2:0]  mb_tx_pattern_setup,
-    output logic [1:0]  mb_tx_data_pattern_sel,
-    output logic        mb_tx_val_pattern_sel,
-    output logic [1:0]  mb_tx_clk_pattern_sel,
-    output logic        mb_rx_compare_en,
-    output logic [1:0]  mb_rx_compare_setup,
-    output logic        clear_error_req,
-    output logic [2:0]  mb_rx_data_lane_mask,
-    output logic [2:0]  mb_tx_data_lane_mask,
-    output logic        mb_lane_reversal_req,
+        output logic        sb_tx_valid,
+        input  logic        sb_ltsm_rdy,
+        output msg_no_e     sb_tx_msg_id,
+        output logic [15:0] sb_tx_MsgInfo,
+        output logic [63:0] sb_tx_data_Field,
 
-    // Lane selects + extended controls (D2C point test / MBTRAIN substates)
-    output logic [1:0]  mb_tx_trk_lane_sel,
-    output logic [1:0]  mb_tx_clk_lane_sel,
-    output logic [1:0]  mb_tx_val_lane_sel,
-    output logic [1:0]  mb_tx_data_lane_sel,
-    output logic        mb_rx_trk_lane_sel,
-    output logic        mb_rx_clk_lane_sel,
-    output logic        mb_rx_val_lane_sel,
-    output logic        mb_rx_data_lane_sel,
-    output logic        mb_tx_lfsr_en,
-    output logic        mb_tx_lfsr_rst,
-    output logic        mb_rx_lfsr_en,
-    output logic        mb_rx_lfsr_rst,
-    output logic [2:0]  mb_rx_pattern_setup,
-    output logic [1:0]  mb_rx_data_pattern_sel,
-    output logic        mb_rx_val_pattern_sel,
-    output logic        mb_rx_pattern_mode,
-    output logic [15:0] mb_rx_burst_count,
-    output logic [15:0] mb_rx_idle_count,
-    output logic [15:0] mb_rx_iter_count,
-    output logic        mb_tx_pattern_mode,
-    output logic [15:0] mb_tx_burst_count,
-    output logic [15:0] mb_tx_idle_count,
-    output logic [15:0] mb_tx_iter_count,
-    output logic        mb_tx_clk_sampling_en,
-    output logic [1:0]  mb_tx_clk_sampling,
-    output logic [11:0] mb_rx_max_err_thresh_perlane,
-    output logic [15:0] mb_rx_max_err_thresh_aggr,
-    output logic [2:0]  mb_pll_speed_sel,
-    output logic        clk_embedded_en,
-    // =========================================================================
-    // Unified mainband status inputs (from mainband_ltsm_interface)
-    // =========================================================================
-    input  logic [15:0] mb_rx_perlane_pass,
-    input  logic        mb_tx_pattern_count_done,
-    input  logic        mb_rx_compare_done,
-    input  logic        mb_rx_aggr_pass,
-    input  logic        mb_rx_val_pass,
-    input  logic        repairclk_rtrk_pass,
-    input  logic        repairclk_rckn_pass,
-    input  logic        repairclk_rckp_pass,
-    input  logic        repairval_RVLD_L_pass,
+        // SBINIT sideband pattern handshake (to SideBand_Top Link Controller)
+        input  logic        sb_iter_done,
+        output logic        sb_pattern_mode,
+        output logic        sb_det_pattern_req,
+        output logic [2:0]  sbinit_req_iter_count,
 
-    // =========================================================================
-    // RDI status (LINKINIT / ACTIVE)
-    // =========================================================================
-    input  RDI_state    rdi_state,
+        // =========================================================================
+        // Unified mainband control outputs (to mainband_ltsm_interface)
+        // =========================================================================
+        output logic        mb_tx_pattern_en,
+        output logic [2:0]  mb_tx_pattern_setup,
+        output logic [1:0]  mb_tx_data_pattern_sel,
+        output logic        mb_tx_val_pattern_sel,
+        output logic [1:0]  mb_tx_clk_pattern_sel,
+        output logic        mb_rx_compare_en,
+        output logic [1:0]  mb_rx_compare_setup,
+        output logic        clear_error_req,
+        output logic [2:0]  mb_rx_data_lane_mask,
+        output logic [2:0]  mb_tx_data_lane_mask,
+        output logic        mb_lane_reversal_req,
 
-    // Adapter-requested RDI state (L1 wake trigger)
-    input  RDI_state    lp_state_req
-);
+        // Lane selects + extended controls (D2C point test / MBTRAIN substates)
+        output logic [1:0]  mb_tx_trk_lane_sel,
+        output logic [1:0]  mb_tx_clk_lane_sel,
+        output logic [1:0]  mb_tx_val_lane_sel,
+        output logic [1:0]  mb_tx_data_lane_sel,
+        output logic        mb_rx_trk_lane_sel,
+        output logic        mb_rx_clk_lane_sel,
+        output logic        mb_rx_val_lane_sel,
+        output logic        mb_rx_data_lane_sel,
+        output logic        mb_tx_lfsr_en,
+        output logic        mb_tx_lfsr_rst,
+        output logic        mb_rx_lfsr_en,
+        output logic        mb_rx_lfsr_rst,
+        output logic [2:0]  mb_rx_pattern_setup,
+        output logic [1:0]  mb_rx_data_pattern_sel,
+        output logic        mb_rx_val_pattern_sel,
+        output logic        mb_rx_pattern_mode,
+        output logic [15:0] mb_rx_burst_count,
+        output logic [15:0] mb_rx_idle_count,
+        output logic [15:0] mb_rx_iter_count,
+        output logic        mb_tx_pattern_mode,
+        output logic [15:0] mb_tx_burst_count,
+        output logic [15:0] mb_tx_idle_count,
+        output logic [15:0] mb_tx_iter_count,
+        output logic        mb_tx_clk_sampling_en,
+        output logic [1:0]  mb_tx_clk_sampling,
+        output logic [11:0] mb_rx_max_err_thresh_perlane,
+        output logic [15:0] mb_rx_max_err_thresh_aggr,
+        output logic [2:0]  mb_pll_speed_sel,
+        output logic        clk_embedded_en,
+        // =========================================================================
+        // Unified mainband status inputs (from mainband_ltsm_interface)
+        // =========================================================================
+        input  logic [15:0] mb_rx_perlane_pass,
+        input  logic        mb_tx_pattern_count_done,
+        input  logic        mb_rx_compare_done,
+        input  logic        mb_rx_aggr_pass,
+        input  logic        mb_rx_val_pass,
+        input  logic        repairclk_rtrk_pass,
+        input  logic        repairclk_rckn_pass,
+        input  logic        repairclk_rckp_pass,
+        input  logic        repairval_RVLD_L_pass,
+
+        // =========================================================================
+        // RDI status (LINKINIT / ACTIVE)
+        // =========================================================================
+        input  RDI_state    rdi_state,
+
+        // Adapter-requested RDI state (L1 wake trigger)
+        input  RDI_state    lp_state_req
+    );
+
+    // MAX_CODE: derived automatically — do not override.
+    parameter int unsigned MAX_CODE =
+        (MAX_VAL_VREF_CODE  >= MAX_DATA_VREF_CODE && MAX_VAL_VREF_CODE  >= MAX_PI_PHASE_CODE && MAX_VAL_VREF_CODE  >= MAX_DESKEW_CODE)  ? MAX_VAL_VREF_CODE  :
+        (MAX_DATA_VREF_CODE >= MAX_PI_PHASE_CODE  && MAX_DATA_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_DATA_VREF_CODE :
+        (MAX_PI_PHASE_CODE  >= MAX_DESKEW_CODE) ? MAX_PI_PHASE_CODE : MAX_DESKEW_CODE;
+    parameter int MAX_CODE_WIDTH = $clog2(MAX_CODE+1);
+    parameter int MAX_DESKEW_CODE_WIDTH = $clog2(MAX_DESKEW_CODE+1);
 
     // =========================================================================
     // CONTROLLER <-> SUBMODULE HANDSHAKES
@@ -224,7 +232,7 @@ module LTSM_wrapper #(
 
     // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
     logic mbtrain_speedidle_req;
-    
+
     state_n_e    current_ltsm_state_n;
     logic timeout_timer_en, timer_rst_n;
     assign clk_embedded_en = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
@@ -268,9 +276,9 @@ module LTSM_wrapper #(
     // Shared sweep-engine results (wrapper_D2C_sweep -> consumers).
     // Width = $clog2(MAX_CODE+1); MAX_CODE=2 (shrunk ranges) -> 2 bits.
     logic        d2c_sweep_done;
-    logic [1:0]  d2c_swept_code;
-    wire  [1:0]  d2c_best_code [0:15];
-    wire  [1:0]  d2c_min_eye_width;
+    logic [MAX_CODE_WIDTH-1:0]  d2c_swept_code;
+    wire  [MAX_CODE_WIDTH-1:0]  d2c_best_code [0:15];
+    wire  [MAX_DESKEW_CODE_WIDTH-1:0]  d2c_min_eye_width;
 
     // Shared D2C sweep-engine muxed inputs (MBINIT vs MBTRAIN)
     logic        sweep_local_en, sweep_partner_en;
@@ -430,7 +438,7 @@ module LTSM_wrapper #(
     always_comb begin
         mb_pll_speed_sel = mb_pll_speed_sel_reg;
 
-        if(current_ltsm_state_n == LOG_RESET) begin 
+        if(current_ltsm_state_n == LOG_RESET) begin
             mb_pll_speed_sel = 3'b000;
         end else if (current_ltsm_state_n == LOG_MBTRAIN_SPEEDIDLE) begin
             mb_pll_speed_sel = reg_Link_Speed_enable_status[2:0];
@@ -442,17 +450,17 @@ module LTSM_wrapper #(
     // LINK TRAINING / RETRAINING STATUS (to Register File)
     // =============================================================================
     assign link_training_retraining = (current_ltsm_state == SBINIT) ||
-                                      (current_ltsm_state == MBINIT) ||
-                                      (current_ltsm_state == MBTRAIN) ||
-                                      (current_ltsm_state == LINKINIT) ||
-                                      (current_ltsm_state == PHYRETRAIN);
+        (current_ltsm_state == MBINIT) ||
+        (current_ltsm_state == MBTRAIN) ||
+        (current_ltsm_state == LINKINIT) ||
+        (current_ltsm_state == PHYRETRAIN);
 
     // =============================================================================
     // LINK STATUS (to Register File)
     // =============================================================================
     assign link_status = (current_ltsm_state == ACTIVE) ||
-                         (current_ltsm_state == PHYRETRAIN) || (current_ltsm_state == MBTRAIN && log0_state_n_minus_1_reg == LOG_PHYRETRAIN)
-                         || (current_ltsm_state == LOG_LINKINIT && log0_state_n_minus_2_reg == LOG_PHYRETRAIN);
+        (current_ltsm_state == PHYRETRAIN) || (current_ltsm_state == MBTRAIN && log0_state_n_minus_1_reg == LOG_PHYRETRAIN)
+        || (current_ltsm_state == LOG_LINKINIT && log0_state_n_minus_2_reg == LOG_PHYRETRAIN);
 
     // =========================================================================
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
@@ -492,24 +500,24 @@ module LTSM_wrapper #(
         end
     end
 
-    logic [4:0] log0_state_n_comb;        
+    logic [4:0] log0_state_n_comb;
     logic [4:0] log0_state_n_minus_1_comb;
     logic [4:0] log0_state_n_minus_2_comb;
     logic [4:0] log1_state_n_minus_3_comb;
-    
+
     always_comb begin
         log0_state_n_comb         = log0_state_n_reg[4:0];
         log0_state_n_minus_1_comb = log0_state_n_minus_1_reg[4:0];
         log0_state_n_minus_2_comb = log0_state_n_minus_2_reg[4:0];
         log1_state_n_minus_3_comb = log1_state_n_minus_3_reg[4:0];
-        
+
         if (current_log_state != log0_state_n_reg[4:0]) begin
             log0_state_n_comb         = {3'b0, current_log_state};
             log0_state_n_minus_1_comb = log0_state_n_reg;
             log0_state_n_minus_2_comb = log0_state_n_minus_1_reg;
             log1_state_n_minus_3_comb = log0_state_n_minus_2_reg;
         end
-        
+
     end
 
     assign log0_state_n         = log0_state_n_comb;
@@ -586,11 +594,11 @@ module LTSM_wrapper #(
     // MBTRAIN are never active simultaneously, so the single wrapper_D2C_sweep is
     // shared: enables/active-lanes come from MBTRAIN while in MBTRAIN, else MBINIT.
     assign sweep_local_en   = (current_ltsm_state == MBTRAIN) ? mbtrain_local_sweep_en
-                                                              : d2cpt_local_tx_pt_en;
+        : d2cpt_local_tx_pt_en;
     assign sweep_partner_en = (current_ltsm_state == MBTRAIN) ? mbtrain_partner_sweep_en
-                                                              : d2cpt_partner_tx_pt_en;
+        : d2cpt_partner_tx_pt_en;
     assign sweep_active_lanes_mux = (current_ltsm_state == MBTRAIN) ? mbtrain_sweep_active_lanes
-                                                                    : active_lanes;
+        : active_lanes;
     // =========================================================================
     // TRAINERROR HANDSHAKE INTEGRATION
     // =========================================================================
@@ -605,23 +613,23 @@ module LTSM_wrapper #(
 
     logic second_timeout_occured;
     assign second_timeout_occured = te_handshake_en && te_local_error_trigger && timeout_8ms_occured;
-    
+
     // Watchdog reset on handshake start
     logic reset_timer_on_handshake_start;
     assign reset_timer_on_handshake_start = te_handshake_en && !te_local_error_trigger &&
-                                            ((mbinit_error && (current_ltsm_state == MBINIT)) || 
-                                             (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) || 
-                                             (linkinit_error && (current_ltsm_state == LINKINIT)));
+        ((mbinit_error && (current_ltsm_state == MBINIT)) ||
+            (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) ||
+            (linkinit_error && (current_ltsm_state == LINKINIT)));
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             te_local_error_trigger <= 1'b0;
         end else if (te_handshake_en) begin
             // Trigger handshake on mbinit_error (in MBINIT), mbtrain_error (in MBTRAIN), linkinit_error (in LINKINIT), or timeout_8ms_occured
-            if ((mbinit_error && (current_ltsm_state == MBINIT)) || 
-                (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) || 
-                (linkinit_error && (current_ltsm_state == LINKINIT)) || 
-                timeout_8ms_occured) begin
+            if ((mbinit_error && (current_ltsm_state == MBINIT)) ||
+                    (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) ||
+                    (linkinit_error && (current_ltsm_state == LINKINIT)) ||
+                    timeout_8ms_occured) begin
                 // $display("T=%0t | [TRAINERROR DEBUG %m] TRIGGERED! mbinit_error=%b, mbtrain_ltsm_trainerror_req=%b, linkinit_error=%b, timeout_8ms_occured=%b, current_ltsm_state=%s, current_log_state=%s",
                 //          $time, mbinit_error, mbtrain_ltsm_trainerror_req, linkinit_error, timeout_8ms_occured, current_ltsm_state.name(), current_log_state.name());
                 if (te_local_error_trigger) begin
@@ -708,10 +716,10 @@ module LTSM_wrapper #(
     // =========================================================================
     // Enabled while in states where handshakes can stall
     assign timeout_timer_en = (current_ltsm_state == SBINIT)  ||
-                              (current_ltsm_state == MBINIT)   ||
-                              (current_ltsm_state == MBTRAIN)  ||
-                              (current_ltsm_state == LINKINIT) ||
-                              (current_ltsm_state == PHYRETRAIN);
+        (current_ltsm_state == MBINIT)   ||
+        (current_ltsm_state == MBTRAIN)  ||
+        (current_ltsm_state == LINKINIT) ||
+        (current_ltsm_state == PHYRETRAIN);
 
     // Reset the counter for one cycle whenever the substate (current_log_state) changes,
     // so every substate starts with a fresh 8 ms budget.
@@ -1118,15 +1126,15 @@ module LTSM_wrapper #(
         // fits the integration TB's per-scenario lclk budget. Codes are inert in
         // this TB (the mainband model ignores analog codes), so range size only
         // affects sim time, not functional coverage of the training sequence.
-        .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE), 
+        .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE),
         .MIN_VAL_VREF_CODE  (1),
-        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE), 
+        .MAX_DATA_VREF_CODE (MAX_DATA_VREF_CODE),
         .MIN_DATA_VREF_CODE (1),
-        .MAX_DATA_PI_CODE   (MAX_PI_PHASE_CODE), 
+        .MAX_DATA_PI_CODE   (MAX_PI_PHASE_CODE),
         .MIN_DATA_PI_CODE   (1),
-        .MAX_VAL_PI_CODE    (MAX_PI_PHASE_CODE), 
+        .MAX_VAL_PI_CODE    (MAX_PI_PHASE_CODE),
         .MIN_VAL_PI_CODE    (1),
-        .MAX_DESKEW_CODE    (MAX_DESKEW_CODE), 
+        .MAX_DESKEW_CODE    (MAX_DESKEW_CODE),
         .MIN_DESKEW_CODE    (1)
     ) u_d2c (
         .lclk  (clk),
@@ -1153,7 +1161,7 @@ module LTSM_wrapper #(
         .mb_rx_clk_lane_sel  (d2c_mb_rx_clk_lane_sel),
         .mb_rx_val_lane_sel  (d2c_mb_rx_val_lane_sel),
         .mb_rx_data_lane_sel (d2c_mb_rx_data_lane_sel),
-        
+
         .mb_tx_pattern_en    (d2c_mb_tx_pattern_en),
         .mb_tx_pattern_setup (d2c_mb_tx_pattern_setup),
         .mb_rx_pattern_setup (d2c_mb_rx_pattern_setup),
@@ -1359,65 +1367,65 @@ module LTSM_wrapper #(
         mb_tx_val_lane_sel=2'b01;
         mb_tx_data_lane_sel=2'b01;
         case (current_ltsm_state_n)
-                LOG_RESET,
-                LOG_SBINIT,
-                LOG_MBINIT_PARAM,
-                LOG_MBINIT_CAL,
-                LOG_MBTRAIN_TXSELFCAL,
-                LOG_TRAINERROR,
-                LOG_L1_L2:
-                begin
-                    mb_tx_trk_lane_sel=2'b10;
-                    mb_tx_clk_lane_sel=2'b10;
-                    mb_tx_val_lane_sel =2'b10;
-                    mb_tx_data_lane_sel=2'b10;
-                end
-                LOG_MBINIT_REPAIRCLK: begin
-                    mb_tx_val_lane_sel  = 2'b10; // Hi-Z (not trained yet)
-                    mb_tx_data_lane_sel = 2'b10; // Hi-Z (not trained yet)
-                end
-                LOG_MBINIT_REPAIRVAL: begin
-                    mb_tx_data_lane_sel=2'b00;
-                end
-                LOG_MBTRAIN_RXCLKCAL:
-                begin
-                    mb_tx_val_lane_sel = 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;
-                end
-                LOG_MBTRAIN_VALVREF,
-                LOG_MBTRAIN_VALTRAINCENTER,
-                LOG_MBTRAIN_VALTRAINVREF:
-                begin
-                    mb_tx_trk_lane_sel = 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;
-                end
-                LOG_MBTRAIN_DATAVREF,
-                LOG_MBTRAIN_DATATRAINCENTER1,
-                LOG_MBTRAIN_DATATRAINVREF,
-                LOG_MBTRAIN_RXDESKEW,
-                LOG_MBTRAIN_DATATRAINCENTER2,
-                LOG_MBTRAIN_LINKSPEED:
-                begin
-                    mb_tx_trk_lane_sel = 2'b00;
-                end
-                LOG_MBTRAIN_SPEEDIDLE,
-                LOG_LINKINIT,
-                LOG_PHYRETRAIN,
-                LOG_MBTRAIN_REPAIR:
-                begin
-                    mb_tx_trk_lane_sel = 2'b00;
-                    mb_tx_clk_lane_sel = 2'b00;
-                    mb_tx_val_lane_sel = 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;
-                end
-                default: begin
-                    mb_tx_trk_lane_sel = 2'b01;
-                    mb_tx_clk_lane_sel = 2'b01;
-                    mb_tx_val_lane_sel = 2'b01;
-                    mb_tx_data_lane_sel = 2'b01;
-                end
-                
-            endcase
+            LOG_RESET,
+            LOG_SBINIT,
+            LOG_MBINIT_PARAM,
+            LOG_MBINIT_CAL,
+            LOG_MBTRAIN_TXSELFCAL,
+            LOG_TRAINERROR,
+            LOG_L1_L2:
+            begin
+                mb_tx_trk_lane_sel=2'b10;
+                mb_tx_clk_lane_sel=2'b10;
+                mb_tx_val_lane_sel =2'b10;
+                mb_tx_data_lane_sel=2'b10;
+            end
+            LOG_MBINIT_REPAIRCLK: begin
+                mb_tx_val_lane_sel  = 2'b10; // Hi-Z (not trained yet)
+                mb_tx_data_lane_sel = 2'b10; // Hi-Z (not trained yet)
+            end
+            LOG_MBINIT_REPAIRVAL: begin
+                mb_tx_data_lane_sel=2'b00;
+            end
+            LOG_MBTRAIN_RXCLKCAL:
+            begin
+                mb_tx_val_lane_sel = 2'b00;
+                mb_tx_data_lane_sel = 2'b00;
+            end
+            LOG_MBTRAIN_VALVREF,
+            LOG_MBTRAIN_VALTRAINCENTER,
+            LOG_MBTRAIN_VALTRAINVREF:
+            begin
+                mb_tx_trk_lane_sel = 2'b00;
+                mb_tx_data_lane_sel = 2'b00;
+            end
+            LOG_MBTRAIN_DATAVREF,
+            LOG_MBTRAIN_DATATRAINCENTER1,
+            LOG_MBTRAIN_DATATRAINVREF,
+            LOG_MBTRAIN_RXDESKEW,
+            LOG_MBTRAIN_DATATRAINCENTER2,
+            LOG_MBTRAIN_LINKSPEED:
+            begin
+                mb_tx_trk_lane_sel = 2'b00;
+            end
+            LOG_MBTRAIN_SPEEDIDLE,
+            LOG_LINKINIT,
+            LOG_PHYRETRAIN,
+            LOG_MBTRAIN_REPAIR:
+            begin
+                mb_tx_trk_lane_sel = 2'b00;
+                mb_tx_clk_lane_sel = 2'b00;
+                mb_tx_val_lane_sel = 2'b00;
+                mb_tx_data_lane_sel = 2'b00;
+            end
+            default: begin
+                mb_tx_trk_lane_sel = 2'b01;
+                mb_tx_clk_lane_sel = 2'b01;
+                mb_tx_val_lane_sel = 2'b01;
+                mb_tx_data_lane_sel = 2'b01;
+            end
+
+        endcase
     end
 
     // =========================================================================

@@ -82,7 +82,7 @@ module wrapper_MBTRAIN #(
         input  logic        sweep_done,
         input       logic [$clog2(MAX_CODE+1)-1:0] sweep_swept_code,
         input  wire logic [$clog2(MAX_CODE+1)-1:0] sweep_best_code [0:15],
-        input       logic [$clog2(MAX_CODE+1)-1:0] sweep_min_eye_width,
+        input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0] sweep_min_eye_width,
 
         // External D2C point-test results
         input  logic [15:0] d2c_perlane_pass,
