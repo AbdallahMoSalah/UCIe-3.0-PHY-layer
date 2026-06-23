@@ -45,6 +45,7 @@ module wrapper_REPAIR (
         // sweep_active_lanes + wrapper_LINKSPEED; degrade_feasible → wrapper_LINKSPEED)
         // instead of instantiating a duplicate unit_negotiated_lanes at the top level.
         output logic [15:0] active_rx_lanes,        // Active RX lane bitmask
+        output logic [15:0] active_tx_lanes,        // Active TX lane bitmask
         output logic        degrade_feasible,        // 1 = valid degraded lane code is feasible
 
         // LTSM controller override: reload masks to initial values
@@ -107,7 +108,7 @@ module wrapper_REPAIR (
         .mb_rx_data_lane_mask       (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask       (mb_tx_data_lane_mask),
         .active_rx_lanes            (active_rx_lanes),
-        .active_tx_lanes            (), // not used
+        .active_tx_lanes            (active_tx_lanes), // connected
         .success_tx_lanes           (success_tx_lanes),
         .rf_cap_SPMW                (rf_cap_SPMW),
         .rf_ctrl_target_link_width  (rf_ctrl_target_link_width),

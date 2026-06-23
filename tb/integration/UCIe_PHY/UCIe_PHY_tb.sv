@@ -508,7 +508,8 @@ module UCIe_PHY_tb;
     bit data_pass;
     initial begin
         
-        enabled_scenarios[22] = 1'b1;
+        enabled_scenarios[8] = 1'b1;
+        
         $display("================================================================");
         $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
         $display("  Adapter programs Reg_File over sideband; observes via (.)");
@@ -650,6 +651,28 @@ module UCIe_PHY_tb;
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
             corrupt_1to0 = 16'h00FF; // corrupt lanes 0..7
+            do_bringup(ok);
+            chk(ok, "both dies reached LOG_ACTIVE", scenario_num);
+            if (ok) begin
+                print_active_status();
+                do_data_transfer(data_pass);
+                chk(data_pass, "data transfer verified successfully after width degradation to x8", scenario_num);
+            end
+        end else begin
+            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+        end
+        scenario_num++;
+
+        // ----------------------------------------------------------------
+        // Scenario 8: Asymmetric Width Degradation with Retry (Fault lanes 0..7 on Die 0) (Fault lanes 8..15 on Die 1)
+        // ----------------------------------------------------------------
+        if (enabled_scenarios[scenario_num]) begin
+            $display("\nT=%0t | [SC%0d] Asymmetric Width Degradation: Fault lanes 0..7 -> degrade x16 to x8...", $time, scenario_num);
+            reset_system();
+            fork program_die(0); program_die(1); join
+            print_ctrl_regs();
+            corrupt_0to1 = 16'h00FF; // corrupt lanes 0..7
+            corrupt_1to0 = 16'hFF00; // corrupt lanes 8..15
             do_bringup(ok);
             chk(ok, "both dies reached LOG_ACTIVE", scenario_num);
             if (ok) begin
@@ -1556,7 +1579,7 @@ module UCIe_PHY_tb;
                 logic [3:0] speed_at_max;
                 ok23         = 1'b0;
                 speed_at_max = 4'h0;
-                corrupt_0to1 = 16'hFF00;
+                corrupt_0to1 = 16'h00FF;
                 corrupt_1to0 = 16'hFF00;
                 lp_state_req0 = Nop; lp_state_req1 = Nop;
                 fork
@@ -1577,7 +1600,7 @@ module UCIe_PHY_tb;
                         $display("T=%0t | [SC%0d] First speed degrade complete (speed code %0h) - keeping lower lanes fault active.", $time, scenario_num, u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status);
                         
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
-                        corrupt_0to1 = 16'hFF00;
+                        corrupt_0to1 = 16'h00FF;
                         corrupt_1to0 = 16'hFF00;
                         $display("T=%0t | [SC%0d] Second speed degrade complete - clearing high-speed fault (lower 8 lanes recover at speed code %0h).", $time, scenario_num, u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status);
                     end
@@ -1624,7 +1647,7 @@ module UCIe_PHY_tb;
                 reverse_lanes_0to1 = 1'b1;
                 reverse_lanes_1to0 = 1'b1;
                 corrupt_0to1 = 16'hFF00;
-                corrupt_1to0 = 16'hFF00;
+                corrupt_1to0 = 16'h00FF;
                 lp_state_req0 = Nop; lp_state_req1 = Nop;
                 fork
                     begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
@@ -1639,7 +1662,7 @@ module UCIe_PHY_tb;
                         $display("T=%0t | [SC%0d] SPEEDIDLE raised speed to code %0h - injecting speed-dependent fault on active x8 lanes with reversal active.", $time, scenario_num, speed_at_max);
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         corrupt_0to1 = 16'hFF00;
-                        corrupt_1to0 = 16'hFF00;
+                        corrupt_1to0 = 16'h00FF;
                         $display("T=%0t | [SC%0d] Speed degraded - clearing high-speed fault (lower 8 lanes recover).", $time, scenario_num);
                     end
                 join_none
@@ -1658,6 +1681,69 @@ module UCIe_PHY_tb;
                     chk(u_die1.u_reg_file.ucie_link_status_r_out[10:7] == 4'h1, "Die1 negotiated width is x8", scenario_num);
                     chk(u_die0.log0_lane_reversal == 1'b1, "Die0 lane reversal active", scenario_num);
                     chk(u_die1.log0_lane_reversal == 1'b1, "Die1 lane reversal active", scenario_num);
+                    chk(u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status == (speed_at_max - 4'h1), "Die0 speed degraded one step", scenario_num);
+                    do_data_transfer(data_pass);
+                    chk(data_pass, "data transfer verified successfully", scenario_num);
+                end
+            end
+        end else begin
+            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+        end
+        scenario_num++;
+
+        // ----------------------------------------------------------------
+        // Scenario 25: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
+        // ----------------------------------------------------------------
+        if (enabled_scenarios[scenario_num]) begin
+            $display("\nT=%0t | [SC%0d] Asymmetric Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...", $time, scenario_num);
+            reset_system();
+            fork
+                program_die_custom(0, 4'h2, 4'h5, 1'b0);
+                program_die_custom(1, 4'h2, 4'h5, 1'b0);
+            join
+            print_ctrl_regs();
+            begin : sc25_bringup
+                bit         ok25;
+                logic [3:0] speed_at_max;
+                ok25         = 1'b0;
+                speed_at_max = 4'h0;
+                reverse_lanes_0to1 = 1'b1;
+                reverse_lanes_1to0 = 1'b0;
+                corrupt_0to1 = 16'hFF00;
+                corrupt_1to0 = 16'h00FF;
+                lp_state_req0 = Nop; lp_state_req1 = Nop;
+                fork
+                    begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
+                    begin wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
+                    begin : sc25_fault_mgr
+                        wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
+                        @(posedge lclk0);
+                        wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
+                        speed_at_max = u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status;
+                        corrupt_0to1 = 16'hFFFF;
+                        corrupt_1to0 = 16'hFFFF;
+                        $display("T=%0t | [SC%0d] SPEEDIDLE raised speed to code %0h - injecting speed-dependent fault on active x8 lanes with reversal active.", $time, scenario_num, speed_at_max);
+                        wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
+                        corrupt_0to1 = 16'hFF00;
+                        corrupt_1to0 = 16'h00FF;
+                        $display("T=%0t | [SC%0d] Speed degraded - clearing high-speed fault (lower 8 lanes recover).", $time, scenario_num);
+                    end
+                join_none
+                fork
+                    begin wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active); ok25 = 1'b1; end
+                    begin wait (m_error || p_error); ok25 = 1'b0; $error("[SC%0d] training error",scenario_num); end
+                    begin repeat (600000) @(posedge lclk0); ok25 = 1'b0; $error("[SC%0d] TIMEOUT",scenario_num); end
+                join_any
+                disable fork;
+                corrupt_0to1 = 16'h0000;
+                corrupt_1to0 = 16'h0000;
+                chk(ok25, "link reached ACTIVE with lane reversal, width degrade and speed degrade", scenario_num);
+                if (ok25) begin
+                    print_active_status();
+                    chk(u_die0.u_reg_file.ucie_link_status_r_out[10:7] == 4'h1, "Die0 negotiated width is x8", scenario_num);
+                    chk(u_die1.u_reg_file.ucie_link_status_r_out[10:7] == 4'h1, "Die1 negotiated width is x8", scenario_num);
+                    chk(u_die0.log0_lane_reversal == 1'b1, "Die0 lane reversal active", scenario_num);
+                    chk(u_die1.log0_lane_reversal == 1'b0, "Die1 lane reversal active", scenario_num);
                     chk(u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status == (speed_at_max - 4'h1), "Die0 speed degraded one step", scenario_num);
                     do_data_transfer(data_pass);
                     chk(data_pass, "data transfer verified successfully", scenario_num);

@@ -251,6 +251,7 @@ module wrapper_MBTRAIN #(
     logic        is_high_speed;
     // active_rx_lanes: driven by wrapper_REPAIR's exposed output (from its internal unit_negotiated_lanes). Connected to sweep_active_lanes and wrapper_LINKSPEED.
     logic [15:0] active_rx_lanes;
+    logic [15:0] active_tx_lanes;
     logic [15:0] linkspeed_success_lanes;
     // degrade_feasible: from wrapper_REPAIR's exposed output → wrapper_LINKSPEED.width_degrade_feasible
     logic        degrade_feasible;
@@ -341,7 +342,21 @@ module wrapper_MBTRAIN #(
 
     assign local_sweep_en     = |ss_local_sweep_en;
     assign partner_sweep_en   = |ss_partner_sweep_en;
-    assign sweep_active_lanes = active_rx_lanes;
+    logic [15:0] sweep_active_lanes_w;
+    always_comb begin
+        case (current_mbtrain_substate)
+            LOG_MBTRAIN_VALTRAINCENTER,
+            LOG_MBTRAIN_DATATRAINCENTER1,
+            LOG_MBTRAIN_DATATRAINCENTER2,
+            LOG_MBTRAIN_LINKSPEED: begin
+                sweep_active_lanes_w = active_tx_lanes;
+            end
+            default: begin
+                sweep_active_lanes_w = active_rx_lanes;
+            end
+        endcase
+    end
+    assign sweep_active_lanes = sweep_active_lanes_w;
 
     // ================================================================================================
     // 4. Common-file instantiations
@@ -722,7 +737,7 @@ module wrapper_MBTRAIN #(
         .linkspeed_repair_req          (linkspeed_repair_req),
         .linkspeed_phyretrain_req      (linkspeed_phyretrain_req),
 
-        .active_rx_lanes               (active_rx_lanes),
+        .active_rx_lanes               (active_tx_lanes),
         .width_degrade_feasible        (degrade_feasible),
         .PHY_IN_RETRAIN                (PHY_IN_RETRAIN),
         .params_changed                (params_changed),
@@ -762,6 +777,7 @@ module wrapper_MBTRAIN #(
         .mb_rx_data_lane_mask         (mb_rx_data_lane_mask),
         .mb_tx_data_lane_mask         (mb_tx_data_lane_mask),
         .active_rx_lanes              (active_rx_lanes),
+        .active_tx_lanes              (active_tx_lanes),
         .degrade_feasible             (degrade_feasible),
         .mbinit_rx_data_lane_mask     (mbinit_rx_data_lane_mask),
         .mbinit_tx_data_lane_mask     (mbinit_tx_data_lane_mask),
