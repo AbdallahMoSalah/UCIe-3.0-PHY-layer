@@ -155,11 +155,11 @@ module wrapper_D2C_sweep #(
         // Group 7: MB Signals — TX (outputs from wrapper_D2C_PT to MB hardware)
         // =========================================================================
         // TX lane logical selection: 00=Low, 01=Active, 10=Tri-stated, 11=Electrical-Idle
-        output logic        d2c_tx_lanes_active, // To choose which Tx lanes control signals (mb_tx_*_lane_sel) should pass to the MB lanes. Are the MB Tx control lanes signals from the substates or the signals from the D2C.
-        output logic [1:0]  mb_tx_clk_lane_sel,
-        output logic [1:0]  mb_tx_data_lane_sel,
-        output logic [1:0]  mb_tx_val_lane_sel,
-        output logic [1:0]  mb_tx_trk_lane_sel,
+        // output logic        d2c_tx_lanes_active, // To choose which Tx lanes control signals (mb_tx_*_lane_sel) should pass to the MB lanes. Are the MB Tx control lanes signals from the substates or the signals from the D2C.
+        // output logic [1:0]  mb_tx_clk_lane_sel,
+        // output logic [1:0]  mb_tx_data_lane_sel,
+        // output logic [1:0]  mb_tx_val_lane_sel,
+        // output logic [1:0]  mb_tx_trk_lane_sel,
 
         // 0: TX in static idle; 1: Drive active training pattern on configured TX lanes.
         output logic        mb_tx_pattern_en,
@@ -204,7 +204,7 @@ module wrapper_D2C_sweep #(
         // Group 8: MB Signals — RX (outputs from wrapper_D2C_PT to MB hardware)
         // =========================================================================
         // RX lane enable: 0=Disabled, 1=Enabled.
-        output logic        d2c_rx_lanes_active,              // To choose which Rx lanes control signals (mb_rx_*_lane_sel) should pass to the MB lanes. Are the MB Rx control lanes signals from the substates or the signals from the D2C.
+        // output logic        d2c_rx_lanes_active,              // To choose which Rx lanes control signals (mb_rx_*_lane_sel) should pass to the MB lanes. Are the MB Rx control lanes signals from the substates or the signals from the D2C.
         output logic        mb_rx_trk_lane_sel,               // 0: Disabled; 1: RX tracking lane active.
         output logic        mb_rx_clk_lane_sel,               // 0: Disabled; 1: RX clock lane active.
         output logic        mb_rx_val_lane_sel,               // 0: Disabled; 1: RX valid lane active.
@@ -470,10 +470,10 @@ module wrapper_D2C_sweep #(
         .partner_rx_pt_en    (w_partner_rx_pt_en),
         .d2c_pattern_setup   (w_d2c_pattern_setup),
 
-        .mb_tx_clk_lane_sel  (mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel (mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel  (mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel  (mb_tx_trk_lane_sel),
+        // .mb_tx_clk_lane_sel  (mb_tx_clk_lane_sel),
+        // .mb_tx_data_lane_sel (mb_tx_data_lane_sel),
+        // .mb_tx_val_lane_sel  (mb_tx_val_lane_sel),
+        // .mb_tx_trk_lane_sel  (mb_tx_trk_lane_sel),
 
         .mb_rx_clk_lane_sel  (mb_rx_clk_lane_sel),
         .mb_rx_data_lane_sel (mb_rx_data_lane_sel),
@@ -481,8 +481,8 @@ module wrapper_D2C_sweep #(
         .mb_rx_trk_lane_sel  (mb_rx_trk_lane_sel)
     );
 
-    assign d2c_tx_lanes_active = w_local_tx_pt_en | w_partner_rx_pt_en;
-    assign d2c_rx_lanes_active = w_local_rx_pt_en | w_partner_tx_pt_en;
+    // assign d2c_tx_lanes_active = w_local_tx_pt_en | w_partner_rx_pt_en;
+    // assign d2c_rx_lanes_active = w_local_rx_pt_en | w_partner_tx_pt_en;
 
 endmodule
 // ====================================================================================================

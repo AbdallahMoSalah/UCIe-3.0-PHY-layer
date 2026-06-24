@@ -339,10 +339,10 @@ module ltsm_tb_attachments #(
         .cfg_max_err_thresh_aggr       (intf.cfg_train4_max_err_thresh_aggr ),
 
         // ── MB TX ────────────────────────────────────────────────────────────
-        .mb_tx_trk_lane_sel            (wrapper_mb_tx_trk_lane_sel          ),
-        .mb_tx_clk_lane_sel            (wrapper_mb_tx_clk_lane_sel          ),
-        .mb_tx_val_lane_sel            (wrapper_mb_tx_val_lane_sel          ),
-        .mb_tx_data_lane_sel           (wrapper_mb_tx_data_lane_sel         ),
+        // .mb_tx_trk_lane_sel            (wrapper_mb_tx_trk_lane_sel          ),
+        // .mb_tx_clk_lane_sel            (wrapper_mb_tx_clk_lane_sel          ),
+        // .mb_tx_val_lane_sel            (wrapper_mb_tx_val_lane_sel          ),
+        // .mb_tx_data_lane_sel           (wrapper_mb_tx_data_lane_sel         ),
         .mb_tx_pattern_en              (mb_tx_pattern_en                    ),
         .mb_tx_pattern_setup           (mb_tx_pattern_setup                 ),
         .mb_tx_lfsr_en                 (mb_tx_lfsr_en                       ),

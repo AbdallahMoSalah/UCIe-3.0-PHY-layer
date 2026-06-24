@@ -112,10 +112,10 @@ module wrapper_MBTRAIN #(
         output logic                                    phy_tx_eq_preset_en,
 
         // Selected substate mainband lane selectors
-        output logic [1:0]  substate_mb_tx_clk_lane_sel,
-        output logic [1:0]  substate_mb_tx_data_lane_sel,
-        output logic [1:0]  substate_mb_tx_val_lane_sel,
-        output logic [1:0]  substate_mb_tx_trk_lane_sel,
+        // output logic [1:0]  substate_mb_tx_clk_lane_sel,
+        // output logic [1:0]  substate_mb_tx_data_lane_sel,
+        // output logic [1:0]  substate_mb_tx_val_lane_sel,
+        // output logic [1:0]  substate_mb_tx_trk_lane_sel,
 
         output logic        substate_mb_rx_clk_lane_sel,
         output logic        substate_mb_rx_data_lane_sel,
@@ -208,8 +208,8 @@ module wrapper_MBTRAIN #(
     logic repair_en        ;
 
     logic rx_clk_active;
-    logic tx_clk_active;
-    logic lcl_tx_elec_idle;
+    // logic tx_clk_active;
+    // logic lcl_tx_elec_idle;
     logic ptr_rx_elec_idle;
 
     logic valvref_done       ;
@@ -523,7 +523,7 @@ module wrapper_MBTRAIN #(
         .phy_tx_decrement_shift       (rxclkcal_phy_tx_decrement_shift),
         .phy_tx_tckn_shift_out_of_range(phy_tx_tckn_shift_out_of_range),
         .rx_clk_active                (rx_clk_active),
-        .tx_clk_active                (tx_clk_active),
+        // .tx_clk_active                (tx_clk_active),
         .mb_tx_pattern_en             (rxclkcal_mb_tx_pattern_en),
         .mb_tx_pattern_setup          (rxclkcal_mb_tx_pattern_setup),
         .mb_tx_clk_pattern_sel        (rxclkcal_mb_tx_clk_pattern_sel),
@@ -710,7 +710,7 @@ module wrapper_MBTRAIN #(
         .d2c_perlane_pass              (d2c_perlane_pass),
         .local_sweep_done              (sweep_done),
         .linkspeed_success_lanes       (linkspeed_success_lanes),
-        .lcl_tx_elec_idle              (lcl_tx_elec_idle),
+        // .lcl_tx_elec_idle              (lcl_tx_elec_idle),
         .ptr_rx_elec_idle              (ptr_rx_elec_idle),
         .tx_sb_msg_valid               (ss_tx_sb_msg_valid[SS_LINKSPEED]),
         .tx_sb_msg                     (ss_tx_sb_msg[SS_LINKSPEED]),
@@ -817,17 +817,17 @@ module wrapper_MBTRAIN #(
 
     unit_MBTRAIN_lane_sel u_MBTRAIN_lane_sel (
         .state_n_0              (state_n_0),
-        .is_high_speed          (is_high_speed),
-        .is_continuous_clk_mode (is_continuous_clk_mode),
+        // .is_high_speed          (is_high_speed),
+        // .is_continuous_clk_mode (is_continuous_clk_mode),
         .rx_clk_active          (rx_clk_active),
-        .tx_clk_active          (tx_clk_active),
-        .lcl_tx_elec_idle       (lcl_tx_elec_idle),
+        // .tx_clk_active          (tx_clk_active),
+        // .lcl_tx_elec_idle       (lcl_tx_elec_idle),
         .ptr_rx_elec_idle       (ptr_rx_elec_idle),
 
-        .mb_tx_clk_lane_sel     (substate_mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel    (substate_mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel     (substate_mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel     (substate_mb_tx_trk_lane_sel),
+        // .mb_tx_clk_lane_sel     (substate_mb_tx_clk_lane_sel),
+        // .mb_tx_data_lane_sel    (substate_mb_tx_data_lane_sel),
+        // .mb_tx_val_lane_sel     (substate_mb_tx_val_lane_sel),
+        // .mb_tx_trk_lane_sel     (substate_mb_tx_trk_lane_sel),
 
         .mb_rx_clk_lane_sel     (substate_mb_rx_clk_lane_sel),
         .mb_rx_data_lane_sel    (substate_mb_rx_data_lane_sel),

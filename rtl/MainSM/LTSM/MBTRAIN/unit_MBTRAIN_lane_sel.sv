@@ -41,17 +41,17 @@
 
 module unit_MBTRAIN_lane_sel (
         input  ltsm_state_n_pkg::state_n_e state_n_0,
-        input  logic                       is_high_speed,
-        input  logic                       is_continuous_clk_mode,
+        // input  logic                       is_high_speed,
+        // input  logic                       is_continuous_clk_mode,
         input  logic                       rx_clk_active,
-        input  logic                       tx_clk_active,
-        input  logic                       lcl_tx_elec_idle,
+        // input  logic                       tx_clk_active,
+        // input  logic                       lcl_tx_elec_idle,
         input  logic                       ptr_rx_elec_idle,
 
-        output logic [1:0]                 mb_tx_clk_lane_sel,
-        output logic [1:0]                 mb_tx_data_lane_sel,
-        output logic [1:0]                 mb_tx_val_lane_sel,
-        output logic [1:0]                 mb_tx_trk_lane_sel,
+        // output logic [1:0]                 mb_tx_clk_lane_sel,
+        // output logic [1:0]                 mb_tx_data_lane_sel,
+        // output logic [1:0]                 mb_tx_val_lane_sel,
+        // output logic [1:0]                 mb_tx_trk_lane_sel,
 
         output logic                       mb_rx_clk_lane_sel,
         output logic                       mb_rx_data_lane_sel,
@@ -63,10 +63,10 @@ module unit_MBTRAIN_lane_sel (
 
     always_comb begin
         // Default postures (all low / disabled)
-        mb_tx_clk_lane_sel  = 2'b00;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b00;
-        mb_tx_trk_lane_sel  = 2'b00;
+        // mb_tx_clk_lane_sel  = 2'b00;
+        // mb_tx_data_lane_sel = 2'b00;
+        // mb_tx_val_lane_sel  = 2'b00;
+        // mb_tx_trk_lane_sel  = 2'b00;
 
         mb_rx_clk_lane_sel  = 1'b0;
         mb_rx_data_lane_sel = 1'b0;
@@ -83,10 +83,10 @@ module unit_MBTRAIN_lane_sel (
             //   • Data and Track TX/RX are held low / disabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_VALVREF: begin
-                mb_tx_clk_lane_sel  = 2'b00;   // Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)
-                mb_tx_data_lane_sel = 2'b00;   // Held low
-                mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = 2'b00;   // Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)
+                // mb_tx_data_lane_sel = 2'b00;   // Held low
+                // mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b0;    // Data RX disabled
@@ -102,10 +102,10 @@ module unit_MBTRAIN_lane_sel (
             //   • Track TX/RX are held low / disabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_DATAVREF: begin
-                mb_tx_clk_lane_sel  = 2'b00;   // Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)
-                mb_tx_data_lane_sel = 2'b00;   // Held low (sweep engine overrides via partner_sweep_en)
-                mb_tx_val_lane_sel  = 2'b00;   // Held low
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = 2'b00;   // Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)
+                // mb_tx_data_lane_sel = 2'b00;   // Held low (sweep engine overrides via partner_sweep_en)
+                // mb_tx_val_lane_sel  = 2'b00;   // Held low
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b1;    // Data RX enabled
@@ -120,10 +120,10 @@ module unit_MBTRAIN_lane_sel (
             //   • Only Clock RX is enabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_SPEEDIDLE: begin
-                mb_tx_clk_lane_sel  = 2'b00;   // Forwarded clock active during speed transition
-                mb_tx_data_lane_sel = 2'b00;   // Held low
-                mb_tx_val_lane_sel  = 2'b00;   // Held low
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = 2'b00;   // Forwarded clock active during speed transition
+                // mb_tx_data_lane_sel = 2'b00;   // Held low
+                // mb_tx_val_lane_sel  = 2'b00;   // Held low
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b0;    // Disabled
@@ -137,10 +137,10 @@ module unit_MBTRAIN_lane_sel (
             //   • All RX lanes are permitted to be disabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_TXSELFCAL: begin
-                mb_tx_clk_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
-                mb_tx_data_lane_sel = 2'b10;   // Hi-Z / Tri-stated
-                mb_tx_val_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
-                mb_tx_trk_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
+                // mb_tx_clk_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
+                // mb_tx_data_lane_sel = 2'b10;   // Hi-Z / Tri-stated
+                // mb_tx_val_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
+                // mb_tx_trk_lane_sel  = 2'b10;   // Hi-Z / Tri-stated
 
                 mb_rx_clk_lane_sel  = 1'b0;    // Permitted to be disabled
                 mb_rx_data_lane_sel = 1'b0;    // Permitted to be disabled
@@ -178,18 +178,18 @@ module unit_MBTRAIN_lane_sel (
                 end
 
                 // Our PARTNER FSM is sending the forwarded clock and track
-                if (tx_clk_active) begin
-                    mb_tx_clk_lane_sel  = 2'b01;   // TX CLK active (forwarded clock)
-                    mb_tx_val_lane_sel  = 2'b00;   // Data/Val TX held low
-                    mb_tx_data_lane_sel = 2'b00;
-                    mb_tx_trk_lane_sel  = 2'b01;   // TX TRK active (forwarded track)
+                // if (tx_clk_active) begin
+                //     mb_tx_clk_lane_sel  = 2'b01;   // TX CLK active (forwarded clock)
+                //     mb_tx_val_lane_sel  = 2'b00;   // Data/Val TX held low
+                //     mb_tx_data_lane_sel = 2'b00;
+                //     mb_tx_trk_lane_sel  = 2'b01;   // TX TRK active (forwarded track)
 
-                end else begin
-                    mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-                    mb_tx_val_lane_sel  = 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;
-                    mb_tx_trk_lane_sel  = 2'b00;
-                end
+                // end else begin
+                //     mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+                //     mb_tx_val_lane_sel  = 2'b00;
+                //     mb_tx_data_lane_sel = 2'b00;
+                //     mb_tx_trk_lane_sel  = 2'b00;
+                // end
             end
 
             // ─────────────────────────────────────────────────────────────────────────
@@ -200,10 +200,10 @@ module unit_MBTRAIN_lane_sel (
             //   • CLK and VAL RX enabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_VALTRAINCENTER: begin
-                mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-                mb_tx_data_lane_sel = 2'b00;   // Held low
-                mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+                // mb_tx_data_lane_sel = 2'b00;   // Held low
+                // mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b0;    // Data RX disabled
@@ -218,10 +218,10 @@ module unit_MBTRAIN_lane_sel (
             //   • CLK and VAL RX enabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_VALTRAINVREF: begin
-                mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00; // Forwarded clock active
-                mb_tx_data_lane_sel = 2'b00;   // Held low
-                mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00; // Forwarded clock active
+                // mb_tx_data_lane_sel = 2'b00;   // Held low
+                // mb_tx_val_lane_sel  = 2'b01;   // Partner drives VALTRAIN pattern
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b0;    // Data RX disabled
@@ -237,10 +237,10 @@ module unit_MBTRAIN_lane_sel (
             //   • CLK, DATA, and VAL RX enabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_DATATRAINCENTER1, LOG_MBTRAIN_DATATRAINVREF, LOG_MBTRAIN_RXDESKEW, LOG_MBTRAIN_DATATRAINCENTER2: begin
-                mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-                mb_tx_data_lane_sel = 2'b00;   // Held low (sweep engine active)
-                mb_tx_val_lane_sel  = 2'b00;   // Held low
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+                // mb_tx_data_lane_sel = 2'b00;   // Held low (sweep engine active)
+                // mb_tx_val_lane_sel  = 2'b00;   // Held low
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b1;    // Data RX enabled
@@ -260,19 +260,19 @@ module unit_MBTRAIN_lane_sel (
             //   Note: TX and RX conditions are evaluated independently.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_LINKSPEED: begin
-                if (lcl_tx_elec_idle) begin
-                    // Local TX entered electrical idle after sending error_req
-                    mb_tx_clk_lane_sel  = 2'b10;   // Electrical Idle (We consider the electrical idle state = Low state)
-                    mb_tx_data_lane_sel = 2'b10;   // Electrical Idle (We consider the electrical idle state = Low state)
-                    mb_tx_val_lane_sel  = 2'b10;   // Electrical Idle (We consider the electrical idle state = Low state)
-                    mb_tx_trk_lane_sel  = 2'b10;   // Electrical Idle (We consider the electrical idle state = Low state)
-                end else begin
-                    // Normal TX posture during LINKSPEED
-                    mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
-                    mb_tx_data_lane_sel = 2'b00;   // Held low
-                    mb_tx_val_lane_sel  = 2'b00;   // Held low
-                    mb_tx_trk_lane_sel  = 2'b00;   // Track TX held low (spec §4.5.3.4.12)
-                end
+                // if (lcl_tx_elec_idle) begin
+                //     // Local TX entered electrical idle after sending error_req
+                //     mb_tx_clk_lane_sel  = 2'b00;   // Electrical Idle (We consider the electrical idle state = Low state)
+                //     mb_tx_data_lane_sel = 2'b00;   // Electrical Idle (We consider the electrical idle state = Low state)
+                //     mb_tx_val_lane_sel  = 2'b00;   // Electrical Idle (We consider the electrical idle state = Low state)
+                //     mb_tx_trk_lane_sel  = 2'b00;   // Electrical Idle (We consider the electrical idle state = Low state)
+                // end else begin
+                //     // Normal TX posture during LINKSPEED
+                //     mb_tx_clk_lane_sel  = (is_high_speed || is_continuous_clk_mode) ? 2'b01 : 2'b00;
+                //     mb_tx_data_lane_sel = 2'b00;   // Held low
+                //     mb_tx_val_lane_sel  = 2'b00;   // Held low
+                //     mb_tx_trk_lane_sel  = 2'b00;   // Track TX held low (spec §4.5.3.4.12)
+                // end
 
                 if (ptr_rx_elec_idle) begin
                     // Partner's RX disabled after receiving our error_req
@@ -296,10 +296,10 @@ module unit_MBTRAIN_lane_sel (
             //   • Clock RX enabled; all other RX disabled.
             // ─────────────────────────────────────────────────────────────────────────
             LOG_MBTRAIN_REPAIR: begin
-                mb_tx_clk_lane_sel  = 2'b00;   // Held differential low (spec §4.5.3.4.13)
-                mb_tx_data_lane_sel = 2'b00;   // Held low
-                mb_tx_val_lane_sel  = 2'b00;   // Held low
-                mb_tx_trk_lane_sel  = 2'b00;   // Held low
+                // mb_tx_clk_lane_sel  = 2'b00;   // Held differential low (spec §4.5.3.4.13)
+                // mb_tx_data_lane_sel = 2'b00;   // Held low
+                // mb_tx_val_lane_sel  = 2'b00;   // Held low
+                // mb_tx_trk_lane_sel  = 2'b00;   // Held low
 
                 mb_rx_clk_lane_sel  = 1'b1;    // Clock RX enabled
                 mb_rx_data_lane_sel = 1'b0;    // Disabled

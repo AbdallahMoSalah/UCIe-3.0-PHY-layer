@@ -12,10 +12,10 @@ module unit_D2C_lane_sel (
     input  logic       partner_rx_pt_en,
     input  logic [2:0] d2c_pattern_setup, // Bit0: Data, Bit1: Valid, Bit2: Clock
 
-    output logic [1:0] mb_tx_clk_lane_sel,
-    output logic [1:0] mb_tx_data_lane_sel,
-    output logic [1:0] mb_tx_val_lane_sel,
-    output logic [1:0] mb_tx_trk_lane_sel,
+    // output logic [1:0] mb_tx_clk_lane_sel,
+    // output logic [1:0] mb_tx_data_lane_sel,
+    // output logic [1:0] mb_tx_val_lane_sel,
+    // output logic [1:0] mb_tx_trk_lane_sel,
 
     output logic       mb_rx_clk_lane_sel,
     output logic       mb_rx_data_lane_sel,
@@ -25,10 +25,10 @@ module unit_D2C_lane_sel (
 
     always_comb begin
         // Default posture (Inactive / D2C default state)
-        mb_tx_clk_lane_sel  = 2'b00;
-        mb_tx_data_lane_sel = 2'b00;
-        mb_tx_val_lane_sel  = 2'b00;
-        mb_tx_trk_lane_sel  = 2'b00;
+        // mb_tx_clk_lane_sel  = 2'b00;
+        // mb_tx_data_lane_sel = 2'b00;
+        // mb_tx_val_lane_sel  = 2'b00;
+        // mb_tx_trk_lane_sel  = 2'b00;
 
         mb_rx_clk_lane_sel  = 1'b1;
         mb_rx_val_lane_sel  = 1'b1;
@@ -37,10 +37,10 @@ module unit_D2C_lane_sel (
 
         if (local_tx_pt_en || partner_tx_pt_en) begin
             // Transmitter Mode:
-            mb_tx_clk_lane_sel  = d2c_pattern_setup[2] ? 2'b01 : 2'b00;
-            mb_tx_val_lane_sel  = d2c_pattern_setup[1] ? 2'b01 : 2'b00;
-            mb_tx_data_lane_sel = d2c_pattern_setup[0] ? 2'b01 : 2'b00;
-            mb_tx_trk_lane_sel  = 2'b00;
+            // mb_tx_clk_lane_sel  = d2c_pattern_setup[2] ? 2'b01 : 2'b00;
+            // mb_tx_val_lane_sel  = d2c_pattern_setup[1] ? 2'b01 : 2'b00;
+            // mb_tx_data_lane_sel = d2c_pattern_setup[0] ? 2'b01 : 2'b00;
+            // mb_tx_trk_lane_sel  = 2'b00;
 
             mb_rx_clk_lane_sel  = 1'b1;
             mb_rx_val_lane_sel  = 1'b1;
@@ -53,10 +53,10 @@ module unit_D2C_lane_sel (
             mb_rx_data_lane_sel = d2c_pattern_setup[0];
             mb_rx_trk_lane_sel  = 1'b0;
 
-            mb_tx_clk_lane_sel  = 2'b00;
-            mb_tx_val_lane_sel  = 2'b00;
-            mb_tx_data_lane_sel = 2'b00;
-            mb_tx_trk_lane_sel  = 2'b00;
+            // mb_tx_clk_lane_sel  = 2'b00;
+            // mb_tx_val_lane_sel  = 2'b00;
+            // mb_tx_data_lane_sel = 2'b00;
+            // mb_tx_trk_lane_sel  = 2'b00;
         end
     end
 
