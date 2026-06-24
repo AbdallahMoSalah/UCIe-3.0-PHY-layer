@@ -54,11 +54,6 @@ module wrapper_REPAIR (
         // input  logic        update_lane_mask,
         input  ltsm_state_n_pkg::state_n_e state_n_0,
 
-        // MB Signals (multiplexed from Local/Partner based on which is active)
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
 
         // SB Signals
         output logic        tx_sb_msg_valid,
@@ -188,15 +183,6 @@ module wrapper_REPAIR (
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo   ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    // =========================================================================
-    // MB Assignments — Static per spec §4.5.3.4.13 MBTRAIN.REPAIR:
-    //   CLK TX=01, DATA/VAL/TRK TX=00, CLK RX=1, DATA/VAL/TRK RX=0.
-    //   wrapper_MBTRAIN ss_active gates these when substate is not active.
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b1;
-    assign mb_rx_data_lane_sel = 1'b0;
-    assign mb_rx_val_lane_sel  = 1'b0;
-    assign mb_rx_trk_lane_sel  = 1'b0;
 
 
 endmodule

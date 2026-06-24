@@ -28,10 +28,6 @@ module unit_RXCLKCAL_partner
         output logic        rxclkcal_done,
         output logic        trainerror_req,
 
-        // Link Configuration
-        input  logic        is_high_speed,          // 1 = operating speed > 32 GT/s
-        input  logic        is_continuous_clk_mode, // 1 = partner advertised continuous clock mode
-
         // Interface to separated IQ Partner sub-module
         output logic        iq_partner_en,
         input  logic        iq_partner_done,
@@ -147,8 +143,8 @@ module unit_RXCLKCAL_partner
     //      (!is_high_speed && !is_continuous_clk_mode), the partner stops sending
     //      the forwarded clock and track, holding them low (tx_clk_active_r = 0).
     //    - If operating speed > 32 GT/s OR Continuous clock mode was advertised,
-    //      the partner must continue sending the free-running clock (so tx_clk_active_r
-    //      remains unchanged or clk_active logic enforces that they stay free-running).
+    //      the partner must continue sending the free-running clock (so `tx_clk_active_r`
+    //      remains unchanged or `mb_tx_pattern_en` logic enforces that they stay free-running).
     // 4. When Partner calibration is not active (rxclkcal_en = 0), this
     //    tracking register resets to 1'b0.
     always_ff @(posedge lclk or negedge rst_n) begin
@@ -159,24 +155,20 @@ module unit_RXCLKCAL_partner
             tx_clk_active_r <= 1'b0;
         end
         else if (rxclkcal_en) begin
-            if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_start_req) begin
+            if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_start_req && current_state == RXCLKCAL_PTR_WAIT_START_REQ) begin
                 tx_clk_active_r <= 1'b1;
             end
             else if (rx_sb_msg_valid && rx_sb_msg == MBTRAIN_RXCLKCAL_done_req) begin
-                // Stop clock forwarding only if speed is low and strobe mode is active.
-                if (!is_high_speed && !is_continuous_clk_mode) begin
-                    tx_clk_active_r <= 1'b0;
-                end
+                tx_clk_active_r <= 1'b0;
             end
         end
-        else if(next_state == RXCLKCAL_PTR_IDLE && current_state != RXCLKCAL_PTR_IDLE)begin
-            tx_clk_active_r <= 1'b0;
-        end
+        // else if(next_state == RXCLKCAL_PTR_IDLE && current_state != RXCLKCAL_PTR_IDLE)begin
+        //     tx_clk_active_r <= 1'b0;
+        // end
     end
 
-    // Clock active logic
-    logic clk_active;
-    assign clk_active = tx_clk_active_r | is_high_speed | is_continuous_clk_mode;
+    // Transmitter Select Controls
+    assign mb_tx_pattern_en = tx_clk_active_r;
 
     // ============================================================================
     // Output Logic
@@ -230,7 +222,5 @@ module unit_RXCLKCAL_partner
         endcase
     end
 
-    // Transmitter Select Controls
-    assign mb_tx_pattern_en   = clk_active;
 
 endmodule

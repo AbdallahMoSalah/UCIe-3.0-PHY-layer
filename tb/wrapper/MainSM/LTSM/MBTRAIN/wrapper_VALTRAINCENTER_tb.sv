@@ -252,16 +252,6 @@ module wrapper_VALTRAINCENTER_tb;
 
         .mb_tx_continuous_or_strobe_clk(1'b0),
         .phy_negotiated_speed          (3'b101), // SPEED_32G
-
-        .mb_tx_clk_lane_sel             (dut_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (dut_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (dut_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (dut_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (dut_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (dut_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (dut_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (dut_if.mb_rx_trk_lane_sel),
-
         .tx_sb_msg_valid                (dut_if.tx_sb_msg_valid),
         .tx_sb_msg                      (dut_if.tx_sb_msg),
         .tx_msginfo                     (dut_if.tx_msginfo),
@@ -308,16 +298,6 @@ module wrapper_VALTRAINCENTER_tb;
 
         .mb_tx_continuous_or_strobe_clk(1'b0),
         .phy_negotiated_speed          (3'b101), // SPEED_32G
-
-        .mb_tx_clk_lane_sel             (ptn_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (ptn_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (ptn_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (ptn_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (ptn_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (ptn_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (ptn_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (ptn_if.mb_rx_trk_lane_sel),
-
         .tx_sb_msg_valid                (ptn_if.tx_sb_msg_valid),
         .tx_sb_msg                      (ptn_if.tx_sb_msg),
         .tx_msginfo                     (ptn_if.tx_msginfo),

@@ -258,16 +258,6 @@ module wrapper_RXDESKEW_tb;
         .best_code                      (dut_best_code_sliced),
         .min_eye_width                  (dut_min_eye_width_sliced),
         .sweep_done                     (dut_if.sweep_done),
-
-        .mb_tx_clk_lane_sel             (dut_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (dut_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (dut_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (dut_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (dut_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (dut_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (dut_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (dut_if.mb_rx_trk_lane_sel),
-
         .tx_sb_msg_valid                (dut_if.tx_sb_msg_valid),
         .tx_sb_msg                      (dut_if.tx_sb_msg),
         .tx_msginfo                     (dut_if.tx_msginfo),
@@ -335,16 +325,6 @@ module wrapper_RXDESKEW_tb;
         .best_code                      (ptn_best_code_sliced),
         .min_eye_width                  (ptn_min_eye_width_sliced),
         .sweep_done                     (ptn_if.sweep_done),
-
-        .mb_tx_clk_lane_sel             (ptn_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (ptn_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (ptn_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (ptn_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (ptn_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (ptn_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (ptn_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (ptn_if.mb_rx_trk_lane_sel),
-
         .tx_sb_msg_valid                (ptn_if.tx_sb_msg_valid),
         .tx_sb_msg                      (ptn_if.tx_sb_msg),
         .tx_msginfo                     (ptn_if.tx_msginfo),

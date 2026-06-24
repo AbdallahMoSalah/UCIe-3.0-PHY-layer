@@ -36,10 +36,6 @@ module wrapper_D2C_PT_local (
         // =========================================================================
         // Group 3: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
-        output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
-        output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
-        output logic        mb_rx_data_lane_sel,            // 0: Disabled. 1: Enabled (RX logical data lanes active).
 
         output logic        mb_tx_pattern_en,               // 0: TX in static idle. 1: Drive active training pattern on configured TX lanes.
         output logic [2:0]  mb_tx_pattern_setup,            // Bit0: Data Enable, Bit1: Valid Enable, Bit2: Clock Enable.
@@ -128,10 +124,7 @@ module wrapper_D2C_PT_local (
     logic [11:0] rx_mb_rx_max_err_thresh_perlane;// Maximum error count allowed on any single lane
     logic [15:0] rx_mb_rx_max_err_thresh_aggr;   // Maximum combined error count allowed
     logic [1:0]  rx_mb_rx_compare_setup;         // Comparison mode
-    logic        rx_mb_rx_trk_lane_sel;          // Enables logical tracking lane receiver circuit
-    logic        rx_mb_rx_clk_lane_sel;          // Enables logical clock lane receiver circuit
-    logic        rx_mb_rx_val_lane_sel;          // Enables logical valid lane receiver circuit
-    logic        rx_mb_rx_data_lane_sel;         // Enables logical data lanes receiver circuits
+
     logic        rx_tx_sb_msg_valid;             // Sideband transmit request pulse
     logic [7:0]  rx_tx_sb_msg;                   // MsgCode of sideband message to transmit
     logic [15:0] rx_tx_msginfo;                  // 16-bit message information payload to transmit
@@ -221,10 +214,6 @@ module wrapper_D2C_PT_local (
         .mb_rx_aggr_pass                (mb_rx_aggr_pass             ), // Input aggregate pass feedback status
         .mb_rx_perlane_pass             (mb_rx_perlane_pass          ), // Input per-lane pass feedback status vector
         .mb_rx_val_pass                 (mb_rx_val_pass              ), // Input Valid Lane comparison pass status
-        .mb_rx_trk_lane_sel             (rx_mb_rx_trk_lane_sel       ), // Output enables logical tracking lane receiver
-        .mb_rx_clk_lane_sel             (rx_mb_rx_clk_lane_sel       ), // Output enables logical clock lane receiver
-        .mb_rx_val_lane_sel             (rx_mb_rx_val_lane_sel       ), // Output enables logical valid lane receiver
-        .mb_rx_data_lane_sel            (rx_mb_rx_data_lane_sel      ), // Output enables logical data lanes receivers
         .tx_sb_msg_valid                (rx_tx_sb_msg_valid          ), // Output Sideband transmit request pulse
         .tx_sb_msg                      (rx_tx_sb_msg                ), // Output MsgCode to transmit
         .tx_msginfo                     (rx_tx_msginfo               ), // Output message info payload to transmit
@@ -277,10 +266,6 @@ module wrapper_D2C_PT_local (
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Clock Receivers are enabled.
             //        * Track Receiver is permitted to be disabled."
-            mb_rx_trk_lane_sel              = 1'b0; // RX is inactive, but we give them the default value.
-            mb_rx_clk_lane_sel              = 1'b1; // RX is inactive, but we give them the default value.
-            mb_rx_val_lane_sel              = 1'b1; // RX is inactive, but we give them the default value.
-            mb_rx_data_lane_sel             = 1'b1; // RX is inactive, but we give them the default value.
 
             mb_tx_pattern_en                = tx_mb_tx_pattern_en;
             mb_tx_pattern_setup             = tx_mb_tx_pattern_setup;
@@ -312,10 +297,6 @@ module wrapper_D2C_PT_local (
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Track Transmitters drive low.
             //        * Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)"
-            mb_rx_clk_lane_sel              = rx_mb_rx_clk_lane_sel;
-            mb_rx_data_lane_sel             = rx_mb_rx_data_lane_sel;
-            mb_rx_val_lane_sel              = rx_mb_rx_val_lane_sel;
-            mb_rx_trk_lane_sel              = rx_mb_rx_trk_lane_sel;
             mb_tx_pattern_en                = 1'b0; // TX is inactive
             mb_tx_pattern_setup             = 3'b000; // TX is inactive
             mb_tx_lfsr_en                   = 1'b0; // TX is inactive
@@ -343,10 +324,6 @@ module wrapper_D2C_PT_local (
             mb_rx_data_pattern_sel          = rx_mb_rx_data_pattern_sel;
         end else begin
             // All inactive default safe ties:
-            mb_rx_clk_lane_sel              = 1'b0;
-            mb_rx_data_lane_sel             = 1'b0;
-            mb_rx_val_lane_sel              = 1'b0;
-            mb_rx_trk_lane_sel              = 1'b0;
             mb_tx_pattern_en                = 1'b0;
             mb_tx_pattern_setup             = 3'b000;
             mb_tx_lfsr_en                   = 1'b0;

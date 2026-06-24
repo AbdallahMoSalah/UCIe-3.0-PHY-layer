@@ -81,6 +81,7 @@ rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
 
 // MBTRAIN top wrapper
+rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_lane_sel.sv
 rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 
 // Testbench top

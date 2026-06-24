@@ -36,13 +36,6 @@ module wrapper_VALTRAINVREF #(
         input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code,                      // Per-lane best midpoint.
         input  logic        sweep_done,
 
-        // =========================================================================
-        // Group 5: MB Signals (Mainband Control & Status)
-        // =========================================================================
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
 
         // =========================================================================
         // Group 6: SB Signals (Sideband Control & Status)
@@ -122,15 +115,5 @@ module wrapper_VALTRAINVREF #(
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    // =========================================================================
-    // MB Lane Assignments — Static per spec §4.5.3.4.6 MBTRAIN.VALTRAINVREF:
-    //   Partner (TX side): CLK TX active, VAL TX active (VALTRAIN), DATA/TRK TX held low.
-    //   Local   (RX side): CLK/VAL RX enabled, DATA/TRK RX disabled.
-    //   All go to zero when valtrainvref_en=0.
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b1 ;
-    assign mb_rx_data_lane_sel = 1'b0 ;
-    assign mb_rx_val_lane_sel  = 1'b1 ;
-    assign mb_rx_trk_lane_sel  = 1'b0 ;
 
 endmodule

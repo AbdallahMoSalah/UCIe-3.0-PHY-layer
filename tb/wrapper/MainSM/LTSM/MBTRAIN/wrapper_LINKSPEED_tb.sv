@@ -186,8 +186,6 @@ module wrapper_LINKSPEED_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
-        .is_high_speed                  (is_high_speed),
-        .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .linkspeed_en                   (dut_partner_linkspeed_en || dut_local_linkspeed_en),
         // .local_linkspeed_en             (dut_local_linkspeed_en),
@@ -215,15 +213,8 @@ module wrapper_LINKSPEED_tb;
         .local_sweep_done               (dut_if.sweep_done),
 
         .linkspeed_success_lanes        (dut_linkspeed_success_lanes),
-
-        .mb_tx_clk_lane_sel             (dut_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (dut_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (dut_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (dut_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (dut_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (dut_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (dut_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (dut_if.mb_rx_trk_lane_sel),
+        .lcl_tx_elec_idle               (),
+        .ptr_rx_elec_idle               (),
 
         .tx_sb_msg_valid                (dut_if.tx_sb_msg_valid),
         .tx_sb_msg                      (dut_if.tx_sb_msg),
@@ -256,8 +247,6 @@ module wrapper_LINKSPEED_tb;
         .lclk                           (lclk),
         .rst_n                          (rst_n),
         .soft_rst_n                     (is_ltsm_out_of_reset),
-        .is_high_speed                  (is_high_speed),
-        .is_continuous_clk_mode         (is_continuous_clk_mode),
 
         .linkspeed_en                   (ptn_partner_linkspeed_en || ptn_local_linkspeed_en),
         // .local_linkspeed_en             (ptn_local_linkspeed_en),
@@ -284,15 +273,8 @@ module wrapper_LINKSPEED_tb;
         .local_sweep_done               (ptn_if.sweep_done),
 
         .linkspeed_success_lanes        (ptn_linkspeed_success_lanes),
-
-        .mb_tx_clk_lane_sel             (ptn_if.mb_tx_clk_lane_sel),
-        .mb_tx_data_lane_sel            (ptn_if.mb_tx_data_lane_sel),
-        .mb_tx_val_lane_sel             (ptn_if.mb_tx_val_lane_sel),
-        .mb_tx_trk_lane_sel             (ptn_if.mb_tx_trk_lane_sel),
-        .mb_rx_clk_lane_sel             (ptn_if.mb_rx_clk_lane_sel),
-        .mb_rx_data_lane_sel            (ptn_if.mb_rx_data_lane_sel),
-        .mb_rx_val_lane_sel             (ptn_if.mb_rx_val_lane_sel),
-        .mb_rx_trk_lane_sel             (ptn_if.mb_rx_trk_lane_sel),
+        .lcl_tx_elec_idle               (),
+        .ptr_rx_elec_idle               (),
 
         .tx_sb_msg_valid                (ptn_if.tx_sb_msg_valid),
         .tx_sb_msg                      (ptn_if.tx_sb_msg),

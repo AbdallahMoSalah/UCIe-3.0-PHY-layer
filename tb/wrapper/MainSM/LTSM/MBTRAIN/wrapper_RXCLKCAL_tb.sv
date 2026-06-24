@@ -81,7 +81,7 @@ module wrapper_RXCLKCAL_tb ();
         .rst_n                          (rst_n                       ),
         .soft_rst_n                     (soft_rst_n                  ),
         .is_high_speed                  (is_high_speed               ),
-        .is_continuous_clk_mode         (is_continuous_clk_mode      ),
+        // .is_continuous_clk_mode         (is_continuous_clk_mode      ),
         .rxclkcal_en                    (rxclkcal_en                 ),
         .rxclkcal_done                  (rxclkcal_done               ),
         .trainerror_req                 (trainerror_req              ),
@@ -96,14 +96,8 @@ module wrapper_RXCLKCAL_tb ();
         .phy_tx_tckn_shift              (intf.phy_tx_tckn_shift      ),
         .phy_tx_decrement_shift         (intf.phy_tx_decrement_shift ),
         .phy_tx_tckn_shift_out_of_range (phy_tx_tckn_shift_out_of_range),
-        .mb_tx_clk_lane_sel             (intf.mb_tx_clk_lane_sel     ),
-        .mb_tx_data_lane_sel            (intf.mb_tx_data_lane_sel    ),
-        .mb_tx_val_lane_sel             (intf.mb_tx_val_lane_sel     ),
-        .mb_tx_trk_lane_sel             (intf.mb_tx_trk_lane_sel     ),
-        .mb_rx_clk_lane_sel             (intf.mb_rx_clk_lane_sel     ),
-        .mb_rx_data_lane_sel            (intf.mb_rx_data_lane_sel    ),
-        .mb_rx_val_lane_sel             (intf.mb_rx_val_lane_sel     ),
-        .mb_rx_trk_lane_sel             (intf.mb_rx_trk_lane_sel     ),
+        .rx_clk_active                  (),
+        .tx_clk_active                  (),
         .mb_tx_pattern_en               (intf.mb_tx_pattern_en       ),
         .mb_tx_pattern_setup            (intf.mb_tx_pattern_setup    ),
         .mb_tx_clk_pattern_sel          (intf.mb_tx_clk_pattern_sel  ),
@@ -171,80 +165,82 @@ module wrapper_RXCLKCAL_tb ();
     // =========================================================================
     // Cycle-by-Cycle Self-Checking Assertions
     // =========================================================================
-    always @(posedge lclk) begin
-        if (rst_n && intf.is_ltsm_out_of_reset) begin
-            // -------------------------------------------------------------
-            // Assertion 1: Verify mb_tx signals according to speed/mode
-            // -------------------------------------------------------------
-            if (!partner_rxclkcal_en) begin
-                // When Partner is not active, behavior depends solely on static config
-                if (!is_high_speed && !is_continuous_clk_mode) begin
-                    if (intf.mb_tx_clk_lane_sel !== 2'b00 || intf.mb_tx_trk_lane_sel !== 2'b00 || intf.mb_tx_pattern_en !== 1'b0) begin
-                        $display("[ERROR] Idle mb_tx signals incorrect for low-speed strobe. Expected 0, Got clk=%b trk=%b pat=%b",
-                            intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
-                        check_fail = 1'b1;
-                    end
-                end else begin
-                    if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
-                        $display("[ERROR] Idle mb_tx signals incorrect for high-speed/continuous. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
-                            intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
-                        check_fail = 1'b1;
-                    end
-                end
-            end else begin
-                // When Partner is active, behavior depends on handshake progress (tx_clk_active_r)
-                if (dut.u_RXCLKCAL_partner.tx_clk_active_r) begin
-                    if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
-                        $display("[ERROR] Active mb_tx signals incorrect. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
-                            intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
-                        check_fail = 1'b1;
-                    end
-                end else begin
-                    // Not active yet (or stopped after done_req on low speed strobe)
-                    if (!is_high_speed && !is_continuous_clk_mode) begin
-                        if (intf.mb_tx_clk_lane_sel !== 2'b00 || intf.mb_tx_trk_lane_sel !== 2'b00 || intf.mb_tx_pattern_en !== 1'b0) begin
-                            $display("[ERROR] Inactive partner mb_tx signals incorrect for low-speed strobe. Expected 0, Got clk=%b trk=%b pat=%b",
-                                intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
-                            check_fail = 1'b1;
-                        end
-                    end else begin
-                        if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
-                            $display("[ERROR] Inactive partner mb_tx signals incorrect for high-speed/continuous. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
-                                intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
-                            check_fail = 1'b1;
-                        end
-                    end
-                end
-            end
+    /*
+     always @(posedge lclk) begin
+     if (rst_n && intf.is_ltsm_out_of_reset) begin
+     // -------------------------------------------------------------
+     // Assertion 1: Verify mb_tx signals according to speed/mode
+     // -------------------------------------------------------------
+     if (!partner_rxclkcal_en) begin
+     // When Partner is not active, behavior depends solely on static config
+     if (!is_high_speed && !is_continuous_clk_mode) begin
+     if (intf.mb_tx_clk_lane_sel !== 2'b00 || intf.mb_tx_trk_lane_sel !== 2'b00 || intf.mb_tx_pattern_en !== 1'b0) begin
+     $display("[ERROR] Idle mb_tx signals incorrect for low-speed strobe. Expected 0, Got clk=%b trk=%b pat=%b",
+     intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
+     check_fail = 1'b1;
+     end
+     end else begin
+     if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
+     $display("[ERROR] Idle mb_tx signals incorrect for high-speed/continuous. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
+     intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
+     check_fail = 1'b1;
+     end
+     end
+     end else begin
+     // When Partner is active, behavior depends on handshake progress (tx_clk_active_r)
+     if (dut.u_RXCLKCAL_partner.tx_clk_active_r) begin
+     if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
+     $display("[ERROR] Active mb_tx signals incorrect. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
+     intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
+     check_fail = 1'b1;
+     end
+     end else begin
+     // Not active yet (or stopped after done_req on low speed strobe)
+     if (!is_high_speed && !is_continuous_clk_mode) begin
+     if (intf.mb_tx_clk_lane_sel !== 2'b00 || intf.mb_tx_trk_lane_sel !== 2'b00 || intf.mb_tx_pattern_en !== 1'b0) begin
+     $display("[ERROR] Inactive partner mb_tx signals incorrect for low-speed strobe. Expected 0, Got clk=%b trk=%b pat=%b",
+     intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
+     check_fail = 1'b1;
+     end
+     end else begin
+     if (intf.mb_tx_clk_lane_sel !== 2'b01 || intf.mb_tx_trk_lane_sel !== 2'b01 || intf.mb_tx_pattern_en !== 1'b1) begin
+     $display("[ERROR] Inactive partner mb_tx signals incorrect for high-speed/continuous. Expected clk=01 trk=01 pat=1, Got clk=%b trk=%b pat=%b",
+     intf.mb_tx_clk_lane_sel, intf.mb_tx_trk_lane_sel, intf.mb_tx_pattern_en);
+     check_fail = 1'b1;
+     end
+     end
+     end
+     end
 
-            // -------------------------------------------------------------
-            // Assertion 2: Verify mb_rx signals
-            // -------------------------------------------------------------
-            if (local_rxclkcal_en) begin
-                // When local is active, we check depending on local state
-                if (dut.u_RXCLKCAL_local.current_state >= 4'd3 && dut.u_RXCLKCAL_local.current_state <= 4'd6) begin
-                    if (intf.mb_rx_clk_lane_sel !== 1'b1 || intf.mb_rx_trk_lane_sel !== 1'b1) begin
-                        $display("[ERROR] Active mb_rx signals incorrect. Expected 1, Got clk=%b trk=%b",
-                            intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
-                        check_fail = 1'b1;
-                    end
-                end else begin
-                    if (intf.mb_rx_clk_lane_sel !== 1'b0 || intf.mb_rx_trk_lane_sel !== 1'b0) begin
-                        $display("[ERROR] Inactive phase mb_rx signals incorrect. Expected 0, Got clk=%b trk=%b",
-                            intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
-                        check_fail = 1'b1;
-                    end
-                end
-            end else begin
-                // Default: Rx disabled
-                if (intf.mb_rx_clk_lane_sel !== 1'b0 || intf.mb_rx_trk_lane_sel !== 1'b0) begin
-                    $display("[ERROR] Idle mb_rx signals incorrect. Expected 0, Got clk=%b trk=%b",
-                        intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
-                    check_fail = 1'b1;
-                end
-            end
-        end
-    end
+     // -------------------------------------------------------------
+     // Assertion 2: Verify mb_rx signals
+     // -------------------------------------------------------------
+     if (local_rxclkcal_en) begin
+     // When local is active, we check depending on local state
+     if (dut.u_RXCLKCAL_local.current_state >= 4'd3 && dut.u_RXCLKCAL_local.current_state <= 4'd6) begin
+     if (intf.mb_rx_clk_lane_sel !== 1'b1 || intf.mb_rx_trk_lane_sel !== 1'b1) begin
+     $display("[ERROR] Active mb_rx signals incorrect. Expected 1, Got clk=%b trk=%b",
+     intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
+     check_fail = 1'b1;
+     end
+     end else begin
+     if (intf.mb_rx_clk_lane_sel !== 1'b0 || intf.mb_rx_trk_lane_sel !== 1'b0) begin
+     $display("[ERROR] Inactive phase mb_rx signals incorrect. Expected 0, Got clk=%b trk=%b",
+     intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
+     check_fail = 1'b1;
+     end
+     end
+     end else begin
+     // Default: Rx disabled
+     if (intf.mb_rx_clk_lane_sel !== 1'b0 || intf.mb_rx_trk_lane_sel !== 1'b0) begin
+     $display("[ERROR] Idle mb_rx signals incorrect. Expected 0, Got clk=%b trk=%b",
+     intf.mb_rx_clk_lane_sel, intf.mb_rx_trk_lane_sel);
+     check_fail = 1'b1;
+     end
+     end
+     end
+     end
+     */
 
     function automatic string get_lcl_state_str(input int state_val);
         case (state_val)

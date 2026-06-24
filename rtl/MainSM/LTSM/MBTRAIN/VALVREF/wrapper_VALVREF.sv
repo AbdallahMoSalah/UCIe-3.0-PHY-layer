@@ -48,13 +48,6 @@ module wrapper_VALVREF #(
         input  logic [$clog2(MAX_VAL_VREF_CODE+1)-1:0]  best_code,                      // Per-lane best midpoint.
         input  logic        sweep_done,                     // 0: Sweeping; 1: Sweep completed
 
-        // =========================================================================
-        // Group 5: MB Signals (Mainband Control & Status)
-        // =========================================================================
-        output logic        mb_rx_clk_lane_sel,             // 0: Disabled; 1: Enabled
-        output logic        mb_rx_data_lane_sel,            // 0: Disabled; 1: Enabled
-        output logic        mb_rx_val_lane_sel,             // 0: Disabled; 1: Enabled
-        output logic        mb_rx_trk_lane_sel,             // 0: Disabled; 1: Enabled
 
         // =========================================================================
         // Group 6: SB Signals (Sideband Control & Status)
@@ -160,17 +153,6 @@ module wrapper_VALVREF #(
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg      ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo     ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field  ;
-
-    // =========================================================================
-    // MB Lane Assignments — Static per spec §4.5.3.4.1 MBTRAIN.VALVREF:
-    //   Partner (TX side): Clock TX active, Valid TX active (VALTRAIN), Data/Track TX held low.
-    //   Local   (RX side): Clock RX enabled, Valid RX enabled; Data/Track RX disabled.
-    //   All go to zero when valvref_en=0 (FSM is in IDLE).
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b1 ;  // Enabled when active
-    assign mb_rx_data_lane_sel = 1'b0 ;  // Always disabled
-    assign mb_rx_val_lane_sel  = 1'b1 ;  // Enabled when active
-    assign mb_rx_trk_lane_sel  = 1'b0 ;  // Always disabled
 
 endmodule
 

@@ -28,11 +28,6 @@ module wrapper_SPEEDIDLE (
         input  logic [2:0]  param_negotiated_max_speed,
         output logic [2:0]  phy_negotiated_speed,
 
-        // MB Signals
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
 
         // SB Signals
         output logic        tx_sb_msg_valid,
@@ -119,9 +114,5 @@ module wrapper_SPEEDIDLE (
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    assign mb_rx_clk_lane_sel  = 1'b1;  // Clock Receiver enabled
-    assign mb_rx_data_lane_sel = 1'b0;
-    assign mb_rx_val_lane_sel  = 1'b0;
-    assign mb_rx_trk_lane_sel  = 1'b0;
 
 endmodule

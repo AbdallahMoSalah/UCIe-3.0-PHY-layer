@@ -55,10 +55,6 @@ module wrapper_D2C_PT(
         // =========================================================================
         // Group 3: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
-        output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
-        output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
-        output logic        mb_rx_data_lane_sel,            // 0: Disabled. 1: Enabled (RX logical data lanes active).
 
         // These signals are MUXed depending on the signals: `mbtrain_local_tx_pt_en`, `mbtrain_partner_tx_pt_en`, `mbtrain_local_rx_pt_en`, `mbtrain_partner_rx_pt_en`, `mbinit_local_tx_pt_en`, `mbinit_partner_tx_pt_en`.
         output logic        mb_tx_pattern_en,               // 0: TX in static idle. 1: Drive active training pattern on configured TX lanes.
@@ -129,10 +125,6 @@ module wrapper_D2C_PT(
     // Internal Wires: Sub-wrapper MB Outputs
     // =========================================================================
     // From wrapper_D2C_PT_local:
-    logic        loc_mb_rx_trk_lane_sel;
-    logic        loc_mb_rx_clk_lane_sel;
-    logic        loc_mb_rx_val_lane_sel;
-    logic        loc_mb_rx_data_lane_sel;
     logic        loc_mb_tx_pattern_en;
     logic [2:0]  loc_mb_tx_pattern_setup;
     logic [2:0]  loc_mb_rx_pattern_setup;
@@ -160,10 +152,6 @@ module wrapper_D2C_PT(
     logic        loc_mb_tx_val_pattern_sel;
 
     // From wrapper_D2C_PT_partner:
-    logic        ptn_mb_rx_trk_lane_sel;
-    logic        ptn_mb_rx_clk_lane_sel;
-    logic        ptn_mb_rx_val_lane_sel;
-    logic        ptn_mb_rx_data_lane_sel;
     logic        ptn_mb_tx_pattern_en;
     logic [2:0]  ptn_mb_tx_pattern_setup;
     logic [2:0]  ptn_mb_rx_pattern_setup;
@@ -238,10 +226,6 @@ module wrapper_D2C_PT(
         .d2c_val_pass                   (loc_d2c_val_pass              ), // Valid Lane pass status from local module.
 
         // ── Group 3: MB Signals (outputs captured to loc_* wires) ────────────
-        .mb_rx_trk_lane_sel             (loc_mb_rx_trk_lane_sel        ), // Local RX tracking lane enable.
-        .mb_rx_clk_lane_sel             (loc_mb_rx_clk_lane_sel        ), // Local RX clock lane enable.
-        .mb_rx_val_lane_sel             (loc_mb_rx_val_lane_sel        ), // Local RX valid lane enable.
-        .mb_rx_data_lane_sel            (loc_mb_rx_data_lane_sel       ), // Local RX data lane enable.
         .mb_tx_pattern_en               (loc_mb_tx_pattern_en          ), // Local TX active pattern enable.
         .mb_tx_pattern_setup            (loc_mb_tx_pattern_setup       ), // Local TX pattern sub-components.
         .mb_rx_pattern_setup            (loc_mb_rx_pattern_setup       ), // Local RX expected pattern components.
@@ -301,10 +285,6 @@ module wrapper_D2C_PT(
         .mb_rx_data_lane_mask           (mb_rx_data_lane_mask          ), // Negotiated lane mask (passes through directly).
 
         // ── Group 3: MB Signals (outputs captured to ptn_* wires) ────────────
-        .mb_rx_trk_lane_sel             (ptn_mb_rx_trk_lane_sel        ), // Partner RX tracking lane enable.
-        .mb_rx_clk_lane_sel             (ptn_mb_rx_clk_lane_sel        ), // Partner RX clock lane enable.
-        .mb_rx_val_lane_sel             (ptn_mb_rx_val_lane_sel        ), // Partner RX valid lane enable.
-        .mb_rx_data_lane_sel            (ptn_mb_rx_data_lane_sel       ), // Partner RX data lane enable.
         .mb_tx_pattern_en               (ptn_mb_tx_pattern_en          ), // Partner TX active pattern enable.
         .mb_tx_pattern_setup            (ptn_mb_tx_pattern_setup       ), // Partner TX pattern sub-components.
         .mb_rx_pattern_setup            (ptn_mb_rx_pattern_setup       ), // Partner RX expected pattern components.
@@ -498,10 +478,6 @@ module wrapper_D2C_PT(
             // When partner_tx_pt_en=1, the partner wrapper routes its
             // unit_TX_D2C_PT_partner outputs through ptn_mb_rx_* wires
             // (because Die 1 transmits → Die 0 acts as the receiver).
-            mb_rx_trk_lane_sel              = ptn_mb_rx_trk_lane_sel;
-            mb_rx_clk_lane_sel              = ptn_mb_rx_clk_lane_sel;
-            mb_rx_val_lane_sel              = ptn_mb_rx_val_lane_sel;
-            mb_rx_data_lane_sel             = ptn_mb_rx_data_lane_sel;
             mb_rx_pattern_setup             = ptn_mb_rx_pattern_setup;
             mb_rx_lfsr_en                   = ptn_mb_rx_lfsr_en;
             mb_rx_lfsr_rst                  = ptn_mb_rx_lfsr_rst;
@@ -521,10 +497,6 @@ module wrapper_D2C_PT(
             // unit_RX_D2C_PT_local is active inside wrapper_D2C_PT_local.
             // When local_rx_pt_en=1, the local wrapper routes its
             // unit_RX_D2C_PT_local outputs through loc_mb_rx_* wires.
-            mb_rx_trk_lane_sel              = loc_mb_rx_trk_lane_sel;
-            mb_rx_clk_lane_sel              = loc_mb_rx_clk_lane_sel;
-            mb_rx_val_lane_sel              = loc_mb_rx_val_lane_sel;
-            mb_rx_data_lane_sel             = loc_mb_rx_data_lane_sel;
             mb_rx_pattern_setup             = loc_mb_rx_pattern_setup;
             mb_rx_lfsr_en                   = loc_mb_rx_lfsr_en;
             mb_rx_lfsr_rst                  = loc_mb_rx_lfsr_rst;
@@ -543,10 +515,6 @@ module wrapper_D2C_PT(
             // ── Cases A & D & idle: Die 0's RX bus is unused ─────────────────
             // No partner TX test and no local RX test → drive safe zero defaults
             // to keep the physical RX hardware quiescent.
-            mb_rx_trk_lane_sel              = 1'b0;
-            mb_rx_clk_lane_sel              = 1'b0;
-            mb_rx_val_lane_sel              = 1'b0;
-            mb_rx_data_lane_sel             = 1'b0;
             mb_rx_pattern_setup             = 3'b000;
             mb_rx_lfsr_en                   = 1'b0;
             mb_rx_lfsr_rst                  = 1'b0;

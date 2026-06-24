@@ -6,6 +6,7 @@ rtl/MainSM/LTSM/common/ltsm_state_n_pkg.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_negotiated_lanes.sv
 
 // D2C PT unit files (TX and RX, local and partner)
+rtl/MainSM/LTSM/D2C/unit_D2C_lane_sel.sv
 rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_local.sv
 rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_partner.sv
 rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_local.sv

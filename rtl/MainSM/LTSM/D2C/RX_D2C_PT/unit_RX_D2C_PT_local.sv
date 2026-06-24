@@ -97,19 +97,6 @@ module unit_RX_D2C_PT_local (
         input  logic [15:0] mb_rx_perlane_pass          , // 16-bit status vector; each bit corresponds to an operational lane.
         input  logic        mb_rx_val_pass              , // 1: Valid Lane pattern matched. 0: Valid Lane pattern mismatch detected.
 
-        //-------------------- MB Rx/Tx Lane Logical and Physical Lanes --------------------//
-        // Tx Lane Logical Selection:
-        // output logic [1:0]  mb_tx_trk_lane_sel,
-        // output logic [1:0]  mb_tx_clk_lane_sel,
-        // output logic [1:0]  mb_tx_val_lane_sel,
-        // output logic [1:0]  mb_tx_data_lane_sel,
-
-        // Rx Lane Logical Selection:
-        output logic        mb_rx_trk_lane_sel ,  // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
-        output logic        mb_rx_clk_lane_sel ,  // 0: Disabled. 1: Enabled (RX logical clock lane active).
-        output logic        mb_rx_val_lane_sel ,  // 0: Disabled. 1: Enabled (RX logical valid lane active).
-        output logic        mb_rx_data_lane_sel,  // 0: Disabled. 1: Enabled (RX logical data lanes active).
-
 
         //=====================================//
         // Sideband Control Signals:           //
@@ -234,17 +221,6 @@ module unit_RX_D2C_PT_local (
         d2c_perlane_pass                 = d2c_perlane_pass_r           ;
         d2c_aggr_pass                    = d2c_aggr_pass_r              ;
         d2c_val_pass                     = d2c_val_pass_r               ;
-
-
-        //-------------------- MB Rx/Tx Lane Logical and Phasical Lanes --------------------//
-        // mb_tx_trk_lane_sel    = 2'b00; // 00b: Low (Tx Logical Track Lane).
-        // mb_tx_clk_lane_sel    = 2'b00; // 00b: Low (Tx Logical Clock Lanes).
-        // mb_tx_val_lane_sel    = 2'b00; // 00b: Low (Tx Logical Valid Lane).
-        // mb_tx_data_lane_sel   = 2'b00; // 00b: Low (Tx Logical Data Lanes).
-        mb_rx_trk_lane_sel    = 1'b0 ; // 0b: Disabled (Rx Logical Track Lane).
-        mb_rx_clk_lane_sel    = 1'b1 ; // 1b: Enabled  (Rx Logical Clock Lane).
-        mb_rx_val_lane_sel    = 1'b1 ; // 1b: Enabled  (Rx Logical Valid Lane).
-        mb_rx_data_lane_sel   = 1'b1 ; // 1b: Enabled  (Rx Logical Data Lanes).
 
 
         //=====================================//

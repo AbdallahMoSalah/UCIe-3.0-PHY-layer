@@ -69,13 +69,6 @@ module wrapper_RXDESKEW #(
         input       logic [$clog2(MAX_DESKEW_CODE+1)-1:0]  min_eye_width,    // Narrowest eye width found across lanes
         input       logic                                  sweep_done,       // 0: Sweeping; 1: Sweep completed
 
-        // =========================================================================
-        // Group 5: MB Signals (Mainband Control & Status)
-        // =========================================================================
-        output logic        mb_rx_clk_lane_sel,             // 0: Disabled; 1: Enabled
-        output logic        mb_rx_data_lane_sel,            // 0: Disabled; 1: Enabled
-        output logic        mb_rx_val_lane_sel,             // 0: Disabled; 1: Enabled
-        output logic        mb_rx_trk_lane_sel,             // 0: Disabled; 1: Enabled
 
         // =========================================================================
         // Group 6: SB Signals (Sideband Control & Status)
@@ -206,19 +199,6 @@ module wrapper_RXDESKEW #(
     assign tx_sb_msg       = local_tx_sb_msg_valid ? local_tx_sb_msg       : partner_tx_sb_msg     ;
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo    ;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field ;
-
-    // =========================================================================
-    // MB Lane Assignments — Static per spec §4.5.3.4.10 MBTRAIN.RXDESKEW:
-    //   Local   (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
-    //   Partner (TX side): CLK TX=speed-dep, DATA/VAL/TRK TX=00.
-    //   wrapper_MBTRAIN ss_active gates these when substate is not active.
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b1;
-    assign mb_rx_data_lane_sel = 1'b1;
-    assign mb_rx_val_lane_sel  = 1'b1;
-    assign mb_rx_trk_lane_sel  = 1'b0;
-    // CLK TX: free-running if >32GT/s or continuous clock mode; else held low
-
 endmodule
 
 

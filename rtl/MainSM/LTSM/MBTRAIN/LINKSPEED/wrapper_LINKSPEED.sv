@@ -61,8 +61,6 @@ module wrapper_LINKSPEED (
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
         input  logic        soft_rst_n,                        // 0: Soft reset; 1: Normal operation
-        input  logic        is_high_speed,                     // 0: <= 32 GT/s; 1: > 32 GT/s
-        input  logic        is_continuous_clk_mode,            // 0: Strobe mode; 1: Continuous clock
 
         // Local FSM Control:
         input  logic        linkspeed_en,                // 0: Disable; 1: Enable LINKSPEED FSMs
@@ -115,12 +113,10 @@ module wrapper_LINKSPEED (
         output logic [15:0] linkspeed_success_lanes,           // Per-lane D2C pass mask for REPAIR sub-state
 
         // =========================================================================
-        // Group 7: MB Signals (Mainband Control)
+        // Group 7: MB Dynamic Status Flags
         // =========================================================================
-        output logic        mb_rx_clk_lane_sel,                // 0: Disabled; 1: Enabled
-        output logic        mb_rx_data_lane_sel,               // 0: Disabled; 1: Enabled
-        output logic        mb_rx_val_lane_sel,                // 0: Disabled; 1: Enabled
-        output logic        mb_rx_trk_lane_sel,                // 0: Disabled (always)
+        output logic        lcl_tx_elec_idle,                  // LOCAL TX in Electrical Idle
+        output logic        ptr_rx_elec_idle,                  // PARTNER RX in Electrical Idle
 
         // =========================================================================
         // Group 8: SB Signals (Sideband)
@@ -174,10 +170,6 @@ module wrapper_LINKSPEED (
     logic [15:0] partner_tx_msginfo       ;
     logic [63:0] partner_tx_data_field    ;
 
-    // MB state flags from unit FSMs (used to compute final MB lane selects in this wrapper):
-    // NOTE: lcl_sweep_active is not needed — local_sweep_en already carries that signal.
-    logic        lcl_tx_elec_idle; // LOCAL TX must be in Electrical Idle (error path).
-    logic        ptr_rx_elec_idle; // PARTNER RX must be disabled (error path: {error req} received).
 
     // =========================================================================
     // 1st: Port Mapping of unit_LINKSPEED_local
@@ -290,33 +282,6 @@ module wrapper_LINKSPEED (
     //   PARTNER error path (ptr_rx_elec_idle=1):
     //       Clock/Data/Valid RX → Disabled (1'b0).
     // =========================================================================
-    always_comb begin : MB_OUTPUTS_MUX
-
-        // ── MB TX defaults (spec §4.5.3.4.12 idle posture) ──
-        // LOCAL error path: drive TX to Electrical Idle.
-        if (lcl_tx_elec_idle) begin
-        end
-        // LOCAL D2C TX: activate Data and Valid TX.
-        // local_sweep_en is already the sweep_en output of u_LINKSPEED_local — reused directly.
-        else begin
-        end
-
-        // ── MB RX defaults (enabled per spec; PARTNER disables on error path) ──
-        // PARTNER error path: disable RX receivers.
-        // Spec Step 3: "the UCIe Module Partner enters electrical idle on its Receiver."
-        if (ptr_rx_elec_idle) begin
-            mb_rx_trk_lane_sel  = 1'b0; // Track RX: always disabled.
-            mb_rx_clk_lane_sel  = 1'b0;
-            mb_rx_data_lane_sel = 1'b0;
-            mb_rx_val_lane_sel  = 1'b0;
-        end
-        else begin
-            mb_rx_trk_lane_sel  = 1'b0; // Track RX: always disabled.
-            mb_rx_clk_lane_sel  = 1'b1;
-            mb_rx_data_lane_sel = 1'b1;
-            mb_rx_val_lane_sel  = 1'b1;
-        end
-    end
 
 
 endmodule

@@ -129,7 +129,7 @@ Calibration substates rely on point-testing the clock-to-data alignment. This is
 
 The `*_lane_sel` signals determine whether a physical lane is driven Low, driven with the active training pattern, or Tri-stated (on TX), and whether it is Enabled or Disabled (on RX).
 These signals are:
-- `mb_tx_clk_lane_sel`, `mb_tx_data_lane_sel`, `mb_tx_val_lane_sel`, `mb_tx_trk_lane_sel` (2-bit control: `00` = Low, `01` = Active, `10` = Tri-stated)
+- `mb_tx_clk_lane_sel`, `mb_tx_data_lane_sel`, `mb_tx_val_lane_sel`, `mb_tx_trk_lane_sel` (2-bit control: `00` = Low, `01` = Active, `10` = Tri-stated, `11` = Electrical-Idle)
 - `mb_rx_clk_lane_sel`, `mb_rx_data_lane_sel`, `mb_rx_val_lane_sel`, `mb_rx_trk_lane_sel` (1-bit control: `0` = Disabled, `1` = Enabled)
 
 In a decoupled architecture, both Die 0 (our side) and Die 1 (partner side) run their own FSMs. On each die, the FSM is split into a **Local FSM (Initiator)** and a **Partner FSM (Responder)**.

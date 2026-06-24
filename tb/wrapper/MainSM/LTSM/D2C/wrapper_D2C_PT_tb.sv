@@ -207,7 +207,7 @@ module wrapper_D2C_PT_top_tb;
     // =========================================================================
     // DUT (Die 0) Instantiation
     // =========================================================================
-    wrapper_D2C_PT_top u_dut (
+    wrapper_D2C_PT u_dut (
         .lclk                           (lclk                          ),
         .rst_n                          (rst_n                         ),
         .mb_rx_data_lane_mask           (mb_rx_data_lane_mask          ),
@@ -231,14 +231,6 @@ module wrapper_D2C_PT_top_tb;
         .d2c_compare_setup              (d2c_compare_setup             ),
         .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane    ),
         .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr       ),
-        .mb_tx_trk_lane_sel             (dut_mb_tx_trk_lane_sel        ),
-        .mb_tx_clk_lane_sel             (dut_mb_tx_clk_lane_sel        ),
-        .mb_tx_val_lane_sel             (dut_mb_tx_val_lane_sel        ),
-        .mb_tx_data_lane_sel            (dut_mb_tx_data_lane_sel       ),
-        .mb_rx_trk_lane_sel             (dut_mb_rx_trk_lane_sel        ),
-        .mb_rx_clk_lane_sel             (dut_mb_rx_clk_lane_sel        ),
-        .mb_rx_val_lane_sel             (dut_mb_rx_val_lane_sel        ),
-        .mb_rx_data_lane_sel            (dut_mb_rx_data_lane_sel       ),
         .mb_tx_pattern_en               (dut_mb_tx_pattern_en          ),
         .mb_tx_pattern_setup            (dut_mb_tx_pattern_setup       ),
         .mb_rx_pattern_setup            (dut_mb_rx_pattern_setup       ),
@@ -282,7 +274,7 @@ module wrapper_D2C_PT_top_tb;
     // =========================================================================
     // Partner Die (Die 1) Instantiation
     // =========================================================================
-    wrapper_D2C_PT_top u_partner_die (
+    wrapper_D2C_PT u_partner_die (
         .lclk                           (lclk                          ),
         .rst_n                          (rst_n                         ),
         .mb_rx_data_lane_mask           (mb_rx_data_lane_mask          ),
@@ -306,14 +298,6 @@ module wrapper_D2C_PT_top_tb;
         .d2c_compare_setup              (d2c_compare_setup             ),
         .cfg_max_err_thresh_perlane     (cfg_max_err_thresh_perlane    ),
         .cfg_max_err_thresh_aggr        (cfg_max_err_thresh_aggr       ),
-        .mb_tx_trk_lane_sel             (ptn_mb_tx_trk_lane_sel        ),
-        .mb_tx_clk_lane_sel             (ptn_mb_tx_clk_lane_sel        ),
-        .mb_tx_val_lane_sel             (ptn_mb_tx_val_lane_sel        ),
-        .mb_tx_data_lane_sel            (ptn_mb_tx_data_lane_sel       ),
-        .mb_rx_trk_lane_sel             (ptn_mb_rx_trk_lane_sel        ),
-        .mb_rx_clk_lane_sel             (ptn_mb_rx_clk_lane_sel        ),
-        .mb_rx_val_lane_sel             (ptn_mb_rx_val_lane_sel        ),
-        .mb_rx_data_lane_sel            (ptn_mb_rx_data_lane_sel       ),
         .mb_tx_pattern_en               (ptn_mb_tx_pattern_en          ),
         .mb_tx_pattern_setup            (ptn_mb_tx_pattern_setup       ),
         .mb_rx_pattern_setup            (ptn_mb_rx_pattern_setup       ),

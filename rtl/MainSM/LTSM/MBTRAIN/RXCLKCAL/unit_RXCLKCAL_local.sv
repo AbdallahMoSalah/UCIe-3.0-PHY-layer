@@ -40,7 +40,6 @@ module unit_RXCLKCAL_local
         input  logic        iq_error,
 
         // MB RX Lane Control Outputs (Local FSM controls receiver settings)
-        output logic        mb_rx_clk_lane_sel,
         output logic        mb_rx_trk_lane_sel,
 
         // Timer Interface
@@ -162,7 +161,6 @@ module unit_RXCLKCAL_local
         phy_rx_clock_lock_en   = 1'b0;
         phy_rx_track_lock_en   = 1'b0;
         iq_en                  = 1'b0;
-        mb_rx_clk_lane_sel     = 1'b0;
         mb_rx_trk_lane_sel     = 1'b0;
         analog_settle_timer_en = 1'b0;
 
@@ -185,12 +183,13 @@ module unit_RXCLKCAL_local
 
             RXCLKCAL_LCL_WAIT_START_RESP: begin
                 // Waiting for response
+
+                mb_rx_trk_lane_sel     = 1'b1;
             end
 
             RXCLKCAL_LCL_INIT_LOCK: begin
                 phy_rx_clock_lock_en   = 1'b1;
                 phy_rx_track_lock_en   = 1'b1;
-                mb_rx_clk_lane_sel     = 1'b1;
                 mb_rx_trk_lane_sel     = 1'b1;
                 analog_settle_timer_en = 1'b1;
             end
@@ -198,7 +197,6 @@ module unit_RXCLKCAL_local
             RXCLKCAL_LCL_IQ_LOOP: begin
                 phy_rx_clock_lock_en = 1'b1;
                 phy_rx_track_lock_en = 1'b1;
-                mb_rx_clk_lane_sel   = 1'b1;
                 mb_rx_trk_lane_sel   = 1'b1;
                 iq_en                = 1'b1;
             end
@@ -206,7 +204,6 @@ module unit_RXCLKCAL_local
             RXCLKCAL_LCL_SEND_DONE_REQ: begin
                 phy_rx_clock_lock_en = 1'b1;
                 phy_rx_track_lock_en = 1'b1;
-                mb_rx_clk_lane_sel   = 1'b1;
                 mb_rx_trk_lane_sel   = 1'b1;
                 tx_sb_msg_valid      = 1'b1;
                 tx_sb_msg            = MBTRAIN_RXCLKCAL_done_req;
@@ -217,7 +214,6 @@ module unit_RXCLKCAL_local
             RXCLKCAL_LCL_WAIT_DONE_RESP: begin
                 phy_rx_clock_lock_en = 1'b1;
                 phy_rx_track_lock_en = 1'b1;
-                mb_rx_clk_lane_sel   = 1'b1;
                 mb_rx_trk_lane_sel   = 1'b1;
             end
 
@@ -231,5 +227,6 @@ module unit_RXCLKCAL_local
             end
         endcase
     end
+
 
 endmodule

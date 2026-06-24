@@ -59,11 +59,6 @@ module unit_TX_D2C_PT_partner (
         // output logic [1:0]  mb_tx_data_pattern_sel,
         // output logic        mb_tx_val_pattern_sel ,
 
-        // RX Lane Logical Selection:
-        output logic        mb_rx_trk_lane_sel         , // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
-        output logic        mb_rx_clk_lane_sel         , // 0: Disabled. 1: Enabled (RX logical clock lane active).
-        output logic        mb_rx_val_lane_sel         , // 0: Disabled. 1: Enabled (RX logical valid lane active).
-        output logic        mb_rx_data_lane_sel        , // 0: Disabled. 1: Enabled (RX logical data lanes active).
 
         // RX Pattern Generator Setup Group:
         output logic [2:0]  mb_rx_pattern_setup        , // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
@@ -249,11 +244,6 @@ module unit_TX_D2C_PT_partner (
         mb_rx_lfsr_en                    = 1'b0;
         mb_rx_lfsr_rst                   = 1'b0;
         mb_rx_compare_en                 = 1'b0;
-
-        mb_rx_trk_lane_sel               = 1'b0; // 0: Disabled (RX logical tracking lane).
-        mb_rx_clk_lane_sel               = 1'b1; // 1: Enabled  (RX logical clock lane).
-        mb_rx_val_lane_sel               = 1'b1; // 1: Enabled  (RX logical valid lane).
-        mb_rx_data_lane_sel              = 1'b1; // 1: Enabled  (RX logical data lanes).
 
         mb_rx_pattern_setup              = mb_rx_pattern_setup_r         ; // 001b: Data Pattern, 010b: Valid Pattern, 100b: Clock Pattern.
         mb_rx_max_err_thresh_perlane     = mb_rx_max_err_thresh_perlane_r;

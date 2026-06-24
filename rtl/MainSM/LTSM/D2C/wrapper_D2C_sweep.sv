@@ -57,229 +57,235 @@
 // ====================================================================================================
 
 module wrapper_D2C_sweep #(
-    //=========================================================================
-    // Sweep Code Range (passed through to unit_D2C_sweep)
-    //=========================================================================
-    parameter int unsigned MAX_VAL_VREF_CODE  = 'D16, // Rx Valid Lane Vref: max code (inclusive).
-    parameter int unsigned MAX_DATA_VREF_CODE = 'D16, // Rx Data Lane  Vref: max code (inclusive).
-    parameter int unsigned MAX_DATA_PI_CODE   = 'D16, // TX Data Lane  PI  : max code (inclusive).
-    parameter int unsigned MAX_VAL_PI_CODE    = 'D16, // TX Valid Lane PI  : max code (inclusive).
-    parameter int unsigned MAX_DESKEW_CODE    = 'D16, // RX Data Lane Deskew: max code (inclusive).
+        //=========================================================================
+        // Sweep Code Range (passed through to unit_D2C_sweep)
+        //=========================================================================
+        parameter int unsigned MAX_VAL_VREF_CODE  = 'D16, // Rx Valid Lane Vref: max code (inclusive).
+        parameter int unsigned MAX_DATA_VREF_CODE = 'D16, // Rx Data Lane  Vref: max code (inclusive).
+        parameter int unsigned MAX_DATA_PI_CODE   = 'D16, // TX Data Lane  PI  : max code (inclusive).
+        parameter int unsigned MAX_VAL_PI_CODE    = 'D16, // TX Valid Lane PI  : max code (inclusive).
+        parameter int unsigned MAX_DESKEW_CODE    = 'D16, // RX Data Lane Deskew: max code (inclusive).
 
-    parameter int unsigned MIN_VAL_VREF_CODE  = 'D1,  // Rx Valid Lane Vref: min code (inclusive).
-    parameter int unsigned MIN_DATA_VREF_CODE = 'D1,  // Rx Data Lane  Vref: min code (inclusive).
-    parameter int unsigned MIN_DATA_PI_CODE   = 'D0,  // TX Data Lane  PI  : min code (inclusive).
-    parameter int unsigned MIN_VAL_PI_CODE    = 'D0,  // TX Valid Lane PI  : min code (inclusive).
-    parameter int unsigned MIN_DESKEW_CODE    = 'D0,  // RX Data Lane Deskew: min code (inclusive).
+        parameter int unsigned MIN_VAL_VREF_CODE  = 'D1,  // Rx Valid Lane Vref: min code (inclusive).
+        parameter int unsigned MIN_DATA_VREF_CODE = 'D1,  // Rx Data Lane  Vref: min code (inclusive).
+        parameter int unsigned MIN_DATA_PI_CODE   = 'D0,  // TX Data Lane  PI  : min code (inclusive).
+        parameter int unsigned MIN_VAL_PI_CODE    = 'D0,  // TX Valid Lane PI  : min code (inclusive).
+        parameter int unsigned MIN_DESKEW_CODE    = 'D0,  // RX Data Lane Deskew: min code (inclusive).
 
-    // MAX_CODE: derived automatically — do not override.
-    parameter int unsigned MAX_CODE =
-        (MAX_VAL_VREF_CODE  >= MAX_DATA_VREF_CODE && MAX_VAL_VREF_CODE  >= MAX_DATA_PI_CODE && MAX_VAL_VREF_CODE  >= MAX_VAL_PI_CODE  && MAX_VAL_VREF_CODE  >= MAX_DESKEW_CODE)  ? MAX_VAL_VREF_CODE  :
-        (MAX_DATA_VREF_CODE >= MAX_DATA_PI_CODE   && MAX_DATA_VREF_CODE >= MAX_VAL_PI_CODE  &&  MAX_DATA_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_DATA_VREF_CODE :
-        (MAX_DATA_PI_CODE   >= MAX_VAL_PI_CODE    && MAX_DATA_PI_CODE   >= MAX_DESKEW_CODE)  ? MAX_DATA_PI_CODE   :
-        (MAX_VAL_PI_CODE    >= MAX_DESKEW_CODE) ? MAX_VAL_PI_CODE : MAX_DESKEW_CODE
-) (
-    // =========================================================================
-    // Group 1: Clock and Reset
-    // =========================================================================
-    input  logic        lclk,                          // LTSM clock domain (1 GHz or 2 GHz). All transitions synchronous to lclk.
-    input  logic        rst_n,                         // Active-low async reset (0: reset, 1: normal operation).
+        // MAX_CODE: derived automatically — do not override.
+        parameter int unsigned MAX_CODE =
+            (MAX_VAL_VREF_CODE  >= MAX_DATA_VREF_CODE && MAX_VAL_VREF_CODE  >= MAX_DATA_PI_CODE && MAX_VAL_VREF_CODE  >= MAX_VAL_PI_CODE  && MAX_VAL_VREF_CODE  >= MAX_DESKEW_CODE)  ? MAX_VAL_VREF_CODE  :
+            (MAX_DATA_VREF_CODE >= MAX_DATA_PI_CODE   && MAX_DATA_VREF_CODE >= MAX_VAL_PI_CODE  &&  MAX_DATA_VREF_CODE >= MAX_DESKEW_CODE) ? MAX_DATA_VREF_CODE :
+            (MAX_DATA_PI_CODE   >= MAX_VAL_PI_CODE    && MAX_DATA_PI_CODE   >= MAX_DESKEW_CODE)  ? MAX_DATA_PI_CODE   :
+            (MAX_VAL_PI_CODE    >= MAX_DESKEW_CODE) ? MAX_VAL_PI_CODE : MAX_DESKEW_CODE
+    ) (
+        // =========================================================================
+        // Group 1: Clock and Reset
+        // =========================================================================
+        input  logic        lclk,                          // LTSM clock domain (1 GHz or 2 GHz). All transitions synchronous to lclk.
+        input  logic        rst_n,                         // Active-low async reset (0: reset, 1: normal operation).
 
-    // =========================================================================
-    // Group 2: MBTRAIN Substate Control Interface
-    // =========================================================================
-    // Active lane mask — from unit_negotiated_lanes (or LTSM configuration).
-    // Tells the sweep FSM and the D2C engine which lanes to include in results.
-    input  logic [15:0] active_lanes,                  // Bit[i]=1: lane i is active and must pass the D2C test.
+        // =========================================================================
+        // Group 2: MBTRAIN Substate Control Interface
+        // =========================================================================
+        // Active lane mask — from unit_negotiated_lanes (or LTSM configuration).
+        // Tells the sweep FSM and the D2C engine which lanes to include in results.
+        input  logic [15:0] active_lanes,                  // Bit[i]=1: lane i is active and must pass the D2C test.
 
-    // Sweep enable — asserted by the MBTRAIN substate LOCAL FSM.
-    //   0: sweep FSM stays in IDLE (or returns to IDLE after sweep_done).
-    //   1: sweep FSM runs the full code sweep (TRIGGER → LOG → ADVANCE → DONE).
-    input  logic        local_sweep_en,
+        // Sweep enable — asserted by the MBTRAIN substate LOCAL FSM.
+        //   0: sweep FSM stays in IDLE (or returns to IDLE after sweep_done).
+        //   1: sweep FSM runs the full code sweep (TRIGGER → LOG → ADVANCE → DONE).
+        input  logic        local_sweep_en,
 
-    // Partner sweep enable — asserted by the MBTRAIN substate PARTNER FSM.
-    //   0: partner is not holding the MB for a sweep.
-    //   1: partner is holding the MB bus ready for the sweep point test.
-    //      Drives partner_pt_en inside unit_D2C_sweep so it acknowledges each point test.
-    input  logic        partner_sweep_en,
+        // Partner sweep enable — asserted by the MBTRAIN substate PARTNER FSM.
+        //   0: partner is not holding the MB for a sweep.
+        //   1: partner is holding the MB bus ready for the sweep point test.
+        //      Drives partner_pt_en inside unit_D2C_sweep so it acknowledges each point test.
+        input  logic        partner_sweep_en,
 
-    // Sweep done — combinational output, deasserts when local_sweep_en is deasserted.
-    //   0: sweep is in progress (or FSM is idle / not yet started).
-    //   1: full code sweep complete; best_code[] and min_eye_width are valid.
-    output logic        sweep_done,
-    
-    //pass 
-    output logic [15:0] d2c_perlane_pass,
-    output logic  d2c_val_pass,
-    // =========================================================================
-    // Group 3: PHY Code Output (to PHY control registers)
-    // =========================================================================
-    // Current code under test — registered; changes once per D2C point-test cycle.
-    // The parent must apply this code to the PHY before each point-test trigger.
-    output logic [$clog2(MAX_CODE+1)-1:0] swept_code,  // Current code under test → drive to PHY.
+        // Sweep done — combinational output, deasserts when local_sweep_en is deasserted.
+        //   0: sweep is in progress (or FSM is idle / not yet started).
+        //   1: full code sweep complete; best_code[] and min_eye_width are valid.
+        output logic        sweep_done,
 
-    // =========================================================================
-    // Group 4: Sweep Results (from unit_D2C_sweep, to MBTRAIN substate)
-    // =========================================================================
-    // These outputs are purely combinational — always reflect the latest zone-tracker
-    // state. They are valid and stable while sweep_done=1, and hold the last-sweep
-    // values when the FSM is IDLE (ready for next sweep invocation).
-    //
-    // Valid Lane test  → use best_code[0] only (lane 0 = Valid Lane).
-    // Data Lane  test  → use best_code[i] for each active lane i.
-    output wire [$clog2(MAX_CODE+1)-1:0] best_code [0:15], // Per-lane best midpoint code after sweep.
-    output wire [$clog2(MAX_CODE+1)-1:0] min_eye_width,    // Narrowest best-window across active lanes.
+        //pass
+        output logic [15:0] d2c_perlane_pass,
+        output logic  d2c_val_pass,
+        // =========================================================================
+        // Group 3: PHY Code Output (to PHY control registers)
+        // =========================================================================
+        // Current code under test — registered; changes once per D2C point-test cycle.
+        // The parent must apply this code to the PHY before each point-test trigger.
+        output logic [$clog2(MAX_CODE+1)-1:0] swept_code,  // Current code under test → drive to PHY.
 
-    // =========================================================================
-    // Group 5: LTSM State (routes to unit_D2C_sweep to select D2C configuration)
-    // =========================================================================
-    input  ltsm_state_n_pkg::state_n_e   state_n,          // Current LTSM main-state / sub-state enum.
+        // =========================================================================
+        // Group 4: Sweep Results (from unit_D2C_sweep, to MBTRAIN substate)
+        // =========================================================================
+        // These outputs are purely combinational — always reflect the latest zone-tracker
+        // state. They are valid and stable while sweep_done=1, and hold the last-sweep
+        // values when the FSM is IDLE (ready for next sweep invocation).
+        //
+        // Valid Lane test  → use best_code[0] only (lane 0 = Valid Lane).
+        // Data Lane  test  → use best_code[i] for each active lane i.
+        output wire [$clog2(MAX_CODE+1)-1:0] best_code [0:15], // Per-lane best midpoint code after sweep.
+        output wire [$clog2(MAX_CODE+1)-1:0] min_eye_width,    // Narrowest best-window across active lanes.
 
-    // =========================================================================
-    // Group 6: PHY / Register File Configuration (to wrapper_D2C_PT)
-    // =========================================================================
-    // Lane mask for the RX data bus.
-    //   000: No lanes, 001: Lanes 0-7, 010: Lanes 8-15,
-    //   011: Lanes 0-15, 100: Lanes 0-3, 101: Lanes 4-7.
-    input  logic [2:0]  mb_rx_data_lane_mask,
+        // =========================================================================
+        // Group 5: LTSM State (routes to unit_D2C_sweep to select D2C configuration)
+        // =========================================================================
+        input  ltsm_state_n_pkg::state_n_e   state_n,          // Current LTSM main-state / sub-state enum.
 
-    // Per-lane error threshold — unsigned 12-bit.
-    // A lane passes when its accumulated error count does not exceed this value.
-    input  logic [11:0] cfg_max_err_thresh_perlane,
+        // =========================================================================
+        // Group 6: PHY / Register File Configuration (to wrapper_D2C_PT)
+        // =========================================================================
+        // Lane mask for the RX data bus.
+        //   000: No lanes, 001: Lanes 0-7, 010: Lanes 8-15,
+        //   011: Lanes 0-15, 100: Lanes 0-3, 101: Lanes 4-7.
+        input  logic [2:0]  mb_rx_data_lane_mask,
 
-    // Aggregate error threshold — unsigned 16-bit.
-    // Aggregate pass when total error count (across all lanes) ≤ this value.
-    input  logic [15:0] cfg_max_err_thresh_aggr,
+        // Per-lane error threshold — unsigned 12-bit.
+        // A lane passes when its accumulated error count does not exceed this value.
+        input  logic [11:0] cfg_max_err_thresh_perlane,
 
-    // =========================================================================
-    // Group 7: MB Signals — TX (outputs from wrapper_D2C_PT to MB hardware)
-    // =========================================================================
-    // 0: TX in static idle; 1: Drive active training pattern on configured TX lanes.
-    output logic        mb_tx_pattern_en,
+        // Aggregate error threshold — unsigned 16-bit.
+        // Aggregate pass when total error count (across all lanes) ≤ this value.
+        input  logic [15:0] cfg_max_err_thresh_aggr,
 
-    // TX pattern component enable bits: Bit0=Data, Bit1=Valid, Bit2=Clock.
-    output logic [2:0]  mb_tx_pattern_setup,
+        // =========================================================================
+        // Group 7: MB Signals — TX (outputs from wrapper_D2C_PT to MB hardware)
+        // =========================================================================
+        // TX lane logical selection: 00=Low, 01=Active, 10=Tri-stated, 11=Electrical-Idle
+        output logic [1:0]  mb_tx_clk_lane_sel,
+        output logic [1:0]  mb_tx_data_lane_sel,
+        output logic [1:0]  mb_tx_val_lane_sel,
+        output logic [1:0]  mb_tx_trk_lane_sel,
 
-    // 0: Disable TX LFSR scrambler; 1: Enable TX LFSR scrambler.
-    output logic        mb_tx_lfsr_en,
+        // 0: TX in static idle; 1: Drive active training pattern on configured TX lanes.
+        output logic        mb_tx_pattern_en,
 
-    // 0: Normal operation; 1: Synchronously reset TX LFSR to default seed.
-    output logic        mb_tx_lfsr_rst,
+        // TX pattern component enable bits: Bit0=Data, Bit1=Valid, Bit2=Clock.
+        output logic [2:0]  mb_tx_pattern_setup,
 
-    // 0: TX Clock phase unchanged; 1: Update TX Clock phase to mb_tx_clk_sampling value.
-    output logic        mb_tx_clk_sampling_en,
+        // 0: Disable TX LFSR scrambler; 1: Enable TX LFSR scrambler.
+        output logic        mb_tx_lfsr_en,
 
-    // TX Clock sampling phase: 00=Eye Center (In-phase), 01=Left Edge, 10=Right Edge.
-    output logic [1:0]  mb_tx_clk_sampling,
+        // 0: Normal operation; 1: Synchronously reset TX LFSR to default seed.
+        output logic        mb_tx_lfsr_rst,
 
-    // TX pattern generator mode: 0=Continuous (indefinite), 1=Burst (burst/idle counts apply).
-    output logic        mb_tx_pattern_mode,
+        // 0: TX Clock phase unchanged; 1: Update TX Clock phase to mb_tx_clk_sampling value.
+        output logic        mb_tx_clk_sampling_en,
 
-    // TX burst duration — unsigned 16-bit UI count (applies when mb_tx_pattern_mode=1).
-    output logic [15:0] mb_tx_burst_count,
+        // TX Clock sampling phase: 00=Eye Center (In-phase), 01=Left Edge, 10=Right Edge.
+        output logic [1:0]  mb_tx_clk_sampling,
 
-    // TX idle duration — unsigned 16-bit UI count (low period after burst, when mode=1).
-    output logic [15:0] mb_tx_idle_count,
+        // TX pattern generator mode: 0=Continuous (indefinite), 1=Burst (burst/idle counts apply).
+        output logic        mb_tx_pattern_mode,
 
-    // TX iteration count — unsigned 16-bit (number of burst+idle cycles, when mode=1).
-    output logic [15:0] mb_tx_iter_count,
+        // TX burst duration — unsigned 16-bit UI count (applies when mb_tx_pattern_mode=1).
+        output logic [15:0] mb_tx_burst_count,
 
-    // TX data pattern selection: 00=LFSR, 01=Per-Lane ID, 10=Fixed All-Zeros.
-    output logic [1:0]  mb_tx_data_pattern_sel,
+        // TX idle duration — unsigned 16-bit UI count (low period after burst, when mode=1).
+        output logic [15:0] mb_tx_idle_count,
 
-    // TX valid lane pattern: 0=VALTRAIN/functional pattern, 1=Held Low.
-    output logic        mb_tx_val_pattern_sel,
+        // TX iteration count — unsigned 16-bit (number of burst+idle cycles, when mode=1).
+        output logic [15:0] mb_tx_iter_count,
 
-    // 0: TX pattern generator is transmitting; 1: Completed all iterations (all bursts done).
-    input  logic        mb_tx_pattern_count_done,
+        // TX data pattern selection: 00=LFSR, 01=Per-Lane ID, 10=Fixed All-Zeros.
+        output logic [1:0]  mb_tx_data_pattern_sel,
 
-    // =========================================================================
-    // Group 8: MB Signals — RX (outputs from wrapper_D2C_PT to MB hardware)
-    // =========================================================================
-    // RX lane enable: 0=Disabled, 1=Enabled.
-    output logic        mb_rx_trk_lane_sel,               // 0: Disabled; 1: RX tracking lane active.
-    output logic        mb_rx_clk_lane_sel,               // 0: Disabled; 1: RX clock lane active.
-    output logic        mb_rx_val_lane_sel,               // 0: Disabled; 1: RX valid lane active.
-    output logic        mb_rx_data_lane_sel,              // 0: Disabled; 1: RX data lanes active.
+        // TX valid lane pattern: 0=VALTRAIN/functional pattern, 1=Held Low.
+        output logic        mb_tx_val_pattern_sel,
 
-    // RX expected pattern component bits: Bit0=Data, Bit1=Valid, Bit2=Clock.
-    output logic [2:0]  mb_rx_pattern_setup,
+        // 0: TX pattern generator is transmitting; 1: Completed all iterations (all bursts done).
+        input  logic        mb_tx_pattern_count_done,
 
-    // 0: Disable RX LFSR descrambler; 1: Enable RX LFSR descrambler.
-    output logic        mb_rx_lfsr_en,
+        // =========================================================================
+        // Group 8: MB Signals — RX (outputs from wrapper_D2C_PT to MB hardware)
+        // =========================================================================
+        // RX lane enable: 0=Disabled, 1=Enabled.
+        output logic        mb_rx_trk_lane_sel,               // 0: Disabled; 1: RX tracking lane active.
+        output logic        mb_rx_clk_lane_sel,               // 0: Disabled; 1: RX clock lane active.
+        output logic        mb_rx_val_lane_sel,               // 0: Disabled; 1: RX valid lane active.
+        output logic        mb_rx_data_lane_sel,              // 0: Disabled; 1: RX data lanes active.
 
-    // 0: Normal operation; 1: Synchronously reset RX LFSR to default seed.
-    output logic        mb_rx_lfsr_rst,
+        // RX expected pattern component bits: Bit0=Data, Bit1=Valid, Bit2=Clock.
+        output logic [2:0]  mb_rx_pattern_setup,
 
-    // RX expected iteration count — unsigned 16-bit.
-    output logic [15:0] mb_rx_iter_count,
+        // 0: Disable RX LFSR descrambler; 1: Enable RX LFSR descrambler.
+        output logic        mb_rx_lfsr_en,
 
-    // RX expected idle duration — unsigned 16-bit UI count.
-    output logic [15:0] mb_rx_idle_count,
+        // 0: Normal operation; 1: Synchronously reset RX LFSR to default seed.
+        output logic        mb_rx_lfsr_rst,
 
-    // RX expected burst duration — unsigned 16-bit UI count.
-    output logic [15:0] mb_rx_burst_count,
+        // RX expected iteration count — unsigned 16-bit.
+        output logic [15:0] mb_rx_iter_count,
 
-    // RX evaluation mode: 0=Continuous, 1=Burst.
-    output logic        mb_rx_pattern_mode,
+        // RX expected idle duration — unsigned 16-bit UI count.
+        output logic [15:0] mb_rx_idle_count,
 
-    // RX valid lane pattern: 0=VALTRAIN pattern, 1=Held Low / Operational Valid.
-    output logic        mb_rx_val_pattern_sel,
+        // RX expected burst duration — unsigned 16-bit UI count.
+        output logic [15:0] mb_rx_burst_count,
 
-    // RX data pattern: 00=LFSR, 01=Per-Lane ID (or All-Zeros).
-    output logic [1:0]  mb_rx_data_pattern_sel,
+        // RX evaluation mode: 0=Continuous, 1=Burst.
+        output logic        mb_rx_pattern_mode,
 
-    // 0: Disable RX comparison; 1: Enable RX comparison, start error accumulation.
-    output logic        mb_rx_compare_en,
+        // RX valid lane pattern: 0=VALTRAIN pattern, 1=Held Low / Operational Valid.
+        output logic        mb_rx_val_pattern_sel,
 
-    // RX comparison mode: 00=Per-Lane, 01=Aggregate, 10=Valid Lane, 11=Clock Lane.
-    output logic [1:0]  mb_rx_compare_setup,
+        // RX data pattern: 00=LFSR, 01=Per-Lane ID (or All-Zeros).
+        output logic [1:0]  mb_rx_data_pattern_sel,
 
-    // Per-lane max error threshold driven to RX comparison block (unsigned 12-bit).
-    output logic [11:0] mb_rx_max_err_thresh_perlane,
+        // 0: Disable RX comparison; 1: Enable RX comparison, start error accumulation.
+        output logic        mb_rx_compare_en,
 
-    // Aggregate max error threshold driven to RX comparison block (unsigned 16-bit).
-    output logic [15:0] mb_rx_max_err_thresh_aggr,
+        // RX comparison mode: 00=Per-Lane, 01=Aggregate, 10=Valid Lane, 11=Clock Lane.
+        output logic [1:0]  mb_rx_compare_setup,
 
-    // 1: Aggregate comparison passed (total error ≤ cfg_max_err_thresh_aggr); 0: Failed.
-    input  logic        mb_rx_aggr_pass,
+        // Per-lane max error threshold driven to RX comparison block (unsigned 12-bit).
+        output logic [11:0] mb_rx_max_err_thresh_perlane,
 
-    // Per-lane pass vector: bit[i]=1 if lane i's error count ≤ cfg_max_err_thresh_perlane.
-    input  logic [15:0] mb_rx_perlane_pass,
+        // Aggregate max error threshold driven to RX comparison block (unsigned 16-bit).
+        output logic [15:0] mb_rx_max_err_thresh_aggr,
 
-    // 1: Valid Lane pattern matched; 0: Valid Lane pattern mismatch detected.
-    input  logic        mb_rx_val_pass,
+        // 1: Aggregate comparison passed (total error ≤ cfg_max_err_thresh_aggr); 0: Failed.
+        input  logic        mb_rx_aggr_pass,
 
-    // =========================================================================
-    // Group 9: SB Signals — TX (from wrapper_D2C_PT to SB TX bus)
-    // =========================================================================
-    // Asserted for exactly 1 lclk cycle to transmit a sideband message to the partner.
-    output logic        tx_sb_msg_valid,
+        // Per-lane pass vector: bit[i]=1 if lane i's error count ≤ cfg_max_err_thresh_perlane.
+        input  logic [15:0] mb_rx_perlane_pass,
 
-    // MsgCode to transmit (valid when tx_sb_msg_valid=1).
-    output logic [7:0]  tx_sb_msg,
+        // 1: Valid Lane pattern matched; 0: Valid Lane pattern mismatch detected.
+        input  logic        mb_rx_val_pass,
 
-    // MsgInfo payload field (varies by message type; valid when tx_sb_msg_valid=1).
-    output logic [15:0] tx_msginfo,
+        // =========================================================================
+        // Group 9: SB Signals — TX (from wrapper_D2C_PT to SB TX bus)
+        // =========================================================================
+        // Asserted for exactly 1 lclk cycle to transmit a sideband message to the partner.
+        output logic        tx_sb_msg_valid,
 
-    // 64-bit data payload (varies by message type; valid when tx_sb_msg_valid=1).
-    output logic [63:0] tx_data_field,
+        // MsgCode to transmit (valid when tx_sb_msg_valid=1).
+        output logic [7:0]  tx_sb_msg,
 
-    // =========================================================================
-    // Group 10: SB Signals — RX (from SB RX bus to wrapper_D2C_PT, broadcast)
-    // =========================================================================
-    // Pulse: 1 lclk cycle when a valid sideband message has been received from partner.
-    input  logic        rx_sb_msg_valid,
+        // MsgInfo payload field (varies by message type; valid when tx_sb_msg_valid=1).
+        output logic [15:0] tx_msginfo,
 
-    // Received MsgCode from partner (valid when rx_sb_msg_valid=1).
-    input  logic [7:0]  rx_sb_msg,
+        // 64-bit data payload (varies by message type; valid when tx_sb_msg_valid=1).
+        output logic [63:0] tx_data_field,
 
-    // Received MsgInfo payload field (valid when rx_sb_msg_valid=1).
-    input  logic [15:0] rx_msginfo,
+        // =========================================================================
+        // Group 10: SB Signals — RX (from SB RX bus to wrapper_D2C_PT, broadcast)
+        // =========================================================================
+        // Pulse: 1 lclk cycle when a valid sideband message has been received from partner.
+        input  logic        rx_sb_msg_valid,
 
-    // Received 64-bit data payload (valid when rx_sb_msg_valid=1).
-    input  logic [63:0] rx_data_field
-);
+        // Received MsgCode from partner (valid when rx_sb_msg_valid=1).
+        input  logic [7:0]  rx_sb_msg,
+
+        // Received MsgInfo payload field (valid when rx_sb_msg_valid=1).
+        input  logic [15:0] rx_msginfo,
+
+        // Received 64-bit data payload (valid when rx_sb_msg_valid=1).
+        input  logic [63:0] rx_data_field
+    );
 
     // =========================================================================
     // Internal Wires: unit_D2C_sweep ↔ wrapper_D2C_PT
@@ -420,10 +426,7 @@ module wrapper_D2C_sweep #(
         .mb_tx_pattern_count_done      (mb_tx_pattern_count_done     ), // 1: TX pattern gen completed.
 
         // ── Group 4: MB RX (external — to MB hardware) ─────────────────────
-        .mb_rx_trk_lane_sel            (mb_rx_trk_lane_sel           ), // RX tracking lane enable.
-        .mb_rx_clk_lane_sel            (mb_rx_clk_lane_sel           ), // RX clock lane enable.
-        .mb_rx_val_lane_sel            (mb_rx_val_lane_sel           ), // RX valid lane enable.
-        .mb_rx_data_lane_sel           (mb_rx_data_lane_sel          ), // RX data lane enable.
+
         .mb_rx_pattern_setup           (mb_rx_pattern_setup          ), // RX expected pattern components.
         .mb_rx_lfsr_en                 (mb_rx_lfsr_en                ), // RX LFSR descrambler enable.
         .mb_rx_lfsr_rst                (mb_rx_lfsr_rst               ), // RX LFSR synchronous reset.
@@ -454,7 +457,30 @@ module wrapper_D2C_sweep #(
         .rx_data_field                 (rx_data_field                )  // Received SB 64-bit data payload.
     );
 
+    // =========================================================================
+    // Instantiation 3: unit_D2C_lane_sel
+    // =========================================================================
+    unit_D2C_lane_sel u_D2C_lane_sel (
+        .local_tx_pt_en     (w_local_tx_pt_en),
+        .partner_tx_pt_en   (w_partner_tx_pt_en),
+        .local_rx_pt_en     (w_local_rx_pt_en),
+        .partner_rx_pt_en   (w_partner_rx_pt_en),
+        .d2c_pattern_setup   (w_d2c_pattern_setup),
+
+        .mb_tx_clk_lane_sel  (mb_tx_clk_lane_sel),
+        .mb_tx_data_lane_sel (mb_tx_data_lane_sel),
+        .mb_tx_val_lane_sel  (mb_tx_val_lane_sel),
+        .mb_tx_trk_lane_sel  (mb_tx_trk_lane_sel),
+
+        .mb_rx_clk_lane_sel  (mb_rx_clk_lane_sel),
+        .mb_rx_data_lane_sel (mb_rx_data_lane_sel),
+        .mb_rx_val_lane_sel  (mb_rx_val_lane_sel),
+        .mb_rx_trk_lane_sel  (mb_rx_trk_lane_sel)
+    );
+
+
 endmodule
 // ====================================================================================================
 // END wrapper_D2C_sweep
 // ====================================================================================================
+

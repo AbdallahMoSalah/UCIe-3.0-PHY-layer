@@ -35,13 +35,6 @@ module wrapper_DATATRAINCENTER1 #(
         input  wire logic [$clog2(MAX_DATA_PI_CODE+1)-1:0]  best_code [0:15],
         input  logic        sweep_done,
 
-        // =========================================================================
-        // Group 5: MB Signals (Mainband Control & Status)
-        // =========================================================================
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
 
         // =========================================================================
         // Group 6: SB Signals (Sideband Control & Status)
@@ -118,16 +111,6 @@ module wrapper_DATATRAINCENTER1 #(
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    // =========================================================================
-    // MB Lane Assignments — Static per spec §4.5.3.4.8 MBTRAIN.DATATRAINCENTER1:
-    //   Local   (TX side): CLK TX active (01), DATA/VAL/TRK TX held low (00).
-    //   Partner (RX side): CLK/DATA/VAL RX enabled, TRK RX disabled.
-    //   wrapper_MBTRAIN ss_active gates these when substate is not active.
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b1;
-    assign mb_rx_data_lane_sel = 1'b1;
-    assign mb_rx_val_lane_sel  = 1'b1;
-    assign mb_rx_trk_lane_sel  = 1'b0;
 
 endmodule
 

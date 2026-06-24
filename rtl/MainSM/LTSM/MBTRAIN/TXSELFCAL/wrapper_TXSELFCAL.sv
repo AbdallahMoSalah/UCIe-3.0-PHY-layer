@@ -23,11 +23,6 @@ module wrapper_TXSELFCAL (
         // PHY Control Signals
         output logic        phy_tx_selfcal_en,
 
-        // MB Signals
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
 
         // SB Signals
         output logic        tx_sb_msg_valid,
@@ -105,15 +100,5 @@ module wrapper_TXSELFCAL (
     assign tx_msginfo      = local_tx_sb_msg_valid ? local_tx_msginfo      : partner_tx_msginfo;
     assign tx_data_field   = local_tx_sb_msg_valid ? local_tx_data_field   : partner_tx_data_field;
 
-    // =========================================================================
-    // MB Lane Assignments — Static per spec §4.5.3.4.4 MBTRAIN.TXSELFCAL:
-    //   "Data, Clock, Valid, and Track Transmitters are tri-stated."
-    //   "Data, Clock, Valid, and Track Receivers are permitted to be disabled."
-    // These values are constant regardless of FSM state.
-    // =========================================================================
-    assign mb_rx_clk_lane_sel  = 1'b0;  // Disabled
-    assign mb_rx_data_lane_sel = 1'b0;  // Disabled
-    assign mb_rx_val_lane_sel  = 1'b0;  // Disabled
-    assign mb_rx_trk_lane_sel  = 1'b0;  // Disabled
 
 endmodule

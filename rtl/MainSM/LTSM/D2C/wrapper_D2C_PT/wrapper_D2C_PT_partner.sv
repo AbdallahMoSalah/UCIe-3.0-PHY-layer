@@ -35,10 +35,6 @@ module wrapper_D2C_PT_partner (
         // =========================================================================
         // Group 3: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic        mb_rx_trk_lane_sel,             // 0: Disabled (RX logical tracking lane inactive). 1: Enabled.
-        output logic        mb_rx_clk_lane_sel,             // 0: Disabled. 1: Enabled (RX logical clock lane active).
-        output logic        mb_rx_val_lane_sel,             // 0: Disabled. 1: Enabled (RX logical valid lane active).
-        output logic        mb_rx_data_lane_sel,            // 0: Disabled. 1: Enabled (RX logical data lanes active).
 
         output logic        mb_tx_pattern_en,               // 0: TX in static idle. 1: Drive active training pattern on configured TX lanes.
         output logic [2:0]  mb_tx_pattern_setup,            // Bit0: Data Enable, Bit1: Valid Enable, Bit2: Clock Enable.
@@ -89,10 +85,6 @@ module wrapper_D2C_PT_partner (
     // =========================================================================
     // From unit_TX_D2C_PT_partner:
     logic        tx_test_d2c_done;              // Completed status from TX partner module
-    logic        tx_mb_rx_trk_lane_sel;         // Enables logical tracking lane receiver
-    logic        tx_mb_rx_clk_lane_sel;         // Enables logical clock lane receiver
-    logic        tx_mb_rx_val_lane_sel;         // Enables logical valid lane receiver
-    logic        tx_mb_rx_data_lane_sel;        // Enables logical data lanes receivers
     logic [2:0]  tx_mb_rx_pattern_setup;        // Pattern components enabled
     logic        tx_mb_rx_lfsr_en;              // Enables LFSR descrambler on the receiver lanes
     logic        tx_mb_rx_lfsr_rst;             // Resets MB receiver LFSR descrambler
@@ -138,10 +130,6 @@ module wrapper_D2C_PT_partner (
         .rst_n                          (rst_n                       ), // Active-low asynchronous reset
         .tx_pt_en                       (tx_pt_en                    ), // Enable/trigger TX Point Test
         .test_d2c_done                  (tx_test_d2c_done            ), // Output training completed status
-        .mb_rx_trk_lane_sel             (tx_mb_rx_trk_lane_sel       ), // Output enables logical tracking lane receiver
-        .mb_rx_clk_lane_sel             (tx_mb_rx_clk_lane_sel       ), // Output enables logical clock lane receiver
-        .mb_rx_val_lane_sel             (tx_mb_rx_val_lane_sel       ), // Output enables logical valid lane receiver
-        .mb_rx_data_lane_sel            (tx_mb_rx_data_lane_sel      ), // Output enables logical data lanes receivers
         .mb_rx_pattern_setup            (tx_mb_rx_pattern_setup      ), // Output expected pattern components configuration
         .mb_rx_lfsr_en                  (tx_mb_rx_lfsr_en            ), // Output enable RX LFSR descrambler
         .mb_rx_lfsr_rst                 (tx_mb_rx_lfsr_rst           ), // Output synchronously reset RX LFSR
@@ -218,10 +206,6 @@ module wrapper_D2C_PT_partner (
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Track Transmitters drive low.
             //        * Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)"
-            mb_rx_trk_lane_sel              = tx_mb_rx_trk_lane_sel          ;
-            mb_rx_clk_lane_sel              = tx_mb_rx_clk_lane_sel          ;
-            mb_rx_val_lane_sel              = tx_mb_rx_val_lane_sel          ;
-            mb_rx_data_lane_sel             = tx_mb_rx_data_lane_sel         ;
             mb_tx_pattern_en                = 1'b0                           ; // TX partner only has RX control
             mb_tx_pattern_setup             = 3'b000                         ; // TX partner only has RX control
             mb_rx_pattern_setup             = tx_mb_rx_pattern_setup         ;
@@ -252,10 +236,6 @@ module wrapper_D2C_PT_partner (
             //     "When not performing the actions relevant to this state:
             //        * Data, Valid, and Clock Receivers are enabled.
             //        * Track Receiver is permitted to be disabled."
-            mb_rx_trk_lane_sel              = 1'b0                           ; // RX partner only has TX control
-            mb_rx_clk_lane_sel              = 1'b1                           ; // RX partner only has TX control
-            mb_rx_val_lane_sel              = 1'b1                           ; // RX partner only has TX control
-            mb_rx_data_lane_sel             = 1'b1                           ; // RX partner only has TX control
 
             mb_tx_pattern_en                = rx_mb_tx_pattern_en            ;
             mb_tx_pattern_setup             = rx_mb_tx_pattern_setup         ;
@@ -284,10 +264,6 @@ module wrapper_D2C_PT_partner (
             mb_tx_val_pattern_sel           = rx_mb_tx_val_pattern_sel       ;
         end else begin
             // All inactive default safe ties:
-            mb_rx_clk_lane_sel              = 1'b0                           ;
-            mb_rx_data_lane_sel             = 1'b0                           ;
-            mb_rx_val_lane_sel              = 1'b0                           ;
-            mb_rx_trk_lane_sel              = 1'b0                           ;
             mb_tx_pattern_en                = 1'b0                           ;
             mb_tx_pattern_setup             = 3'b000                         ;
             mb_rx_pattern_setup             = 3'b000                         ;

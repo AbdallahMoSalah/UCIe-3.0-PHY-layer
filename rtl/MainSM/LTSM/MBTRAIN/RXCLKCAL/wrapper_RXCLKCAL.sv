@@ -32,7 +32,6 @@ module wrapper_RXCLKCAL (
         // Group 2: LTSM Control and Configuration Signals
         // =========================================================================
         input  logic        is_high_speed,
-        input  logic        is_continuous_clk_mode,
 
         // Control and Status
         input  logic        rxclkcal_en,
@@ -64,10 +63,8 @@ module wrapper_RXCLKCAL (
         // =========================================================================
         // Group 4: MB Signals (Mainband Control & Status)
         // =========================================================================
-        output logic        mb_rx_clk_lane_sel,
-        output logic        mb_rx_data_lane_sel,
-        output logic        mb_rx_val_lane_sel,
-        output logic        mb_rx_trk_lane_sel,
+        output logic        rx_clk_active,
+        output logic        tx_clk_active,
 
         output logic        mb_tx_pattern_en,
         output logic [2:0]  mb_tx_pattern_setup,
@@ -142,8 +139,7 @@ module wrapper_RXCLKCAL (
         .iq_en                          (iq_en                          ),
         .iq_done                        (iq_done                        ),
         .iq_error                       (iq_error                       ),
-        .mb_rx_clk_lane_sel             (mb_rx_clk_lane_sel             ),
-        .mb_rx_trk_lane_sel             (mb_rx_trk_lane_sel             ),
+        .mb_rx_trk_lane_sel             (rx_clk_active                  ),
         .analog_settle_timer_en         (local_analog_settle_timer_en   ),
         .analog_settle_time_done        (analog_settle_time_done        ),
         .tx_sb_msg_valid                (local_tx_sb_msg_valid          ),
@@ -189,8 +185,8 @@ module wrapper_RXCLKCAL (
         .rxclkcal_en                    (rxclkcal_en                    ),
         .rxclkcal_done                  (partner_rxclkcal_done_wire     ),
         .trainerror_req                 (partner_trainerror_req_wire    ),
-        .is_high_speed                  (is_high_speed                  ),
-        .is_continuous_clk_mode         (is_continuous_clk_mode         ),
+        // .is_high_speed                  (is_high_speed                  ), // We won't use this signal at all inside this block.
+        // .is_continuous_clk_mode         (is_continuous_clk_mode         ), // We won't use this signal at all inside this block.
         .iq_partner_en                  (iq_partner_en                  ),
         .iq_partner_done                (iq_partner_done                ),
         .iq_partner_error               (iq_partner_error               ),
@@ -253,8 +249,7 @@ module wrapper_RXCLKCAL (
         partner_tx_sb_msg_valid    ? partner_tx_data_field  :
         iq_partner_tx_data_field;
 
-    assign mb_rx_data_lane_sel   = 1'b0;
-    assign mb_rx_val_lane_sel    = 1'b0;
+    assign tx_clk_active = mb_tx_pattern_en;
 
     assign mb_tx_pattern_setup   = 3'b100; // Clock pattern configuration
     assign mb_tx_clk_pattern_sel = 2'd3;   // Clk Mode 2 (quarter rate clock)
