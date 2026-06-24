@@ -1,0 +1,227 @@
+%Warning-EOFNEWLINE: rtl/SideBand/common/sb_pkg.sv:152:11: Missing newline at end of file (POSIX 3.206).
+                                                         : ... Suggest add newline.
+  152 | endpackage
+      |           ^
+                     ... For warning description see https://verilator.org/warn/EOFNEWLINE?v=5.046
+                     ... Use "/* verilator lint_off EOFNEWLINE */" and lint_on around source to disable this message.
+%Warning-EOFNEWLINE: rtl/SideBand/common/msg_codec_pkg.sv:431:11: Missing newline at end of file (POSIX 3.206).
+                                                                : ... Suggest add newline.
+  431 | endpackage
+      |           ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/common/RDI_SM_pkg.sv:13:11: Missing newline at end of file (POSIX 3.206).
+                                                                 : ... Suggest add newline.
+   13 | endpackage
+      |           ^
+%Warning-EOFNEWLINE: rtl/common/PULSE_GEN.v:38:10: Missing newline at end of file (POSIX 3.206).
+                                                 : ... Suggest add newline.
+   38 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/common/tri_state_verilator --lint-only -Wall -Wno-fatal -f sim/listfiles/digital_ucie_loopback.f > lint.rep 2>&1
+buff.sv:7:10: Missing newline at end of file (POSIX 3.206).
+                                                      : ... Suggest add newline.
+    7 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv:506:13: Missing newline at end of file (POSIX 3.206).
+                                                                                       : ... Suggest add newline.
+  506 | endmodule */
+      |             ^
+%Warning-EOFNEWLINE: rtl/SideBand/analog_modeling/sb_serializer/sb_serializer_sva.sv:66:10: Missing newline at end of file (POSIX 3.206).
+                                                                                          : ... Suggest add newline.
+   66 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/analog_modeling/sb_deserializer/sb_deserializer.sv:104:10: Missing newline at end of file (POSIX 3.206).
+                                                                                           : ... Suggest add newline.
+  104 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/analog_modeling/sb_deserializer/sb_deserializer_sva.sv:76:10: Missing newline at end of file (POSIX 3.206).
+                                                                                              : ... Suggest add newline.
+   76 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Link_Controller/sb_mapper.sv:177:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+  177 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Link_Controller/sb_demapper.sv:116:10: Missing newline at end of file (POSIX 3.206).
+                                                                       : ... Suggest add newline.
+  116 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Link_Controller/Link_Demux.sv:45:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+   45 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Link_Controller/sb_pattern_detector.sv:100:10: Missing newline at end of file (POSIX 3.206).
+                                                                               : ... Suggest add newline.
+  100 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Link_Controller/sb_pattern_engine.sv:345:13: Missing newline at end of file (POSIX 3.206).
+                                                                             : ... Suggest add newline.
+  345 | endmodule */
+      |             ^
+%Warning-EOFNEWLINE: rtl/SideBand/Training_mgmt/roud_robin_arbiter.sv:137:10: Missing newline at end of file (POSIX 3.206).
+                                                                            : ... Suggest add newline.
+  137 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Training_mgmt/Packetizer.sv:506:10: Missing newline at end of file (POSIX 3.206).
+                                                                    : ... Suggest add newline.
+  506 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Training_mgmt/DePacketizer.sv:530:10: Missing newline at end of file (POSIX 3.206).
+                                                                      : ... Suggest add newline.
+  530 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/rdi_controller/rdi_aggregator.sv:231:10: Missing newline at end of file (POSIX 3.206).
+                                                                         : ... Suggest add newline.
+  231 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/rdi_controller/rdi_router.sv:81:10: Missing newline at end of file (POSIX 3.206).
+                                                                    : ... Suggest add newline.
+   81 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/rdi_controller/RDI_control.sv:434:10: Missing newline at end of file (POSIX 3.206).
+                                                                      : ... Suggest add newline.
+  434 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Reg_Access/Completion_gen.sv:135:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+  135 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Reg_Access/Reg_DePacketizer.sv:154:10: Missing newline at end of file (POSIX 3.206).
+                                                                       : ... Suggest add newline.
+  154 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/Reg_Access/Reg_Access_FSM.sv:159:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+  159 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/SideBand/sideband_analog_hard_macro.sv:87:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+   87 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/LTSM/Common/timeout_counter.sv:60:10: Missing newline at end of file (POSIX 3.206).
+                                                                    : ... Suggest add newline.
+   60 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/LTSM/MBTRAIN/SPEEDIDLE/unit_SPEEDIDLE_partner.sv:189:10: Missing newline at end of file (POSIX 3.206).
+                                                                                       : ... Suggest add newline.
+  189 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/LTSM/LINKINIT/linkinit.sv:87:10: Missing newline at end of file (POSIX 3.206).
+                                                               : ... Suggest add newline.
+   87 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/mainband_ltsm_interface.sv:264:10: Missing newline at end of file (POSIX 3.206).
+                                                                      : ... Suggest add newline.
+  264 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_Timer/unit_Timer.sv:61:10: Missing newline at end of file (POSIX 3.206).
+                                                                     : ... Suggest add newline.
+   61 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_reset_state/unit_reset_state.sv:169:10: Missing newline at end of file (POSIX 3.206).
+                                                                                  : ... Suggest add newline.
+  169 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:371:10: Missing newline at end of file (POSIX 3.206).
+                                                                                    : ... Suggest add newline.
+  371 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_active_pmnak_state/unit_active_pmnak_state.sv:230:10: Missing newline at end of file (POSIX 3.206).
+                                                                                                : ... Suggest add newline.
+  230 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_main_controller/unit_main_controller.sv:407:10: Missing newline at end of file (POSIX 3.206).
+                                                                                          : ... Suggest add newline.
+  407 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_message_send_MUX/unit_message_send_MUX.sv:52:10: Missing newline at end of file (POSIX 3.206).
+                                                                                           : ... Suggest add newline.
+   52 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/message_timeout_handler/message_timeout_handler.sv:204:10: Missing newline at end of file (POSIX 3.206).
+                                                                                                : ... Suggest add newline.
+  204 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv:290:10: Missing newline at end of file (POSIX 3.206).
+                                                                      : ... Suggest add newline.
+  290 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:40:10: Missing newline at end of file (POSIX 3.206).
+                                                                                     : ... Suggest add newline.
+   40 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_awak_handshake/unit_awak_handshake.sv:34:10: Missing newline at end of file (POSIX 3.206).
+                                                                                       : ... Suggest add newline.
+   34 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_stall_handshake/unit_stall_handshake.sv:59:10: Missing newline at end of file (POSIX 3.206).
+                                                                                         : ... Suggest add newline.
+   59 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_active_handshake/unit_Active_handshake.sv:153:10: Missing newline at end of file (POSIX 3.206).
+                                                                                            : ... Suggest add newline.
+  153 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/wrapper_handshake_logic/wrapper_handshake_logic.sv:75:10: Missing newline at end of file (POSIX 3.206).
+                                                                                               : ... Suggest add newline.
+   75 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_gating_logic/unit_gating_logic.sv:85:10: Missing newline at end of file (POSIX 3.206).
+                                                                                   : ... Suggest add newline.
+   85 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_signal_transition_detector/unit_signal_transition_detector.sv:55:10: Missing newline at end of file (POSIX 3.206).
+                                                                                                               : ... Suggest add newline.
+   55 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_status_decoder/unit_status_decoder.sv:15:10: Missing newline at end of file (POSIX 3.206).
+                                                                                       : ... Suggest add newline.
+   15 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv:208:10: Missing newline at end of file (POSIX 3.206).
+                                                                                  : ... Suggest add newline.
+  208 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv:211:10: Missing newline at end of file (POSIX 3.206).
+                                                              : ... Suggest add newline.
+  211 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/tx/unit_mb_pll.sv:38:10: Missing newline at end of file (POSIX 3.206).
+                                                            : ... Suggest add newline.
+   38 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/tx/unit_lfsr_tx.sv:451:10: Missing newline at end of file (POSIX 3.206).
+                                                              : ... Suggest add newline.
+  451 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/tx/unit_valid_tx.sv:96:10: Missing newline at end of file (POSIX 3.206).
+                                                              : ... Suggest add newline.
+   96 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/rx/unit_valid_frame_detector.sv:29:10: Missing newline at end of file (POSIX 3.206).
+                                                                          : ... Suggest add newline.
+   29 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/rx/unit_lfsr_rx.sv:457:10: Missing newline at end of file (POSIX 3.206).
+                                                              : ... Suggest add newline.
+  457 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/rx/unit_demapper.sv:270:10: Missing newline at end of file (POSIX 3.206).
+                                                               : ... Suggest add newline.
+  270 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/MainBand_RD/rx/unit_clk_pattern_detector_rx.sv:343:10: Missing newline at end of file (POSIX 3.206).
+                                                                              : ... Suggest add newline.
+  343 | endmodule
+      |          ^
+%Warning-EOFNEWLINE: rtl/common/Reg_File.sv:1037:10: Missing newline at end of file (POSIX 3.206).
+                                                   : ... Suggest add newline.
+ 1037 | endmodule
+      |          ^
+%Error-UNSUPPORTED: FPGA/tb/digital_ucie_loopback_tb.sv:102:34: Unsupported: defparam with more than one dot
+  102 |     defparam u_dut.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_Timer.CLK_FREQ = RDI_CLK_FRQ;
+      |                                  ^
+                    ... For error description see https://verilator.org/warn/UNSUPPORTED?v=5.046
+%Error-UNSUPPORTED: FPGA/tb/digital_ucie_loopback_tb.sv:103:34: Unsupported: defparam with more than one dot
+  103 |     defparam u_dut.u_digital_ucie.u_main_sm.u_rdi_sm.gating_logic.CLK_FREQ     = RDI_CLK_FRQ;
+      |                                  ^
+%Error: Exiting due to 2 error(s)
