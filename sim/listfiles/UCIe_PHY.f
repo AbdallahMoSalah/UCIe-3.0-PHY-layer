@@ -81,6 +81,7 @@ rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_local.sv
 rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT_partner.sv
 rtl/MainSM/LTSM/D2C/wrapper_D2C_PT/wrapper_D2C_PT.sv
 rtl/MainSM/LTSM/D2C/unit_D2C_sweep.sv
+rtl/MainSM/LTSM/D2C/unit_D2C_lane_sel.sv
 rtl/MainSM/LTSM/D2C/wrapper_D2C_sweep.sv
 
 # ---- MBTRAIN substates + top wrapper -----------------------------------------
@@ -127,6 +128,7 @@ rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_negotiated_lanes.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_local.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv
 rtl/MainSM/LTSM/MBTRAIN/REPAIR/wrapper_REPAIR.sv
+rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_lane_sel.sv
 rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 
 # ---- LINKINIT + ACTIVE -------------------------------------------------------

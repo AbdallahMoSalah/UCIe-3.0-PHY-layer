@@ -29,58 +29,17 @@ module unit_clk_pattern_detector_rx ( //Abdallah
     logic       clk_p_p_w, clk_p_n_w, clk_n_p_w, clk_n_n_w, track_p_w, track_n_w;
     logic       flag_p_tog, flag_p_zero, flag_n_tog, flag_n_zero, flag_track_tog, flag_track_zero;
 
+    // Posedge-sampled inputs. This block is the sole driver of the *_p_w regs.
     always @(posedge i_clk, negedge i_rst_n) begin
         if (!i_rst_n) begin
-            counter_toggle_p             <= 0;
-            counter_toggle_n             <= 0;
-            counter_toggle_track         <= 0;
-            counter_zero_p               <= 0;
-            counter_zero_n               <= 0;
-            counter_zero_track           <= 0;
-            counter_16_consecetive_p     <= 0;
-            counter_16_consecetive_n     <= 0;
-            counter_16_consecetive_track <= 0;
-            clk_p_p_w                    <= 0;
-            clk_p_n_w                    <= 0;
-            clk_n_p_w                    <= 0;
-            clk_n_n_w                    <= 0;
-            track_p_w                    <= 0;
-            track_n_w                    <= 0;
-            flag_p_tog                   <= 0;
-            flag_p_zero                  <= 0;
-            flag_n_tog                   <= 0;
-            flag_n_zero                  <= 0;
-            flag_track_tog               <= 0;
-            flag_track_zero              <= 0;
-            clk_p_pattern_pass           <= 0;
-            clk_n_pattern_pass           <= 0;
-            track_pattern_pass           <= 0;
+            clk_p_p_w <= 0;
+            clk_n_p_w <= 0;
+            track_p_w <= 0;
         end else begin
             if (!clk_detector_en) begin
-                counter_toggle_p             <= 0;
-                counter_toggle_n             <= 0;
-                counter_toggle_track         <= 0;
-                counter_zero_p               <= 0;
-                counter_zero_n               <= 0;
-                counter_zero_track           <= 0;
-                counter_16_consecetive_p     <= 0;
-                counter_16_consecetive_n     <= 0;
-                counter_16_consecetive_track <= 0;
-                clk_p_p_w                    <= 0;
-                clk_p_n_w                    <= 0;
-                clk_n_p_w                    <= 0;
-                clk_n_n_w                    <= 0;
-                track_p_w                    <= 0;
-                track_n_w                    <= 0;
-                flag_p_tog                   <= 0;
-                flag_p_zero                  <= 0;
-                flag_n_tog                   <= 0;
-                flag_n_zero                  <= 0;
-                flag_track_tog               <= 0;
-                flag_track_zero              <= 0;
-                clk_p_pattern_pass           <= 0;
-                clk_n_pattern_pass           <= 0;
-                track_pattern_pass           <= 0;
+                clk_p_p_w <= 0;
+                clk_n_p_w <= 0;
+                track_p_w <= 0;
             end else begin
                 clk_p_p_w <= clk_p;
                 clk_n_p_w <= clk_n;
@@ -89,58 +48,17 @@ module unit_clk_pattern_detector_rx ( //Abdallah
         end
     end
 
+    // Negedge-sampled inputs. This block is the sole driver of the *_n_w regs.
     always @(negedge i_clk, negedge i_rst_n) begin
         if (!i_rst_n) begin
-            counter_toggle_p             <= 0;
-            counter_toggle_n             <= 0;
-            counter_toggle_track         <= 0;
-            counter_zero_p               <= 0;
-            counter_zero_n               <= 0;
-            counter_zero_track           <= 0;
-            counter_16_consecetive_p     <= 0;
-            counter_16_consecetive_n     <= 0;
-            counter_16_consecetive_track <= 0;
-            clk_p_p_w                    <= 0;
-            clk_p_n_w                    <= 0;
-            clk_n_p_w                    <= 0;
-            clk_n_n_w                    <= 0;
-            track_p_w                    <= 0;
-            track_n_w                    <= 0;
-            flag_p_tog                   <= 0;
-            flag_p_zero                  <= 0;
-            flag_n_tog                   <= 0;
-            flag_n_zero                  <= 0;
-            flag_track_tog               <= 0;
-            flag_track_zero              <= 0;
-            clk_p_pattern_pass           <= 0;
-            clk_n_pattern_pass           <= 0;
-            track_pattern_pass           <= 0;
+            clk_p_n_w <= 0;
+            clk_n_n_w <= 0;
+            track_n_w <= 0;
         end else begin
             if (!clk_detector_en) begin
-                counter_toggle_p             <= 0;
-                counter_toggle_n             <= 0;
-                counter_toggle_track         <= 0;
-                counter_zero_p               <= 0;
-                counter_zero_n               <= 0;
-                counter_zero_track           <= 0;
-                counter_16_consecetive_p     <= 0;
-                counter_16_consecetive_n     <= 0;
-                counter_16_consecetive_track <= 0;
-                clk_p_p_w                    <= 0;
-                clk_p_n_w                    <= 0;
-                clk_n_p_w                    <= 0;
-                clk_n_n_w                    <= 0;
-                track_p_w                    <= 0;
-                track_n_w                    <= 0;
-                flag_p_tog                   <= 0;
-                flag_p_zero                  <= 0;
-                flag_n_tog                   <= 0;
-                flag_n_zero                  <= 0;
-                flag_track_tog               <= 0;
-                flag_track_zero              <= 0;
-                clk_p_pattern_pass           <= 0;
-                clk_n_pattern_pass           <= 0;
-                track_pattern_pass           <= 0;
+                clk_p_n_w <= 0;
+                clk_n_n_w <= 0;
+                track_n_w <= 0;
             end else begin
                 clk_p_n_w <= clk_p;
                 clk_n_n_w <= clk_n;
@@ -149,6 +67,8 @@ module unit_clk_pattern_detector_rx ( //Abdallah
         end
     end
 
+    // Pattern-detect counting logic. This block is the sole driver of the
+    // counters, flags and pattern-pass outputs.
     always @(posedge i_clk, negedge i_rst_n) begin
         if (!i_rst_n) begin
             counter_toggle_p             <= 0;
@@ -160,12 +80,6 @@ module unit_clk_pattern_detector_rx ( //Abdallah
             counter_16_consecetive_p     <= 0;
             counter_16_consecetive_n     <= 0;
             counter_16_consecetive_track <= 0;
-            clk_p_p_w                    <= 0;
-            clk_p_n_w                    <= 0;
-            clk_n_p_w                    <= 0;
-            clk_n_n_w                    <= 0;
-            track_p_w                    <= 0;
-            track_n_w                    <= 0;
             flag_p_tog                   <= 0;
             flag_p_zero                  <= 0;
             flag_n_tog                   <= 0;
@@ -186,12 +100,6 @@ module unit_clk_pattern_detector_rx ( //Abdallah
                 counter_16_consecetive_p     <= 0;
                 counter_16_consecetive_n     <= 0;
                 counter_16_consecetive_track <= 0;
-                clk_p_p_w                    <= 0;
-                clk_p_n_w                    <= 0;
-                clk_n_p_w                    <= 0;
-                clk_n_n_w                    <= 0;
-                track_p_w                    <= 0;
-                track_n_w                    <= 0;
                 flag_p_tog                   <= 0;
                 flag_p_zero                  <= 0;
                 flag_n_tog                   <= 0;

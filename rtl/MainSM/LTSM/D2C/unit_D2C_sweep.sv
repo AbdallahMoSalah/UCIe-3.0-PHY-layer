@@ -313,10 +313,14 @@ module unit_D2C_sweep #(
     always_ff @(posedge lclk or negedge rst_n) begin : ZONE_TRACK_PROC
         integer i;
         if (!rst_n) begin
+            // Async reset must load a constant — resetting to the combinational
+            // `min_code` infers an un-timeable FDCPE (async set+reset). The IDLE
+            // state reloads these with min_code before any LOG_RESULT, so a
+            // constant-0 async reset is functionally equivalent.
             for (i = 0; i < 16; i = i + 1) begin
-                best_lo   [i] <= min_code;
-                best_hi   [i] <= min_code;
-                zone_min_r[i] <= min_code;
+                best_lo   [i] <= {CW{1'b0}};
+                best_hi   [i] <= {CW{1'b0}};
+                zone_min_r[i] <= {CW{1'b0}};
                 found_pass[i] <= 1'b0;
                 zone_valid[i] <= 1'b0;
             end

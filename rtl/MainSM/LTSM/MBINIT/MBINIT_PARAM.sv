@@ -540,8 +540,8 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_pmo_negotiated_status                <= 1'b0;
         local_l2spd_negotiated_status              <= 1'b0;
         local_pspt_negotiated_status               <= 1'b0;
-        local_so_negotiated                        <= so;
-        local_mtp_negotiated                       <= mtp;
+        local_so_negotiated                        <= 1'b0;  // constant async reset; MB_S0_IDLE reloads
+        local_mtp_negotiated                       <= 1'b0;  // constant async reset; MB_S0_IDLE reloads
     end
     else if(current_state == MB_S0_IDLE) begin
         local_TARR_negotiated_status               <= 1'b0;

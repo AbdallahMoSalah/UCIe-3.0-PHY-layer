@@ -53,7 +53,8 @@ rtl/MainSM/LTSM/D2C_PT/unit_RX_D2C_PT.sv
 rtl/MainSM/LTSM/D2C_PT/wrapper_D2C_PT.sv
 
 # MBTRAIN wrapper (unimplemented/commented out)
-#rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
+#rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_lane_sel.sv
+rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv
 
 # LINKINIT state submodule
 rtl/MainSM/LTSM/LINKINIT/linkinit.sv

@@ -229,7 +229,7 @@ module LTSM_wrapper #(
     logic l1_en,         l1_done, l1_error;
     logic l2_en,         l2_done, l2_error;
     logic trainerror_en, trainerror_done;
-
+    logic sbinit_pattern_mode;
     // L1-exit MBTRAIN re-entry at SPEEDIDLE (controller -> wrapper_MBTRAIN)
     logic mbtrain_speedidle_req;
 
@@ -459,9 +459,7 @@ module LTSM_wrapper #(
     // LINK STATUS (to Register File)
     // =============================================================================
     assign link_status = (current_ltsm_state == ACTIVE) ||
-        (current_ltsm_state == PHYRETRAIN) || (current_ltsm_state == MBTRAIN && log0_state_n_minus_1_reg == LOG_PHYRETRAIN)
-        || (current_ltsm_state == LOG_LINKINIT && log0_state_n_minus_2_reg == LOG_PHYRETRAIN);
-
+        (current_ltsm_state == PHYRETRAIN);
     // =========================================================================
     // STATE LOG REGISTERS (SHIFT & LATCH HISTORY)
     // =========================================================================

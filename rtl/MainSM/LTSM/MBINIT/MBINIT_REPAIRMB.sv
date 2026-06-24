@@ -131,6 +131,7 @@ import UCIe_pkg::*;
 
     logic [15:0] mb_rx_perlane_result;
     logic        allow_x4_mode;
+    logic [2:0]  raw_local_map;
 
     logic reg_x8_mode_req;
     assign reg_x8_mode_req = (Link_Width_enable_status == 4'h1);
@@ -255,7 +256,6 @@ import UCIe_pkg::*;
 
     // Local Degrade Map calculation based on per-lane error results
     // d2c_perlane_pass bit is 1 for pass and 0 for fail
-    logic [2:0] raw_local_map;
     always_comb begin
         raw_local_map = 3'b000; // default to fail
 

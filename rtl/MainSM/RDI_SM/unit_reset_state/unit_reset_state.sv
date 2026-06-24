@@ -165,5 +165,4 @@ module unit_reset_state (
         endcase
     end
     end
-    assign cs_reg = cs;
 endmodule

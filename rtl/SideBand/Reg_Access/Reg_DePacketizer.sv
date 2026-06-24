@@ -99,7 +99,7 @@ always_comb begin
     // cp is stored in hdr.req.cp (bit[62]); parity of hdr[62:0] should == hdr.cp
     // even parity: ^(hdr[62:0]) == 1 means even number of 1s → bit should be 1
     // The standard check: cp_expected = (^hdr[61:0]); error if cp_expected != hdr.cp
-    parity_err      = (hdr.req.cp !== (^(latched_pkt[61:0])));
+    parity_err      = (hdr.req.cp != (^(latched_pkt[61:0])));
 
     // false_msg: dstid is not a register-access destination
     // According to UCIe spec, reg-access packets are addressed to LOCAL_ADAPTER(001),

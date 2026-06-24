@@ -426,8 +426,9 @@ assign reg_Link_Width_enable_status_reg_val = reg_Link_Width_enable_status_reg;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
-    end 
+        // Constant async reset (CTRL_IDLE reloads param value below).
+        reg_Link_Width_enable_status_reg <= 4'b0;
+    end
     else if(current_state == CTRL_IDLE) begin
         reg_Link_Width_enable_status_reg <= param_Link_Width_enable_status;
     end
@@ -467,13 +468,14 @@ logic       reg_PSPT_enable_status_reg;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        reg_Clock_Phase_enable_status_reg <= param_Clock_Phase_enable_status;
-        reg_Clock_mode_enable_status_reg  <= param_Clock_mode_enable_status;
-        reg_TARR_enable_status_reg        <= param_TARR_enable_status;
-        reg_Link_Speed_enable_status_reg  <= param_Link_Speed_enable_status;
-        reg_PMO_enable_status_reg         <= param_PMO_enable_status;
-        reg_L2SPD_enable_status_reg        <= param_L2SPD_enable_status;
-        reg_PSPT_enable_status_reg        <= param_PSPT_enable_status;
+        // Constant async reset (CTRL_IDLE reloads param values below).
+        reg_Clock_Phase_enable_status_reg <= 1'b0;
+        reg_Clock_mode_enable_status_reg  <= 1'b0;
+        reg_TARR_enable_status_reg        <= 1'b0;
+        reg_Link_Speed_enable_status_reg  <= 4'b0;
+        reg_PMO_enable_status_reg         <= 1'b0;
+        reg_L2SPD_enable_status_reg       <= 1'b0;
+        reg_PSPT_enable_status_reg        <= 1'b0;
     end else if (current_state == CTRL_IDLE) begin
         reg_Clock_Phase_enable_status_reg <= param_Clock_Phase_enable_status;
         reg_Clock_mode_enable_status_reg  <= param_Clock_mode_enable_status;

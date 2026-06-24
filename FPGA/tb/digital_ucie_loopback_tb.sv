@@ -65,9 +65,9 @@ module digital_ucie_loopback_tb;
     logic [31:0]          lp_cfg, pl_cfg;
     logic                 lp_cfg_vld, lp_cfg_crd, pl_cfg_crd, pl_cfg_vld;
 
-    RDI_state             lp_state_req;
+    logic [3:0]           lp_state_req;
     logic                 lp_clk_ack, lp_stallack, lp_wake_req, lp_linkerror;
-    RDI_state             pl_state_sts;
+    logic [3:0]           pl_state_sts;
     logic                 pl_clk_req, pl_stallreq, pl_wake_ack, pl_trainerror;
 
     // =========================================================================
@@ -109,12 +109,16 @@ module digital_ucie_loopback_tb;
     RDI_state rdi_sts;
     assign rdi_sts = u_dut.u_digital_ucie.u_main_sm.u_rdi_sm.sm.rdi_state_sts;
 
+    // Enum mirror of the 4-bit pl_state_sts port, for .name() printing.
+    RDI_state pl_state_sts_e;
+    assign pl_state_sts_e = RDI_state'(pl_state_sts);
+
     wire m_done  = (ln == LOG_ACTIVE);
     wire m_error = (ln == LOG_TRAINERROR);
 
     always @(ln or rdi_sts or pl_state_sts)
         $display("T=%0t | [DIE] ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
-                 $time, ln.name(), rdi_sts.name(), pl_state_sts.name());
+                 $time, ln.name(), rdi_sts.name(), pl_state_sts_e.name());
 
     // =========================================================================
     // Adapter handshake responder (CLK-ack / STALL-ack follow request)

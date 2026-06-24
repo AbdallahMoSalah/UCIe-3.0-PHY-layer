@@ -103,7 +103,7 @@ import RDI_SM_pkg::*;
     // =========================================================================
     ltsm_ctrl_state_e current_state, next_state;
     state_n_e current_log_state;
-
+    logic rdi_requested_trainerror;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) current_state <= CTRL_RESET;
         else        current_state <= next_state;

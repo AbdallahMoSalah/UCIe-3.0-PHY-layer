@@ -86,7 +86,7 @@ module digital_ucie_loopback #(
     output logic                             pl_cfg_vld,
 
     // ---- RDI adapter-facing interface ----
-    input  RDI_state                         lp_state_req,
+    input  logic [3:0]                       lp_state_req,
     input  logic                             lp_clk_ack,
     input  logic                             lp_wake_req,
     input  logic                             lp_stallack,
@@ -98,7 +98,7 @@ module digital_ucie_loopback #(
     output logic                             pl_trainerror,
     output logic                             pl_inband_pres,
     output logic                             pl_phyinrecenter,
-    output RDI_state                         pl_state_sts,
+    output logic [3:0]                       pl_state_sts,
     output logic                             pl_max_speedmode,
     output logic [2:0]                       pl_speedmode,
     output logic [2:0]                       pl_lnk_cfg
@@ -115,7 +115,9 @@ module digital_ucie_loopback #(
 
     logic [63:0]              sb_data;                    // SB ser data -> SB des data
     logic                     sb_vld;                     // SB ser vld  -> SB des vld
-
+    RDI_state                 lp_state_req_int, pl_state_sts_int;
+    assign lp_state_req_int = RDI_state'(lp_state_req);  // input  : 4-bit -> enum (into DUT)
+    assign pl_state_sts     = pl_state_sts_int;          // output : enum (from DUT) -> 4-bit
     // =========================================================================
     // The digital PHY under self-loopback
     // =========================================================================
@@ -208,7 +210,7 @@ module digital_ucie_loopback #(
         .pl_cfg_vld             (pl_cfg_vld),
 
         // ---- RDI adapter face ----
-        .lp_state_req           (lp_state_req),
+        .lp_state_req           (lp_state_req_int),
         .lp_clk_ack             (lp_clk_ack),
         .lp_wake_req            (lp_wake_req),
         .lp_stallack            (lp_stallack),
@@ -219,7 +221,7 @@ module digital_ucie_loopback #(
         .pl_trainerror          (pl_trainerror),
         .pl_inband_pres         (pl_inband_pres),
         .pl_phyinrecenter       (pl_phyinrecenter),
-        .pl_state_sts           (pl_state_sts),
+        .pl_state_sts           (pl_state_sts_int),
         .pl_max_speedmode       (pl_max_speedmode),
         .pl_speedmode           (pl_speedmode),
         .pl_lnk_cfg             (pl_lnk_cfg)

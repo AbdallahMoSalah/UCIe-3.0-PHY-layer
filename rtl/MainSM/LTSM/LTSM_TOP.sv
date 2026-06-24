@@ -204,6 +204,7 @@ module LTSM_TOP #(
     logic        w_repairclk_rckp_pass;
     logic        w_repairval_RVLD_L_pass;
     logic        w_aggr_err;
+    logic        clk_embedded_en;
 
     // derived interface inputs
     wire         w_active                  = (current_ltsm_state == ACTIVE);
@@ -340,7 +341,8 @@ module LTSM_TOP #(
         .repairval_RVLD_L_pass                  (w_repairval_RVLD_L_pass),
         .mb_pll_speed_sel                       (mb_pll_speed_sel),
         .busy_flag                              (busy_flag),
-        .start_bit                              (start_bit)
+        .start_bit                              (start_bit),
+        .RESET_state_done                       ()                                  // unused output (interface does not consume it)
     );
 
 
