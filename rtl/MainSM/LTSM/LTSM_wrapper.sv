@@ -942,6 +942,19 @@ module LTSM_wrapper #(
     //   * param_UCIe_S_x8            <= reg_phy_x8_mode_ctrl
     //   * PHY_IN_RETRAIN / params_changed tied 0 (no external retrain yet)
     //   * mbtrain_*_req re-entry inputs tied 0 (PHYRETRAIN/L1/L2 re-enter at VALVREF)
+    logic [1:0] mbtrain_sub_tx_clk_lane_sel;
+    logic [1:0] mbtrain_sub_tx_data_lane_sel;
+    logic [1:0] mbtrain_sub_tx_val_lane_sel;
+    logic [1:0] mbtrain_sub_tx_trk_lane_sel;
+
+    logic [1:0] d2c_mb_tx_clk_lane_sel;
+    logic [1:0] d2c_mb_tx_data_lane_sel;
+    logic [1:0] d2c_mb_tx_val_lane_sel;
+    logic [1:0] d2c_mb_tx_trk_lane_sel;
+
+    logic       d2c_tx_lanes_active;
+    logic       d2c_rx_lanes_active;
+
     wrapper_MBTRAIN #(
         // Must match the wrapper_D2C_sweep ranges above so swept/best code widths agree.
         .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE),
@@ -1032,6 +1045,11 @@ module LTSM_wrapper #(
         .substate_mb_rx_data_lane_sel (mbtrain_sub_rx_data_lane_sel),
         .substate_mb_rx_val_lane_sel  (mbtrain_sub_rx_val_lane_sel),
         .substate_mb_rx_trk_lane_sel  (mbtrain_sub_rx_trk_lane_sel),
+
+        .substate_mb_tx_data_lane_sel (mbtrain_sub_tx_clk_lane_sel),
+        .substate_mb_tx_val_lane_sel  (mbtrain_sub_tx_data_lane_sel),
+        .substate_mb_tx_clk_lane_sel  (mbtrain_sub_tx_val_lane_sel),
+        .substate_mb_tx_trk_lane_sel  (mbtrain_sub_tx_trk_lane_sel),
 
         .rxclkcal_mb_tx_pattern_en      (mbtrain_rxclkcal_tx_pattern_en),
         .rxclkcal_mb_tx_pattern_setup   (mbtrain_rxclkcal_tx_pattern_setup),
@@ -1157,10 +1175,18 @@ module LTSM_wrapper #(
         .cfg_max_err_thresh_perlane (cfg_max_err_thresh_perlane),
         .cfg_max_err_thresh_aggr    (cfg_max_err_thresh_aggr),
 
+        .d2c_rx_lanes_active (d2c_rx_lanes_active),
+        .d2c_tx_lanes_active (d2c_tx_lanes_active),
+
         .mb_rx_trk_lane_sel  (d2c_mb_rx_trk_lane_sel),
         .mb_rx_clk_lane_sel  (d2c_mb_rx_clk_lane_sel),
         .mb_rx_val_lane_sel  (d2c_mb_rx_val_lane_sel),
         .mb_rx_data_lane_sel (d2c_mb_rx_data_lane_sel),
+
+        .mb_tx_trk_lane_sel  (d2c_mb_tx_trk_lane_sel),
+        .mb_tx_clk_lane_sel  (d2c_mb_tx_clk_lane_sel),
+        .mb_tx_val_lane_sel  (d2c_mb_tx_val_lane_sel),
+        .mb_tx_data_lane_sel (d2c_mb_tx_data_lane_sel),
 
         .mb_tx_pattern_en    (d2c_mb_tx_pattern_en),
         .mb_tx_pattern_setup (d2c_mb_tx_pattern_setup),
@@ -1270,10 +1296,10 @@ module LTSM_wrapper #(
         mb_rx_compare_setup          = 2'b00;
         clear_error_req              = 1'b0;
 
-        mb_rx_trk_lane_sel           = 1'b0;
-        mb_rx_clk_lane_sel           = 1'b0;
-        mb_rx_val_lane_sel           = 1'b0;
-        mb_rx_data_lane_sel          = 1'b0;
+        // mb_rx_trk_lane_sel           = 1'b0;
+        // mb_rx_clk_lane_sel           = 1'b0;
+        // mb_rx_val_lane_sel           = 1'b0;
+        // mb_rx_data_lane_sel          = 1'b0;
         mb_tx_lfsr_en                = 1'b0;
         mb_tx_lfsr_rst               = 1'b0;
         mb_rx_lfsr_en                = 1'b0;
@@ -1302,10 +1328,10 @@ module LTSM_wrapper #(
             mb_tx_val_pattern_sel        = d2c_mb_tx_val_pattern_sel;
             mb_rx_compare_en             = d2c_mb_rx_compare_en;
             mb_rx_compare_setup          = d2c_mb_rx_compare_setup;
-            mb_rx_trk_lane_sel           = d2c_mb_rx_trk_lane_sel;
-            mb_rx_clk_lane_sel           = d2c_mb_rx_clk_lane_sel;
-            mb_rx_val_lane_sel           = d2c_mb_rx_val_lane_sel;
-            mb_rx_data_lane_sel          = d2c_mb_rx_data_lane_sel;
+            // mb_rx_trk_lane_sel           = d2c_mb_rx_trk_lane_sel;
+            // mb_rx_clk_lane_sel           = d2c_mb_rx_clk_lane_sel;
+            // mb_rx_val_lane_sel           = d2c_mb_rx_val_lane_sel;
+            // mb_rx_data_lane_sel          = d2c_mb_rx_data_lane_sel;
             mb_tx_lfsr_en                = d2c_mb_tx_lfsr_en;
             mb_tx_lfsr_rst               = d2c_mb_tx_lfsr_rst;
             mb_rx_lfsr_en                = d2c_mb_rx_lfsr_en;
@@ -1335,94 +1361,147 @@ module LTSM_wrapper #(
             mb_rx_compare_en       = mbinit_mb_rx_compare_en;
             mb_rx_compare_setup    = mbinit_mb_rx_compare_setup;
             clear_error_req        = mbinit_clear_error_req;
-            mb_rx_val_lane_sel     = (current_ltsm_state_n >= LOG_MBINIT_REPAIRVAL);
-            mb_rx_data_lane_sel    = (current_ltsm_state_n >= LOG_MBINIT_REVERSALMB);
+            // mb_rx_val_lane_sel     = (current_ltsm_state_n >= LOG_MBINIT_REPAIRVAL);
+            // mb_rx_data_lane_sel    = (current_ltsm_state_n >= LOG_MBINIT_REVERSALMB);
         end
         else if (current_ltsm_state == MBTRAIN) begin
-            // No sweep running (d2c_active handled above): the active MBTRAIN
-            // substate owns the MB lane selectors; RXCLKCAL owns the clk pattern.
-            mb_rx_clk_lane_sel    = mbtrain_sub_rx_clk_lane_sel;
-            mb_rx_data_lane_sel   = mbtrain_sub_rx_data_lane_sel;
-            mb_rx_val_lane_sel    = mbtrain_sub_rx_val_lane_sel;
-            mb_rx_trk_lane_sel    = mbtrain_sub_rx_trk_lane_sel;
+            // mb_rx_clk_lane_sel    = mbtrain_sub_rx_clk_lane_sel ;
+            // mb_rx_data_lane_sel   = mbtrain_sub_rx_data_lane_sel;
+            // mb_rx_val_lane_sel    = mbtrain_sub_rx_val_lane_sel ;
+            // mb_rx_trk_lane_sel    = mbtrain_sub_rx_trk_lane_sel ;
             mb_tx_pattern_en      = mbtrain_rxclkcal_tx_pattern_en;
             mb_tx_pattern_setup   = mbtrain_rxclkcal_tx_pattern_setup;
             mb_tx_clk_pattern_sel = mbtrain_rxclkcal_tx_clk_pattern_sel;
         end
         else if (current_ltsm_state == ACTIVE) begin
-            mb_rx_val_lane_sel     = 1'b1;
-            mb_rx_data_lane_sel    = 1'b1;
+            // mb_rx_val_lane_sel     = 1'b1;
+            // mb_rx_data_lane_sel    = 1'b1;
         end
 
         if (!d2c_active) begin
             mb_rx_pattern_setup    = mb_tx_pattern_setup;
             mb_rx_data_pattern_sel = mb_tx_data_pattern_sel;
         end
+
     end
 
     // mb_tx_trk_lane_sel, mb_tx_clk_lane_sel, mb_tx_val_lane_sel, mb_tx_data_lane_sel from MainSM (direct)
     always_comb begin
-        mb_tx_trk_lane_sel=2'b01;
-        mb_tx_clk_lane_sel=2'b01;
-        mb_tx_val_lane_sel=2'b01;
-        mb_tx_data_lane_sel=2'b01;
+        mb_tx_trk_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_trk_lane_sel : 2'b00;
+        mb_tx_clk_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_clk_lane_sel : 2'b01;
+        mb_tx_val_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_val_lane_sel : 2'b01;
+        mb_tx_data_lane_sel= (d2c_tx_lanes_active)? d2c_mb_tx_data_lane_sel: 2'b01;
+
+        mb_rx_trk_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_trk_lane_sel : 1'b0;
+        mb_rx_clk_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_clk_lane_sel : 1'b1;
+        mb_rx_val_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_val_lane_sel : 1'b1;
+        mb_rx_data_lane_sel= (d2c_rx_lanes_active)? d2c_mb_rx_data_lane_sel: 1'b1;
+
         case (current_ltsm_state_n)
             LOG_RESET,
             LOG_SBINIT,
             LOG_MBINIT_PARAM,
             LOG_MBINIT_CAL,
-            LOG_MBTRAIN_TXSELFCAL,
+            // LOG_MBTRAIN_TXSELFCAL,
             LOG_TRAINERROR,
             LOG_L1_L2:
             begin
-                mb_tx_trk_lane_sel=2'b10;
-                mb_tx_clk_lane_sel=2'b10;
+                mb_tx_trk_lane_sel =2'b10;
+                mb_tx_clk_lane_sel =2'b10;
                 mb_tx_val_lane_sel =2'b10;
                 mb_tx_data_lane_sel=2'b10;
+
+                mb_rx_trk_lane_sel =1'b0;
+                mb_rx_clk_lane_sel =1'b0;
+                mb_rx_val_lane_sel =1'b0;
+                mb_rx_data_lane_sel=1'b0;
             end
             LOG_MBINIT_REPAIRCLK: begin
                 mb_tx_val_lane_sel  = 2'b10; // Hi-Z (not trained yet)
                 mb_tx_data_lane_sel = 2'b10; // Hi-Z (not trained yet)
+
+                mb_rx_val_lane_sel  = 1'b0; // disabled
+                mb_rx_data_lane_sel = 1'b0; // disabled
             end
             LOG_MBINIT_REPAIRVAL: begin
-                mb_tx_data_lane_sel=2'b00;
+                // mb_tx_val_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_val_lane_sel : 2'b01;
+                mb_tx_val_lane_sel = 2'b01;
+                mb_tx_data_lane_sel= (d2c_tx_lanes_active)? d2c_mb_tx_data_lane_sel: 2'b00;
+
+                // mb_rx_val_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_val_lane_sel : 1'b1 ;
+                mb_rx_val_lane_sel = 1'b1 ;
+                mb_rx_data_lane_sel= (d2c_rx_lanes_active)? d2c_mb_rx_data_lane_sel: 1'b0 ;
             end
-            LOG_MBTRAIN_RXCLKCAL:
-            begin
-                mb_tx_val_lane_sel = 2'b00;
-                mb_tx_data_lane_sel = 2'b00;
+
+            LOG_MBINIT_REVERSALMB: begin
+                // I (Yousef (Yousef-fma)) am not sure if we want to use D2C test here in this substate. So, i added this condition here ((d2c_active)?...:2'b0x) (which may be dead code).
+                // mb_tx_val_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_val_lane_sel : 2'b01;
+                mb_tx_val_lane_sel = 2'b01;
+                mb_tx_data_lane_sel= (d2c_tx_lanes_active)? d2c_mb_tx_data_lane_sel: 2'b00;
+
+                // mb_rx_val_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_val_lane_sel : 1'b1;
+                mb_rx_val_lane_sel = 1'b1;
+                mb_rx_data_lane_sel= (d2c_rx_lanes_active)? d2c_mb_rx_data_lane_sel: 1'b1;
             end
+
+            LOG_MBINIT_REPAIRMB: begin
+                // I (Yousef (Yousef-fma)) am not sure if we want to use D2C test here in this substate. So, i added this condition here ((d2c_active)?...:2'b0x) (which may be dead code).
+                // mb_tx_val_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_val_lane_sel : 2'b01;
+                mb_tx_val_lane_sel = 2'b01;
+                mb_tx_data_lane_sel= (d2c_tx_lanes_active)? d2c_mb_tx_data_lane_sel: 2'b00;
+
+                // mb_rx_val_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_val_lane_sel : 1'b1;
+                mb_rx_val_lane_sel = 1'b1;
+                mb_rx_data_lane_sel= (d2c_rx_lanes_active)? d2c_mb_rx_data_lane_sel: 1'b1;
+            end
+
             LOG_MBTRAIN_VALVREF,
-            LOG_MBTRAIN_VALTRAINCENTER,
-            LOG_MBTRAIN_VALTRAINVREF:
-            begin
-                mb_tx_trk_lane_sel = 2'b00;
-                mb_tx_data_lane_sel = 2'b00;
-            end
             LOG_MBTRAIN_DATAVREF,
+            LOG_MBTRAIN_SPEEDIDLE,
+            LOG_MBTRAIN_TXSELFCAL,
+            LOG_MBTRAIN_RXCLKCAL,
+            LOG_MBTRAIN_VALTRAINCENTER,
+            LOG_MBTRAIN_VALTRAINVREF,
             LOG_MBTRAIN_DATATRAINCENTER1,
             LOG_MBTRAIN_DATATRAINVREF,
             LOG_MBTRAIN_RXDESKEW,
             LOG_MBTRAIN_DATATRAINCENTER2,
-            LOG_MBTRAIN_LINKSPEED:
-            begin
-                mb_tx_trk_lane_sel = 2'b00;
-            end
-            LOG_MBTRAIN_SPEEDIDLE,
-            LOG_LINKINIT,
-            LOG_PHYRETRAIN,
+            LOG_MBTRAIN_LINKSPEED,
             LOG_MBTRAIN_REPAIR:
             begin
-                mb_tx_trk_lane_sel = 2'b00;
-                mb_tx_clk_lane_sel = 2'b00;
-                mb_tx_val_lane_sel = 2'b00;
+                mb_tx_trk_lane_sel  = (d2c_tx_lanes_active)? d2c_mb_tx_trk_lane_sel  : mbtrain_sub_tx_clk_lane_sel ;
+                mb_tx_clk_lane_sel  = (d2c_tx_lanes_active)? d2c_mb_tx_clk_lane_sel  : mbtrain_sub_tx_data_lane_sel;
+                mb_tx_val_lane_sel  = (d2c_tx_lanes_active)? d2c_mb_tx_val_lane_sel  : mbtrain_sub_tx_val_lane_sel ;
+                mb_tx_data_lane_sel = (d2c_tx_lanes_active)? d2c_mb_tx_data_lane_sel : mbtrain_sub_tx_trk_lane_sel ;
+
+                mb_rx_clk_lane_sel  = (d2c_rx_lanes_active)? d2c_mb_rx_clk_lane_sel : mbtrain_sub_rx_clk_lane_sel ;
+                mb_rx_data_lane_sel = (d2c_rx_lanes_active)? d2c_mb_rx_data_lane_sel: mbtrain_sub_rx_data_lane_sel;
+                mb_rx_val_lane_sel  = (d2c_rx_lanes_active)? d2c_mb_rx_val_lane_sel : mbtrain_sub_rx_val_lane_sel ;
+                mb_rx_trk_lane_sel  = (d2c_rx_lanes_active)? d2c_mb_rx_trk_lane_sel : mbtrain_sub_rx_trk_lane_sel ;
+            end
+            LOG_LINKINIT,
+            LOG_PHYRETRAIN:
+            begin
+                mb_tx_trk_lane_sel  = 2'b00;
+                mb_tx_clk_lane_sel  = 2'b00;
+                mb_tx_val_lane_sel  = 2'b00;
                 mb_tx_data_lane_sel = 2'b00;
+
+                mb_rx_trk_lane_sel  = 1'b0;
+                mb_rx_clk_lane_sel  = 1'b0;
+                mb_rx_val_lane_sel  = 1'b0;
+                mb_rx_data_lane_sel = 1'b0;
             end
             default: begin
-                mb_tx_trk_lane_sel = 2'b01;
-                mb_tx_clk_lane_sel = 2'b01;
-                mb_tx_val_lane_sel = 2'b01;
+                mb_tx_trk_lane_sel  = 2'b01;
+                mb_tx_clk_lane_sel  = 2'b01;
+                mb_tx_val_lane_sel  = 2'b01;
                 mb_tx_data_lane_sel = 2'b01;
+
+                mb_rx_trk_lane_sel  = 1'b1;
+                mb_rx_clk_lane_sel  = 1'b1;
+                mb_rx_val_lane_sel  = 1'b1;
+                mb_rx_data_lane_sel = 1'b1;
             end
 
         endcase

@@ -49,7 +49,8 @@ module UCIe_PHY_tb;
     //---------------------------------------------------------------------------
     //
     //---------------------------------------------------------------------------
-    bit [30:1] enabled_scenarios = 30'b0;
+    bit [30:1] enabled_scenarios = {30{1'b1}};
+    // bit [30:1] enabled_scenarios = 30'b0;
     localparam sc = 8; // SC1
     // =========================================================================
     // Per-die signals (0 = die0, 1 = die1)
@@ -200,10 +201,10 @@ module UCIe_PHY_tb;
     //   pl_state_sts  : pl_state_sts, the lagging RDI status output
     always @(ln0 or rdi_sts0 or pl_state_sts0)
         $display("T=%0t | [DIE0] ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
-                 $time, ln0.name(), rdi_sts0.name(), pl_state_sts0.name());
+            $time, ln0.name(), rdi_sts0.name(), pl_state_sts0.name());
     always @(ln1 or rdi_sts1 or pl_state_sts1)
         $display("T=%0t | [DIE1] ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
-                 $time, ln1.name(), rdi_sts1.name(), pl_state_sts1.name());
+            $time, ln1.name(), rdi_sts1.name(), pl_state_sts1.name());
 
     // =========================================================================
     // Scoreboard
@@ -305,15 +306,15 @@ module UCIe_PHY_tb;
 
     // Adapter bring-up: program both dies' Reg_Files over sideband
     task automatic do_bringup_custom(
-        output bit ok,
-        input logic [3:0] target_width0 = 4'h2,
-        input logic [3:0] target_width1 = 4'h2,
-        input bit force_x8_0 = 1'b0,
-        input bit force_x8_1 = 1'b0,
-        input logic [3:0] target_speed0 = 4'h5,
-        input logic [3:0] target_speed1 = 4'h5,
-        input int tmo = 300000
-    );
+            output bit ok,
+            input logic [3:0] target_width0 = 4'h2,
+            input logic [3:0] target_width1 = 4'h2,
+            input bit force_x8_0 = 1'b0,
+            input bit force_x8_1 = 1'b0,
+            input logic [3:0] target_speed0 = 4'h5,
+            input logic [3:0] target_speed1 = 4'h5,
+            input int tmo = 300000
+        );
         ok = 1'b0;
         lp_state_req0 = Nop; lp_state_req1 = Nop;
         fork
@@ -326,7 +327,7 @@ module UCIe_PHY_tb;
         join_none
         fork
             begin wait (m_done && p_done &&
-                        pl_state_sts0 == Active && pl_state_sts1 == Active); ok = 1'b1; end
+                    pl_state_sts0 == Active && pl_state_sts1 == Active); ok = 1'b1; end
             begin wait (m_error || p_error); ok = 1'b0; $error("[bringup] training error"); end
             begin repeat (tmo) @(posedge lclk0); ok = 1'b0; $error("[bringup] TIMEOUT"); end
         join_any
@@ -378,20 +379,20 @@ module UCIe_PHY_tb;
         $display("================================================================");
         $display("  [DIE 0] state=%s, RDI_sts=%s", ln0.name(), pl_state_sts0.name());
         $display("          Width : %s (code: %0h)",
-                  (width_sts0 == 4'h2) ? "x16" : (width_sts0 == 4'h1) ? "x8" : (width_sts0 == 4'h0) ? "x4" : "unknown", width_sts0);
+            (width_sts0 == 4'h2) ? "x16" : (width_sts0 == 4'h1) ? "x8" : (width_sts0 == 4'h0) ? "x4" : "unknown", width_sts0);
         $display("          Speed : %s (code: %0h)", speed_str(speed_sts0), speed_sts0);
         $display("          TX Lane Mask: 3'b%b, RX Lane Mask: 3'b%b", tx_mask0, rx_mask0);
         $display("          Active Deser Lanes (RX): 16'h%h", u_die0.mb_rx_data_deser_en);
         $display("          Lane Reversal: %b  Width Degrade: %b",
-                  u_die0.log0_lane_reversal, u_die0.log0_width_degrade);
+            u_die0.log0_lane_reversal, u_die0.log0_width_degrade);
         $display("  [DIE 1] state=%s, RDI_sts=%s", ln1.name(), pl_state_sts1.name());
         $display("          Width : %s (code: %0h)",
-                  (width_sts1 == 4'h2) ? "x16" : (width_sts1 == 4'h1) ? "x8" : (width_sts1 == 4'h0) ? "x4" : "unknown", width_sts1);
+            (width_sts1 == 4'h2) ? "x16" : (width_sts1 == 4'h1) ? "x8" : (width_sts1 == 4'h0) ? "x4" : "unknown", width_sts1);
         $display("          Speed : %s (code: %0h)", speed_str(speed_sts1), speed_sts1);
         $display("          TX Lane Mask: 3'b%b, RX Lane Mask: 3'b%b", tx_mask1, rx_mask1);
         $display("          Active Deser Lanes (RX): 16'h%h", u_die1.mb_rx_data_deser_en);
         $display("          Lane Reversal: %b  Width Degrade: %b",
-                  u_die1.log0_lane_reversal, u_die1.log0_width_degrade);
+            u_die1.log0_lane_reversal, u_die1.log0_width_degrade);
         $display("================================================================\n");
     endtask
 
@@ -430,14 +431,14 @@ module UCIe_PHY_tb;
         logic [31:0] ctrl0, ctrl1;
         logic [31:0] phy_ctrl0, phy_ctrl1;
         logic [31:0] cap0, cap1;
-        
+
         // Wait for sideband writes to propagate to Reg_File
         repeat (100) @(posedge lclk0);
-        
+
         ctrl0     = u_die0.u_reg_file.ucie_link_ctrl_r_out;
         phy_ctrl0 = u_die0.u_reg_file.phy_control_r_out;
         cap0      = u_die0.u_reg_file.ucie_link_cap_r_out;
-        
+
         ctrl1     = u_die1.u_reg_file.ucie_link_ctrl_r_out;
         phy_ctrl1 = u_die1.u_reg_file.phy_control_r_out;
         cap1      = u_die1.u_reg_file.ucie_link_cap_r_out;
@@ -468,15 +469,15 @@ module UCIe_PHY_tb;
     task automatic do_data_transfer(output bit pass);
         pass = 1'b0;
         repeat(20) @(posedge lclk0);
-        
+
         lp_valid0 = 1'b1;
         lp_irdy0 = 1'b1;
         lp_valid1 = 1'b1;
         lp_irdy1 = 1'b1;
-        
+
         lp_data0 = {16{32'hDEADBEEF}};
         lp_data1 = {16{32'hCAFEBABE}};
-        
+
         fork
             begin
                 wait (o_pl_valid0 && o_out_data0 === {16{32'hCAFEBABE}});
@@ -492,7 +493,7 @@ module UCIe_PHY_tb;
             end
         join_any
         disable fork;
-        
+
         @(negedge lclk0);
         lp_valid0 = 1'b0;
         lp_irdy0 = 1'b0;
@@ -507,9 +508,9 @@ module UCIe_PHY_tb;
     int scenario_num=1;
     bit data_pass;
     initial begin
-        
+
         enabled_scenarios[8] = 1'b1;
-        
+
         $display("================================================================");
         $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
         $display("  Adapter programs Reg_File over sideband; observes via (.)");
@@ -531,7 +532,7 @@ module UCIe_PHY_tb;
                 do_data_transfer(data_pass);
                 chk(data_pass, "data transfer verified successfully", scenario_num);
             end
-        end else begin 
+        end else begin
             $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
         end
         scenario_num++;
@@ -550,7 +551,7 @@ module UCIe_PHY_tb;
                 begin wait (m_error); $display("T=%0t | [SC%0d] die0 TRAINERROR as expected.", $time, scenario_num); end
                 begin wait (m_done);  $error("T=%0t | [SC%0d] reached ACTIVE with blocked SB?", $time, scenario_num); fails++; end
                 begin #(40_000_000); // 40 ms: must exceed the true 8 ms watchdog at the slow pre-speed clock
-                      $error("T=%0t | [SC%0d] TIMEOUT (watchdog did not fire).", $time, scenario_num); fails++; end
+                    $error("T=%0t | [SC%0d] TIMEOUT (watchdog did not fire).", $time, scenario_num); fails++; end
             join_any
             disable fork;
             chk(m_error, "watchdog produced TRAINERROR", scenario_num);
@@ -723,14 +724,14 @@ module UCIe_PHY_tb;
                 lp_state_req0 = L_1;
                 fork
                     begin wait (u_die1.u_main_sm.u_rdi_sm.sm.u_unit_active_state.current_state == 26'h0800000);
-                          @(negedge lclk1); lp_state_req1 = L_1; end
+                        @(negedge lclk1); lp_state_req1 = L_1; end
                     begin repeat (8000) @(posedge lclk0); $error("[SC7] TO: die1 never reached WAIT"); fails++; end
                 join_any
                 disable fork;
                 fork
                     begin wait (ln0 == LOG_L1_L2 && ln1 == LOG_L1_L2 &&
-                                pl_state_sts0 == L_1 && pl_state_sts1 == L_1);
-                          $display("T=%0t | [SC%0d] both dies in L1.", $time, scenario_num); end
+                            pl_state_sts0 == L_1 && pl_state_sts1 == L_1);
+                        $display("T=%0t | [SC%0d] both dies in L1.", $time, scenario_num); end
                     begin repeat (8000) @(posedge lclk0); $error("[SC%0d] TO entering L1", $time, scenario_num); fails++; end
                 join_any
                 disable fork;
@@ -738,27 +739,27 @@ module UCIe_PHY_tb;
                     pl_state_sts0 == L_1 && pl_state_sts1 == L_1,
                     "both dies entered L1 (PM): ltsm=LOG_L1_L2 && rdi=L_1",scenario_num);
 
-            // Wake: request Active again -> L1 exits via Retrain -> back to ACTIVE.
-            // The Retrain sub-SM runs the *symmetric* Active handshake. Holding
-            // lp_state_req=Active on both dies takes the Retrain "direct" path,
-            // which starts that handshake at the very start of Retrain (early
-            // MBTRAIN) on both dies at once -> collision (one die hangs in
-            // Retrain forever).  Instead mirror RDI_SM_tb's seq_exit_to_active:
-            // kick L1->Retrain with Active, drop to Nop while the PHY retrains,
-            // then re-assert Active at LINKINIT so the handshake runs in the
-            // freshly-trained LINKINIT context (the same path bring-up uses).
+                // Wake: request Active again -> L1 exits via Retrain -> back to ACTIVE.
+                // The Retrain sub-SM runs the *symmetric* Active handshake. Holding
+                // lp_state_req=Active on both dies takes the Retrain "direct" path,
+                // which starts that handshake at the very start of Retrain (early
+                // MBTRAIN) on both dies at once -> collision (one die hangs in
+                // Retrain forever).  Instead mirror RDI_SM_tb's seq_exit_to_active:
+                // kick L1->Retrain with Active, drop to Nop while the PHY retrains,
+                // then re-assert Active at LINKINIT so the handshake runs in the
+                // freshly-trained LINKINIT context (the same path bring-up uses).
                 @(negedge lclk0);
                 lp_state_req0 = Active; lp_state_req1 = Active;   // kick L1 -> Retrain
                 fork
                     begin wait (ln0 != LOG_L1_L2); @(negedge lclk0); lp_state_req0 = Nop;
-                          wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
+                        wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
                     begin wait (ln1 != LOG_L1_L2); @(negedge lclk1); lp_state_req1 = Nop;
-                          wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
+                        wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
                 join_none
                 fork
                     begin wait (m_done && p_done &&
-                                pl_state_sts0 == Active && pl_state_sts1 == Active);
-                          $display("T=%0t | [SC%0d] re-trained to ACTIVE after L1.", $time, scenario_num); end
+                            pl_state_sts0 == Active && pl_state_sts1 == Active);
+                        $display("T=%0t | [SC%0d] re-trained to ACTIVE after L1.", $time, scenario_num); end
                     begin wait (m_error || p_error); $error("[SC] err during wake", scenario_num); fails++; end
                     begin repeat (1000000) @(posedge lclk0); $error("[SC] TO during wake", scenario_num); fails++; end
                 join_any
@@ -791,14 +792,14 @@ module UCIe_PHY_tb;
                 lp_state_req0 = L_2;
                 fork
                     begin wait (u_die1.u_main_sm.u_rdi_sm.sm.u_unit_active_state.current_state == 26'h0800000);
-                      @(negedge lclk1); lp_state_req1 = L_2; end
+                        @(negedge lclk1); lp_state_req1 = L_2; end
                     begin repeat (8000) @(posedge lclk0); $error("[SC%0d] TO: die1 never reached WAIT", scenario_num); fails++; end
                 join_any
                 disable fork;
                 fork
                     begin wait (ln0 == LOG_L1_L2 && ln1 == LOG_L1_L2 &&
-                                pl_state_sts0 == L_2 && pl_state_sts1 == L_2);
-                          $display("T=%0t | [SC%0d] both dies in L2 (LOG_L1_L2).", $time, scenario_num); end
+                            pl_state_sts0 == L_2 && pl_state_sts1 == L_2);
+                        $display("T=%0t | [SC%0d] both dies in L2 (LOG_L1_L2).", $time, scenario_num); end
                     begin repeat (8000) @(posedge lclk0); $error("[SC%0d] TO entering L2",scenario_num); fails++; end
                 join_any
                 disable fork;
@@ -816,8 +817,8 @@ module UCIe_PHY_tb;
                 lp_state_req0 = Active; lp_state_req1 = Active;
                 fork
                     begin wait (ln0 == LOG_RESET && ln1 == LOG_RESET &&
-                                pl_state_sts0 == Reset && pl_state_sts1 == Reset);
-                          $display("T=%0t | [SC%0d] both dies in RESET.", $time, scenario_num); end
+                            pl_state_sts0 == Reset && pl_state_sts1 == Reset);
+                        $display("T=%0t | [SC%0d] both dies in RESET.", $time, scenario_num); end
                     begin repeat (80000) @(posedge lclk0); $error("[SC%0d] TO entering RESET from L2",scenario_num); fails++; end
                 join_any
                 disable fork;
@@ -838,8 +839,8 @@ module UCIe_PHY_tb;
                 join_none
                 fork
                     begin wait (m_done && p_done &&
-                                pl_state_sts0 == Active && pl_state_sts1 == Active);
-                          $display("T=%0t | [SC%0d] recovered and re-trained to ACTIVE.", $time, scenario_num); end
+                            pl_state_sts0 == Active && pl_state_sts1 == Active);
+                        $display("T=%0t | [SC%0d] recovered and re-trained to ACTIVE.", $time, scenario_num); end
                     begin wait (m_error || p_error); $error("[SC%0d] err during recovery",scenario_num); fails++; end
                     // Recovery is a *full* re-train (SBINIT->MBINIT->MBTRAIN->ACTIVE),
                     // so it needs the same budget as do_bringup (300000), not 100000.
@@ -886,7 +887,7 @@ module UCIe_PHY_tb;
                 fork
                     begin
                         wait (m_error && p_error &&
-                              pl_state_sts0 == LinkError && pl_state_sts1 == LinkError);
+                            pl_state_sts0 == LinkError && pl_state_sts1 == LinkError);
                         $display("T=%0t | [SC%0d] Both dies entered TRAINERROR state (ltsm=LOG_TRAINERROR && rdi=LinkError).", $time,scenario_num);
                     end
                     begin
@@ -910,7 +911,7 @@ module UCIe_PHY_tb;
                 fork
                     begin
                         wait (ln0 == LOG_RESET && ln1 == LOG_RESET &&
-                              pl_state_sts0 == Reset && pl_state_sts1 == Reset);
+                            pl_state_sts0 == Reset && pl_state_sts1 == Reset);
                         $display("T=%0t | [SC%0d] Both dies cleared TRAINERROR to RESET (ltsm=LOG_RESET && rdi=Reset).", $time,scenario_num);
                     end
                     begin
@@ -936,7 +937,7 @@ module UCIe_PHY_tb;
                 fork
                     begin
                         wait (m_done && p_done &&
-                              pl_state_sts0 == Active && pl_state_sts1 == Active);
+                            pl_state_sts0 == Active && pl_state_sts1 == Active);
                         $display("T=%0t | [SC%0d] PASS -- Re-trained to ACTIVE after TRAINERROR (ltsm=LOG_ACTIVE && rdi=Active).", $time,scenario_num);
                     end
                     begin
@@ -979,16 +980,16 @@ module UCIe_PHY_tb;
                     // Wait until Die 1's valid deserializer enters compare state (o_state === 2'b10)
                     wait (u_die1.u_mb_die.u_rx_top.u_valid_des.o_state === 2'b10);
                     $display("T=%0t | [SC%0d] Die 1 valid deserializer entered compare state.", $time,scenario_num);
-                
+
                     // Wait for edge of sample_clk and count = 15 (end of frame)
                     @(posedge u_die1.u_mb_die.u_rx_top.sample_clk);
                     wait (u_die1.u_mb_die.u_rx_top.u_valid_des.o_count == 4'd15);
-                
+
                     // Pulse error injection on the next clock cycle to corrupt the boundary
                     @(posedge u_die1.u_mb_die.u_rx_top.sample_clk);
                     rx_vld_error_inject_0_to_1 = 1'b1;
                     $display("T=%0t | [SC%0d] Injecting valid lane boundary error...", $time,scenario_num);
-                
+
                     @(posedge u_die1.u_mb_die.u_rx_top.sample_clk);
                     rx_vld_error_inject_0_to_1 = 1'b0;
                     $display("T=%0t | [SC%0d] Error injection cleared.", $time,scenario_num);
@@ -998,7 +999,7 @@ module UCIe_PHY_tb;
             fork
                 begin
                     wait (m_done && p_done &&
-                          pl_state_sts0 == Active && pl_state_sts1 == Active);
+                        pl_state_sts0 == Active && pl_state_sts1 == Active);
                     $display("T=%0t | [SC%0d] Both dies reached ACTIVE successfully (ltsm=LOG_ACTIVE && rdi=Active).", $time,scenario_num);
                 end
                 begin
@@ -1053,7 +1054,7 @@ module UCIe_PHY_tb;
             join_none
             fork
                 begin wait (m_done && p_done &&
-                            pl_state_sts0 == Active && pl_state_sts1 == Active); ok = 1'b1; end
+                        pl_state_sts0 == Active && pl_state_sts1 == Active); ok = 1'b1; end
                 begin wait (m_error || p_error); ok = 1'b0; $error("[SC%0d] TRAINERROR during MBTRAIN fault injection",scenario_num); end
                 begin repeat (600000) @(posedge lclk0); ok = 1'b0; $error("[SC%0d] TIMEOUT",scenario_num); end
             join_any
@@ -1396,20 +1397,20 @@ module UCIe_PHY_tb;
                         @(posedge lclk0);
                         wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
                         speed_at_max = u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status;
-                        
+
                         // Fault at speed_at_max (Gen6): corrupt lanes 4..7
                         corrupt_0to1 = 16'hFFFF;
                         corrupt_1to0 = 16'hFFFF;
                         $display("T=%0t | [SC%0d] SPEEDIDLE raised speed to code %0h - injecting speed-dependent fault on lanes 4-7.", $time, scenario_num, speed_at_max);
-                        
+
                         // Wait for first speed-degrade to complete (back to SPEEDIDLE) and exit it again
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         @(posedge lclk0);
                         wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
-                        
+
                         // Now we are at Gen5 (code 4). Keep lanes 4..7 corrupted.
                         $display("T=%0t | [SC%0d] First speed degrade complete (speed code %0h) - keeping lanes 4-7 fault active.", $time, scenario_num, u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status);
-                        
+
                         // Wait for second speed-degrade to complete (back to SPEEDIDLE)
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         // Now we are at Gen4 (code 3). Speed-dependent fault clears. Restore original lanes 0..3 fault
@@ -1593,12 +1594,12 @@ module UCIe_PHY_tb;
                         corrupt_0to1 = 16'hFFFF;
                         corrupt_1to0 = 16'hFFFF;
                         $display("T=%0t | [SC%0d] SPEEDIDLE raised speed to code %0h - injecting speed-dependent fault on active x8 lanes.", $time, scenario_num, speed_at_max);
-                        
+
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         @(posedge lclk0);
                         wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
                         $display("T=%0t | [SC%0d] First speed degrade complete (speed code %0h) - keeping lower lanes fault active.", $time, scenario_num, u_die0.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status);
-                        
+
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         corrupt_0to1 = 16'h00FF;
                         corrupt_1to0 = 16'hFF00;

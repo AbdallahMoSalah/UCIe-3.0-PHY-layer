@@ -198,7 +198,7 @@ module unit_tx_top #(
     // =========================================================================
     unit_clk_pattern_gen_tx u_clk_pattern_gen (
         .i_clk           (pll_clk),
-        .local_period  (pll_period),
+        // .local_period  (pll_period),
         .i_rst_n         (i_rst_n),
         .clk_pattern_en  (i_clk_pattern_en),
         .clk_embedded_en (i_clk_embedded_en),

@@ -155,6 +155,7 @@ module wrapper_D2C_sweep #(
         // Group 7: MB Signals — TX (outputs from wrapper_D2C_PT to MB hardware)
         // =========================================================================
         // TX lane logical selection: 00=Low, 01=Active, 10=Tri-stated, 11=Electrical-Idle
+        output logic        d2c_tx_lanes_active, // To choose which Tx lanes control signals (mb_tx_*_lane_sel) should pass to the MB lanes. Are the MB Tx control lanes signals from the substates or the signals from the D2C.
         output logic [1:0]  mb_tx_clk_lane_sel,
         output logic [1:0]  mb_tx_data_lane_sel,
         output logic [1:0]  mb_tx_val_lane_sel,
@@ -203,6 +204,7 @@ module wrapper_D2C_sweep #(
         // Group 8: MB Signals — RX (outputs from wrapper_D2C_PT to MB hardware)
         // =========================================================================
         // RX lane enable: 0=Disabled, 1=Enabled.
+        output logic        d2c_rx_lanes_active,              // To choose which Rx lanes control signals (mb_rx_*_lane_sel) should pass to the MB lanes. Are the MB Rx control lanes signals from the substates or the signals from the D2C.
         output logic        mb_rx_trk_lane_sel,               // 0: Disabled; 1: RX tracking lane active.
         output logic        mb_rx_clk_lane_sel,               // 0: Disabled; 1: RX clock lane active.
         output logic        mb_rx_val_lane_sel,               // 0: Disabled; 1: RX valid lane active.
@@ -303,6 +305,7 @@ module wrapper_D2C_sweep #(
     logic        w_local_rx_pt_en       ; // (RX_D2C_PT) Enable local  RX test   (1: enable, 0: idle).
     logic        w_partner_tx_pt_en     ; // (TX_D2C_PT) Enable partner TX test  (1: enable, 0: idle).
     logic        w_partner_rx_pt_en     ; // (RX_D2C_PT) Enable partner RX test  (1: enable, 0: idle).
+
     logic [1:0]  w_d2c_clk_sampling    ; // 00: Eye Center, 01: Left Edge, 10: Right Edge, 11: Rsvd.
     logic [2:0]  w_d2c_pattern_setup   ; // Bit0: Data Enable, Bit1: Valid Enable, Bit2: Clock Enable.
     logic [1:0]  w_d2c_data_pattern_sel; // 00: LFSR, 01: Per-Lane ID, 10: All-Zeros, 11: Rsvd.
@@ -461,10 +464,10 @@ module wrapper_D2C_sweep #(
     // Instantiation 3: unit_D2C_lane_sel
     // =========================================================================
     unit_D2C_lane_sel u_D2C_lane_sel (
-        .local_tx_pt_en     (w_local_tx_pt_en),
-        .partner_tx_pt_en   (w_partner_tx_pt_en),
-        .local_rx_pt_en     (w_local_rx_pt_en),
-        .partner_rx_pt_en   (w_partner_rx_pt_en),
+        .local_tx_pt_en      (w_local_tx_pt_en),
+        .partner_tx_pt_en    (w_partner_tx_pt_en),
+        .local_rx_pt_en      (w_local_rx_pt_en),
+        .partner_rx_pt_en    (w_partner_rx_pt_en),
         .d2c_pattern_setup   (w_d2c_pattern_setup),
 
         .mb_tx_clk_lane_sel  (mb_tx_clk_lane_sel),
@@ -478,6 +481,8 @@ module wrapper_D2C_sweep #(
         .mb_rx_trk_lane_sel  (mb_rx_trk_lane_sel)
     );
 
+    assign d2c_tx_lanes_active = w_local_tx_pt_en | w_partner_rx_pt_en;
+    assign d2c_rx_lanes_active = w_local_rx_pt_en | w_partner_tx_pt_en;
 
 endmodule
 // ====================================================================================================
