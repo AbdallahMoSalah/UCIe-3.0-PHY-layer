@@ -355,9 +355,13 @@ module LFSR_RX #(
                             temp_Data_by[i] <= i_data_in[i];
 
                         /*
-                         * Build reference words.
-                         * Lanes 8-15 mirror LFSR outputs 0-7 when active.
+                         * Zero ALL lanes first to avoid stale values from prior
+                         * width-degradation runs leaking into the comparator.
+                         * Then write only the active lanes.
                          */
+                        for (i = 0; i < 16; i = i + 1)
+                            o_final_gene[i] <= {WIDTH{1'b0}};
+
                         case (i_width_deg_lfsr)
                             DEGRADE_LANES_0_TO_7: begin
                                 for (i = 0; i < 8; i = i + 1)
@@ -395,6 +399,13 @@ module LFSR_RX #(
 
                         for (i = 0; i < 16; i = i + 1)
                             temp_Data_by[i] <= i_data_in[i];
+
+                        /*
+                         * Zero ALL lanes first so non-active lanes never carry
+                         * stale lane-ID tokens from a different width-mode run.
+                         */
+                        for (i = 0; i < 16; i = i + 1)
+                            o_final_gene[i] <= {WIDTH{1'b0}};
 
                         case (i_width_deg_lfsr)
                             DEGRADE_LANES_0_TO_7: begin

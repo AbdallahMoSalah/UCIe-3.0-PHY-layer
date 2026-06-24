@@ -230,9 +230,13 @@ module PATTERN_COMPARATOR #(
                 end
             end else begin
                 // Reset/Idle when enable is low OR Active mode is high
-                in_progress  <= 1'b0;
-                o_error_done <= 1'b0;
-                iteration_ctr <= 8'd0;
+                in_progress      <= 1'b0;
+                o_error_done     <= 1'b0;   // FIX: clear done flag so next phase doesn't read stale result
+                o_per_lane_error <= 16'd0;  // FIX: clear per-lane errors so stale bits don't carry over
+                o_error_counter  <= 32'd0;
+                iteration_ctr    <= 8'd0;
+                for (k = 0; k < 16; k = k + 1)
+                    lane_err_accum[k] <= 16'd0;
             end
         end
     end
