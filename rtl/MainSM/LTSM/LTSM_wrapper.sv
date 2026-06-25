@@ -283,6 +283,9 @@ module LTSM_wrapper #(
     logic [15:0] phyretrain_tx_msginfo;
     logic [2:0]  phyretrain_resolved_enc;
     logic        phyretrain_error;
+    logic        PHY_IN_RETRAIN;
+    logic        PHY_IN_RETRAIN_rst;
+    logic        busy_bit_PHY_RETRAIN;
 
     // Latched resolved encoding — held after PHYRETRAIN completes so MBTRAIN
     // can read the re-entry selector even after phyretrain_enable deasserts.
@@ -831,7 +834,7 @@ module LTSM_wrapper #(
         end
     end
 
-    logic substate_changing, PHY_IN_RETRAIN, PHY_IN_RETRAIN_rst;
+    logic substate_changing;
     assign substate_changing = (current_log_state != prev_log_state);
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -855,7 +858,6 @@ module LTSM_wrapper #(
         end
     end
     
-    logic busy_bit_PHY_RETRAIN;
 always_comb  begin
         busy_bit_PHY_RETRAIN = busy_flag ;
         if(start_bit && (current_ltsm_state_n == LOG_PHYRETRAIN))begin

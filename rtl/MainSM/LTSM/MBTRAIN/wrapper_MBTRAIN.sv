@@ -295,9 +295,8 @@ module wrapper_MBTRAIN #(
     logic [DATA_VREF_W-1:0] best_data_vref_code [0:15];
     logic [VAL_PI_W-1:0]    best_val_pi_code;
     logic [DATA_PI_W-1:0]   best_data_pi_code   [0:15];
-
-
-    assign success_tx_lanes=(1'b1)?linkspeed_success_lanes:PHYRETRAIN_success_lanes
+    logic [15:0] success_tx_lanes;
+    assign success_tx_lanes = (1'b1) ? linkspeed_success_lanes : PHYRETRAIN_success_lanes;
     // ================================================================================================
     // 3. Input-only preparation logic
     // ================================================================================================
