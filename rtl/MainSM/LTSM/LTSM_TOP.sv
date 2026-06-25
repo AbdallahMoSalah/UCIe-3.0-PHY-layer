@@ -84,6 +84,8 @@ module LTSM_TOP #(
     input  logic                 reg_PSPT_support_local_ctrl,
     input  logic [3:0]           reg_Target_Link_Width_ctrl,
     input  logic [3:0]           reg_Target_Link_Speed_ctrl,
+    input  logic                 rt_apply_module_0_lane_repair_ctrl_out,
+    input  logic [6:0]           module_0_lane_repair_id_ctrl_out,
 
     // Capability status (from MBINIT)
     output logic                 reg_Clock_Phase_enable_status,
@@ -277,6 +279,8 @@ module LTSM_TOP #(
         .reg_PSPT_support_local_ctrl            (reg_PSPT_support_local_ctrl),
         .reg_Target_Link_Width_ctrl             (reg_Target_Link_Width_ctrl),
         .reg_Target_Link_Speed_ctrl             (reg_Target_Link_Speed_ctrl),
+        .rt_apply_module_0_lane_repair_ctrl_out   (rt_apply_module_0_lane_repair_ctrl_out),
+        .module_0_lane_repair_id_ctrl_out         (module_0_lane_repair_id_ctrl_out),
 
         .reg_Clock_Phase_enable_status          (reg_Clock_Phase_enable_status),
         .reg_Clock_mode_enable_status           (reg_Clock_mode_enable_status),

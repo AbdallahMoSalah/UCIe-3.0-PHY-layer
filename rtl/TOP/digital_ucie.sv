@@ -539,6 +539,8 @@ module digital_ucie #(
         .reg_PSPT_support_local_ctrl           (reg_PSPT_support_local_ctrl),
         .reg_Target_Link_Width_ctrl            (reg_Target_Link_Width_ctrl),
         .reg_Target_Link_Speed_ctrl            (reg_Target_Link_Speed_ctrl),
+        .rt_apply_module_0_lane_repair_ctrl_out    (apply_bit),
+        .module_0_lane_repair_id_ctrl_out          (module_0_lane_repair_id_ctrl_out),
 
         // Capability status
         .reg_Clock_Phase_enable_status         (reg_Clock_Phase_enable_status),
@@ -778,9 +780,9 @@ module digital_ucie #(
         .iterations_out                            (),
         .current_lane_map_module_0_enable_out      (),
         .rt_link_test_start_ctrl_out               (start_bit),
-        .rt_apply_module_0_lane_repair_ctrl_out    (),
+        .rt_apply_module_0_lane_repair_ctrl_out    (apply_bit),
         .inject_stuck_at_fault_ctrl_out            (),
-        .module_0_lane_repair_id_ctrl_out          (),
+        .module_0_lane_repair_id_ctrl_out          (module_0_lane_repair_id_ctrl_out),
 
         .ucie_link_cap_r_out                       (),
         .ucie_link_ctrl_r_out                      (),

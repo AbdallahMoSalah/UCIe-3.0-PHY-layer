@@ -145,8 +145,9 @@ import RDI_SM_pkg::*;
                                else if (active_next_ltsm_state != CTRL_ACTIVE && active_next_ltsm_state != CTRL_RESET)
                                    next_state = active_next_ltsm_state;
                                    
-                CTRL_PHYRETRAIN: if (phyretrain_done || rdi_requested_trainerror)  next_state = CTRL_MBTRAIN;
-
+                CTRL_PHYRETRAIN: if (phyretrain_done)  next_state = CTRL_MBTRAIN;
+                                else if (te_handshake_done || rdi_requested_trainerror) next_state = CTRL_TRAINERROR;
+                               
                 // L1 exit -> MBTRAIN re-entering at SPEEDIDLE (see
                 // mbtrain_speedidle_req below); error -> TRAINERROR
                 CTRL_L1:       if (l1_error)           next_state = CTRL_TRAINERROR;

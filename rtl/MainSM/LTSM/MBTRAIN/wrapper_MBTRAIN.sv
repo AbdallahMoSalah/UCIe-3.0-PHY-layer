@@ -48,7 +48,8 @@ module wrapper_MBTRAIN #(
 
         input  logic        mbtrain_txselfcal_req,
         input  logic        mbtrain_speedidle_req,
-        input  logic        mbtrain_repair_req   ,
+        input  logic        mbtrain_repair_req,
+        input  logic [15:0] PHYRETRAIN_success_lanes,
 
         input  logic        analog_settle_time_done,
         output logic        analog_settle_timer_en,
@@ -295,6 +296,8 @@ module wrapper_MBTRAIN #(
     logic [VAL_PI_W-1:0]    best_val_pi_code;
     logic [DATA_PI_W-1:0]   best_data_pi_code   [0:15];
 
+
+    assign success_tx_lanes=(1'b1)?linkspeed_success_lanes:PHYRETRAIN_success_lanes
     // ================================================================================================
     // 3. Input-only preparation logic
     // ================================================================================================
@@ -730,7 +733,7 @@ module wrapper_MBTRAIN #(
         .repair_en                    (ss_en[SS_REPAIR]),
         .repair_done                  (repair_done),
         .trainerror_req               (repair_trainerror_req_w),
-        .success_tx_lanes             (linkspeed_success_lanes),
+        .success_tx_lanes             (success_tx_lanes),
         .rf_cap_SPMW                  (rf_cap_SPMW),
         .rf_ctrl_target_link_width    (rf_ctrl_target_link_width),
         .param_UCIe_S_x8              (param_UCIe_S_x8),

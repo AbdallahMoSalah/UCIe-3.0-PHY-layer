@@ -30,8 +30,8 @@ import RDI_SM_pkg::*;
 // Assumptions flagged for review:
 //   * param_UCIe_S_x8 <= reg_phy_x8_mode_ctrl
 //
-// Deferred to later steps: MBTRAIN (interface bridge), PHYRETRAIN / L1 / L2 /
-// TRAINERROR, capability-status latching, state/error logs.
+// Deferred to later steps: L1 / L2 re-entry MBTRAIN paths,
+// capability-status latching, state/error logs.
 // =============================================================================
 
 module LTSM_wrapper #(
@@ -106,6 +106,8 @@ module LTSM_wrapper #(
         input  logic        reg_PSPT_support_local_ctrl,
         input  logic [3:0]  reg_Target_Link_Width_ctrl,
         input  logic [3:0]  reg_Target_Link_Speed_ctrl,
+        input  logic        rt_apply_module_0_lane_repair_ctrl_out,
+        input  logic [6:0]  module_0_lane_repair_id_ctrl_out,
 
         // Capability status (from MBINIT, passed through)
         output logic        reg_Clock_Phase_enable_status,
@@ -273,6 +275,35 @@ module LTSM_wrapper #(
     logic [4:0]  mbtrain_phy_tx_tckn_shift;
     logic        mbtrain_PHY_IN_RETRAIN_rst;
 
+    // =========================================================================
+    // PHYRETRAIN block <-> wrapper signals
+    // =========================================================================
+    logic        phyretrain_tx_sb_msg_valid;
+    msg_no_e     phyretrain_tx_sb_msg;
+    logic [15:0] phyretrain_tx_msginfo;
+    logic [2:0]  phyretrain_resolved_enc;
+    logic        phyretrain_error;
+
+    // Latched resolved encoding — held after PHYRETRAIN completes so MBTRAIN
+    // can read the re-entry selector even after phyretrain_enable deasserts.
+    logic [2:0]  phyretrain_resolved_enc_reg;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            phyretrain_resolved_enc_reg <= 3'b000;
+        else if (phyretrain_done)
+            phyretrain_resolved_enc_reg <= phyretrain_resolved_enc;
+    end
+
+    // MBTRAIN re-entry selectors driven by the PHYRETRAIN resolved encoding.
+    // Active while PHY_IN_RETRAIN is set (from PHYRETRAIN entry until MBTRAIN
+    // LINKSPEED clears it).
+    logic phyretrain_mbtrain_txselfcal_req;
+    logic phyretrain_mbtrain_repair_req;
+    logic phyretrain_mbtrain_speedidle_req;
+    assign phyretrain_mbtrain_txselfcal_req = PHY_IN_RETRAIN && (phyretrain_resolved_enc_reg == 3'b001);
+    assign phyretrain_mbtrain_repair_req    = PHY_IN_RETRAIN && (phyretrain_resolved_enc_reg == 3'b100);
+    assign phyretrain_mbtrain_speedidle_req = PHY_IN_RETRAIN && (phyretrain_resolved_enc_reg == 3'b010);
+
     // Shared sweep-engine results (wrapper_D2C_sweep -> consumers).
     // Width = $clog2(MAX_CODE+1); MAX_CODE=2 (shrunk ranges) -> 2 bits.
     logic        d2c_sweep_done;
@@ -422,8 +453,59 @@ module LTSM_wrapper #(
         end
     end
     assign Adapter_training_req = (p_lp_state_req == Nop && lp_state_req == Active && current_ltsm_state == RESET);
+
+    logic [15:0] PHYRETRAIN_success_lanes;
+    always_comb begin
+        case (module_0_lane_repair_id_ctrl_out)
+            5'd0:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1110;
+            5'd1:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1101;
+            5'd2:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1011;
+            5'd3:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_0111;
+            5'd4:PHYRETRAIN_success_lanes = 16'b1111_1111_1110_1111;
+            5'd5:PHYRETRAIN_success_lanes = 16'b1111_1111_1101_1111;
+            5'd6:PHYRETRAIN_success_lanes = 16'b1111_1111_1011_1111;
+            5'd7:PHYRETRAIN_success_lanes = 16'b1111_1111_0111_1111;
+            5'd8:PHYRETRAIN_success_lanes = 16'b1111_1110_1111_1111;
+            5'd9:PHYRETRAIN_success_lanes = 16'b1111_1101_1111_1111;
+            5'd10:PHYRETRAIN_success_lanes = 16'b1111_1011_1111_1111;
+            5'd11:PHYRETRAIN_success_lanes = 16'b1111_0111_1111_1111;
+            5'd12:PHYRETRAIN_success_lanes = 16'b1110_1111_1111_1111;
+            5'd13:PHYRETRAIN_success_lanes = 16'b1101_1111_1111_1111;
+            5'd14:PHYRETRAIN_success_lanes = 16'b1011_1111_1111_1111;
+            5'd15:PHYRETRAIN_success_lanes = 16'b0111_1111_1111_1111;
+            default:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1111;
+        endcase
+    end
     //==========================================================================
-    // Hardcode speed for now
+    // runtime test ctrl change sense logic 
+    //==========================================================================
+    logic rt_link_test_changed;
+    logic start_bit_reg,rt_apply_module_0_lane_repair_ctrl_out_reg;
+    logic [6:0] module_0_lane_repair_id_ctrl_out_reg;
+    state_n_e prev_ltsm_state_n;
+    logic entry_PHYRETRAIN;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            prev_ltsm_state_n <= LOG_PHYRETRAIN;
+        end else begin
+            prev_ltsm_state_n <= current_ltsm_state_n;
+        end
+    end
+    assign entry_PHYRETRAIN = (prev_ltsm_state_n != LOG_PHYRETRAIN && current_ltsm_state_n == LOG_PHYRETRAIN);
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            rt_apply_module_0_lane_repair_ctrl_out_reg <= 1'b0;
+            module_0_lane_repair_id_ctrl_out_reg <= 7'b0;
+            start_bit_reg <= 1'b0;
+        end else if (entry_PHYRETRAIN) begin
+            rt_apply_module_0_lane_repair_ctrl_out_reg <= rt_apply_module_0_lane_repair_ctrl_out;
+            module_0_lane_repair_id_ctrl_out_reg <= module_0_lane_repair_id_ctrl_out;
+            start_bit_reg <= start_bit;
+        end
+    end
+    assign rt_link_test_changed = (rt_apply_module_0_lane_repair_ctrl_out != rt_apply_module_0_lane_repair_ctrl_out_reg) ||
+                                  (module_0_lane_repair_id_ctrl_out != module_0_lane_repair_id_ctrl_out_reg) ||
+                                  (start_bit != start_bit_reg);
     //==========================================================================
     logic [2:0] mb_pll_speed_sel_reg;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -564,12 +646,29 @@ module LTSM_wrapper #(
     assign d2c_active = sweep_local_en | sweep_partner_en;
 
     // =========================================================================
-    // PHYRETRAIN PASS-THROUGH (still not instantiated here)
+    // PHYRETRAIN (real block — sideband handshake + encoding resolution)
     // =========================================================================
-    // PHYRETRAIN is still a pass-through (done tied to enable). TRAINERROR, L1 and
-    // L2 are REAL blocks (instantiated below) and no longer pass-throughs. MBTRAIN
-    // is also a real block above.
-    assign phyretrain_done          = phyretrain_en;
+    PHYRETRAIN u_phyretrain (
+        .clk                                     (clk),
+        .rst_n                                   (rst_n),
+        .phyretrain_enable                       (phyretrain_en),
+        .phyretrain_done                         (phyretrain_done),
+        .phyretrain_error                        (phyretrain_error),
+        .rt_apply_module_0_lane_repair_ctrl_out  (rt_apply_module_0_lane_repair_ctrl_out),
+        .module_0_lane_repair_id_ctrl_out        (module_0_lane_repair_id_ctrl_out),
+        .busy_bit_PHY_RETRAIN                    (busy_bit_PHY_RETRAIN),
+        .mbinit_tx_data_lane_mask                (mb_tx_data_lane_mask_reg),
+        .is_x8                                   (UCIe_x8_reg),
+        .global_error                            (timeout_8ms_occured),
+        .resolved_retrain_enc                    (phyretrain_resolved_enc),
+        .tx_sb_msg_valid                         (phyretrain_tx_sb_msg_valid),
+        .tx_sb_msg                               (phyretrain_tx_sb_msg),
+        .tx_msginfo                              (phyretrain_tx_msginfo),
+        .ltsm_rdy                                (sb_ltsm_rdy),
+        .rx_sb_msg_valid                         (sb_rx_valid),
+        .rx_sb_msg                               (sb_rx_msg_8),
+        .rx_msginfo                              (sb_rx_MsgInfo)
+    );
 
     // =========================================================================
     // MBTRAIN block / shared-sweep wiring  (declarations are up top)
@@ -617,7 +716,8 @@ module LTSM_wrapper #(
     assign reset_timer_on_handshake_start = te_handshake_en && !te_local_error_trigger &&
         ((mbinit_error && (current_ltsm_state == MBINIT)) ||
             (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) ||
-            (linkinit_error && (current_ltsm_state == LINKINIT)));
+            (linkinit_error && (current_ltsm_state == LINKINIT)) ||
+            (phyretrain_error && (current_ltsm_state == PHYRETRAIN)));
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -627,6 +727,7 @@ module LTSM_wrapper #(
             if ((mbinit_error && (current_ltsm_state == MBINIT)) ||
                     (mbtrain_ltsm_trainerror_req && (current_ltsm_state == MBTRAIN)) ||
                     (linkinit_error && (current_ltsm_state == LINKINIT)) ||
+                    (phyretrain_error && (current_ltsm_state == PHYRETRAIN)) ||
                     timeout_8ms_occured) begin
                 // $display("T=%0t | [TRAINERROR DEBUG %m] TRIGGERED! mbinit_error=%b, mbtrain_ltsm_trainerror_req=%b, linkinit_error=%b, timeout_8ms_occured=%b, current_ltsm_state=%s, current_log_state=%s",
                 //          $time, mbinit_error, mbtrain_ltsm_trainerror_req, linkinit_error, timeout_8ms_occured, current_ltsm_state.name(), current_log_state.name());
@@ -747,13 +848,22 @@ module LTSM_wrapper #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             busy_flag <= 1'b0;
-        end else if (start_bit && (current_ltsm_state == PHYRETRAIN)) begin
+        end else if (start_bit && (current_ltsm_state_n == LOG_PHYRETRAIN)) begin
             busy_flag <= 1'b1;
         end else if (busy_flag_rst) begin
             busy_flag <= 1'b0;
         end
     end
-
+    
+    logic busy_bit_PHY_RETRAIN;
+always_comb  begin
+        busy_bit_PHY_RETRAIN = busy_flag ;
+        if(start_bit && (current_ltsm_state_n == LOG_PHYRETRAIN))begin
+            busy_bit_PHY_RETRAIN = 1'b1;
+        end else if(busy_flag_rst) begin
+            busy_bit_PHY_RETRAIN = 1'b0;
+        end
+    end
 
     logic timer_rst_n_q;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -938,8 +1048,8 @@ module LTSM_wrapper #(
     //   * rf_cap_SPMW                <= SPMW
     //   * rf_ctrl_target_link_width  <= reg_Target_Link_Width_ctrl
     //   * param_UCIe_S_x8            <= reg_phy_x8_mode_ctrl
-    //   * PHY_IN_RETRAIN / params_changed tied 0 (no external retrain yet)
-    //   * mbtrain_*_req re-entry inputs tied 0 (PHYRETRAIN/L1/L2 re-enter at VALVREF)
+    //   * PHY_IN_RETRAIN             <= set when LTSM enters PHYRETRAIN state
+    //   * mbtrain_*_req re-entry     <= driven by PHYRETRAIN resolved encoding + L1 exit
     wrapper_MBTRAIN #(
         // Must match the wrapper_D2C_sweep ranges above so swept/best code widths agree.
         .MAX_VAL_VREF_CODE  (MAX_VAL_VREF_CODE),
@@ -961,11 +1071,11 @@ module LTSM_wrapper #(
         .ltsm_linkinit_req          (mbtrain_ltsm_linkinit_req),
         .ltsm_phyretrain_req        (mbtrain_ltsm_phyretrain_req),
 
-        // Re-entry selectors. SPEEDIDLE re-entry is driven on an L1 exit; the
-        // others (PHYRETRAIN / L2 paths) are not wired yet.
-        .mbtrain_txselfcal_req      (1'b0),
-        .mbtrain_speedidle_req      (mbtrain_speedidle_req),
-        .mbtrain_repair_req         (1'b0),
+        // Re-entry selectors. PHYRETRAIN drives txselfcal/speedidle/repair via
+        // resolved encoding; L1 exit drives speedidle via controller.
+        .mbtrain_txselfcal_req      (phyretrain_mbtrain_txselfcal_req),
+        .mbtrain_speedidle_req      (mbtrain_speedidle_req || phyretrain_mbtrain_speedidle_req),
+        .mbtrain_repair_req         (phyretrain_mbtrain_repair_req),
 
         .analog_settle_time_done    (mbtrain_analog_settle_time_done),
         .analog_settle_timer_en     (mbtrain_analog_settle_timer_en),
@@ -983,7 +1093,7 @@ module LTSM_wrapper #(
         .param_UCIe_S_x8            (UCIe_x8_reg),
 
         .PHY_IN_RETRAIN             (PHY_IN_RETRAIN),
-        .params_changed             (start_bit),
+        .params_changed             (rt_link_test_changed),
         .PHY_IN_RETRAIN_rst         (PHY_IN_RETRAIN_rst),
         .busy_bit_rst               (busy_bit_rst),
 
@@ -1002,6 +1112,8 @@ module LTSM_wrapper #(
         .sweep_min_eye_width        (d2c_min_eye_width),
 
         .d2c_perlane_pass           (d2c_perlane_pass),
+
+        .PHYRETRAIN_success_lanes   (PHYRETRAIN_success_lanes),
 
         // PHY analog controls — kept internal (mainband model ignores them)
         .phy_negotiated_speed       (mbtrain_phy_negotiated_speed),
@@ -1247,6 +1359,14 @@ module LTSM_wrapper #(
                         sb_tx_msg_id     = msg_no_e'(d2c_tx_sb_msg);
                         sb_tx_MsgInfo    = d2c_tx_msginfo;
                         sb_tx_data_Field = d2c_tx_data_field;
+                    end
+                end
+                PHYRETRAIN: begin
+                    if (phyretrain_tx_sb_msg_valid) begin
+                        sb_tx_valid      = 1'b1;
+                        sb_tx_msg_id     = phyretrain_tx_sb_msg;
+                        sb_tx_MsgInfo    = phyretrain_tx_msginfo;
+                        sb_tx_data_Field = 64'h0;
                     end
                 end
                 default: ; // RESET / LINKINIT / ACTIVE: no SB TX
