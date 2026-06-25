@@ -215,7 +215,7 @@ module unit_mb_pattern_comparator #(
                                 end else begin
                                     lane_err_accum[k] <= lane_err_accum[k] + lane_inc[k];
                                     // Sticky FAIL once accumulated errors exceed the threshold.
-                                    if ((lane_err_accum[k] + lane_inc[k]) > i_max_error_threshold_per_lane)
+                                    if ((lane_err_accum[k] + lane_inc[k]) > 16'(i_max_error_threshold_per_lane))
                                         o_per_lane_pass[k] <= 1'b0;
                                 end
                             end

@@ -345,6 +345,7 @@ module unit_lfsr_tx #(
                                     o_lane[8+i] <= prbs32(tx_lfsr[i]);
                             end
 
+                            default: ;
                         endcase
                     end
                 end
@@ -391,6 +392,7 @@ module unit_lfsr_tx #(
                                     o_lane[i]   <= {LANE_ID[i], LANE_ID[i]};
                             end
 
+                            default: ;
                         endcase
                     end
                 end
@@ -436,6 +438,7 @@ module unit_lfsr_tx #(
                                     o_lane[8+i] <= prbs32(tx_lfsr[i]) ^ i_lane[8+i];
                             end
 
+                            default: ;
                         endcase
 
                     end else begin
@@ -444,6 +447,7 @@ module unit_lfsr_tx #(
                     end
                 end
 
+                default: ;
             endcase
         end
     end

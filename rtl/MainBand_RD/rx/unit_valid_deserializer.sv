@@ -51,12 +51,12 @@ always @(negedge pll_clk or negedge i_rst_n) begin
     if (!i_rst_n) begin
         shift_reg        <= {DATA_WIDTH{1'b0}};
         prev_ser_data_in <= 1'b0;
-        o_state          <= 1'b0; // IDLE
+        o_state          <= 2'b00; // IDLE
         o_count          <= 4'd0;
     end else if (!i_en) begin
         shift_reg        <= {DATA_WIDTH{1'b0}};
         prev_ser_data_in <= 1'b0;
-        o_state          <= 1'b0;
+        o_state          <= 2'b00;
         o_count          <= 4'd0;
     end else begin
         // Shift register is always free-running
@@ -106,6 +106,7 @@ always @(negedge pll_clk or negedge i_rst_n) begin
                     o_count <= o_count + 4'd1;
                 end
             end
+            default: o_state <= 2'b00;
         endcase
     end
 end

@@ -54,9 +54,9 @@ module unit_mapper #(
 
     // Packet done determines when the transmission completes
     wire packet_done = buf_full && (
-        ((i_width_deg_map == DEGRADE_LANES_0_TO_15) && (cycle_count == CLOCK_CYCLES_16 - 1)) ||
-        (((i_width_deg_map == DEGRADE_LANES_0_TO_7) || (i_width_deg_map == DEGRADE_LANES_8_TO_15)) && (cycle_count == CLOCK_CYCLES_8 - 1)) ||
-        (((i_width_deg_map == DEGRADE_LANES_0_TO_3) || (i_width_deg_map == DEGRADE_LANES_4_TO_7)) && (cycle_count == CLOCK_CYCLES_4 - 1)) ||
+        ((i_width_deg_map == DEGRADE_LANES_0_TO_15) && (int'(cycle_count) == CLOCK_CYCLES_16 - 1)) ||
+        (((i_width_deg_map == DEGRADE_LANES_0_TO_7) || (i_width_deg_map == DEGRADE_LANES_8_TO_15)) && (int'(cycle_count) == CLOCK_CYCLES_8 - 1)) ||
+        (((i_width_deg_map == DEGRADE_LANES_0_TO_3) || (i_width_deg_map == DEGRADE_LANES_4_TO_7)) && (int'(cycle_count) == CLOCK_CYCLES_4 - 1)) ||
         // Fallback for safety on unsupported/default modes
         (i_width_deg_map != DEGRADE_LANES_0_TO_15 && 
          i_width_deg_map != DEGRADE_LANES_0_TO_7 && 

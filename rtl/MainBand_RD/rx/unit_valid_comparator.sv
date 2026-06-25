@@ -142,9 +142,9 @@ module unit_valid_comparator #(
                             temp_pass = o_pass;
                             for (b = 0; b < BYTES_PER_WORD; b = b + 1) begin
                                 if (i_valid_frame_data[b*8 +: 8] == VALID_BYTE) begin
-                                    if (temp_ctr < CONSEC_PASS)
+                                    if (int'(temp_ctr) < CONSEC_PASS)
                                         temp_ctr = temp_ctr + 5'd1;
-                                    if (temp_ctr == CONSEC_PASS)
+                                    if (int'(temp_ctr) == CONSEC_PASS)
                                         temp_pass = 1'b1;   // sticky PASS
                                 end else begin
                                     temp_ctr = 5'd0;        // streak broken
@@ -162,7 +162,7 @@ module unit_valid_comparator #(
                         end
 
                         // Counter and state transition
-                        if (iter_ctr == NUM_CYCLES - 1)
+                        if (int'(iter_ctr) == NUM_CYCLES - 1)
                             state <= S_DONE;
                         else
                             iter_ctr <= iter_ctr + 16'd1;
@@ -175,7 +175,7 @@ module unit_valid_comparator #(
                     // Mode 1: PASS if accumulated bit errors are within threshold.
                     // Mode 0: o_pass is already sticky-set during S_COMPARE.
                     if (i_mode == 1'b1)
-                        o_pass <= (err_accum <= i_max_error_threshold);
+                        o_pass <= (err_accum <= 16'(i_max_error_threshold));
                     if (!i_enable)
                         state <= S_IDLE;
                 end

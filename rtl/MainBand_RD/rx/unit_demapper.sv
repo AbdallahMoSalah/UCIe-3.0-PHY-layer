@@ -76,7 +76,7 @@ module unit_demapper #(
                         i_lane_7[7:0],    i_lane_6[7:0],    i_lane_5[7:0],    i_lane_4[7:0],
                         i_lane_3[7:0],    i_lane_2[7:0],    i_lane_1[7:0],    i_lane_0[7:0]
                     };
-                    if (cycle_count == CLOCK_CYCLES_16-1) begin
+                    if (int'(cycle_count) == CLOCK_CYCLES_16-1) begin
                         pl_valid    <= 1'b1;
                         cycle_count <= 2'd0;
                     end
@@ -119,7 +119,7 @@ module unit_demapper #(
                         };
                         default : o_out_data <= 0;
                     endcase
-                    if (cycle_count == CLOCK_CYCLES_8-1) begin
+                    if (int'(cycle_count) == CLOCK_CYCLES_8-1) begin
                         pl_valid    <= 1'b1;
                         cycle_count <= 2'd0;
                     end
@@ -162,7 +162,7 @@ module unit_demapper #(
                         };
                         default: o_out_data <= 0;   
                     endcase
-                    if (cycle_count == CLOCK_CYCLES_8-1) begin
+                    if (int'(cycle_count) == CLOCK_CYCLES_8-1) begin
                         pl_valid    <= 1'b1;
                         cycle_count <= 2'd0;
                     end
@@ -205,7 +205,7 @@ module unit_demapper #(
                         };
                         default : o_out_data <= 0;
                     endcase
-                    if (cycle_count == CLOCK_CYCLES_4-1) begin
+                    if (int'(cycle_count) == CLOCK_CYCLES_4-1) begin
                         pl_valid    <= 1'b1;
                         cycle_count <= 2'd0;
                     end
@@ -245,7 +245,7 @@ module unit_demapper #(
                         };
                         default : o_out_data <= 0;
                     endcase
-                    if (cycle_count == CLOCK_CYCLES_4-1) begin
+                    if (int'(cycle_count) == CLOCK_CYCLES_4-1) begin
                         pl_valid    <= 1'b1;
                         cycle_count <= 2'd0;
                     end

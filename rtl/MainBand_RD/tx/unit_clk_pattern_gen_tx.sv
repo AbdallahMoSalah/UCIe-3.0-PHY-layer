@@ -59,7 +59,7 @@ module unit_clk_pattern_gen_tx (
                         counter_toggle <= 0;
                         toggle_phase   <= 1'b0;   // switch to idle gap
                     end else begin
-                        counter_toggle <= counter_toggle + 2'd2;
+                        counter_toggle <= counter_toggle + 7'd2;
                     end
                 end else begin
                     // ---- ZERO sub-phase: ZERO/2 idle cycles, then close burst ----
@@ -68,7 +68,7 @@ module unit_clk_pattern_gen_tx (
                         toggle_phase <= 1'b1;
                         counter_main <= counter_main + 1'b1;
                     end else begin
-                        counter_zero <= counter_zero + 2'd2;
+                        counter_zero <= counter_zero + 5'd2;
                     end
                 end
             end

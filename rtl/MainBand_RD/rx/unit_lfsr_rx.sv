@@ -366,6 +366,7 @@ module unit_lfsr_rx #(
                                     o_final_gene[i + 8] <= prbs32(rx_lfsr_lane[i]);
                                 end
                             end
+                            default: ;
                         endcase
                     end
                 end
@@ -402,6 +403,7 @@ module unit_lfsr_rx #(
                                 for (i = 0; i < 16; i = i + 1)
                                     o_final_gene[i] <= {LANE_ID[i], LANE_ID[i]};
                             end
+                            default: ;
                         endcase
                     end
                 end
@@ -444,12 +446,14 @@ module unit_lfsr_rx #(
                                     o_Data_by[i + 8] <= prbs32(rx_lfsr_lane[i]) ^ i_data_in[i + 8];
                                 end
                             end
+                            default: ;
                         endcase
                     end else begin
                         o_data_valid    <= 1'b0;
                     end
                 end
 
+                default: ;
             endcase
         end
     end
