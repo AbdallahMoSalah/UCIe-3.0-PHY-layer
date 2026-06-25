@@ -56,5 +56,5 @@ always_ff @( posedge clk , negedge timeout_rst_n )
         timeout_counter <= '0 ;
 end
 
-assign timeout_expired = (timeout_counter == threshold - 1);
+assign timeout_expired = (32'(timeout_counter) == threshold - 1);
 endmodule

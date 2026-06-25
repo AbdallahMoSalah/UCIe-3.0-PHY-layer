@@ -69,7 +69,7 @@ module SBINIT
             cycle_cnt     <= '0;
             one_ms_toggle <= 1'b0;
         end else if (current_state == SB_S1_DET_PATTERN) begin
-            if (cycle_cnt == MS_CYCLES - 1) begin
+            if (int'(cycle_cnt) == MS_CYCLES - 1) begin
                 cycle_cnt     <= '0;
                 one_ms_toggle <= ~one_ms_toggle;
             end else begin

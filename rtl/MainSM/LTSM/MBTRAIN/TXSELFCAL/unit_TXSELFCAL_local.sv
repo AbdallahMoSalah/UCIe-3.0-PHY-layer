@@ -152,6 +152,7 @@ module unit_TXSELFCAL_local (
             TXSELFCAL_LCL_TO_RXCLKCAL: begin
                 txselfcal_done   = 1'b1;
             end
+            default: ;
         endcase
     end
 

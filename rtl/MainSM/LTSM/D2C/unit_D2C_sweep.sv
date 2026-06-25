@@ -415,8 +415,8 @@ module unit_D2C_sweep #(
             // Per-lane best midpoint code (combinational)
             assign best_code[lane] =
                 (!active_lanes_with_val[lane]) ? min_code                      : // Inactive lane: safe default
-                (found_pass[lane])    ? (( {1'b0, best_lo[lane]} + {1'b0, best_hi[lane]} ) >> 1) : // Midpoint of widest window
-                (( {1'b0, max_code} + {1'b0, min_code} ) >> 1); // No pass found: use range midpoint
+                (found_pass[lane])    ? CW'(( {1'b0, best_lo[lane]} + {1'b0, best_hi[lane]} ) >> 1) : // Midpoint of widest window
+                CW'(( {1'b0, max_code} + {1'b0, min_code} ) >> 1); // No pass found: use range midpoint
         end
     endgenerate
 

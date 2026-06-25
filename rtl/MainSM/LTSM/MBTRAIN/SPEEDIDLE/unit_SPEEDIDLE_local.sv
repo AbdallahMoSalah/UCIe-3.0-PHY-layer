@@ -198,6 +198,7 @@ module unit_SPEEDIDLE_local (
                 speedidle_done   = 1'b1;
                 trainerror_req   = 1'b1;
             end
+            default: ;
         endcase
     end
 

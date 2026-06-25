@@ -459,7 +459,7 @@ module LTSM_wrapper #(
 
     logic [15:0] PHYRETRAIN_success_lanes;
     always_comb begin
-        case (module_0_lane_repair_id_ctrl_out)
+        case (module_0_lane_repair_id_ctrl_out[4:0])
             5'd0:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1110;
             5'd1:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1101;
             5'd2:PHYRETRAIN_success_lanes = 16'b1111_1111_1111_1011;
@@ -574,8 +574,8 @@ module LTSM_wrapper #(
             log0_state_n_minus_2_reg <= 8'h00;
             log1_state_n_minus_3_reg <= 8'h00;
         end else begin
-            if (current_log_state != log0_state_n_reg[4:0]) begin
-                log0_state_n_reg         <= {3'b0, current_log_state};
+            if (current_log_state[4:0] != log0_state_n_reg[4:0]) begin
+                log0_state_n_reg         <= {3'b0, current_log_state[4:0]};
                 log0_state_n_minus_1_reg <= log0_state_n_reg;
                 log0_state_n_minus_2_reg <= log0_state_n_minus_1_reg;
                 log1_state_n_minus_3_reg <= log0_state_n_minus_2_reg;
@@ -594,19 +594,19 @@ module LTSM_wrapper #(
         log0_state_n_minus_2_comb = log0_state_n_minus_2_reg[4:0];
         log1_state_n_minus_3_comb = log1_state_n_minus_3_reg[4:0];
 
-        if (current_log_state != log0_state_n_reg[4:0]) begin
-            log0_state_n_comb         = {3'b0, current_log_state};
-            log0_state_n_minus_1_comb = log0_state_n_reg;
-            log0_state_n_minus_2_comb = log0_state_n_minus_1_reg;
-            log1_state_n_minus_3_comb = log0_state_n_minus_2_reg;
+        if (current_log_state[4:0] != log0_state_n_reg[4:0]) begin
+            log0_state_n_comb         = current_log_state[4:0];
+            log0_state_n_minus_1_comb = log0_state_n_reg[4:0];
+            log0_state_n_minus_2_comb = log0_state_n_minus_1_reg[4:0];
+            log1_state_n_minus_3_comb = log0_state_n_minus_2_reg[4:0];
         end
 
     end
 
-    assign log0_state_n         = log0_state_n_comb;
-    assign log0_state_n_minus_1 = log0_state_n_minus_1_comb;
-    assign log0_state_n_minus_2 = log0_state_n_minus_2_comb;
-    assign log1_state_n_minus_3 = log1_state_n_minus_3_comb;
+    assign log0_state_n         = {3'b0, log0_state_n_comb};
+    assign log0_state_n_minus_1 = {3'b0, log0_state_n_minus_1_comb};
+    assign log0_state_n_minus_2 = {3'b0, log0_state_n_minus_2_comb};
+    assign log1_state_n_minus_3 = {3'b0, log1_state_n_minus_3_comb};
 
     assign log0_width_degrade   = (mb_tx_data_lane_mask != 3'b011);
     assign log0_lane_reversal   = mb_lane_reversal_req;
@@ -683,12 +683,12 @@ module LTSM_wrapper #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) mbtrain_settle_cnt <= '0;
         else if (mbtrain_analog_settle_timer_en) begin
-            if (mbtrain_settle_cnt < MBTRAIN_SETTLE_DELAY)
+            if (32'(mbtrain_settle_cnt) < MBTRAIN_SETTLE_DELAY)
                 mbtrain_settle_cnt <= mbtrain_settle_cnt + 1'b1;
         end else mbtrain_settle_cnt <= '0;
     end
     assign mbtrain_analog_settle_time_done =
-        (mbtrain_settle_cnt == MBTRAIN_SETTLE_DELAY) && mbtrain_analog_settle_timer_en;
+        (32'(mbtrain_settle_cnt) == MBTRAIN_SETTLE_DELAY) && mbtrain_analog_settle_timer_en;
 
     // Shared D2C sweep-engine input mux (MBINIT.REPAIRMB vs MBTRAIN). MBINIT and
     // MBTRAIN are never active simultaneously, so the single wrapper_D2C_sweep is

@@ -176,6 +176,7 @@ module unit_RXCLKCAL_IQ_partner
                 iq_partner_done      = 1'b1;
                 iq_partner_error     = 1'b1;
             end
+            default: ;
         endcase
     end
 

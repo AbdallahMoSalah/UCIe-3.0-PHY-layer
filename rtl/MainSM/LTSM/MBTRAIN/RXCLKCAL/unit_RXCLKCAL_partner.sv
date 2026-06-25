@@ -219,6 +219,7 @@ module unit_RXCLKCAL_partner
                 rxclkcal_done  = 1'b1;
                 trainerror_req = 1'b1;
             end
+            default: ;
         endcase
     end
 

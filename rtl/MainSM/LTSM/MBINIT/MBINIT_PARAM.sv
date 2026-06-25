@@ -503,7 +503,7 @@ always_comb begin
         TARR_enable_status         = 1'b0;
         Clock_Phase_enable_status  = 1'b0;
         Clock_mode_enable_status   = 1'b0;
-        Link_Speed_enable_status   = 1'b0;
+        Link_Speed_enable_status   = '0;
         Link_Width_enable_status   = 4'h2;
     
         PMO_enable_status          = 1'b0;
@@ -534,7 +534,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_SFES_negotiated                      <= 1'b0;
         local_clk_phase_negotiated_status          <= 1'b0;
         local_clk_mode_negotiated_status           <= 1'b0;
-        local_Link_speed_enabled_negotiate_status  <= 1'b0;
+        local_Link_speed_enabled_negotiate_status  <= '0;
         local_Link_width_enabled_status            <= 4'h2;
         
         local_pmo_negotiated_status                <= 1'b0;
@@ -548,7 +548,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         local_SFES_negotiated                      <= 1'b0;
         local_clk_phase_negotiated_status          <= 1'b0;
         local_clk_mode_negotiated_status           <= 1'b0;
-        local_Link_speed_enabled_negotiate_status  <= 1'b0;
+        local_Link_speed_enabled_negotiate_status  <= '0;
         local_Link_width_enabled_status            <= 4'h2;
         
         local_pmo_negotiated_status                <= 1'b0;
