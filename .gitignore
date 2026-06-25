@@ -39,3 +39,5 @@ CLAUDE.md
 rename_modules.py 
 rename.py
 rtl/MainBand/Integration steps/.fuse_hidden000012fc00000004
+args.txt
+verilator_out.txt
