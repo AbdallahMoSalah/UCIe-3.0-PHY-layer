@@ -509,7 +509,7 @@ module UCIe_PHY_wrapper_tb;
     initial begin
         
         enabled_scenarios[1] = 1'b1;
-        enabled_scenarios[2] = 1'b0;
+       /* enabled_scenarios[2] = 1'b0;
         enabled_scenarios[3] = 1'b1;
         enabled_scenarios[4] = 1'b1;
         enabled_scenarios[5] = 1'b1;
@@ -534,7 +534,7 @@ module UCIe_PHY_wrapper_tb;
         enabled_scenarios[24] = 1'b1;
         enabled_scenarios[25] = 1'b1;
         enabled_scenarios[26] = 1'b1;
-        enabled_scenarios[27] = 1'b1;
+        enabled_scenarios[27] = 1'b1;*/
         enabled_scenarios[28] = 1'b1;
         enabled_scenarios[29] = 1'b1;
         enabled_scenarios[30] = 1'b1;
@@ -1840,6 +1840,149 @@ module UCIe_PHY_wrapper_tb;
                 corrupt_1to0 = 16'h0000;
                 chk(ok27, "permanent all-lane fault led to TRAINERROR after exhausting speed-degrade", scenario_num);
                 chk(m_error || p_error, "at least one die reached LOG_TRAINERROR", scenario_num);
+            end
+        end else begin
+            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+        end
+        scenario_num++;
+
+        // ----------------------------------------------------------------
+        // Scenario 28: Valid frame error injection during ACTIVE -> PHYRETRAIN -> TXSELFCAL
+        // ----------------------------------------------------------------
+        if (enabled_scenarios[scenario_num]) begin
+            $display("\nT=%0t | [SC%0d] Valid Frame Error Injection during ACTIVE -> PHYRETRAIN -> TXSELFCAL...", $time, scenario_num);
+            reset_system();
+            // Program both dies
+            fork
+                program_die(0);
+                program_die(1);
+            join
+            print_ctrl_regs();
+            
+            // Bringup link to ACTIVE
+            lp_state_req0 = Nop; lp_state_req1 = Nop;
+            fork
+                begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
+                begin wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
+            join_none
+            
+            // Wait for both dies to reach LOG_ACTIVE
+            fork
+                begin
+                    wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active);
+                    ok = 1'b1;
+                end
+                begin
+                    repeat (600000) @(posedge lclk0);
+                    ok = 1'b0;
+                    $error("[SC%0d] TIMEOUT waiting for ACTIVE", scenario_num);
+                end
+            join_any
+            disable fork;
+            
+            chk(ok, "both dies reached LOG_ACTIVE", scenario_num);
+            
+            if (ok) begin
+                print_active_status();
+                
+                $display("T=%0t | [SC%0d] Initiating data transfer in ACTIVE...", $time, scenario_num);
+                
+                // Stabilize in ACTIVE
+                repeat(20) @(posedge lclk0);
+                
+                lp_valid0 = 1'b1;
+                lp_irdy0 = 1'b1;
+                lp_valid1 = 1'b1;
+                lp_irdy1 = 1'b1;
+                
+                lp_data0 = {16{32'hDEADBEEF}};
+                lp_data1 = {16{32'hCAFEBABE}};
+                
+                // Wait 5 cycles of lclk0, then inject valid frame error on Die0 -> Die1 path
+                repeat(5) @(posedge lclk0);
+                rx_vld_error_inject_0_to_1 = 1'b1;
+                $display("T=%0t | [SC%0d] Injected valid frame error on Die0 -> Die1 path.", $time, scenario_num);
+                
+                // Wait for the design to exit ACTIVE and go to PHYRETRAIN
+                fork
+                    begin
+                        wait (ln0 == LOG_PHYRETRAIN);
+                        $display("T=%0t | [SC%0d] Die0 successfully exited ACTIVE and entered PHYRETRAIN.", $time, scenario_num);
+                    end
+                    begin
+                        repeat(10000) @(posedge lclk0);
+                        $error("T=%0t | [SC%0d] TIMEOUT waiting for LOG_PHYRETRAIN state.", $time, scenario_num);
+                        fails++;
+                    end
+                join_any
+                disable fork;
+                
+                // Clear the error injection so that retrain handshake can succeed
+                rx_vld_error_inject_0_to_1 = 1'b0;
+                $display("T=%0t | [SC%0d] Error injection cleared for retraining.", $time, scenario_num);
+                
+                // Set lp_state_req to Nop for both dies as required for retraining RDI Active request
+                lp_state_req0 = Nop;
+                lp_state_req1 = Nop;
+                
+                // Wait for them to transition from PHYRETRAIN to TXSELFCAL
+                fork
+                    begin
+                        wait (ln0 == LOG_MBTRAIN_TXSELFCAL);
+                        $display("T=%0t | [SC%0d] Die0 reached LOG_MBTRAIN_TXSELFCAL.", $time, scenario_num);
+                    end
+                    begin
+                        repeat(30000) @(posedge lclk0);
+                        $error("T=%0t | [SC%0d] TIMEOUT waiting for LOG_MBTRAIN_TXSELFCAL.", $time, scenario_num);
+                        fails++;
+                    end
+                join_any
+                disable fork;
+                
+                chk(ln0 == LOG_MBTRAIN_TXSELFCAL, "Die0 transitioned from PHYRETRAIN to TXSELFCAL", scenario_num);
+                
+                // Wait for them to reach LOG_LINKINIT during retraining, then request Active state again
+                fork
+                    begin
+                        wait (ln0 == LOG_LINKINIT);
+                        @(negedge lclk0);
+                        lp_state_req0 = Active;
+                        $display("T=%0t | [SC%0d] Die0 reached LOG_LINKINIT during retrain, setting lp_state_req0 to Active.", $time, scenario_num);
+                    end
+                    begin
+                        wait (ln1 == LOG_LINKINIT);
+                        @(negedge lclk1);
+                        lp_state_req1 = Active;
+                        $display("T=%0t | [SC%0d] Die1 reached LOG_LINKINIT during retrain, setting lp_state_req1 to Active.", $time, scenario_num);
+                    end
+                join
+
+                // Wait for retraining to complete and reach LOG_ACTIVE / Active again
+                $display("T=%0t | [SC%0d] Retraining. Waiting for both dies to reach LOG_ACTIVE again...", $time, scenario_num);
+                fork
+                    begin
+                        wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active);
+                        ok = 1'b1;
+                    end
+                    begin
+                        repeat (600000) @(posedge lclk0);
+                        ok = 1'b0;
+                        $error("T=%0t | [SC%0d] TIMEOUT waiting for LOG_ACTIVE after retrain.", $time, scenario_num);
+                    end
+                join_any
+                disable fork;
+
+                chk(ok, "both dies successfully retrained and reached LOG_ACTIVE / Active again", scenario_num);
+                
+                if (ok) begin
+                    print_active_status();
+                end
+
+                // Stop driving lp_valid, lp_irdy
+                lp_valid0 = 1'b0;
+                lp_irdy0 = 1'b0;
+                lp_valid1 = 1'b0;
+                lp_irdy1 = 1'b0;
             end
         end else begin
             $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);

@@ -145,6 +145,7 @@ rtl/MainSM/LTSM/ACTIVE.sv
 rtl/MainSM/LTSM/L1.sv
 rtl/MainSM/LTSM/L2.sv
 rtl/MainSM/LTSM/TRAINERROR.sv
+rtl/MainSM/LTSM/PHYRETRAIN.sv
 
 # ---- LTSM controller + wrapper -----------------------------------------------
 rtl/MainSM/LTSM/trainerror_handshake.sv
