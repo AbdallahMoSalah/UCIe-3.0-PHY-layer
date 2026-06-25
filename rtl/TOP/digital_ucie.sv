@@ -58,7 +58,7 @@ module digital_ucie #(
     parameter      [DATA_WIDTH_MB-1:0] VALID_PATTERN = 32'h0F0F0F0F,
     parameter real PLL_PERIOD_NS  = 0.5,
     parameter int  RX_ALIGN_DELAY = 2,
-    parameter int  CLK_FRQ_HZ     = 800_000_000,
+    parameter int  CLK_FRQ_HZ     = 125_000_000,
     parameter logic [2:0] MAX_LINK_WIDTH_CAP  = 3'd0,
     parameter logic [3:0] MAX_LINK_SPEED_CAP  = 4'h5,
     parameter logic       SPMW_CAP            = 1'b0,

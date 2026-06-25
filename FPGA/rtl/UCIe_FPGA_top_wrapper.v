@@ -9,92 +9,86 @@
 // Clocks  : Runs synchronously with clk_sb = lclk.
 // =============================================================================
 
-import sb_pkg::*;
-import UCIe_pkg::*;
-import ltsm_state_n_pkg::*;
-import LTSM_state_pkg::*;
-import RDI_SM_pkg::*;
-
 module UCIe_FPGA_top_wrapper #(
-    parameter int  DATA_WIDTH_MB  = 32,
-    parameter int  DATA_WIDTH_SB  = 64,
-    parameter int  NUM_LANES      = 16,
-    parameter int  N_BYTES        = 64,
-    parameter int  GAP_WIDTH      = 32,
-    parameter      [DATA_WIDTH_MB-1:0] VALID_PATTERN = 32'h0F0F0F0F,
-    parameter real PLL_PERIOD_NS  = 0.5,
-    parameter int  RX_ALIGN_DELAY = 2,
-    parameter int  CLK_FRQ_HZ     = 800_000_000,
-    parameter logic [2:0] MAX_LINK_WIDTH_CAP  = 3'd0,
-    parameter logic [3:0] MAX_LINK_SPEED_CAP  = 4'h5,
-    parameter logic       SPMW_CAP            = 1'b0,
-    parameter logic       PMO_CAP             = 1'b1,
-    parameter logic       PSPT_CAP            = 1'b0,
-    parameter logic       L2SPD_CAP           = 1'b0,
-    parameter logic [4:0] SUPPORTEDVSWING_CAP = 5'h01,
-    parameter logic [1:0] CLK_MODE_CAP        = 2'b10,
-    parameter logic [1:0] CLK_PHASE_CAP       = 2'b00,
-    parameter logic       TARR_CAP            = 1'b0,
-    parameter logic       ADVANCED_PKG_CAP    = 1'b0,
-    parameter logic [1:0] MODULE_ID           = 2'b0,
+    parameter DATA_WIDTH_MB  = 32,
+    parameter DATA_WIDTH_SB  = 64,
+    parameter NUM_LANES      = 16,
+    parameter N_BYTES        = 64,
+    parameter GAP_WIDTH      = 32,
+    parameter [DATA_WIDTH_MB-1:0] VALID_PATTERN = 32'h0F0F0F0F,
+    parameter PLL_PERIOD_NS  = 0.5,
+    parameter RX_ALIGN_DELAY = 2,
+    parameter CLK_FRQ_HZ     = 800000000,
+    parameter [2:0] MAX_LINK_WIDTH_CAP  = 3'd0,
+    parameter [3:0] MAX_LINK_SPEED_CAP  = 4'h5,
+    parameter       SPMW_CAP            = 1'b0,
+    parameter       PMO_CAP             = 1'b1,
+    parameter       PSPT_CAP            = 1'b0,
+    parameter       L2SPD_CAP           = 1'b0,
+    parameter [4:0] SUPPORTEDVSWING_CAP = 5'h01,
+    parameter [1:0] CLK_MODE_CAP        = 2'b10,
+    parameter [1:0] CLK_PHASE_CAP       = 2'b00,
+    parameter       TARR_CAP            = 1'b0,
+    parameter       ADVANCED_PKG_CAP    = 1'b0,
+    parameter [1:0] MODULE_ID           = 2'b0,
 
     // Bridge parameters
-    parameter int  MB_RX_FIFO_DEPTH   = 8,
-    parameter int  SB_TX_DN_CRD_INIT  = 32,
-    parameter int  SB_RX_FIFO_DEPTH   = 16
+    parameter MB_RX_FIFO_DEPTH   = 8,
+    parameter SB_TX_DN_CRD_INIT  = 32,
+    parameter SB_RX_FIFO_DEPTH   = 16
 )(
-    input  logic                             lclk,
-    input  logic                             rst_n,
+    input                                    lclk,
+    input                                    rst_n,
 
     // ---- MainBand TX (AXI-Stream Slave) ----
-    input  logic [8*N_BYTES-1:0]             s_axis_mb_tx_tdata,
-    input  logic [(8*N_BYTES)/8-1:0]         s_axis_mb_tx_tkeep,
-    input  logic                             s_axis_mb_tx_tlast,
-    input  logic                             s_axis_mb_tx_tvalid,
-    output logic                             s_axis_mb_tx_tready,
+    input  [8*N_BYTES-1:0]                   s_axis_mb_tx_tdata,
+    input  [(8*N_BYTES)/8-1:0]               s_axis_mb_tx_tkeep,
+    input                                    s_axis_mb_tx_tlast,
+    input                                    s_axis_mb_tx_tvalid,
+    output                                   s_axis_mb_tx_tready,
 
     // ---- MainBand RX (AXI-Stream Master) ----
-    output logic [8*N_BYTES-1:0]             m_axis_mb_rx_tdata,
-    output logic [(8*N_BYTES)/8-1:0]         m_axis_mb_rx_tkeep,
-    output logic                             m_axis_mb_rx_tlast,
-    output logic                             m_axis_mb_rx_tvalid,
-    input  logic                             m_axis_mb_rx_tready,
+    output [8*N_BYTES-1:0]                   m_axis_mb_rx_tdata,
+    output [(8*N_BYTES)/8-1:0]               m_axis_mb_rx_tkeep,
+    output                                   m_axis_mb_rx_tlast,
+    output                                   m_axis_mb_rx_tvalid,
+    input                                    m_axis_mb_rx_tready,
 
     // ---- SideBand TX (AXI-Stream Slave) ----
-    input  logic [31:0]                      s_axis_sb_tx_tdata,
-    input  logic [3:0]                       s_axis_sb_tx_tkeep,
-    input  logic                             s_axis_sb_tx_tlast,
-    input  logic                             s_axis_sb_tx_tvalid,
-    output logic                             s_axis_sb_tx_tready,
+    input  [31:0]                            s_axis_sb_tx_tdata,
+    input  [3:0]                             s_axis_sb_tx_tkeep,
+    input                                    s_axis_sb_tx_tlast,
+    input                                    s_axis_sb_tx_tvalid,
+    output                                   s_axis_sb_tx_tready,
 
     // ---- SideBand RX (AXI-Stream Master) ----
-    output logic [31:0]                      m_axis_sb_rx_tdata,
-    output logic [3:0]                       m_axis_sb_rx_tkeep,
-    output logic                             m_axis_sb_rx_tlast,
-    output logic                             m_axis_sb_rx_tvalid,
-    input  logic                             m_axis_sb_rx_tready,
+    output [31:0]                            m_axis_sb_rx_tdata,
+    output [3:0]                             m_axis_sb_rx_tkeep,
+    output                                   m_axis_sb_rx_tlast,
+    output                                   m_axis_sb_rx_tvalid,
+    input                                    m_axis_sb_rx_tready,
 
     // ---- RDI Interface ----
-    input  logic [3:0]                       lp_state_req,
-    input  logic                             lp_clk_ack,
-    input  logic                             lp_wake_req,
-    input  logic                             lp_stallack,
-    input  logic                             lp_linkerror,
+    input  [3:0]                             lp_state_req,
+    input                                    lp_clk_ack,
+    input                                    lp_wake_req,
+    input                                    lp_stallack,
+    input                                    lp_linkerror,
 
-    output logic                             pl_clk_req,
-    output logic                             pl_stallreq,
-    output logic                             pl_wake_ack,
-    output logic                             pl_trainerror,
-    output logic                             pl_inband_pres,
-    output logic                             pl_phyinrecenter,
-    output logic [3:0]                       pl_state_sts,
-    output logic                             pl_max_speedmode,
-    output logic [2:0]                       pl_speedmode,
-    output logic [2:0]                       pl_lnk_cfg,
+    output                                   pl_clk_req,
+    output                                   pl_stallreq,
+    output                                   pl_wake_ack,
+    output                                   pl_trainerror,
+    output                                   pl_inband_pres,
+    output                                   pl_phyinrecenter,
+    output [3:0]                             pl_state_sts,
+    output                                   pl_max_speedmode,
+    output [2:0]                             pl_speedmode,
+    output [2:0]                             pl_lnk_cfg,
 
     // ---- Diagnostic Status Outputs ----
-    output logic                             o_mb_rx_overflow,
-    output logic                             o_sb_rx_overflow
+    output                                   o_mb_rx_overflow,
+    output                                   o_sb_rx_overflow
 );
 
     // =========================================================================
