@@ -115,6 +115,8 @@ module trainerror_handshake
                 TE_RSP_WAIT: begin
                     if (partner_resp_received || rx_resp_detected)
                         next_state = TE_DONE;
+                    else if (rx_req_detected)
+                        next_state = TE_RSP_SEND;
                 end
 
                 TE_RSP_SEND: begin
