@@ -209,6 +209,8 @@ module digital_ucie #(
     logic [11:0] cfg_max_err_thresh_perlane;
     logic [15:0] cfg_max_err_thresh_aggr;
     logic        start_bit;
+    logic        apply_bit;                          // rt_apply_module_0_lane_repair_ctrl_out
+    logic [6:0]  module_0_lane_repair_id_ctrl_out;   // lane-repair target ID
 
     // -------------------------------------------------------------------------
     // MainSM -> Reg_File status / observability

@@ -469,7 +469,7 @@ assign phy_link_speed_enabled_status_out = ucie_link_status_r[14:11];
 logic [15:0] link_event_notif_ctrl_ff;
 always_comb begin
     link_event_notif_ctrl_r [1:0]   = link_event_notif_ctrl_ff[1:0];
-    link_event_notif_ctrl_r [10:2]  = 7'b1111111;
+    link_event_notif_ctrl_r [10:2]  = 9'b0_0111_1111;
     link_event_notif_ctrl_r [15:11] = link_event_notification_interrupt_number_i;
 end
 
@@ -677,9 +677,9 @@ always_comb begin
     if (wr_en && cfg_sel) begin
         for (int i=0; i<8; i++) begin
             if ((i < 4 || rf_is_64b_access) && rf_be[i]) begin
-                if ((rf_addr[11:0] + i) <= 35) begin
-                    cfg_we[rf_addr[11:0] + i]   = 1'b1;
-                    cfg_wdat[rf_addr[11:0] + i] = rf_wdata[i*8 +: 8];
+                if ((int'(rf_addr[11:0]) + i) <= 35) begin
+                    cfg_we[int'(rf_addr[11:0]) + i]   = 1'b1;
+                    cfg_wdat[int'(rf_addr[11:0]) + i] = rf_wdata[i*8 +: 8];
                 end
             end
         end
@@ -697,9 +697,9 @@ always_comb begin
     if (wr_en && phy_mmio_sel) begin
         for (int i=0; i<8; i++) begin
             if ((i < 4 || rf_is_64b_access) && rf_be[i]) begin
-                if ((rf_addr[12:0] - 13'h1000 + i) <= 267) begin
-                    mmio_we[rf_addr[12:0] - 13'h1000 + i]   = 1'b1;
-                    mmio_wdat[rf_addr[12:0] - 13'h1000 + i] = rf_wdata[i*8 +: 8];
+                if ((int'(rf_addr[12:0]) - 32'h1000 + i) <= 267) begin
+                    mmio_we[int'(rf_addr[12:0]) - 32'h1000 + i]   = 1'b1;
+                    mmio_wdat[int'(rf_addr[12:0]) - 32'h1000 + i] = rf_wdata[i*8 +: 8];
                 end
             end
         end
@@ -794,7 +794,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         ucie_link_ctrl_ff[0]          <= 1'b0;
         ucie_link_ctrl_ff[1]          <= adapter_multi_protocol_cap_i;
 
-        ucie_link_ctrl_ff[5:2]          <= hw_max_link_width_cap_i;
+        ucie_link_ctrl_ff[5:2]          <= 4'(hw_max_link_width_cap_i);
 
         ucie_link_ctrl_ff[9:6]          <= hw_max_link_speed_cap_i;
         ucie_link_ctrl_ff[10]         <= 1'b0;
@@ -1007,7 +1007,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         if (cfg_sel) begin
             for (int i=0; i<8; i++) begin
                 if (i < 4 || rf_is_64b_access) begin
-                    rf_rdata[i*8 +: 8] <= ((rf_addr[11:0] + i) <= 35) ? cfg_mem[rf_addr[11:0] + i] : 8'h0;
+                    rf_rdata[i*8 +: 8] <= ((int'(rf_addr[11:0]) + i) <= 35) ? cfg_mem[int'(rf_addr[11:0]) + i] : 8'h0;
                 end else begin
                     rf_rdata[i*8 +: 8] <= 8'h0;
                 end
@@ -1015,7 +1015,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         end else if (phy_mmio_sel) begin
             for (int i=0; i<8; i++) begin
                 if (i < 4 || rf_is_64b_access) begin
-                    rf_rdata[i*8 +: 8] <= ((rf_addr[12:0] - 13'h1000 + i) <= 267) ? mmio_mem[rf_addr[12:0] - 13'h1000 + i] : 8'h0;
+                    rf_rdata[i*8 +: 8] <= ((int'(rf_addr[12:0]) - 32'h1000 + i) <= 267) ? mmio_mem[int'(rf_addr[12:0]) - 32'h1000 + i] : 8'h0;
                 end else begin
                     rf_rdata[i*8 +: 8] <= 8'h0;
                 end

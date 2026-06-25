@@ -509,7 +509,7 @@ module UCIe_PHY_wrapper_tb;
     initial begin
         
         enabled_scenarios[1] = 1'b1;
-       /* enabled_scenarios[2] = 1'b0;
+        enabled_scenarios[2] = 1'b0;
         enabled_scenarios[3] = 1'b1;
         enabled_scenarios[4] = 1'b1;
         enabled_scenarios[5] = 1'b1;
@@ -534,7 +534,7 @@ module UCIe_PHY_wrapper_tb;
         enabled_scenarios[24] = 1'b1;
         enabled_scenarios[25] = 1'b1;
         enabled_scenarios[26] = 1'b1;
-        enabled_scenarios[27] = 1'b1;*/
+        enabled_scenarios[27] = 1'b1;
         enabled_scenarios[28] = 1'b1;
         enabled_scenarios[29] = 1'b1;
         enabled_scenarios[30] = 1'b1;
