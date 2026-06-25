@@ -58,7 +58,6 @@ module UCIe_FPGA_loopback #(
     // ---- Clocks (no PLL; from MMCM/clock-enables on FPGA) ----
     input  wire                             lclk,
     input  wire                             gated_lclk,
-    input  wire                             pll_clk,
     input  wire                             clk_sb,
 
     // ---- MainBand flit data (adapter face) ----
@@ -97,6 +96,29 @@ module UCIe_FPGA_loopback #(
     output wire [2:0]                       pl_lnk_cfg
 );
 
+// =============================================================================
+// MainBand word-clock gating  (lives here, at the FPGA top wrapper)
+//   The stripped analog hard macro produced gated_lclk by gating lclk with the
+//   core's enable o_mb_lclk_g (== rdi_lclk_g from the MainSM, on the ungated
+//   lclk domain). We re-create that gate here:
+//
+//     `ifdef FPGA : unit_clk_gate -> BUFGCE (global, glitch-free). gated_lclk
+//                   is produced on-chip; the gated_lclk INPUT port is ignored.
+//     else        : pass the external gated_lclk through (simulation / ASIC).
+// =============================================================================
+wire mb_lclk_g;          // clock-gate enable out of the digital core
+wire gated_lclk_use;     // word clock actually fed to the core
+
+`ifdef FPGA
+unit_clk_gate u_mb_clk_gate (
+    .CLK_EN   (mb_lclk_g),
+    .CLK      (lclk),
+    .GATED_CLK(gated_lclk_use)
+);
+`else
+assign gated_lclk_use = gated_lclk;
+`endif
+
 digital_ucie_loopback #(
     .DATA_WIDTH_MB  (DATA_WIDTH_MB),
     .DATA_WIDTH_SB  (DATA_WIDTH_SB),
@@ -124,8 +146,8 @@ digital_ucie_loopback #(
 
     // ---- Clocks (no PLL; from MMCM/clock-enables on FPGA) ----
     .lclk                                 (lclk),
-    .gated_lclk                           (gated_lclk),
-    .pll_clk                              (pll_clk),
+    .gated_lclk                           (gated_lclk_use),
+    .pll_clk                              (lclk),
     .clk_sb                               (clk_sb),
 
     // ---- MainBand flit data (adapter face) ----
@@ -161,6 +183,9 @@ digital_ucie_loopback #(
     .pl_state_sts                         (pl_state_sts),
     .pl_max_speedmode                     (pl_max_speedmode),
     .pl_speedmode                         (pl_speedmode),
-    .pl_lnk_cfg                           (pl_lnk_cfg)
+    .pl_lnk_cfg                           (pl_lnk_cfg),
+
+    // ---- MainBand clock-gate enable (drives the top-level clock gate) ----
+    .o_mb_lclk_g                          (mb_lclk_g)
 );
 endmodule

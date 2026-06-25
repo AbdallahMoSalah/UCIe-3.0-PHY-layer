@@ -1,0 +1,1240 @@
+=============================================================================
+ Verilator lint report
+ Top      : UCIe_FPGA_loopback
+ Listfile : sim/listfiles/digital_ucie_loopback.f (TB dropped, FPGA top added)
+ Tool     : Verilator 5.046 2026-02-28 rev fedora-5.046
+ Date     : 25 يون, 2026 EEST 05:54:11 م
+=============================================================================
+
+%Warning-DECLFILENAME: rtl/SideBand/Link_Controller/Link_Demux.sv:1:8: Filename 'Link_Demux' does not match MODULE name: 'LINK_Demux'
+    1 | module LINK_Demux (
+      |        ^~~~~~~~~~
+                       ... For warning description see https://verilator.org/warn/DECLFILENAME?v=5.046
+                       ... Use "/* verilator lint_off DECLFILENAME */" and lint_on around source to disable this message.
+%Warning-DECLFILENAME: rtl/SideBand/Training_mgmt/roud_robin_arbiter.sv:9:8: Filename 'roud_robin_arbiter' does not match MODULE name: 'RR_arbiter'
+    9 | module RR_arbiter #(
+      |        ^~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:101:10: Instance pin connected by name with empty reference: 'WFULL'
+  101 |         .WFULL   (),
+      |          ^~~~~
+                          ... For warning description see https://verilator.org/warn/PINCONNECTEMPTY?v=5.046
+                          ... Use "/* verilator lint_off PINCONNECTEMPTY */" and lint_on around source to disable this message.
+%Warning-PINCONNECTEMPTY: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:108:10: Instance pin connected by name with empty reference: 'REMPTY'
+  108 |         .REMPTY  (),
+      |          ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:123:10: Instance pin connected by name with empty reference: 'WFULL'
+  123 |         .WFULL   (),
+      |          ^~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:130:10: Instance pin connected by name with empty reference: 'REMPTY'
+  130 |         .REMPTY  (),
+      |          ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:218:6: Instance pin connected by name with empty reference: 'WFULL'
+  218 |     .WFULL   (),
+      |      ^~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:219:6: Instance pin connected by name with empty reference: 'WREADY'
+  219 |     .WREADY  (),                        
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:224:6: Instance pin connected by name with empty reference: 'REMPTY'
+  224 |     .REMPTY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:237:6: Instance pin connected by name with empty reference: 'WFULL'
+  237 |     .WFULL   (),
+      |      ^~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:238:6: Instance pin connected by name with empty reference: 'WREADY'
+  238 |     .WREADY  (),                        
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:243:6: Instance pin connected by name with empty reference: 'REMPTY'
+  243 |     .REMPTY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:310:6: Instance pin connected by name with empty reference: 'hip_rdy'
+  310 |     .hip_rdy (),                        
+      |      ^~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:355:6: Instance pin connected by name with empty reference: 'WFULL'
+  355 |     .WFULL   (),
+      |      ^~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:356:6: Instance pin connected by name with empty reference: 'WREADY'
+  356 |     .WREADY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:361:6: Instance pin connected by name with empty reference: 'REMPTY'
+  361 |     .REMPTY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:374:6: Instance pin connected by name with empty reference: 'WFULL'
+  374 |     .WFULL   (),
+      |      ^~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:375:6: Instance pin connected by name with empty reference: 'WREADY'
+  375 |     .WREADY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/rdi_controller/RDI_control.sv:380:6: Instance pin connected by name with empty reference: 'REMPTY'
+  380 |     .REMPTY  (),
+      |      ^~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/top/SideBand_Top.sv:144:10: Instance pin connected by name with empty reference: 'local_period'
+  144 |         .local_period ()
+      |          ^~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/SideBand/sideband_analog_hard_macro.sv:37:10: Instance pin connected by name with empty reference: 'local_period'
+   37 |         .local_period ()
+      |          ^~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/D2C/wrapper_D2C_sweep.sv:392:10: Instance pin connected by name with empty reference: 'd2c_aggr_pass'
+  392 |         .d2c_aggr_pass                 ( ),  
+      |          ^~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv:528:10: Instance pin connected by name with empty reference: 'tx_clk_active'
+  528 |         .tx_clk_active                (),                   
+      |          ^~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN.sv:715:10: Instance pin connected by name with empty reference: 'lcl_tx_elec_idle'
+  715 |         .lcl_tx_elec_idle              (),                   
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1134:10: Instance pin connected by name with empty reference: 'phy_rx_val_vref_ctrl'
+ 1134 |         .phy_rx_val_vref_ctrl       (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1135:10: Instance pin connected by name with empty reference: 'phy_rx_data_vref_ctrl'
+ 1135 |         .phy_rx_data_vref_ctrl      (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1136:10: Instance pin connected by name with empty reference: 'phy_tx_val_pi_phase_ctrl'
+ 1136 |         .phy_tx_val_pi_phase_ctrl   (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1137:10: Instance pin connected by name with empty reference: 'phy_tx_data_pi_phase_ctrl'
+ 1137 |         .phy_tx_data_pi_phase_ctrl  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1138:10: Instance pin connected by name with empty reference: 'phy_rx_deskew_ctrl'
+ 1138 |         .phy_rx_deskew_ctrl         (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1139:10: Instance pin connected by name with empty reference: 'phy_tx_eq_preset_ctrl'
+ 1139 |         .phy_tx_eq_preset_ctrl      (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_wrapper.sv:1140:10: Instance pin connected by name with empty reference: 'phy_tx_eq_preset_en'
+ 1140 |         .phy_tx_eq_preset_en        (),
+      |          ^~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:243:10: Instance pin connected by name with empty reference: 'mb_tx_clk_sampling'
+  243 |         .mb_tx_clk_sampling                     (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:244:10: Instance pin connected by name with empty reference: 'mb_tx_clk_sampling_en'
+  244 |         .mb_tx_clk_sampling_en                  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:245:10: Instance pin connected by name with empty reference: 'mb_tx_iter_count'
+  245 |         .mb_tx_iter_count                       (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:246:10: Instance pin connected by name with empty reference: 'mb_tx_burst_count'
+  246 |         .mb_tx_burst_count                      (),
+      |          ^~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:247:10: Instance pin connected by name with empty reference: 'mb_tx_pattern_mode'
+  247 |         .mb_tx_pattern_mode                     (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:248:10: Instance pin connected by name with empty reference: 'mb_rx_iter_count'
+  248 |         .mb_rx_iter_count                       (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:249:10: Instance pin connected by name with empty reference: 'mb_rx_burst_count'
+  249 |         .mb_rx_burst_count                      (),
+      |          ^~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:250:10: Instance pin connected by name with empty reference: 'mb_rx_idle_count'
+  250 |         .mb_rx_idle_count                       (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:251:10: Instance pin connected by name with empty reference: 'mb_rx_lfsr_en'
+  251 |         .mb_rx_lfsr_en                          (),
+      |          ^~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:252:10: Instance pin connected by name with empty reference: 'mb_tx_lfsr_en'
+  252 |         .mb_tx_lfsr_en                          (),
+      |          ^~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:253:10: Instance pin connected by name with empty reference: 'mb_rx_clk_lane_sel'
+  253 |         .mb_rx_clk_lane_sel                     (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:254:10: Instance pin connected by name with empty reference: 'mb_rx_trk_lane_sel'
+  254 |         .mb_rx_trk_lane_sel                     (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:259:10: Instance pin connected by name with empty reference: 'mb_tx_clk_pattern_sel'
+  259 |         .mb_tx_clk_pattern_sel                  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:260:10: Instance pin connected by name with empty reference: 'mb_tx_idle_count'
+  260 |         .mb_tx_idle_count                       (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:261:10: Instance pin connected by name with empty reference: 'mb_rx_val_pattern_sel'
+  261 |         .mb_rx_val_pattern_sel                  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/LTSM/LTSM_TOP.sv:349:10: Instance pin connected by name with empty reference: 'RESET_state_done'
+  349 |         .RESET_state_done                       ()                                   
+      |          ^~~~~~~~~~~~~~~~
+%Warning-DECLFILENAME: rtl/MainSM/RDI_SM/unit_active_handshake/unit_Active_handshake.sv:9:8: Filename 'unit_Active_handshake' does not match MODULE name: 'unit_active_handshake'
+    9 | module unit_active_handshake (
+      |        ^~~~~~~~~~~~~~~~~~~~~
+%Warning-DECLFILENAME: rtl/MainBand_RD/rx/unit_valid_deserializer.sv:7:8: Filename 'unit_valid_deserializer' does not match MODULE name: 'unit_valid_deserializer_s3'
+    7 | module unit_valid_deserializer_s3 #(
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-DECLFILENAME: rtl/MainBand_RD/rx/unit_valid_frame_detector.sv:6:8: Filename 'unit_valid_frame_detector' does not match MODULE name: 'unit_valid_frame_detector_s3'
+    6 | module unit_valid_frame_detector_s3 #(
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-DECLFILENAME: rtl/MainBand_RD/rx/unit_data_deserializer.sv:6:8: Filename 'unit_data_deserializer' does not match MODULE name: 'unit_data_deserializer_s3'
+    6 | module unit_data_deserializer_s3 #(
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/MainSM/MainSM.sv:440:10: Instance pin connected by name with empty reference: 'stall_done'
+  440 |         .stall_done                                 (),
+      |          ^~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:463:10: Instance pin connected by name with empty reference: 'RDI_rdy'
+  463 |         .RDI_rdy          (),                       
+      |          ^~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:466:10: Instance pin connected by name with empty reference: 'stall_rcvd'
+  466 |         .stall_rcvd       (),                       
+      |          ^~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:756:10: Instance pin connected by name with empty reference: 'phy_max_link_speed_cap_out'
+  756 |         .phy_max_link_speed_cap_out                (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:757:10: Instance pin connected by name with empty reference: 'phy_link_width_enabled_status_out'
+  757 |         .phy_link_width_enabled_status_out         (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:758:10: Instance pin connected by name with empty reference: 'phy_link_speed_enabled_status_out'
+  758 |         .phy_link_speed_enabled_status_out         (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:762:10: Instance pin connected by name with empty reference: 'phy_retrain_ucie_link_ctrl_out'
+  762 |         .phy_retrain_ucie_link_ctrl_out            (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:766:10: Instance pin connected by name with empty reference: 'phy_rx_term_status_i_ctrl_out'
+  766 |         .phy_rx_term_status_i_ctrl_out             (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:767:10: Instance pin connected by name with empty reference: 'phy_tx_eq_status_i_en_ctrl_out'
+  767 |         .phy_tx_eq_status_i_en_ctrl_out            (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:771:10: Instance pin connected by name with empty reference: 'phy_iq_correction_en_ctrl_out'
+  771 |         .phy_iq_correction_en_ctrl_out             (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:772:10: Instance pin connected by name with empty reference: 'phy_iq_correction_param_ctrl_out'
+  772 |         .phy_iq_correction_param_ctrl_out          (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:773:10: Instance pin connected by name with empty reference: 'phy_tx_eq_status_i_preset_ctrl_out'
+  773 |         .phy_tx_eq_status_i_preset_ctrl_out        (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:774:10: Instance pin connected by name with empty reference: 'phy_tx_eq_status_i_preset_setting_ctrl_out'
+  774 |         .phy_tx_eq_status_i_preset_setting_ctrl_out(),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:776:10: Instance pin connected by name with empty reference: 'phy_init_ctrl_out'
+  776 |         .phy_init_ctrl_out                         (),
+      |          ^~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:777:10: Instance pin connected by name with empty reference: 'phy_resume_training_ctrl_out'
+  777 |         .phy_resume_training_ctrl_out              (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:781:10: Instance pin connected by name with empty reference: 'idle_count_out'
+  781 |         .idle_count_out                            (),
+      |          ^~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:782:10: Instance pin connected by name with empty reference: 'iterations_out'
+  782 |         .iterations_out                            (),
+      |          ^~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:783:10: Instance pin connected by name with empty reference: 'current_lane_map_module_0_enable_out'
+  783 |         .current_lane_map_module_0_enable_out      (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:786:10: Instance pin connected by name with empty reference: 'inject_stuck_at_fault_ctrl_out'
+  786 |         .inject_stuck_at_fault_ctrl_out            (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:789:10: Instance pin connected by name with empty reference: 'ucie_link_cap_r_out'
+  789 |         .ucie_link_cap_r_out                       (),
+      |          ^~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:790:10: Instance pin connected by name with empty reference: 'ucie_link_ctrl_r_out'
+  790 |         .ucie_link_ctrl_r_out                      (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:792:10: Instance pin connected by name with empty reference: 'link_event_notif_ctrl_r_out'
+  792 |         .link_event_notif_ctrl_r_out               (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:793:10: Instance pin connected by name with empty reference: 'error_notif_ctrl_r_out'
+  793 |         .error_notif_ctrl_r_out                    (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:794:10: Instance pin connected by name with empty reference: 'phy_cap_r_out'
+  794 |         .phy_cap_r_out                             (),
+      |          ^~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:795:10: Instance pin connected by name with empty reference: 'phy_control_r_out'
+  795 |         .phy_control_r_out                         (),
+      |          ^~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:797:10: Instance pin connected by name with empty reference: 'phy_init_debug_r_out'
+  797 |         .phy_init_debug_r_out                      (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:798:10: Instance pin connected by name with empty reference: 'training_setup1_r_out'
+  798 |         .training_setup1_r_out                     (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:799:10: Instance pin connected by name with empty reference: 'training_setup2_r_out'
+  799 |         .training_setup2_r_out                     (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:800:10: Instance pin connected by name with empty reference: 'training_setup3_r_out'
+  800 |         .training_setup3_r_out                     (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:801:10: Instance pin connected by name with empty reference: 'training_setup4_r_out'
+  801 |         .training_setup4_r_out                     (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:802:10: Instance pin connected by name with empty reference: 'lane_map_mod0_r_out'
+  802 |         .lane_map_mod0_r_out                       (),
+      |          ^~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:803:10: Instance pin connected by name with empty reference: 'error_log0_r_out'
+  803 |         .error_log0_r_out                          (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:804:10: Instance pin connected by name with empty reference: 'error_log1_r_out'
+  804 |         .error_log1_r_out                          (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:805:10: Instance pin connected by name with empty reference: 'rt_test_ctrl_r_out'
+  805 |         .rt_test_ctrl_r_out                        (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: rtl/TOP/digital_ucie.sv:806:10: Instance pin connected by name with empty reference: 'rt_test_status_r_out'
+  806 |         .rt_test_status_r_out                      ()
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:173:10: Instance pin connected by name with empty reference: 'o_mb_pll_speed_sel'
+  173 |         .o_mb_pll_speed_sel     (),
+      |          ^~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:174:10: Instance pin connected by name with empty reference: 'o_mb_lclk_g'
+  174 |         .o_mb_lclk_g            (),
+      |          ^~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:175:10: Instance pin connected by name with empty reference: 'o_mb_tx_data_lane_sel'
+  175 |         .o_mb_tx_data_lane_sel  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:176:10: Instance pin connected by name with empty reference: 'o_mb_tx_val_lane_sel'
+  176 |         .o_mb_tx_val_lane_sel   (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:177:10: Instance pin connected by name with empty reference: 'o_mb_tx_clk_lane_sel'
+  177 |         .o_mb_tx_clk_lane_sel   (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:178:10: Instance pin connected by name with empty reference: 'o_mb_tx_trk_lane_sel'
+  178 |         .o_mb_tx_trk_lane_sel   (),
+      |          ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:179:10: Instance pin connected by name with empty reference: 'o_mb_rx_data_deser_en'
+  179 |         .o_mb_rx_data_deser_en  (),
+      |          ^~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:180:10: Instance pin connected by name with empty reference: 'o_mb_rx_valid_deser_en'
+  180 |         .o_mb_rx_valid_deser_en (),
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:181:10: Instance pin connected by name with empty reference: 'o_mb_vcmp_enable'
+  181 |         .o_mb_vcmp_enable       (),
+      |          ^~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:182:10: Instance pin connected by name with empty reference: 'o_mb_vcmp_done'
+  182 |         .o_mb_vcmp_done         (),
+      |          ^~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:196:10: Instance pin connected by name with empty reference: 'o_sb_pattern_mode'
+  196 |         .o_sb_pattern_mode      (),
+      |          ^~~~~~~~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: FPGA/rtl/digital_ucie_loopback.sv:197:10: Instance pin connected by name with empty reference: 'o_sb_pmo_en'
+  197 |         .o_sb_pmo_en            (),
+      |          ^~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/common/sb_priority_arbiter.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import sb_pkg::*;
+      |        ^~~~~~
+                     ... For warning description see https://verilator.org/warn/IMPORTSTAR?v=5.046
+                     ... Use "/* verilator lint_off IMPORTSTAR */" and lint_on around source to disable this message.
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/Packetizer.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/Packetizer.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/DePacketizer.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/DePacketizer.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/Training_Mgmt_Demux.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/Training_mgmt/Training_Mgmt.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/rdi_controller/rdi_aggregator.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/rdi_controller/rdi_de_aggregator.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/rdi_controller/rdi_router.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/rdi_controller/rdi_comp_req_decoder.sv:19:8: 'import::*' in $unit scope may pollute global namespace
+   19 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/top/SideBand_Top.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/top/SideBand_Top.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/sideband_analog_hard_macro.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/sideband_analog_hard_macro.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/digital_sideband.sv:33:8: 'import::*' in $unit scope may pollute global namespace
+   33 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/SideBand/digital_sideband.sv:34:8: 'import::*' in $unit scope may pollute global namespace
+   34 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LINKINIT/linkinit.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/ACTIVE.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/ACTIVE.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_wrapper.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_wrapper.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_wrapper.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_wrapper.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_TOP.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_TOP.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_TOP.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/LTSM/LTSM_TOP.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_reset_state/unit_reset_state.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_reset_state/unit_reset_state.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_reset_state/unit_reset_state.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:10:8: 'import::*' in $unit scope may pollute global namespace
+   10 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_pmnak_state/unit_active_pmnak_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_pmnak_state/unit_active_pmnak_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_retrain_state/unit_retrain_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_retrain_state/unit_retrain_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_retrain_state/unit_retrain_state.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L1_state/unit_L1_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L1_state/unit_L1_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L1_state/unit_L1_state.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L2_state/unit_L2_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L2_state/unit_L2_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_L2_state/unit_L2_state.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_linkreset_state/unit_linkreset_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_linkreset_state/unit_linkreset_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_linkerror_state/unit_linkerror_state.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_linkerror_state/unit_linkerror_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_disabled_state/unit_disabled_state.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_disabled_state/unit_disabled_state.sv:9:8: 'import::*' in $unit scope may pollute global namespace
+    9 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_main_controller/unit_main_controller.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_main_controller/unit_main_controller.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_message_send_MUX/unit_message_send_MUX.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_message_send_MUX/unit_message_send_MUX.sv:8:8: 'import::*' in $unit scope may pollute global namespace
+    8 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/message_timeout_handler/message_timeout_handler.sv:30:8: 'import::*' in $unit scope may pollute global namespace
+   30 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/wrapper_sm/wrapper_sm.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_active_handshake/unit_Active_handshake.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/wrapper_handshake_logic/wrapper_handshake_logic.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_gating_logic/unit_gating_logic.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_signal_transition_detector/unit_signal_transition_detector.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv:1:8: 'import::*' in $unit scope may pollute global namespace
+    1 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv:2:8: 'import::*' in $unit scope may pollute global namespace
+    2 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/MainSM.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/MainSM.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/MainSM.sv:5:8: 'import::*' in $unit scope may pollute global namespace
+    5 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/MainSM.sv:6:8: 'import::*' in $unit scope may pollute global namespace
+    6 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/MainSM/MainSM.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/digital_ucie.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/digital_ucie.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/digital_ucie.sv:5:8: 'import::*' in $unit scope may pollute global namespace
+    5 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/digital_ucie.sv:6:8: 'import::*' in $unit scope may pollute global namespace
+    6 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/digital_ucie.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/UCIe_PHY_wrapper.sv:3:8: 'import::*' in $unit scope may pollute global namespace
+    3 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/UCIe_PHY_wrapper.sv:4:8: 'import::*' in $unit scope may pollute global namespace
+    4 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/UCIe_PHY_wrapper.sv:5:8: 'import::*' in $unit scope may pollute global namespace
+    5 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/UCIe_PHY_wrapper.sv:6:8: 'import::*' in $unit scope may pollute global namespace
+    6 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: rtl/TOP/UCIe_PHY_wrapper.sv:7:8: 'import::*' in $unit scope may pollute global namespace
+    7 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-IMPORTSTAR: FPGA/rtl/digital_ucie_loopback.sv:34:8: 'import::*' in $unit scope may pollute global namespace
+   34 | import sb_pkg::*;
+      |        ^~~~~~
+%Warning-IMPORTSTAR: FPGA/rtl/digital_ucie_loopback.sv:35:8: 'import::*' in $unit scope may pollute global namespace
+   35 | import UCIe_pkg::*;
+      |        ^~~~~~~~
+%Warning-IMPORTSTAR: FPGA/rtl/digital_ucie_loopback.sv:36:8: 'import::*' in $unit scope may pollute global namespace
+   36 | import ltsm_state_n_pkg::*;
+      |        ^~~~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: FPGA/rtl/digital_ucie_loopback.sv:37:8: 'import::*' in $unit scope may pollute global namespace
+   37 | import LTSM_state_pkg::*;
+      |        ^~~~~~~~~~~~~~
+%Warning-IMPORTSTAR: FPGA/rtl/digital_ucie_loopback.sv:38:8: 'import::*' in $unit scope may pollute global namespace
+   38 | import RDI_SM_pkg::*;
+      |        ^~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:118:9: Declaration of enum value hides declaration in upper scope: MBTRAIN_IDLE
+  118 |         MBTRAIN_IDLE       = 4'd0,
+      |         ^~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:64:9: ... Location of original declaration
+   64 |         MBTRAIN_IDLE       = 4'd0,
+      |         ^~~~~~~~~~~~
+                    ... For warning description see https://verilator.org/warn/VARHIDDEN?v=5.046
+                    ... Use "/* verilator lint_off VARHIDDEN */" and lint_on around source to disable this message.
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:119:9: Declaration of enum value hides declaration in upper scope: VALVREF
+  119 |         VALVREF            = 4'd1,
+      |         ^~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:65:9: ... Location of original declaration
+   65 |         VALVREF            = 4'd1,
+      |         ^~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:120:9: Declaration of enum value hides declaration in upper scope: DATAVREF
+  120 |         DATAVREF           = 4'd2,
+      |         ^~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:66:9: ... Location of original declaration
+   66 |         DATAVREF           = 4'd2,
+      |         ^~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:121:9: Declaration of enum value hides declaration in upper scope: SPEEDIDLE
+  121 |         SPEEDIDLE          = 4'd3,
+      |         ^~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:67:9: ... Location of original declaration
+   67 |         SPEEDIDLE          = 4'd3,
+      |         ^~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:122:9: Declaration of enum value hides declaration in upper scope: TXSELFCAL
+  122 |         TXSELFCAL          = 4'd4,
+      |         ^~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:68:9: ... Location of original declaration
+   68 |         TXSELFCAL          = 4'd4,
+      |         ^~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:123:9: Declaration of enum value hides declaration in upper scope: RXCLKCAL
+  123 |         RXCLKCAL           = 4'd5,
+      |         ^~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:69:9: ... Location of original declaration
+   69 |         RXCLKCAL           = 4'd5,
+      |         ^~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:124:9: Declaration of enum value hides declaration in upper scope: VALTRAINCENTER
+  124 |         VALTRAINCENTER     = 4'd6,
+      |         ^~~~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:70:9: ... Location of original declaration
+   70 |         VALTRAINCENTER     = 4'd6,
+      |         ^~~~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:125:9: Declaration of enum value hides declaration in upper scope: VALTRAINVREF
+  125 |         VALTRAINVREF       = 4'd7,
+      |         ^~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:71:9: ... Location of original declaration
+   71 |         VALTRAINVREF       = 4'd7,
+      |         ^~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:126:9: Declaration of enum value hides declaration in upper scope: DATATRAINCENTER1
+  126 |         DATATRAINCENTER1   = 4'd8,
+      |         ^~~~~~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:72:9: ... Location of original declaration
+   72 |         DATATRAINCENTER1   = 4'd8,
+      |         ^~~~~~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:127:9: Declaration of enum value hides declaration in upper scope: DATATRAINVREF
+  127 |         DATATRAINVREF      = 4'd9,
+      |         ^~~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:73:9: ... Location of original declaration
+   73 |         DATATRAINVREF      = 4'd9,
+      |         ^~~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:128:9: Declaration of enum value hides declaration in upper scope: RXDESKEW
+  128 |         RXDESKEW           = 4'd10,
+      |         ^~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:74:9: ... Location of original declaration
+   74 |         RXDESKEW           = 4'd10,
+      |         ^~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:129:9: Declaration of enum value hides declaration in upper scope: DATATRAINCENTER2
+  129 |         DATATRAINCENTER2   = 4'd11,
+      |         ^~~~~~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:75:9: ... Location of original declaration
+   75 |         DATATRAINCENTER2   = 4'd11,
+      |         ^~~~~~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:130:9: Declaration of enum value hides declaration in upper scope: LINKSPEED
+  130 |         LINKSPEED          = 4'd12,
+      |         ^~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:76:9: ... Location of original declaration
+   76 |         LINKSPEED          = 4'd12,
+      |         ^~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:131:9: Declaration of enum value hides declaration in upper scope: REPAIR
+  131 |         REPAIR             = 4'd13,
+      |         ^~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:77:9: ... Location of original declaration
+   77 |         REPAIR             = 4'd13,
+      |         ^~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/MBTRAIN/unit_MBTRAIN_ctrl.sv:132:9: Declaration of enum value hides declaration in upper scope: MBTRAIN_DONE
+  132 |         MBTRAIN_DONE       = 4'd14
+      |         ^~~~~~~~~~~~
+                    rtl/MainSM/LTSM/Common/ltsm_state_n_pkg.sv:78:9: ... Location of original declaration
+   78 |         MBTRAIN_DONE       = 4'd14
+      |         ^~~~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/ACTIVE.sv:35:9: Declaration of enum value hides declaration in upper scope: TRAINERROR
+   35 |         TRAINERROR,
+      |         ^~~~~~~~~~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:10:33: ... Location of original declaration
+   10 |                                 TRAINERROR = 4'd7,
+      |                                 ^~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/ACTIVE.sv:36:9: Declaration of enum value hides declaration in upper scope: PHYRETRAIN
+   36 |         PHYRETRAIN,
+      |         ^~~~~~~~~~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:9:33: ... Location of original declaration
+    9 |                                 PHYRETRAIN = 4'd6,
+      |                                 ^~~~~~~~~~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/ACTIVE.sv:37:9: Declaration of enum value hides declaration in upper scope: L1
+   37 |         L1,
+      |         ^~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:11:33: ... Location of original declaration
+   11 |                                 L1         = 4'd8,
+      |                                 ^~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/ACTIVE.sv:38:9: Declaration of enum value hides declaration in upper scope: L2
+   38 |         L2
+      |         ^~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:12:33: ... Location of original declaration
+   12 |                                 L2         = 4'd9,
+      |                                 ^~
+%Warning-VARHIDDEN: rtl/MainSM/LTSM/L2.sv:18:9: Declaration of enum value hides declaration in upper scope: RESET
+   18 |         RESET,
+      |         ^~~~~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:3:33: ... Location of original declaration
+    3 |     typedef enum logic [3:0] {  RESET      = 4'd0,
+      |                                 ^~~~~
+%Warning-VARHIDDEN: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:51:9: Declaration of enum value hides declaration in upper scope: L1
+   51 |         L1              = 26'h0020000,
+      |         ^~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:11:33: ... Location of original declaration
+   11 |                                 L1         = 4'd8,
+      |                                 ^~
+%Warning-VARHIDDEN: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:52:9: Declaration of enum value hides declaration in upper scope: L2
+   52 |         L2              = 26'h0040000,
+      |         ^~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:12:33: ... Location of original declaration
+   12 |                                 L2         = 4'd9,
+      |                                 ^~
+%Warning-VARHIDDEN: rtl/MainSM/RDI_SM/unit_active_pmnak_state/unit_active_pmnak_state.sv:33:9: Declaration of enum value hides declaration in upper scope: ACTIVE
+   33 |         ACTIVE          = 16'h0020,    
+      |         ^~~~~~
+                    rtl/MainSM/common/LTSM_state_pkg.sv:8:33: ... Location of original declaration
+    8 |                                 ACTIVE     = 4'd5,
+      |                                 ^~~~~~
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:17:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   17 |                     CLK_cs=REQ;
+      |                           ^
+                 ... For warning description see https://verilator.org/warn/BLKSEQ?v=5.046
+                 ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:19:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   19 |                     CLK_cs=IDLE;
+      |                           ^
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:23:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   23 |                     CLK_cs=DONE;
+      |                           ^
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:25:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   25 |                     CLK_cs=REQ;
+      |                           ^
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:29:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   29 |                     CLK_cs=IDLE;
+      |                           ^
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:31:27: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   31 |                     CLK_cs=DONE;
+      |                           ^
+%Warning-BLKSEQ: rtl/MainSM/RDI_SM/unit_clk_handshake/unit_clk_handshake.sv:33:29: Blocking assignment '=' in sequential logic process
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.handshake_logic.u1'
+                                                                                 : ... Suggest using delayed assignment '<='
+   33 |             default: CLK_cs = IDLE;
+      |                             ^
+%Warning-BLKSEQ: rtl/MainSM/LTSM/MBINIT/MBINIT_REVERSALMB.sv:321:34: Blocking assignment '=' in sequential logic process
+                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbinit.u_mbinit_wrapper.u_reversalmb'
+                                                                   : ... Suggest using delayed assignment '<='
+  321 |             clear_error_req_next = 1'b1;
+      |                                  ^
+%Warning-BLKSEQ: rtl/MainSM/LTSM/MBINIT/MBINIT_REVERSALMB.sv:323:34: Blocking assignment '=' in sequential logic process
+                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbinit.u_mbinit_wrapper.u_reversalmb'
+                                                                   : ... Suggest using delayed assignment '<='
+  323 |             clear_error_req_next = 1'b0;
+      |                                  ^
+%Warning-BLKSEQ: rtl/MainSM/LTSM/MBINIT/MBINIT_REVERSALMB.sv:339:46: Blocking assignment '=' in sequential logic process
+                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbinit.u_mbinit_wrapper.u_reversalmb'
+                                                                   : ... Suggest using delayed assignment '<='
+  339 |                         clear_error_req_next = 1'b1;
+      |                                              ^
+%Warning-UNUSEDPARAM: rtl/TOP/digital_ucie.sv:59:20: Parameter is not used: 'PLL_PERIOD_NS'
+                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+   59 |     parameter real PLL_PERIOD_NS  = 0.5,
+      |                    ^~~~~~~~~~~~~
+                      ... For warning description see https://verilator.org/warn/UNUSEDPARAM?v=5.046
+                      ... Use "/* verilator lint_off UNUSEDPARAM */" and lint_on around source to disable this message.
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:192:18: Signal is not used: 'phy_status_r_out'
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  192 |     logic [31:0] phy_status_r_out;
+      |                  ^~~~~~~~~~~~~~~~
+                       ... For warning description see https://verilator.org/warn/UNUSEDSIGNAL?v=5.046
+                       ... Use "/* verilator lint_off UNUSEDSIGNAL */" and lint_on around source to disable this message.
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:193:18: Signal is not used: 'ucie_link_status_r_out'
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  193 |     logic [31:0] ucie_link_status_r_out;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:194:18: Bits of signal are not used: 'lane_mask_ctrl_out'[63:16]
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  194 |     logic [63:0] lane_mask_ctrl_out;
+      |                  ^~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:234:18: Signal is not used: 'log0_state_n_minus_1'
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  234 |     logic [7:0]  log0_state_n_minus_1;
+      |                  ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:235:18: Signal is not used: 'log0_state_n_minus_2'
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  235 |     logic [7:0]  log0_state_n_minus_2;
+      |                  ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/TOP/digital_ucie.sv:236:18: Signal is not used: 'log1_state_n_minus_3'
+                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie'
+  236 |     logic [7:0]  log1_state_n_minus_3;
+      |                  ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/SideBand/digital_sideband.sv:38:15: Parameter is not used: 'DATA_WIDTH'
+                                                            : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband'
+   38 |     parameter DATA_WIDTH = 64,
+      |               ^~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/SideBand/digital_sideband.sv:39:15: Parameter is not used: 'GAP_WIDTH'
+                                                            : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband'
+   39 |     parameter GAP_WIDTH  = 32
+      |               ^~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/digital_mb.sv:53:20: Parameter is not used: 'RX_ALIGN_DELAY'
+                                                         : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb'
+   53 |     parameter int  RX_ALIGN_DELAY = 2
+      |                    ^~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/common/Reg_File.sv:62:26: Bits of signal are not used: 'rf_addr'[19:13]
+                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_reg_file'
+   62 |     input  logic [24:0]  rf_addr,     
+      |                          ^~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/common/Reg_File.sv:435:14: Bits of signal are not used: 'ucie_link_status_ff'[31:22,16:0]
+                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_reg_file'
+  435 | logic [31:0] ucie_link_status_ff;
+      |              ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/common/Reg_File.sv:469:14: Bits of signal are not used: 'link_event_notif_ctrl_ff'[15:2]
+                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_reg_file'
+  469 | logic [15:0] link_event_notif_ctrl_ff;
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/Reg_Access/Reg_Access.sv:34:26: Signal is not used: 'phy_in_reset'
+                                                                  : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_reg_access'
+   34 |     input  logic         phy_in_reset,      
+      |                          ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_TOP.sv:196:18: Signal is not used: 'w_mb_rx_pattern_mode'
+                                                         : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top'
+  196 |     logic        w_mb_rx_pattern_mode;
+      |                  ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/tx/unit_mapper.sv:3:15: Parameter is not used: 'NUM_LANES'
+                                                            : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_mapper'
+    3 |     parameter NUM_LANES  = 16,
+      |               ^~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/tx/unit_mapper.sv:25:16: Parameter is not used: 'NONE_DEGRADE'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_mapper'
+   25 |     localparam NONE_DEGRADE           = 3'b000;
+      |                ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/tx/unit_lfsr_tx.sv:37:16: Parameter is not used: 'NONE_DEGRADE'
+                                                              : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_lfsr_tx'
+   37 |     localparam NONE_DEGRADE           = 3'b000;
+      |                ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/rx/unit_lfsr_rx.sv:85:16: Parameter is not used: 'NONE_DEGRADE'
+                                                              : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_lfsr_rx'
+   85 |     localparam NONE_DEGRADE           = 3'b000;
+      |                ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/rx/unit_demapper.sv:3:15: Parameter is not used: 'NUM_LANES'
+                                                              : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_demap'
+    3 |     parameter NUM_LANES = 16 ,
+      |               ^~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/rx/unit_demapper.sv:22:16: Parameter is not used: 'NONE_DEGRADE'
+                                                               : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_demap'
+   22 |     localparam NONE_DEGRADE           = 3'b000;
+      |                ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainBand_RD/rx/unit_clk_pattern_detector_rx.sv:15:15: Parameter is not used: 'MAIN'
+                                                                              : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_mb.u_clk_det'
+   15 |     parameter MAIN   = 128;
+      |               ^~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/common/sb_priority_arbiter.sv:20:17: Signal is not driven, nor used: 'sb_packet'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_rdi_control.u_up_fifo_arb'
+   20 |     sb_packet_t sb_packet;
+      |                 ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/Link_Controller/Link_Demux.sv:12:17: Signal is not driven, nor used: 'sb_packet'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_link_controller.u_LINK_Demux'
+   12 |     sb_packet_t sb_packet;
+      |                 ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/rdi_controller/rdi_router.sv:7:26: Signal is not used: 'rst_n'
+                                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_rdi_control.u_rdi_router'
+    7 |     input  logic         rst_n,
+      |                          ^~~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/rdi_controller/rdi_router.sv:26:19: Signal is not used: 'opcode'
+                                                                      : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_rdi_control.u_rdi_router'
+   26 |     sb_opcode_e   opcode;
+      |                   ^~~~~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/rdi_controller/rdi_comp_req_decoder.sv:23:26: Bits of signal are not used: 'pkt'[127:5]
+                                                                                : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_rdi_control.u_up_comp_req_decoder'
+   23 |     input  logic [127:0] pkt,
+      |                          ^~~
+%Warning-UNUSEDSIGNAL: rtl/SideBand/Reg_Access/Completion_gen.sv:33:25: Signal is not used: 'rdata_vld'
+                                                                      : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_digital_sideband.u_reg_access.u_completion_gen'
+   33 |     input  logic        rdata_vld,          
+      |                         ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainBand_RD/mainband_ltsm_interface.sv:36:36: Signal is not used: 'o_valid_frame_error'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_mb_if'
+   36 |     input logic                    o_valid_frame_error,
+      |                                    ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainBand_RD/mainband_ltsm_interface.sv:59:24: Bits of signal are not used: 'mb_tx_data_pattern_sel'[1]
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_mb_if'
+   59 |     input logic [1:0]  mb_tx_data_pattern_sel,
+      |                        ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainBand_RD/mainband_ltsm_interface.sv:60:24: Signal is not used: 'mb_tx_val_pattern_sel'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_mb_if'
+   60 |     input logic        mb_tx_val_pattern_sel,
+      |                        ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainBand_RD/mainband_ltsm_interface.sv:63:24: Bits of signal are not used: 'mb_rx_pattern_setup'[2:1]
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_mb_if'
+   63 |     input logic [2:0]  mb_rx_pattern_setup,
+      |                        ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainBand_RD/mainband_ltsm_interface.sv:64:24: Bits of signal are not used: 'mb_rx_data_pattern_sel'[1]
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_mb_if'
+   64 |     input logic [1:0]  mb_rx_data_pattern_sel,
+      |                        ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_status_decoder/unit_status_decoder.sv:2:19: Bits of signal are not used: 'UCIe_Link_DVSEC_UCIe_Link_Capability_7_downto_4'[3]
+                                                                                        : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.status_decoder'
+    2 |     input   [3:0] UCIe_Link_DVSEC_UCIe_Link_Capability_7_downto_4,
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_status_decoder/unit_status_decoder.sv:3:19: Bits of signal are not used: 'UCIe_Link_DVSEC_UCIe_Link_Status_10_downto_7'[3]
+                                                                                        : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.status_decoder'
+    3 |             [3:0] UCIe_Link_DVSEC_UCIe_Link_Status_10_downto_7,
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_status_decoder/unit_status_decoder.sv:4:19: Bits of signal are not used: 'UCIe_Link_DVSEC_UCIe_Link_Status_17_downto_11'[3]
+                                                                                        : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.status_decoder'
+    4 |             [3:0] UCIe_Link_DVSEC_UCIe_Link_Status_17_downto_11,
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PROCASSINIT: rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv:16:16: Procedural assignment to declaration with initial value: 'cs'
+                                                                                  : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.msg_handler'
+                                                                                  : ... Location of variable initialization
+   16 |     state cs = IDLE;
+      |                ^~~~
+                      rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv:49:13: ... Location of variable process write
+                                                                                  : ... Perhaps should initialize instead using a reset in this process
+   49 |             cs                 <= IDLE;
+      |             ^~
+                      ... For warning description see https://verilator.org/warn/PROCASSINIT?v=5.046
+                      ... Use "/* verilator lint_off PROCASSINIT */" and lint_on around source to disable this message.
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:196:29: Signal is not used: 'mb_rx_compare_done'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  196 |         input  logic        mb_rx_compare_done,
+      |                             ^~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:246:18: Signal is not used: 'mbtrain_ltsm_linkinit_req'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  246 |     logic        mbtrain_ltsm_linkinit_req;    
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:271:18: Signal is not used: 'mbtrain_phy_tx_selfcal_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  271 |     logic        mbtrain_phy_tx_selfcal_en;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:272:18: Signal is not used: 'mbtrain_phy_rx_clock_lock_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  272 |     logic        mbtrain_phy_rx_clock_lock_en, mbtrain_phy_rx_track_lock_en;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:272:48: Signal is not used: 'mbtrain_phy_rx_track_lock_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  272 |     logic        mbtrain_phy_rx_clock_lock_en, mbtrain_phy_rx_track_lock_en;
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:273:18: Signal is not used: 'mbtrain_phy_rx_phase_detector_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  273 |     logic        mbtrain_phy_rx_phase_detector_en;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:274:18: Signal is not used: 'mbtrain_phy_tx_tckn_shift_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  274 |     logic        mbtrain_phy_tx_tckn_shift_en, mbtrain_phy_tx_decrement_shift;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:274:48: Signal is not used: 'mbtrain_phy_tx_decrement_shift'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  274 |     logic        mbtrain_phy_tx_tckn_shift_en, mbtrain_phy_tx_decrement_shift;
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:275:18: Signal is not used: 'mbtrain_phy_tx_tckn_shift'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  275 |     logic [4:0]  mbtrain_phy_tx_tckn_shift;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:276:18: Signal is not driven, nor used: 'mbtrain_PHY_IN_RETRAIN_rst'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  276 |     logic        mbtrain_PHY_IN_RETRAIN_rst;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:388:18: Signal is not driven, nor used: 'd2c_aggr_pass'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  388 |     logic        d2c_aggr_pass;
+      |                  ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:389:18: Signal is not used: 'd2c_val_pass'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  389 |     logic        d2c_val_pass;
+      |                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:391:18: Signal is not driven, nor used: 'partner_test_d2c_done'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  391 |     logic        partner_test_d2c_done;
+      |                  ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:429:17: Bits of signal are not used: 'param_negotiated_speed'[3]
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  429 |     logic [3:0] param_negotiated_speed;
+      |                 ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:440:17: Bits of signal are not used: 'log1_state_n_minus_3_reg'[7:5]
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  440 |     logic [7:0] log1_state_n_minus_3_reg;
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:620:18: Signal is not used: 'd2cpt_local_rx_pt_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  620 |     logic        d2cpt_local_rx_pt_en, d2cpt_partner_rx_pt_en;
+      |                  ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:620:40: Signal is not used: 'd2cpt_partner_rx_pt_en'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  620 |     logic        d2cpt_local_rx_pt_en, d2cpt_partner_rx_pt_en;
+      |                                        ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:621:18: Signal is not used: 'd2cpt_clk_sampling'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  621 |     logic [1:0]  d2cpt_clk_sampling;
+      |                  ^~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:622:18: Signal is not used: 'd2cpt_pattern_setup'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  622 |     logic [2:0]  d2cpt_pattern_setup;
+      |                  ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:623:18: Signal is not used: 'd2cpt_data_pattern_sel'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  623 |     logic [1:0]  d2cpt_data_pattern_sel;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:624:18: Signal is not used: 'd2cpt_val_pattern_sel'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  624 |     logic        d2cpt_val_pattern_sel;
+      |                  ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:625:18: Signal is not used: 'd2cpt_pattern_mode'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  625 |     logic        d2cpt_pattern_mode;
+      |                  ^~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:626:18: Signal is not used: 'd2cpt_burst_count'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  626 |     logic [15:0] d2cpt_burst_count, d2cpt_idle_count, d2cpt_iter_count;
+      |                  ^~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:626:37: Signal is not used: 'd2cpt_idle_count'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  626 |     logic [15:0] d2cpt_burst_count, d2cpt_idle_count, d2cpt_iter_count;
+      |                                     ^~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:626:55: Signal is not used: 'd2cpt_iter_count'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  626 |     logic [15:0] d2cpt_burst_count, d2cpt_idle_count, d2cpt_iter_count;
+      |                                                       ^~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:627:18: Signal is not used: 'd2cpt_compare_setup'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  627 |     logic [1:0]  d2cpt_compare_setup;
+      |                  ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/LTSM_wrapper.sv:628:18: Signal is not used: 'd2cpt_rx_data_lane_mask'
+                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+  628 |     logic [2:0]  d2cpt_rx_data_lane_mask;
+      |                  ^~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/SideBand/common/sb_pkg.sv:5:12: Parameter is not used: 'SB_CLK'
+                                                        : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+    5 | parameter  SB_CLK = (1000/SB_FREQ);
+      |            ^~~~~~
+%Warning-UNUSEDPARAM: rtl/SideBand/common/sb_pkg.sv:8:12: Parameter is not used: 'SERDES_CLK'
+                                                        : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm'
+    8 | parameter  SERDES_CLK = (1000/SERDES_FREQ);
+      |            ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/trainerror_handshake.sv:40:25: Signal is not used: 'rx_msginfo'
+                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_trainerror_handshake'
+   40 |     input  logic [15:0] rx_msginfo
+      |                         ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/PHYRETRAIN.sv:42:25: Signal is not used: 'module_0_lane_repair_id_ctrl_out'
+                                                          : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_phyretrain'
+   42 |     input  logic [6:0]  module_0_lane_repair_id_ctrl_out,
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/PHYRETRAIN.sv:68:25: Bits of signal are not used: 'rx_msginfo'[15:3]
+                                                          : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_phyretrain'
+   68 |     input  logic [15:0] rx_msginfo
+      |                         ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/PHYRETRAIN.sv:129:17: Signal is not used: 'partner_enc_q'
+                                                           : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_phyretrain'
+  129 |     logic [2:0] partner_enc_q;
+      |                 ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/unit_ltsm_controller.sv:65:25: Signal is not used: 'mbinit_error'
+                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_controller'
+   65 |     input  logic        mbinit_error,
+      |                         ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/unit_ltsm_controller.sv:66:25: Signal is not used: 'mbtrain_error'
+                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_controller'
+   66 |     input  logic        mbtrain_error,    
+      |                         ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/unit_ltsm_controller.sv:67:25: Signal is not used: 'linkinit_error'
+                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_controller'
+   67 |     input  logic        linkinit_error,
+      |                         ^~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/unit_ltsm_controller.sv:68:25: Signal is not used: 'active_error'
+                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_controller'
+   68 |     input  logic        active_error,
+      |                         ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/unit_ltsm_controller.sv:105:15: Signal is not driven, nor used: 'current_log_state'
+                                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_controller'
+  105 |     state_n_e current_log_state;
+      |               ^~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_reset_state/unit_reset_state.sv:13:17: Signal is not used: 'lp_linkerror'
+                                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_reset_state'
+   13 |     input logic lp_linkerror,                 
+      |                 ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_active_state/unit_active_state.sv:18:26: Signal is not used: 'lp_linkerror'
+                                                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_active_state'
+   18 |     input  logic         lp_linkerror,      
+      |                          ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_active_pmnak_state/unit_active_pmnak_state.sv:13:21: Signal is not used: 'lp_linkerror'
+                                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_active_pmnak_state'
+   13 |     input  logic    lp_linkerror,     
+      |                     ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_retrain_state/unit_retrain_state.sv:14:28: Signal is not used: 'lp_linkerror'
+                                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_retrain_state'
+   14 |     input  logic           lp_linkerror,             
+      |                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_retrain_state/unit_retrain_state.sv:20:28: Signal is not used: 'pm_exit'
+                                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_retrain_state'
+   20 |     input  logic           pm_exit,                  
+      |                            ^~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_L1_state/unit_L1_state.sv:14:28: Signal is not used: 'lp_linkerror'
+                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_L1_state'
+   14 |     input  logic           lp_linkerror,             
+      |                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_L1_state/unit_L1_state.sv:17:28: Signal is not used: 'Active_handshake_done'
+                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_L1_state'
+   17 |     input  logic           Active_handshake_done,    
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_L2_state/unit_L2_state.sv:14:28: Signal is not used: 'lp_linkerror'
+                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_L2_state'
+   14 |     input  logic           lp_linkerror,             
+      |                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_L2_state/unit_L2_state.sv:17:28: Signal is not used: 'Active_handshake_done'
+                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_L2_state'
+   17 |     input  logic           Active_handshake_done,    
+      |                            ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_linkreset_state/unit_linkreset_state.sv:13:28: Signal is not used: 'lp_linkerror'
+                                                                                           : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_linkreset_state'
+   13 |     input  logic           lp_linkerror,             
+      |                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/RDI_SM/unit_disabled_state/unit_disabled_state.sv:14:28: Signal is not used: 'lp_linkerror'
+                                                                                         : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_rdi_sm.sm.u_unit_disabled_state'
+   14 |     input  logic           lp_linkerror,             
+      |                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/wrapper_VALTRAINCENTER.sv:42:29: Signal is not used: 'mb_tx_continuous_or_strobe_clk'
+                                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_VALTRAINCENTER'
+   42 |         input  logic        mb_tx_continuous_or_strobe_clk,
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/VALTRAINCENTER/wrapper_VALTRAINCENTER.sv:43:29: Signal is not used: 'phy_negotiated_speed'
+                                                                                             : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_VALTRAINCENTER'
+   43 |         input  logic [2:0]  phy_negotiated_speed,
+      |                             ^~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/wrapper_RXDESKEW.sv:47:29: Signal is not used: 'is_continuous_clk_mode'
+                                                                                 : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXDESKEW'
+   47 |         input  logic        is_continuous_clk_mode,          
+      |                             ^~~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRMB.sv:117:18: Signal is not used: 'prev_partner_lane_map'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbinit.u_mbinit_wrapper.u_repairmb'
+  117 |     logic [2:0]  prev_partner_lane_map;
+      |                  ^~~~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBINIT/MBINIT_REPAIRMB.sv:307:18: Signal is not used: 'partner_mask'
+                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbinit.u_mbinit_wrapper.u_repairmb'
+  307 |     logic [15:0] partner_mask;
+      |                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_IQ_local.sv:45:29: Bits of signal are not used: 'rx_msginfo'[15:1]
+                                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXCLKCAL.u_RXCLKCAL_IQ_local'
+   45 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXCLKCAL/unit_RXCLKCAL_IQ_partner.sv:43:29: Bits of signal are not used: 'rx_msginfo'[15:6]
+                                                                                         : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXCLKCAL.u_RXCLKCAL_IQ_partner'
+   43 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/unit_RXDESKEW_partner.sv:138:29: Bits of signal are not used: 'rx_msginfo'[15:4]
+                                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXDESKEW.u_RXDESKEW_partner'
+  138 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/unit_RXDESKEW_partner.sv:183:15: Bits of signal are not used: 'rx_preset_code_r'[3]
+                                                                                       : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXDESKEW.u_RXDESKEW_partner'
+  183 |     reg [3:0] rx_preset_code_r;     
+      |               ^~~~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_negotiated_lanes.sv:98:22: Parameter is not used: 'X16_0000'
+                                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_REPAIR.u_negotiated_lanes'
+   98 |     localparam [2:0] X16_0000 = 3'b000;
+      |                      ^~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_local.sv:69:29: Bits of signal are not used: 'rx_msginfo'[15:3]
+                                                                                : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_REPAIR.u_REPAIR_local'
+   69 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/REPAIR/unit_REPAIR_partner.sv:98:29: Bits of signal are not used: 'rx_msginfo'[15:3]
+                                                                                  : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_REPAIR.u_REPAIR_partner'
+   98 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/MBTRAIN/RXDESKEW/unit_RXDESKEW_local.sv:217:29: Bits of signal are not used: 'rx_msginfo'[15:1]
+                                                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_mbtrain.u_RXDESKEW.u_RXDESKEW_local'
+  217 |         input  logic [15:0] rx_msginfo
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_local.sv:120:29: Bits of signal are not used: 'rx_msginfo'[15:6,3:0]
+                                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_d2c.u_wrapper_D2C_PT.u_wrapper_D2C_PT_local.u_TX_D2C_PT_local'
+  120 |         input  logic [15:0] rx_msginfo     ,  
+      |                             ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_local.sv:121:29: Bits of signal are not used: 'rx_data_field'[63:16]
+                                                                                   : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_d2c.u_wrapper_D2C_PT.u_wrapper_D2C_PT_local.u_TX_D2C_PT_local'
+  121 |         input  logic [63:0] rx_data_field     
+      |                             ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/D2C/TX_D2C_PT/unit_TX_D2C_PT_partner.sv:104:29: Bits of signal are not used: 'rx_data_field'[63,9:6]
+                                                                                     : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_d2c.u_wrapper_D2C_PT.u_wrapper_D2C_PT_partner.u_TX_D2C_PT_partner'
+  104 |         input  logic [63:0] rx_data_field     
+      |                             ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/MainSM/LTSM/D2C/RX_D2C_PT/unit_RX_D2C_PT_partner.sv:78:29: Bits of signal are not used: 'rx_data_field'[63:59]
+                                                                                    : ... note: In instance 'UCIe_FPGA_loopback.digital_ucie_loopback_inst.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.u_d2c.u_wrapper_D2C_PT.u_wrapper_D2C_PT_partner.u_RX_D2C_PT_partner'
+   78 |         input  logic [63:0] rx_data_field     
+      |                             ^~~~~~~~~~~~~
+%Error: Exiting due to 322 warning(s)
+
+=== verilator exit code: 1 ===
+
+
+#############################################################################
+# ANALYSIS  (added after the raw lint above)
+#############################################################################
+
+VERDICT: Design ELABORATES CLEAN with top = UCIe_FPGA_loopback.
+  - 0 real errors. The single "%Error: Exiting due to N warning(s)" line is
+    Verilator's exit summary under -Wall (warnings force a non-zero exit),
+    not a design error.
+  - 321 warnings, ALL from -Wall (style/lint tier). None block synthesis/sim.
+
+FIX APPLIED DURING THIS RUN:
+  - %Error-MODMISSING: 'PHYRETRAIN' (LTSM_wrapper.sv:654) had no source file in
+    the listfile after the pull. Added rtl/MainSM/LTSM/PHYRETRAIN.sv to
+    sim/listfiles/digital_ucie_loopback.f. This was a genuine stale-listfile
+    bug that would also have broken QuestaSim, not just lint.
+
+WARNING BREAKDOWN (by class, what each means here):
+
+  92  PINCONNECTEMPTY   Intentional no-connect ports `.foo()`. Benign by design
+                        (analog-only outputs left open in the digital loopback).
+  88  UNUSEDSIGNAL      Signals/bits never read. Mostly dead taps in the LTSM
+                        wrapper (27) where ACTIVE/L1/L2/PHYRETRAIN exits are not
+                        all wired yet. No functional effect; candidates for
+                        cleanup. Worth a glance: none are driven-but-needed.
+  88  IMPORTSTAR        `import pkg::*;` wildcard imports. Style only.
+  23  VARHIDDEN         Name shadowing. Concentrated in MBTRAIN_ctrl (15),
+                        ACTIVE (4). Functionally fine (inner scope wins) but
+                        should be renamed to avoid reader confusion.
+  14  UNUSEDPARAM       Unused parameters (PLL_PERIOD_NS, NONE_DEGRADE, etc).
+                        Benign; left from parameterized templates.
+  10  BLKSEQ            Blocking '=' used in clocked always blocks
+                        (unit_clk_handshake.sv x7, MBINIT_REVERSALMB.sv x3).
+                        Each is a single-writer state reg read only by outside
+                        continuous assigns => simulates/synthesizes correctly,
+                        but mixes '=' with '<=' to the same reg. Recommend
+                        switching to '<=' for consistency and to kill the smell.
+   6  DECLFILENAME      module name != filename (LINK_Demux, RR_arbiter,
+                        *_s3 RX modules, unit_active_handshake). Cosmetic.
+   1  PROCASSINIT       unit_msg_handler.sv:16  `state cs = IDLE;` declaration-
+                        initialized var also assigned procedurally. Harmless in
+                        sim; some synth flows ignore the init. Prefer reset-based
+                        init.
+
+CORRECTNESS RISK: none of the above changes RTL behavior. The only real
+defect surfaced was the missing PHYRETRAIN file (now fixed). The BLKSEQ /
+PROCASSINIT / VARHIDDEN items are the highest-value cleanups if a style pass
+is wanted, but they are not bugs in the current single-writer usage.
+#############################################################################

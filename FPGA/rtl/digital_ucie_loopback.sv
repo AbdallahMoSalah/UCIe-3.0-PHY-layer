@@ -101,7 +101,12 @@ module digital_ucie_loopback #(
     output logic [3:0]                       pl_state_sts,
     output logic                             pl_max_speedmode,
     output logic [2:0]                       pl_speedmode,
-    output logic [2:0]                       pl_lnk_cfg
+    output logic [2:0]                       pl_lnk_cfg,
+
+    // ---- MainBand clock-gate enable (to top-level clock gate) ----
+    //   == rdi_lclk_g from the MainSM (generated on the ungated lclk domain).
+    //   The top wrapper gates lclk with this to produce gated_lclk.
+    output logic                             o_mb_lclk_g
 );
 
     // =========================================================================
@@ -118,6 +123,11 @@ module digital_ucie_loopback #(
     RDI_state                 lp_state_req_int, pl_state_sts_int;
     assign lp_state_req_int = RDI_state'(lp_state_req);  // input  : 4-bit -> enum (into DUT)
     assign pl_state_sts     = pl_state_sts_int;          // output : enum (from DUT) -> 4-bit
+
+    // The MainBand word-clock gate now lives in the top wrapper
+    // (UCIe_FPGA_loopback): this module just consumes the gated_lclk it is
+    // given and exports the core's clock-gate enable o_mb_lclk_g upward.
+
     // =========================================================================
     // The digital PHY under self-loopback
     // =========================================================================
@@ -171,7 +181,7 @@ module digital_ucie_loopback #(
         .o_mb_ttrk_p_pre        (mb_ttrk),
         // analog-only controls left open (no hard macro)
         .o_mb_pll_speed_sel     (),
-        .o_mb_lclk_g            (),
+        .o_mb_lclk_g            (o_mb_lclk_g),
         .o_mb_tx_data_lane_sel  (),
         .o_mb_tx_val_lane_sel   (),
         .o_mb_tx_clk_lane_sel   (),
