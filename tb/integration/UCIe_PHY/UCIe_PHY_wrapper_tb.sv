@@ -509,35 +509,35 @@ module UCIe_PHY_wrapper_tb;
     initial begin
         
         enabled_scenarios[1] = 1'b1;
-        // enabled_scenarios[2] = 1'b0;
-        // enabled_scenarios[3] = 1'b1;
-        // enabled_scenarios[4] = 1'b1;
-        // enabled_scenarios[5] = 1'b1;
-        // enabled_scenarios[6] = 1'b1;
-        // enabled_scenarios[7] = 1'b1;
-        // enabled_scenarios[8] = 1'b1;
-        // enabled_scenarios[9] = 1'b1;
-        // enabled_scenarios[10] = 1'b1;
-        // enabled_scenarios[11] = 1'b1;
-        // enabled_scenarios[12] = 1'b1;
-        // enabled_scenarios[13] = 1'b1;
-        // enabled_scenarios[14] = 1'b1;
-        // enabled_scenarios[15] = 1'b1;
-        // enabled_scenarios[16] = 1'b1;
-        // enabled_scenarios[17] = 1'b1;
-        // enabled_scenarios[18] = 1'b1;
-        // enabled_scenarios[19] = 1'b1;
-        // enabled_scenarios[20] = 1'b1;
-        // enabled_scenarios[21] = 1'b1;
-        // enabled_scenarios[22] = 1'b1;
-        // enabled_scenarios[23] = 1'b1;
-        // enabled_scenarios[24] = 1'b1;
-        // enabled_scenarios[25] = 1'b1;
-        // enabled_scenarios[26] = 1'b1;
-        // enabled_scenarios[27] = 1'b1;
-        // enabled_scenarios[28] = 1'b1;
-        // enabled_scenarios[29] = 1'b1;
-        // enabled_scenarios[30] = 1'b1;
+        enabled_scenarios[2] = 1'b0;
+        enabled_scenarios[3] = 1'b1;
+        enabled_scenarios[4] = 1'b1;
+        enabled_scenarios[5] = 1'b1;
+        enabled_scenarios[6] = 1'b1;
+        enabled_scenarios[7] = 1'b1;
+        enabled_scenarios[8] = 1'b1;
+        enabled_scenarios[9] = 1'b1;
+        enabled_scenarios[10] = 1'b1;
+        enabled_scenarios[11] = 1'b1;
+        enabled_scenarios[12] = 1'b1;
+        enabled_scenarios[13] = 1'b1;
+        enabled_scenarios[14] = 1'b1;
+        enabled_scenarios[15] = 1'b1;
+        enabled_scenarios[16] = 1'b1;
+        enabled_scenarios[17] = 1'b1;
+        enabled_scenarios[18] = 1'b1;
+        enabled_scenarios[19] = 1'b1;
+        enabled_scenarios[20] = 1'b1;
+        enabled_scenarios[21] = 1'b1;
+        enabled_scenarios[22] = 1'b1;
+        enabled_scenarios[23] = 1'b1;
+        enabled_scenarios[24] = 1'b1;
+        enabled_scenarios[25] = 1'b1;
+        enabled_scenarios[26] = 1'b1;
+        enabled_scenarios[27] = 1'b1;
+        enabled_scenarios[28] = 1'b1;
+        enabled_scenarios[29] = 1'b1;
+        enabled_scenarios[30] = 1'b1;
     
         $display("================================================================");
         $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
@@ -715,7 +715,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 8: Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively
+        // Scenario 9: Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively...", $time, scenario_num);
@@ -737,7 +737,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 9: PM mode (L1) entry + wake
+        // Scenario 10: PM mode (L1) entry + wake
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] PM mode (L1) entry + wake...", $time, scenario_num);
@@ -805,7 +805,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 10: L2 entry, exit to RESET, and re-train recovery
+        // Scenario 11: L2 entry, exit to RESET, and re-train recovery
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] PM mode (L2) entry, exit to RESET, and recovery...", $time, scenario_num);
@@ -888,7 +888,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 11: TRAINERROR entry (rdi=LinkError), clear, recover
+        // Scenario 12: TRAINERROR entry (rdi=LinkError), clear, recover
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] TRAINERROR: fault link, hold, clear, re-train...", $time, scenario_num);
@@ -990,7 +990,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 12: Valid Lane boundary error injection
+        // Scenario 13: Valid Lane boundary error injection
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Valid Lane Boundary Error Injection test...", $time, scenario_num);
@@ -1050,7 +1050,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 13: MBTRAIN Lane Degradation (REPAIR triggered mid-train)
+        // Scenario 14: MBTRAIN Lane Degradation (REPAIR triggered mid-train)
         // ----------------------------------------------------------------
         // Lanes 8..15 are injected as faulty AFTER MBINIT completes (so MBINIT
         // sees x16 OK) but DURING MBTRAIN D2C sweeps.  MBTRAIN.REPAIR should
@@ -1100,7 +1100,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 14: MBTRAIN Speed Degradation (speed-dependent all-lane fault)
+        // Scenario 15: MBTRAIN Speed Degradation (speed-dependent all-lane fault)
         // ----------------------------------------------------------------
         // Two stacked faults exercise the LINKSPEED error -> speed-degrade path:
         //
@@ -1195,7 +1195,7 @@ module UCIe_PHY_wrapper_tb;
         end
         scenario_num++;
         // ----------------------------------------------------------------
-        // Scenario 15: Target settings in Control Reg > Hardware Capabilities
+        // Scenario 16: Target settings in Control Reg > Hardware Capabilities
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Capping check: program target width/speed > capabilities...", $time, scenario_num);
@@ -1239,7 +1239,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 16: Lane reversal with asymmetric width degrade (negotiate x16 -> degrade x8)
+        // Scenario 17: Lane reversal with asymmetric width degrade (negotiate x16 -> degrade x8)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Lane Reversal + Width Degradation: Fault lanes 8..15 & symmetric lane reversal...", $time, scenario_num);
@@ -1267,7 +1267,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 17: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 with lane reversal
+        // Scenario 18: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 with lane reversal
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] x8 target -> degrade to x4 with Lane Reversal...", $time, scenario_num);
@@ -1299,7 +1299,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 18: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 without lane reversal
+        // Scenario 19: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 without lane reversal
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] x8 target -> degrade to x4 without Lane Reversal...", $time, scenario_num);
@@ -1329,7 +1329,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 19: Speed degradation (1 step) on degraded x4-upper link
+        // Scenario 20: Speed degradation (1 step) on degraded x4-upper link
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Speed Degradation (1 step) on degraded x4-upper link...", $time, scenario_num);
@@ -1396,7 +1396,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 20: Speed degradation (2 steps) on degraded x4-upper link
+        // Scenario 21: Speed degradation (2 steps) on degraded x4-upper link
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Speed Degradation (2 steps) on degraded x4-upper link...", $time, scenario_num);
@@ -1473,7 +1473,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 21: Lane Reversal + 1-Step Speed degradation
+        // Scenario 22: Lane Reversal + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Lane Reversal + 1-Step Speed Degradation...", $time, scenario_num);
@@ -1534,7 +1534,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 22: Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
+        // Scenario 23: Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Asymmetric Width Degrade (x16->x8) + 1-Step Speed Degradation...", $time, scenario_num);
@@ -1593,7 +1593,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 23: Asymmetric Width degrade (x16 -> x8) + 2-Step Speed degradation
+        // Scenario 24: Asymmetric Width degrade (x16 -> x8) + 2-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Asymmetric Width Degrade (x16->x8) + 2-Step Speed Degradation...", $time, scenario_num);
@@ -1658,7 +1658,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 24: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
+        // Scenario 25: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...", $time, scenario_num);
@@ -1721,7 +1721,7 @@ module UCIe_PHY_wrapper_tb;
         scenario_num++;
 
         // ----------------------------------------------------------------
-        // Scenario 25: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
+        // Scenario 26: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
             $display("\nT=%0t | [SC%0d] Asymmetric Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...", $time, scenario_num);
@@ -1731,10 +1731,10 @@ module UCIe_PHY_wrapper_tb;
                 program_die_custom(1, 4'h2, 4'h5, 1'b0);
             join
             print_ctrl_regs();
-            begin : sc25_bringup
-                bit         ok25;
+            begin : sc26_bringup
+                bit         ok26;
                 logic [3:0] speed_at_max;
-                ok25         = 1'b0;
+                ok26         = 1'b0;
                 speed_at_max = 4'h0;
                 reverse_lanes_0to1 = 1'b1;
                 reverse_lanes_1to0 = 1'b0;
@@ -1744,7 +1744,7 @@ module UCIe_PHY_wrapper_tb;
                 fork
                     begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
                     begin wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
-                    begin : sc25_fault_mgr
+                    begin : sc26_fault_mgr
                         wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
                         @(posedge lclk0);
                         wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
@@ -1759,15 +1759,15 @@ module UCIe_PHY_wrapper_tb;
                     end
                 join_none
                 fork
-                    begin wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active); ok25 = 1'b1; end
-                    begin wait (m_error || p_error); ok25 = 1'b0; $error("[SC%0d] training error",scenario_num); end
-                    begin repeat (600000) @(posedge lclk0); ok25 = 1'b0; $error("[SC%0d] TIMEOUT",scenario_num); end
+                    begin wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active); ok26 = 1'b1; end
+                    begin wait (m_error || p_error); ok26 = 1'b0; $error("[SC%0d] training error",scenario_num); end
+                    begin repeat (600000) @(posedge lclk0); ok26 = 1'b0; $error("[SC%0d] TIMEOUT",scenario_num); end
                 join_any
                 disable fork;
                 corrupt_0to1 = 16'h0000;
                 corrupt_1to0 = 16'h0000;
-                chk(ok25, "link reached ACTIVE with lane reversal, width degrade and speed degrade", scenario_num);
-                if (ok25) begin
+                chk(ok26, "link reached ACTIVE with lane reversal, width degrade and speed degrade", scenario_num);
+                if (ok26) begin
                     print_active_status();
                     chk(u_die0.u_digital_ucie.u_reg_file.ucie_link_status_r_out[10:7] == 4'h1, "Die0 negotiated width is x8", scenario_num);
                     chk(u_die1.u_digital_ucie.u_reg_file.ucie_link_status_r_out[10:7] == 4'h1, "Die1 negotiated width is x8", scenario_num);
@@ -1782,6 +1782,70 @@ module UCIe_PHY_wrapper_tb;
             $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
         end
         scenario_num++;
+
+
+        // ----------------------------------------------------------------
+        // Scenario 27: Speed degradation until TRAINERROR
+        // Lanes work normally during MBINIT. Once MBTRAIN begins (first
+        // SPEEDIDLE), ALL lanes are permanently corrupted in both
+        // directions.  The corruption is never cleared, so every speed-
+        // degrade retry also fails, and the link eventually reaches
+        // TRAINERROR.
+        // ----------------------------------------------------------------
+        if (enabled_scenarios[scenario_num]) begin
+            $display("\nT=%0t | [SC%0d] Speed Degradation until TRAINERROR (permanent all-lane fault at MBTRAIN)...", $time, scenario_num);
+            reset_system();
+            // Program both dies to target x16 (4'h2) and target speed Gen6 (4'h5)
+            fork
+                program_die_custom(0, 4'h2, 4'h5, 1'b0);
+                program_die_custom(1, 4'h2, 4'h5, 1'b0);
+            join
+            print_ctrl_regs();
+            begin : sc27_bringup
+                bit         ok27;
+                logic [3:0] speed_at_max;
+                ok27         = 1'b0;
+                speed_at_max = 4'h0;    
+
+                lp_state_req0 = Nop; lp_state_req1 = Nop;
+                fork
+                    begin wait (ln0 == LOG_LINKINIT); @(negedge lclk0); lp_state_req0 = Active; end
+                    begin wait (ln1 == LOG_LINKINIT); @(negedge lclk1); lp_state_req1 = Active; end
+                    begin : sc27_fault_mgr
+                        // Lanes are clean during MBINIT.  Wait for MBTRAIN
+                        // to begin (first SPEEDIDLE = speed raised to max).
+                        wait (ln0 == LOG_MBTRAIN_SPEEDIDLE);
+                        @(posedge lclk0);
+                        wait (ln0 != LOG_MBTRAIN_SPEEDIDLE);
+                        speed_at_max = u_die0.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status;
+
+                        // Permanently corrupt ALL lanes in both directions.
+                        // This fault is NEVER cleared, so every speed-degrade
+                        // retry will also fail training, eventually exhausting
+                        // all speed levels and reaching TRAINERROR.
+                        corrupt_0to1 = 16'hFFFF;
+                        corrupt_1to0 = 16'hFFFF;
+                        $display("T=%0t | [SC%0d] SPEEDIDLE raised speed to code %0h - injecting PERMANENT all-lane fault (never cleared).", $time, scenario_num, speed_at_max);
+                    end
+                join_none
+                fork
+                    begin wait (m_error || p_error); ok27 = 1'b1;
+                          $display("T=%0t | [SC%0d] TRAINERROR reached as expected after exhausting all speed-degrade attempts.", $time, scenario_num); end
+                    begin wait (m_done && p_done && pl_state_sts0 == Active && pl_state_sts1 == Active); ok27 = 1'b0;
+                          $error("[SC%0d] unexpectedly reached ACTIVE despite permanent all-lane fault!", scenario_num); end
+                    begin repeat (800000) @(posedge lclk0); ok27 = 1'b0; $error("[SC%0d] TIMEOUT waiting for TRAINERROR", scenario_num); end
+                join_any
+                disable fork;
+                corrupt_0to1 = 16'h0000;
+                corrupt_1to0 = 16'h0000;
+                chk(ok27, "permanent all-lane fault led to TRAINERROR after exhausting speed-degrade", scenario_num);
+                chk(m_error || p_error, "at least one die reached LOG_TRAINERROR", scenario_num);
+            end
+        end else begin
+            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+        end
+        scenario_num++;
+
         // ----------------------------------------------------------------
         $display("\n================================================================");
         if (fails == 0) $display("  RESULT: PASS  (UCIe_PHY INTEGRATION SIM PASS)");
