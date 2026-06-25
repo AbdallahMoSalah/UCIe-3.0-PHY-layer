@@ -213,10 +213,6 @@ module unit_MBTRAIN_ctrl (
         // Emergency TRAINERROR Exit
         if (trainerror_detected) begin
             ltsm_trainerror_req = 1'b1;
-            next_state          = MBTRAIN_DONE;
-            if (current_state == MBTRAIN_DONE) begin
-                mbtrain_done = 1'b1;
-            end
         end
         else begin
             case (current_state)
