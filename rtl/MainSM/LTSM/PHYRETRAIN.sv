@@ -4,6 +4,15 @@
 // Performs the PHY retrain sideband handshake and resolves the retrain
 // encoding that selects the MBTRAIN re-entry sub-state.
 //
+// Retrain encoding is determined by:
+//   busy_bit_PHY_RETRAIN, rt_apply_module_0_lane_repair_ctrl_out,
+//   mbinit_tx_data_lane_mask (current lane mask), and is_x8.
+//
+//   busy_bit=0                                       → TXSELFCAL
+//   busy_bit=1, rt_apply=0                           → TXSELFCAL
+//   busy_bit=1, rt_apply=1, degradation possible     → REPAIR
+//   busy_bit=1, rt_apply=1, degradation not possible → SPEEDIDLE
+//
 // Handshake sequence (§4.5.3.7 / Tables 4-10 to 4-12):
 //   PR_REQ_SEND  – drive retrain_start_req until SB FIFO accepts (ltsm_rdy)
 //   PR_REQ_WAIT  – wait for partner retrain_start_req; latch partner encoding;
@@ -28,16 +37,17 @@ module PHYRETRAIN
     output logic        phyretrain_done,
     output logic        phyretrain_error,
 
-    // Runtime Link Test Control (0x1100) §9.5.x
-    input  logic [63:0] rt_test_ctrl,
-    // Runtime Link Test Status (0x1108)[0] §9.5.x
-    input  logic        rt_link_busy_status,
+    // Runtime Link Test Control fields (latched at PHYRETRAIN entry)
+    input  logic        rt_apply_module_0_lane_repair_ctrl_out,
+    input  logic [6:0]  module_0_lane_repair_id_ctrl_out,
+    // Busy status — set when a runtime link test is in progress
+    input  logic        busy_bit_PHY_RETRAIN,
     // Standard Package logical lane-map code (Table 4-9) — the width the last
     // degrade settled at. For standard package, "repairable" (Table 4-11) means
-    // this width can be degraded one more step: x16 (011)→x8 and lower-x8
-    // (001)→x4 qualify; upper-x8 (010) has no native x4 map, x4 (100/101) is at
-    // the floor, and 000 = none — all unrepairable → SPEEDIDLE.
+    // this width can be degraded one more step.
     input  logic [2:0]  mbinit_tx_data_lane_mask,
+    // x8 mode strap — affects which lane-map codes are considered repairable
+    input  logic        is_x8,
 
     // 8 ms watchdog expired (same role as global_error in MBINIT substates)
     input  logic        global_error,
@@ -56,15 +66,8 @@ module PHYRETRAIN
     input  logic        rx_sb_msg_valid,
     input  msg_no_e     rx_sb_msg,
     input  logic [15:0] rx_msginfo
-);
+    );
 
-    // -------------------------------------------------------------------------
-    // rt_test_ctrl bit-field positions (Module 0 only) §9.5.x
-    // -------------------------------------------------------------------------
-    localparam int APPLY_M0_LR_BIT  = 0;  // Apply Module 0 Lane Repair
-    localparam int M0_LR_ID_LSB     = 1;  // Module 0 Lane Repair ID [3:1]
-    localparam int START_BIT_POS    = 4;  // Start bit
-    localparam int INJECT_FAULT_BIT = 5;  // Inject Stuck-at Fault bit
 
     // -------------------------------------------------------------------------
     // FSM
@@ -98,14 +101,18 @@ module PHYRETRAIN
     logic       repair_possible;
 
     // Standard package "repairable" (Table 4-11) = current width can be degraded
-    // one more step (Table 4-9): only x16 (011→x8) and lower-x8 (001→x4) qualify.
-    assign repair_possible = (mbinit_tx_data_lane_mask == 3'b011)   // x16 → x8
-                          || (mbinit_tx_data_lane_mask == 3'b001);  // x8 (0-7) → x4
+    // one more step (Table 4-9).
+    //   is_x8=0 (x16 package): x16 (011) → x8 and lower-x8 (001) → x4 qualify.
+    //   is_x8=1 (x8  package): x8  (011) → x4 qualifies; everything else is
+    //                           already at the floor or has no map.
+    assign repair_possible = is_x8 ? ((mbinit_tx_data_lane_mask == 3'b011)   //  mask 16& x8
+                                   || (mbinit_tx_data_lane_mask == 3'b001))  // mask → 8
+                                   : ((mbinit_tx_data_lane_mask == 3'b011)); // mask 16 → x16 
 
     always_comb begin
-        if (!rt_link_busy_status)
+        if (!busy_bit_PHY_RETRAIN)
             local_retrain_enc = 3'b001;             // TXSELFCAL: link not under test
-        else if (!rt_test_ctrl[APPLY_M0_LR_BIT])
+        else if (!rt_apply_module_0_lane_repair_ctrl_out)
             local_retrain_enc = 3'b001;             // TXSELFCAL: busy, No Repair
         else if (repair_possible)
             local_retrain_enc = 3'b100;             // REPAIR: lane errors, can degrade width
@@ -139,6 +146,11 @@ module PHYRETRAIN
         end
         else if (current_state != PR_REQ_SEND && current_state != PR_REQ_WAIT)
             req_rcvd <= 1'b0;
+        else if (current_state == PR_IDLE) begin
+            resolved_enc_q <= 3'b000;
+            req_rcvd       <= 1'b0;
+            partner_enc_q  <= 3'b000;
+        end
     end
 
     // rsp_rcvd: set when partner resp arrives (only after req stage);
@@ -153,8 +165,12 @@ module PHYRETRAIN
             rsp_rcvd          <= 1'b1;
             partner_rsp_enc_q <= rx_msginfo[2:0];
         end
-        else if (current_state != PR_RSP_WAIT)
+        else if (current_state != PR_RSP_WAIT )
             rsp_rcvd <= 1'b0;
+        else if (current_state == PR_IDLE) begin
+            partner_rsp_enc_q <= 3'b000;
+            rsp_rcvd          <= 1'b0;
+        end
     end
 
 
