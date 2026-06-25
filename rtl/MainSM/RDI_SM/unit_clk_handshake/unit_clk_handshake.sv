@@ -30,6 +30,7 @@ state CLK_cs;
                 else 
                     CLK_cs=DONE;
             end
+            default: CLK_cs = IDLE;
         endcase
         end
     end

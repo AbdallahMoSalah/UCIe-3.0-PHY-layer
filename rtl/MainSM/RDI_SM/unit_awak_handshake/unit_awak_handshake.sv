@@ -24,6 +24,7 @@ state AWAK_cs;
                 if (~lp_wake_req)
                     AWAK_cs<=IDLE;
             end
+            default: AWAK_cs <= IDLE;
         endcase
         end
     end

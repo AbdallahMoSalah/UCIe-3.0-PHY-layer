@@ -162,6 +162,7 @@ module unit_reset_state (
                     cs <= idle;
                 end
             end
+            default: cs <= state_disable;
         endcase
     end
     end

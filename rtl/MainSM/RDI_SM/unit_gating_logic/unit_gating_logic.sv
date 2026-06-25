@@ -46,7 +46,7 @@ module unit_gating_logic#(
         else
             case (GATING_cs)
                 UNGATING:begin
-                    if (counter < T1US_LIMIT) begin
+                    if (int'(counter) < T1US_LIMIT) begin
                         counter <= counter + 1;
                     end
                     else if (gateable      &&

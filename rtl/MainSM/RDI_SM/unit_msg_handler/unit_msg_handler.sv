@@ -202,6 +202,7 @@ module unit_msg_handler(
                     Message_receive    <= NOP;
                 end
             end
+                default: cs <= IDLE;
             endcase
         end
     end

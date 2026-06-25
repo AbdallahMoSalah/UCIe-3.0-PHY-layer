@@ -143,6 +143,7 @@ module unit_retrain_state (
                     // Transition handled by EN de-assertion logic
                 end
 
+                default: cs <= state_disabled;
             endcase
         end
     end

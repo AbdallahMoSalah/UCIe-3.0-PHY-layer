@@ -401,6 +401,7 @@ module unit_main_controller(
                     rdi_state_sts <= LinkReset;
                 end
             end 
+            default: rdi_state_sts <= LinkError;
         endcase
     end
     end
