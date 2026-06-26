@@ -10,23 +10,25 @@ module SideBand_Top_tb;
     // =========================================================================
     parameter DATA_WIDTH = 64;
     parameter GAP_WIDTH  = 32;
-    parameter CLK_MAIN_PERIOD = 16.0; // 62.5 MHz
-    parameter CLK_SB_PERIOD = SB_CLK; // 100 MHz from sb_pkg (10ns)
-    parameter PLL_CLK_PERIOD = SERDES_CLK; // 800 MHz from sb_pkg (1.25ns)
+    parameter CLK_MAIN_PERIOD = 16.0; // 62.5 MHz (RDI / Main-SM domain)
+    parameter CLK_LTSM_PERIOD = 16.0; // LTSM-domain clock (async to clk_sb)
+    parameter CLK_SB_PERIOD = SB_CLK; // 100 MHz from sb_pkg (10ns); clk_sb is now
+                                      // DUT-generated - this is used only for TB
+                                      // timeout/spacing math, not to drive a clock.
 
     // =========================================================================
     // Signals
     // =========================================================================
     logic         clk_main;
+    logic         clk_ltsm;
     logic         rst_main_n;
-    logic         clk_sb;
+    wire          clk_sb;             // TB sync reference (= die 0's generated clk_sb)
+    wire          clk_sb_die [2];     // each DUT now GENERATES its own clk_sb (output)
     logic         rst_sb_n;
-    
+
     logic         phy_in_reset [2];
     logic         pmo_en [2];
 
-    logic         sb_pll_clock;
-    
     logic         RXCKSB [2];
     logic         TXCKSB [2];
     logic         TXDATASB [2];
@@ -89,12 +91,12 @@ module SideBand_Top_tb;
                 .GAP_WIDTH(GAP_WIDTH)
             ) dut (
                 .clk_main(clk_main),
+                .clk_ltsm(clk_ltsm),
                 .rst_main_n(rst_main_n),
-                .clk_sb(clk_sb),
+                .clk_sb(clk_sb_die[i]),
                 .rst_sb_n(rst_sb_n),
                 .phy_in_reset(phy_in_reset[i]),
                 .pmo_en(pmo_en[i]),
-                .sb_pll_clock(sb_pll_clock),
                 .RXCKSB(RXCKSB[i]),
                 .TXCKSB(TXCKSB[i]),
                 .TXDATASB(TXDATASB[i]),
@@ -147,11 +149,14 @@ module SideBand_Top_tb;
     initial clk_main = 0;
     always #(CLK_MAIN_PERIOD/2.0) clk_main = ~clk_main;
 
-    initial clk_sb = 0;
-    always #(CLK_SB_PERIOD/2.0) clk_sb = ~clk_sb;
+    initial clk_ltsm = 0;
+    always #(CLK_LTSM_PERIOD/2.0) clk_ltsm = ~clk_ltsm;
 
-    initial sb_pll_clock = 0;
-    always #(PLL_CLK_PERIOD/2.0) sb_pll_clock = ~sb_pll_clock;
+    // clk_sb is GENERATED inside each SideBand_Top (internal sb_pll -> ClkDiv ÷8).
+    // Both dies' sb_pll instances are identical free-running oscillators, so the
+    // two generated clocks are phase-aligned in simulation; use die 0's as the
+    // TB synchronization reference.
+    assign clk_sb = clk_sb_die[0];
 
     // Connect remote clock to our forwarded clock for loopback (or generate separately)
     assign RXCKSB[0] = TXCKSB[1];
@@ -348,15 +353,16 @@ module SideBand_Top_tb;
         fork : sync_phase
             begin
                 // Send 2 dummy 64-bit messages to align sb_demapper on Die 1
+                // (LTSM TX FIFO write port is clocked by clk_ltsm)
                 for (int i=0; i<2; i++) begin
-                    @(posedge clk_main);
+                    @(posedge clk_ltsm);
                     ltsm_vld_send[0] = 1;
                     ltsm_msg_n_send[0] = MBINIT_CAL_Done_req; // 64-bit msg
                     msg_data_send[0] = '0;
                     msg_info_send[0] = 16'h4234;
-                    @(posedge clk_main);
+                    @(posedge clk_ltsm);
                     ltsm_vld_send[0] = 0;
-                    repeat(20) @(posedge clk_main);
+                    repeat(20) @(posedge clk_ltsm);
                 end
             end
             begin
@@ -377,15 +383,15 @@ module SideBand_Top_tb;
         fork
             begin
                 for (int i=0; i<4; i++) begin
-                    @(posedge clk_main);
+                    @(posedge clk_ltsm);
                     $display("[%0t] [DIE 0] Sending LTSM %0d", $time, i);
                     ltsm_vld_send[0] = 1;
                     ltsm_msg_n_send[0] = msg_no_e'(MBINIT_PARAM_configuration_req + i);
                     msg_data_send[0] = {32'hDEADBEEF, i[31:0]};
                     msg_info_send[0] = 16'h4234 + i; // dst_id = 2 (REMOTE_PHY)
-                    @(posedge clk_main);
+                    @(posedge clk_ltsm);
                     ltsm_vld_send[0] = 0;
-                    @(posedge clk_main); // spacing
+                    @(posedge clk_ltsm); // spacing
                 end
             end
             begin
@@ -432,19 +438,26 @@ module SideBand_Top_tb;
 
     task test_rdi_remote_msgs();
         logic [63:0] hdr;
-        
+        int timeout = 0;
         $display("\n========================================================");
         $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_rdi_remote_msgs", $time);
         
         // Remote register read message
-        hdr = build_req_header(SB_32_CFG_READ, REMOTE_ADAPTER, ADAPTER, 24'h102030);
+        hdr = build_req_header(SB_32_CFG_READ, LOCAL_PHY, ADAPTER, 24'h102030);
         
         send_lp_cfg_chunks(hdr, 64'h0, 2, 0); // die 0
         
         // Wait for pl_cfg_vld on Die 1
-        wait(pl_cfg_vld[1] == 1'b1);
         @(posedge clk_sb);
-        $display("[%0t] \033[1;32m[SUCCESS]\033[0m Remote RDI message received on Die 1 via pl_cfg", $time);
+        while(pl_cfg_vld[0] != 1'b1 && timeout < 1000) begin
+            @(posedge clk_sb);
+            timeout++;
+        end
+
+        if(timeout == 1000)
+            $error("[%0t] \033[1;31m[ERROR]\033[0m Remote RDI message not received on Die 1 via pl_cfg", $time);
+        else
+            $display("[%0t] \033[1;32m[SUCCESS]\033[0m Remote RDI message received on Die 1 via pl_cfg", $time);
         
         repeat(50) @(posedge clk_sb);
     endtask
@@ -489,11 +502,11 @@ module SideBand_Top_tb;
         // Send concurrent LTSM and RDI Control Messages from Die 0
         fork
             begin
-                // LTSM Message
-                @(posedge clk_main);
+                // LTSM Message (LTSM TX FIFO write port is clocked by clk_ltsm)
+                @(posedge clk_ltsm);
                 ltsm_vld_send[0] = 1;
                 ltsm_msg_n_send[0] = 8'h00;
-                @(posedge clk_main);
+                @(posedge clk_ltsm);
                 ltsm_vld_send[0] = 0;
             end
             begin
