@@ -192,6 +192,7 @@ module SideBand_Top_tb;
             lp_cfg_crd[j] = 1;
             rf_rdata[j] = 0;
             rdata_vld[j] = 0;
+            addr_err_o[j] = 0;
         end
 
         // Reset Deassertion
@@ -307,6 +308,7 @@ module SideBand_Top_tb;
         hdr.req.dstid  = dst;
         hdr.req.srcid  = src;
         hdr.req.addr   = address;
+        hdr.req.cp     = ^(hdr.raw[61:0]);
         return hdr.raw;
     endfunction
 
@@ -317,6 +319,7 @@ module SideBand_Top_tb;
         hdr.msg.dstid  = dst;
         hdr.msg.srcid  = src;
         hdr.msg.msgcode = code;
+        hdr.msg.cp     = ^(hdr.raw[61:0]);
         return hdr.raw;
     endfunction
 
@@ -368,7 +371,17 @@ module SideBand_Top_tb;
             begin
                 // Ignore the received dummy messages or corrupted garbage
                 repeat(2) begin
-                    wait(ltsm_vld_rcvd[1] == 1'b1);
+                    fork
+                        begin
+                            wait(ltsm_vld_rcvd[1] == 1'b1);
+                        end
+                        begin
+                            #(CLK_SB_PERIOD*5000);
+                            $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout in Link Synchronization Phase", $time);
+                            $stop;
+                        end
+                    join_any
+                    disable fork;
                     $display("[%0t] \033[1;36m[DEBUG]\033[0m Link Sync: Discarding dummy msg on Die 1 (msg_no=%h)", $time, ltsm_msg_no_rcvd[1]);
                     @(posedge clk_main);
                 end
@@ -397,11 +410,23 @@ module SideBand_Top_tb;
             begin
                 for (int i=0; i<4; i++) begin
                     $display("[%0t] [DIE 1] Waiting for LTSM %0d", $time, i);
-                    @(posedge ltsm_vld_rcvd[1]);
+                    fork
+                        begin
+                            @(posedge ltsm_vld_rcvd[1]);
+                        end
+                        begin
+                            #(CLK_SB_PERIOD*5000);
+                            $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout waiting for LTSM %0d in test_training_mgmt_path", $time, i);
+                            $stop;
+                        end
+                    join_any
+                    disable fork;
+                    
                     $display("[%0t] \033[1;36m[DEBUG]\033[0m Die 1 received LTSM message (msg_no=%h)", $time, ltsm_msg_no_rcvd[1]);
-                    if (ltsm_msg_no_rcvd[1] != MBINIT_PARAM_configuration_req + i)
+                    if (ltsm_msg_no_rcvd[1] != MBINIT_PARAM_configuration_req + i) begin
                         $error("[%0t] \033[1;31m[ERROR]\033[0m LTSM mismatch on Die 1: expected %h, got %h", $time, MBINIT_PARAM_configuration_req+i, ltsm_msg_no_rcvd[1]);
-                    else
+                        $stop;
+                    end else
                         $display("[%0t] \033[1;32m[SUCCESS]\033[0m LTSM Burst Msg %0d received correctly", $time, i);
                     @(posedge clk_main);
                 end
@@ -423,11 +448,23 @@ module SideBand_Top_tb;
             end
             begin
                 for (int i=0; i<5; i++) begin
-                    @(posedge RDI_vld_rcvd[1]);
+                    fork
+                        begin
+                            @(posedge RDI_vld_rcvd[1]);
+                        end
+                        begin
+                            #(CLK_SB_PERIOD*5000);
+                            $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout waiting for RDI_vld_rcvd[1] in test_training_mgmt_path", $time);
+                            $stop;
+                        end
+                    join_any
+                    disable fork;
+                    
                     @(posedge clk_sb);
-                    if (RDI_msg_no_rcvd[1] != 8'h03 + i)
-                        $error("[%0t] \033[1;31m[ERROR]\033[0m RDI mismatch on Die 1: expected %h, got %h", $time, 8'h01+i, RDI_msg_no_rcvd[1]);
-                    else
+                    if (RDI_msg_no_rcvd[1] != 8'h03 + i) begin
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m RDI mismatch on Die 1: expected %h, got %h", $time, 8'h03+i, RDI_msg_no_rcvd[1]);
+                        $stop;
+                    end else
                         $display("[%0t] \033[1;32m[SUCCESS]\033[0m RDI Burst Msg %0d received correctly", $time, i);
                 end
             end
@@ -436,7 +473,7 @@ module SideBand_Top_tb;
         repeat(50) @(posedge clk_sb);
     endtask
 
-    task test_rdi_remote_msgs();
+    task automatic test_rdi_remote_msgs();
         logic [63:0] hdr;
         int timeout = 0;
         $display("\n========================================================");
@@ -454,9 +491,10 @@ module SideBand_Top_tb;
             timeout++;
         end
 
-        if(timeout == 1000)
+        if(timeout == 1000) begin
             $error("[%0t] \033[1;31m[ERROR]\033[0m Remote RDI message not received on Die 1 via pl_cfg", $time);
-        else
+            $stop;
+        end else
             $display("[%0t] \033[1;32m[SUCCESS]\033[0m Remote RDI message received on Die 1 via pl_cfg", $time);
         
         repeat(50) @(posedge clk_sb);
@@ -478,15 +516,154 @@ module SideBand_Top_tb;
                 send_lp_cfg_chunks(hdr, payload, 4, 0); // 4 chunks for 64-bit payload
             end
             begin
-                // Monitor rf_* interface on Die 0
-                wait(wr_en[0] == 1'b1);
+                // Monitor rf_* interface on Die 0 with timeout
+                fork
+                    begin
+                        wait(wr_en[0] == 1'b1);
+                    end
+                    begin
+                        #(CLK_SB_PERIOD*1000);
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout waiting for wr_en[0] in test_rdi_local_reg_msgs", $time);
+                        $stop;
+                    end
+                join_any
+                disable fork;
+
                 @(posedge clk_sb);
                 if (rf_addr[0] == 25'h100AABB && rf_wdata[0] == payload)
                     $display("[%0t] \033[1;32m[SUCCESS]\033[0m Local register write successfully routed to Reg_Access on Die 0", $time);
-                else
+                else begin
                     $error("[%0t] \033[1;31m[ERROR]\033[0m Local register write mismatch: addr=%h, data=%h", $time, rf_addr[0], rf_wdata[0]);
+                    $stop;
+                end
             end
         join
+        
+        repeat(50) @(posedge clk_sb);
+    endtask
+
+    task automatic receive_pl_cfg_packet(
+        input int die,
+        output logic [127:0] packet,
+        output bit success
+    );
+        int timeout = 0;
+        success = 0;
+        packet = '0;
+
+        // Wait for pl_cfg_vld to go high
+        while (pl_cfg_vld[die] !== 1'b1 && timeout < 2000) begin
+            @(posedge clk_sb);
+            timeout++;
+        end
+
+        if (timeout >= 2000) begin
+            success = 0;
+            return;
+        end
+
+        // Capture chunks cycle by cycle
+        for (int c = 0; c < 4; c++) begin
+            if (pl_cfg_vld[die] === 1'b1) begin
+                case(c)
+                    0: packet[31:0]   = pl_cfg[die];
+                    1: packet[63:32]  = pl_cfg[die];
+                    2: packet[95:64]  = pl_cfg[die];
+                    3: packet[127:96] = pl_cfg[die];
+                endcase
+                @(posedge clk_sb);
+            end else begin
+                break;
+            end
+        end
+        success = 1;
+    endtask
+
+    task automatic test_rdi_local_reg_completion();
+        logic [63:0] hdr;
+        logic [63:0] payload;
+        logic [127:0] cpl_pkt;
+        bit success;
+        sb_header_u cpl_hdr_dec;
+        
+        $display("\n========================================================");
+        $display("[%0t] \033[1;34m[INFO]\033[0m Starting test_rdi_local_reg_completion", $time);
+        
+        // ------------------------------------------------------------
+        // SCENARIO 1: Local Register WRITE (64-bit MEM WRITE)
+        // ------------------------------------------------------------
+        $display("[%0t] \033[1;34m[INFO]\033[0m Scenario 1: Sending Local Write Request", $time);
+        hdr = build_req_header(SB_64_MEM_WRITE, LOCAL_PHY, ADAPTER, 24'h00ABCD);
+        payload = 64'hFEEDFACECAFEBEEF;
+        
+        fork
+            begin
+                send_lp_cfg_chunks(hdr, payload, 4, 0); // 4 chunks to Die 0
+            end
+            begin
+                // Capture the completion from Die 0 via pl_cfg
+                receive_pl_cfg_packet(0, cpl_pkt, success);
+            end
+        join
+
+        if (!success) begin
+            $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout: No completion received for local WRITE", $time);
+            $stop;
+        end else begin
+            cpl_hdr_dec.raw = cpl_pkt[63:0];
+            $display("[%0t] [DEBUG] Captured completion packet: %h", $time, cpl_pkt);
+            $display("[%0t] [DEBUG] Decoded Opcode: %b, Status: %b", $time, cpl_hdr_dec.cpl.opcode, cpl_hdr_dec.cpl.status);
+            
+            if (cpl_hdr_dec.cpl.opcode != SB_COMPLETION_WITHOUT_DATA) begin
+                $error("[%0t] \033[1;31m[ERROR]\033[0m Expected SB_COMPLETION_WITHOUT_DATA (%b), got %b", 
+                       $time, SB_COMPLETION_WITHOUT_DATA, cpl_hdr_dec.cpl.opcode);
+                $stop;
+            end else if (cpl_hdr_dec.cpl.status != 3'b000) begin
+                $error("[%0t] \033[1;31m[ERROR]\033[0m Write completion status error: expected SC (000), got %b", 
+                       $time, cpl_hdr_dec.cpl.status);
+                $stop;
+            end else begin
+                $display("[%0t] \033[1;32m[SUCCESS]\033[0m Local WRITE completed successfully!", $time);
+            end
+        end
+
+        repeat(10) @(posedge clk_sb);
+
+        // ------------------------------------------------------------
+        // SCENARIO 2: Local Register READ (64-bit MEM READ)
+        // ------------------------------------------------------------
+        $display("\n[%0t] \033[1;34m[INFO]\033[0m Scenario 2: Sending Local Read Request", $time);
+        hdr = build_req_header(SB_64_MEM_READ, LOCAL_PHY, ADAPTER, 24'h00ABCD);
+        
+        // Send request and receive completion sequentially (global responder handles read response)
+        send_lp_cfg_chunks(hdr, 64'h0, 2, 0); // Read request is 2 chunks
+        receive_pl_cfg_packet(0, cpl_pkt, success);
+
+        if (!success) begin
+            $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout: No completion received for local READ", $time);
+            $stop;
+        end else begin
+            cpl_hdr_dec.raw = cpl_pkt[63:0];
+            $display("[%0t] [DEBUG] Captured completion packet: %h", $time, cpl_pkt);
+            $display("[%0t] [DEBUG] Decoded Opcode: %b, Status: %b, Data: %h", 
+                     $time, cpl_hdr_dec.cpl.opcode, cpl_hdr_dec.cpl.status, cpl_pkt[127:64]);
+            
+            if (cpl_hdr_dec.cpl.opcode != SB_COMPLETION_WITH_64_DATA) begin
+                $error("[%0t] \033[1;31m[ERROR]\033[0m Expected SB_COMPLETION_WITH_64_DATA (%b), got %b", 
+                       $time, SB_COMPLETION_WITH_64_DATA, cpl_hdr_dec.cpl.opcode);
+                $stop;
+            end else if (cpl_hdr_dec.cpl.status != 3'b000) begin
+                $error("[%0t] \033[1;31m[ERROR]\033[0m Read completion status error: expected SC (000), got %b", 
+                       $time, cpl_hdr_dec.cpl.status);
+                $stop;
+            end else if (cpl_pkt[127:64] != 64'hFEEDFACECAFEBEEF) begin
+                $error("[%0t] \033[1;31m[ERROR]\033[0m Read data mismatch: expected 64'hFEEDFACECAFEBEEF, got %h", 
+                       $time, cpl_pkt[127:64]);
+                $stop;
+            end else begin
+                $display("[%0t] \033[1;32m[SUCCESS]\033[0m Local READ completed successfully with correct data!", $time);
+            end
+        end
         
         repeat(50) @(posedge clk_sb);
     endtask
@@ -515,20 +692,91 @@ module SideBand_Top_tb;
             end
         join
         
-        // Wait for both to arrive on Die 1
+        // Wait for both to arrive on Die 1 with timeout
         fork
             begin
-                wait(ltsm_vld_rcvd[1] == 1'b1);
-                $display("[%0t] \033[1;32m[SUCCESS]\033[0m LTSM message received post-arbitration", $time);
+                fork
+                    begin
+                        wait(ltsm_vld_rcvd[1] == 1'b1);
+                        $display("[%0t] \033[1;32m[SUCCESS]\033[0m LTSM message received post-arbitration", $time);
+                    end
+                    begin
+                        #(CLK_SB_PERIOD*2000);
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout waiting for LTSM message in test_link_controller_arbitration", $time);
+                        $stop;
+                    end
+                join_any
+                disable fork;
             end
             begin
-                wait(pl_cfg_vld[1] == 1'b1);
-                $display("[%0t] \033[1;32m[SUCCESS]\033[0m Adapter remote message received post-arbitration", $time);
+                fork
+                    begin
+                        wait(pl_cfg_vld[1] == 1'b1);
+                        $display("[%0t] \033[1;32m[SUCCESS]\033[0m Adapter remote message received post-arbitration", $time);
+                    end
+                    begin
+                        #(CLK_SB_PERIOD*2000);
+                        $error("[%0t] \033[1;31m[ERROR]\033[0m Timeout waiting for pl_cfg_vld[1] in test_link_controller_arbitration", $time);
+                        $stop;
+                    end
+                join_any
+                disable fork;
             end
         join
         
         repeat(50) @(posedge clk_sb);
     endtask
+
+    // =========================================================================
+    // Watchdog and Register File Mocking
+    // =========================================================================
+    initial begin
+        #1000000; // 1 ms watchdog timeout
+        $error("GLOBAL WATCHDOG TIMEOUT: Simulation hung!");
+        $stop;
+    end
+
+    initial begin
+        logic [63:0] reg_mem [2][logic [24:0]]; // memory per die
+        fork
+            // Die 0 memory responder
+            forever begin
+                @(posedge clk_sb);
+                if (wr_en[0]) begin
+                    reg_mem[0][rf_addr[0]] = rf_wdata[0];
+                end
+                if (rd_en[0]) begin
+                    repeat(1) @(posedge clk_sb);
+                    if (reg_mem[0].exists(rf_addr[0])) begin
+                        rf_rdata[0] = reg_mem[0][rf_addr[0]];
+                    end else begin
+                        rf_rdata[0] = 64'hDECAFBADDECAFBAD;
+                    end
+                    rdata_vld[0] = 1;
+                    @(posedge clk_sb);
+                    rdata_vld[0] = 0;
+                end
+            end
+            // Die 1 memory responder
+            forever begin
+                @(posedge clk_sb);
+                if (wr_en[1]) begin
+                    reg_mem[1][rf_addr[1]] = rf_wdata[1];
+                end
+                if (rd_en[1]) begin
+                    repeat(1) @(posedge clk_sb);
+                    if (reg_mem[1].exists(rf_addr[1])) begin
+                        rf_rdata[1] = reg_mem[1][rf_addr[1]];
+                    end else begin
+                        rf_rdata[1] = 64'hDECAFBADDECAFBAD;
+                    end
+                    rdata_vld[1] = 1;
+                    @(posedge clk_sb);
+                    rdata_vld[1] = 0;
+                end
+            end
+        join
+    end
 
     // =========================================================================
     // Test Sequence
@@ -545,6 +793,7 @@ module SideBand_Top_tb;
         test_training_mgmt_path();
         test_rdi_remote_msgs();
         test_rdi_local_reg_msgs();
+        test_rdi_local_reg_completion();
         test_link_controller_arbitration();
 
         $display("----------------------------------------");
