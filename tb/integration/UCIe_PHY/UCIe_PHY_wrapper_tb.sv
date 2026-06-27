@@ -77,6 +77,8 @@ module UCIe_PHY_wrapper_tb;
     logic [31:0]          lp_cfg [2];
     logic                 lp_cfg_vld [2];
     logic                 lp_cfg_crd [2];
+    logic [31:0]          pl_cfg [2];
+    logic                 pl_cfg_vld [2];
 
     // RDI adapter face
     RDI_state             lp_state_req0, lp_state_req1;
@@ -129,7 +131,7 @@ module UCIe_PHY_wrapper_tb;
         .i_RD_P(i_RD_P0), .i_RVLD_P(i_RVLD_P0), .i_RCKP_P(i_RCKP_P0), .i_RCKN_P(i_RCKN_P0), .i_RTRK_P(i_RTRK_P0),
         .o_TD_P(o_TD_P0), .o_TVLD_P(o_TVLD_P0), .o_TCKP_P(o_TCKP_P0), .o_TCKN_P(o_TCKN_P0), .o_TTRK_P(o_TTRK_P0),
         .RXCKSB(RXCKSB0), .TXCKSB(TXCKSB0), .TXDATASB(TXDATASB0), .RXDATASB(RXDATASB0),
-        .lp_cfg(lp_cfg[0]), .lp_cfg_vld(lp_cfg_vld[0]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[0]), .pl_cfg(), .pl_cfg_vld(),
+        .lp_cfg(lp_cfg[0]), .lp_cfg_vld(lp_cfg_vld[0]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[0]), .pl_cfg(pl_cfg[0]), .pl_cfg_vld(pl_cfg_vld[0]),
         .lp_state_req(lp_state_req0), .lp_clk_ack(lp_clk_ack0), .lp_wake_req(lp_wake_req0),
         .lp_stallack(lp_stallack0), .lp_linkerror(lp_linkerror0),
         .pl_clk_req(pl_clk_req0), .pl_stallreq(pl_stallreq0), .pl_wake_ack(pl_wake_ack0),
@@ -144,7 +146,7 @@ module UCIe_PHY_wrapper_tb;
         .i_RD_P(i_RD_P1), .i_RVLD_P(i_RVLD_P1), .i_RCKP_P(i_RCKP_P1), .i_RCKN_P(i_RCKN_P1), .i_RTRK_P(i_RTRK_P1),
         .o_TD_P(o_TD_P1), .o_TVLD_P(o_TVLD_P1), .o_TCKP_P(o_TCKP_P1), .o_TCKN_P(o_TCKN_P1), .o_TTRK_P(o_TTRK_P1),
         .RXCKSB(RXCKSB1), .TXCKSB(TXCKSB1), .TXDATASB(TXDATASB1), .RXDATASB(RXDATASB1),
-        .lp_cfg(lp_cfg[1]), .lp_cfg_vld(lp_cfg_vld[1]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[1]), .pl_cfg(), .pl_cfg_vld(),
+        .lp_cfg(lp_cfg[1]), .lp_cfg_vld(lp_cfg_vld[1]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[1]), .pl_cfg(pl_cfg[1]), .pl_cfg_vld(pl_cfg_vld[1]),
         .lp_state_req(lp_state_req1), .lp_clk_ack(lp_clk_ack1), .lp_wake_req(lp_wake_req1),
         .lp_stallack(lp_stallack1), .lp_linkerror(lp_linkerror1),
         .pl_clk_req(pl_clk_req1), .pl_stallreq(pl_stallreq1), .pl_wake_ack(pl_wake_ack1),
@@ -229,6 +231,7 @@ module UCIe_PHY_wrapper_tb;
         hdr.req.srcid  = ADAPTER;
         hdr.req.addr   = addr;
         hdr.req.be     = be;
+        hdr.req.cp     = ^(hdr.raw[61:0]);
         return hdr.raw;
     endfunction
 
@@ -253,6 +256,61 @@ module UCIe_PHY_wrapper_tb;
     // MMIO-space 64-bit write (space bit = 1).
     task automatic reg_wr_mem(input int die, input logic [23:0] addr, input logic [63:0] data);
         send_chunks64(die, build_wr_header(SB_64_MEM_WRITE, addr, 8'h0F), data);
+    endtask
+
+    // Stream header as 2 chunks (64-bit read request).
+    task automatic send_chunks32(input int die, input logic [63:0] header);
+        sb_edge(die); lp_cfg_vld[die] = 1'b1; lp_cfg[die] = header[31:0];
+        sb_edge(die);                          lp_cfg[die] = header[63:32];
+        sb_edge(die); lp_cfg_vld[die] = 1'b0;
+    endtask
+
+    // CFG-space 64-bit read
+    task automatic reg_rd_cfg(input int die, input logic [23:0] addr);
+        send_chunks32(die, build_wr_header(SB_64_CFG_READ, addr, 8'h0F));
+    endtask
+
+    // MMIO-space 64-bit read
+    task automatic reg_rd_mem(input int die, input logic [23:0] addr);
+        send_chunks32(die, build_wr_header(SB_64_MEM_READ, addr, 8'h0F));
+    endtask
+
+    // Capture completion/packet from pl_cfg interface
+    task automatic receive_pl_cfg_packet(
+        input int die,
+        output logic [127:0] packet,
+        output bit success
+    );
+        int timeout = 0;
+        success = 0;
+        packet = '0;
+
+        // Wait for pl_cfg_vld to go high
+        while (pl_cfg_vld[die] !== 1'b1 && timeout < 2000) begin
+            if (die == 0) @(posedge clk_sb0); else @(posedge clk_sb1);
+            timeout++;
+        end
+
+        if (timeout >= 2000) begin
+            success = 0;
+            return;
+        end
+
+        // Capture chunks cycle by cycle
+        for (int c = 0; c < 4; c++) begin
+            if (pl_cfg_vld[die] === 1'b1) begin
+                case(c)
+                    0: packet[31:0]   = pl_cfg[die];
+                    1: packet[63:32]  = pl_cfg[die];
+                    2: packet[95:64]  = pl_cfg[die];
+                    3: packet[127:96] = pl_cfg[die];
+                endcase
+                if (die == 0) @(posedge clk_sb0); else @(posedge clk_sb1);
+            end else begin
+                break;
+            end
+        end
+        success = 1;
     endtask
 
     // Program one die's bring-up registers and assert Start-UCIe-Link-Training.
@@ -537,7 +595,6 @@ module UCIe_PHY_wrapper_tb;
         enabled_scenarios[27] = 1'b1;
         enabled_scenarios[28] = 1'b1;
         enabled_scenarios[29] = 1'b1;
-        enabled_scenarios[30] = 1'b1;
     
         $display("================================================================");
         $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
@@ -1984,6 +2041,89 @@ module UCIe_PHY_wrapper_tb;
                 lp_valid1 = 1'b0;
                 lp_irdy1 = 1'b0;
             end
+        end else begin
+            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+        end
+        scenario_num++;
+
+        // ----------------------------------------------------------------
+        // Scenario 31: Sideband Completion and Clock Handshake Verification
+        // ----------------------------------------------------------------
+        if (enabled_scenarios[scenario_num]) begin
+            logic [127:0] cpl_pkt;
+            bit success;
+            sb_header_u cpl_hdr_dec;
+            bit handshake_seen;
+            
+            $display("\nT=%0t | [SC%0d] Register Write Completion & Clock Handshake Verification...", $time, scenario_num);
+            reset_system();
+            
+            // Check that pl_clk_req0 starts at 0
+            chk(pl_clk_req0 == 1'b0, "pl_clk_req0 starts at 0", scenario_num);
+            
+            handshake_seen = 0;
+            
+            // Send register write and receive completion
+            $display("T=%0t | [SC%0d] Sending Local Write Request to OFF_TRAIN_SETUP4 (MMIO space)", $time, scenario_num);
+            fork
+                begin
+                    reg_wr_mem(0, OFF_TRAIN_SETUP4, 64'h00000000cafebeef);
+                end
+                begin
+                    receive_pl_cfg_packet(0, cpl_pkt, success);
+                end
+                begin
+                    wait (pl_clk_req0 === 1'b1);
+                    $display("T=%0t | [SC%0d] [CLK_HANDSHAKE] Observed pl_clk_req0 = 1", $time, scenario_num);
+                    wait (lp_clk_ack0 === 1'b1);
+                    $display("T=%0t | [SC%0d] [CLK_HANDSHAKE] Observed lp_clk_ack0 = 1", $time, scenario_num);
+                    handshake_seen = 1;
+                end
+            join
+            
+            chk(success, "received completion packet for register write", scenario_num);
+            if (success) begin
+                cpl_hdr_dec.raw = cpl_pkt[63:0];
+                $display("T=%0t | [SC%0d] Captured completion packet: %h", $time, scenario_num, cpl_pkt);
+                chk(cpl_hdr_dec.cpl.opcode == SB_COMPLETION_WITHOUT_DATA, "opcode matches SB_COMPLETION_WITHOUT_DATA", scenario_num);
+                chk(cpl_hdr_dec.cpl.status == 3'b000, "completion status is success (3'b000)", scenario_num);
+            end
+            chk(handshake_seen, "clock handshake occurred in parallel with write request", scenario_num);
+            
+            // Wait some cycles
+            repeat (50) @(posedge clk_sb0);
+            
+            // Reset handshake monitor
+            handshake_seen = 0;
+            
+            // Send register read and receive completion
+            $display("T=%0t | [SC%0d] Sending Local Read Request from OFF_TRAIN_SETUP4 (MMIO space)", $time, scenario_num);
+            fork
+                begin
+                    reg_rd_mem(0, OFF_TRAIN_SETUP4);
+                end
+                begin
+                    receive_pl_cfg_packet(0, cpl_pkt, success);
+                end
+                begin
+                    wait (pl_clk_req0 === 1'b1);
+                    $display("T=%0t | [SC%0d] [CLK_HANDSHAKE] Observed pl_clk_req0 = 1 during read", $time, scenario_num);
+                    wait (lp_clk_ack0 === 1'b1);
+                    $display("T=%0t | [SC%0d] [CLK_HANDSHAKE] Observed lp_clk_ack0 = 1 during read", $time, scenario_num);
+                    handshake_seen = 1;
+                end
+            join
+            
+            chk(success, "received completion packet for register read", scenario_num);
+            if (success) begin
+                cpl_hdr_dec.raw = cpl_pkt[63:0];
+                $display("T=%0t | [SC%0d] Captured completion packet: %h", $time, scenario_num, cpl_pkt);
+                chk(cpl_hdr_dec.cpl.opcode == SB_COMPLETION_WITH_64_DATA, "opcode matches SB_COMPLETION_WITH_64_DATA", scenario_num);
+                chk(cpl_hdr_dec.cpl.status == 3'b000, "completion status is success (3'b000)", scenario_num);
+                chk(cpl_pkt[127:64] == 64'h00000000cafebeef, "read data matches written data (64'h00000000cafebeef)", scenario_num);
+            end
+            chk(handshake_seen, "clock handshake occurred in parallel with read request", scenario_num);
+            
         end else begin
             $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
         end
