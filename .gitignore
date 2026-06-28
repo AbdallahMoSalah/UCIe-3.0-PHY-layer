@@ -41,3 +41,35 @@ rename.py
 rtl/MainBand/Integration steps/.fuse_hidden000012fc00000004
 args.txt
 verilator_out.txt
+
+# ============================================================
+# Vivado project (keep .xpr, block design .bd, IP .xci, .xsa)
+# ============================================================
+vivado/**/*.cache/
+vivado/**/*.gen/
+vivado/**/*.hw/
+vivado/**/*.sim/
+vivado/**/*.ip_user_files/
+vivado/**/*.runs/
+vivado/**/_ide/
+vivado/**/.Xil/
+vivado/**/*.dcp
+vivado/**/*.jou
+vivado/**/*.log
+vivado/**/ip_upgrade.log
+
+# ============================================================
+# Vitis workspace (keep app_component/src + vitis-comp.json)
+# ============================================================
+# Platform/BSP is regenerated from the .xsa
+vitis_ucie/platform/
+vitis_ucie/_ide/
+vitis_ucie/.rigel_lopper/
+vitis_ucie/**/build/
+vitis_ucie/**/_ide/
+vitis_ucie/**/.cache/
+vitis_ucie/**/.clangd
+vitis_ucie/**/.compile_commands/
+vitis_ucie/**/compile_commands.json
+vitis_ucie/**/*.elf
+vitis_ucie/**/*.log

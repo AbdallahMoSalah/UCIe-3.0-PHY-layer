@@ -1,0 +1,50 @@
+{
+  "schema": "xilinx.com:schema:json_instance:1.0",
+  "ip_inst": {
+    "xci_name": "system_xlconstant_pl_pad_2",
+    "cell_name": "xlconstant_pl_pad",
+    "component_reference": "xilinx.com:ip:xlconstant:1.1",
+    "ip_revision": "10",
+    "gen_directory": "../../../../../../UCIe_PHY.gen/sources_1/bd/system/ip/system_xlconstant_pl_pad_2",
+    "parameters": {
+      "component_parameters": {
+        "Component_Name": [ { "value": "system_xlconstant_pl_pad_2", "resolve_type": "user", "usage": "all" } ],
+        "CONST_WIDTH": [ { "value": "6", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "CONST_VAL": [ { "value": "0", "value_src": "user", "resolve_type": "user", "usage": "all" } ]
+      },
+      "model_parameters": {
+        "CONST_WIDTH": [ { "value": "6", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "CONST_VAL": [ { "value": "0x00", "resolve_type": "generated", "format": "bitString", "usage": "all" } ]
+      },
+      "project_parameters": {
+        "ARCHITECTURE": [ { "value": "zynquplus", "resolve_type": "generated", "usage": "all" } ],
+        "BASE_BOARD_PART": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
+        "BOARD_CONNECTIONS": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
+        "DEVICE": [ { "value": "xczu3eg", "resolve_type": "generated", "usage": "all" } ],
+        "PACKAGE": [ { "value": "sbva484", "resolve_type": "generated", "usage": "all" } ],
+        "PREFHDL": [ { "value": "VERILOG", "resolve_type": "generated", "usage": "all" } ],
+        "SILICON_REVISION": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
+        "SIMULATOR_LANGUAGE": [ { "value": "MIXED", "resolve_type": "generated", "usage": "all" } ],
+        "SPEEDGRADE": [ { "value": "-1", "resolve_type": "generated", "usage": "all" } ],
+        "STATIC_POWER": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
+        "TEMPERATURE_GRADE": [ { "value": "I", "resolve_type": "generated", "usage": "all" } ]
+      },
+      "runtime_parameters": {
+        "IPCONTEXT": [ { "value": "IP_Integrator" } ],
+        "IPREVISION": [ { "value": "10" } ],
+        "MANAGED": [ { "value": "TRUE" } ],
+        "OUTPUTDIR": [ { "value": "../../../../../../UCIe_PHY.gen/sources_1/bd/system/ip/system_xlconstant_pl_pad_2" } ],
+        "SELECTEDSIMMODEL": [ { "value": "" } ],
+        "SHAREDDIR": [ { "value": "../../ipshared" } ],
+        "SWVERSION": [ { "value": "2025.2.1" } ],
+        "SYNTHESISFLOW": [ { "value": "GLOBAL" } ]
+      }
+    },
+    "boundary": {
+      "ports": {
+        "dout": [ { "direction": "out", "size_left": "5", "size_right": "0" } ]
+      }
+    }
+  },
+  "checksum": "017a2171"
+}

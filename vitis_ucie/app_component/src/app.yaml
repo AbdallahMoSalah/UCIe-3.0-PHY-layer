@@ -1,0 +1,4 @@
+domain_path: /home/eldo/work/UCIe-3.0-PHY-layer/vitis_ucie/platform/export/platform/sw/standalone_psu_cortexa53_0
+app_src_dir: /home/eldo/myspace/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/empty_application
+template: empty_application
+lang: c
