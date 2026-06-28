@@ -37,7 +37,16 @@ module UCIe_FPGA_top_wrapper #(
     parameter SB_TX_DN_CRD_INIT  = 32,
     parameter SB_RX_FIFO_DEPTH   = 16
 )(
+    // lclk clocks ALL four AXI-Stream interfaces (see clk_sb = lclk below).
+    // Declaring ASSOCIATED_BUSIF makes IP Integrator tie each interface's
+    // FREQ_HZ to this clock, so they track the actual pl_clk0 frequency instead
+    // of a frozen value (fixes BD 41-237 freq mismatch + BD 41-967 "not
+    // associated to any clock" on the *_tx slaves).
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 lclk CLK" *)
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF s_axis_mb_tx:m_axis_mb_rx:s_axis_sb_tx:m_axis_sb_rx, ASSOCIATED_RESET rst_n" *)
     input                                    lclk,
+    (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 rst_n RST" *)
+    (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input                                    rst_n,
 
     // ---- MainBand TX (AXI-Stream Slave) ----
