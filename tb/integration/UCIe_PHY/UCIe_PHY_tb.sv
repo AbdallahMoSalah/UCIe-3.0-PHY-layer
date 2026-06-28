@@ -49,7 +49,7 @@ module UCIe_PHY_tb;
     //---------------------------------------------------------------------------
     //
     //---------------------------------------------------------------------------
-    bit [30:1] enabled_scenarios = {30{1'b1}};
+    bit [30:1] enabled_scenarios = {30{1'b0}};
     // bit [30:1] enabled_scenarios = 30'b0;
     localparam sc = 8; // SC1
     // =========================================================================
@@ -509,7 +509,7 @@ module UCIe_PHY_tb;
     bit data_pass;
     initial begin
 
-        enabled_scenarios[8] = 1'b1;
+        enabled_scenarios[1] = 1'b1;
 
         $display("================================================================");
         $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
