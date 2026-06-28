@@ -21,7 +21,7 @@ module Packetizer (
 
     logic is_there_data;
     logic is_req;
-    assign rdy = trn_rdy;
+    
 
     always_comb begin
 
@@ -480,24 +480,26 @@ module Packetizer (
             
         
          
+    assign rdy = !trn_vld_send || trn_rdy;
+
     always_ff @(posedge clk, negedge rst_n) begin : seq_part
         if (!rst_n) begin
             trn_vld_send <= 1'b0;
-            header_reg <= '0;
-            payload <= '0;
-        end else if (valid_send && trn_rdy) begin
-            trn_vld_send <= 1'b1;
-            header_reg <= header_comb;
-            payload <= msg_data_send;
-            `ifdef SIMULATION
-                // synthesis translate_off
-                $display("[%0t] [PKT %m] FIRE: msg_no=%h header_raw=%h dstid=%b opcode=%b",
-                         $time, msg_no_send, header_comb.raw,
-                         header_comb.msg.dstid, header_comb.msg.opcode);
-                // synthesis translate_on
-            `endif
-        end else begin
-            trn_vld_send <= 1'b0;
+            header_reg   <= '0;
+            payload      <= '0;
+        end else if (rdy) begin
+            trn_vld_send <= valid_send;
+            if (valid_send) begin
+                header_reg <= header_comb;
+                payload    <= msg_data_send;
+                `ifdef SIMULATION
+                    // synthesis translate_off
+                    $display("[%0t] [PKT %m] FIRE: msg_no=%h header_raw=%h dstid=%b opcode=%b",
+                             $time, msg_no_send, header_comb.raw,
+                             header_comb.msg.dstid, header_comb.msg.opcode);
+                    // synthesis translate_on
+                `endif
+            end
         end
     end
 
