@@ -319,9 +319,6 @@ module SideBand_Top #(
         .reg_vld          (reg_vld),
         .reg_rdy          (reg_rdy),
         
-        // PHY context
-        .phy_in_reset     (phy_in_reset),
-        
         // SB TX side
         .completion_msg   (completion_msg),
         .completion_vld   (completion_vld),

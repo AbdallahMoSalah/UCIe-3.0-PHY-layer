@@ -29,11 +29,6 @@ module Reg_Access
     output logic         reg_rdy,          // Handshake: block is rdy
 
     // -----------------------------------------------------------------------
-    // PHY context
-    // -----------------------------------------------------------------------
-    input  logic         phy_in_reset,     // 1 during Link/Soft Reset → UR all reqs
-
-    // -----------------------------------------------------------------------
     // SB TX interface (to Link_Controller TX arbiter)
     // -----------------------------------------------------------------------
     output logic [127:0] completion_msg,   // Completion SB packet
