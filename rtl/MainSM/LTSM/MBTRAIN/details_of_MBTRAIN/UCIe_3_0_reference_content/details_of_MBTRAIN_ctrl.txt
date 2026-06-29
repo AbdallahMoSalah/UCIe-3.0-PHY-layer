@@ -1,1 +1,0 @@
-Here we have to create a controller for each of the requester UCIe Die (local UCIe Die) and the responser UCIe Die (remote UCIe Die (partner)).

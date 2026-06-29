@@ -1,0 +1,13 @@
+4.5.1.3 Receiver initiated Data to Clock point test
+In this mode, the Receiver initiates the data to clock training on all Lanes in the module at a single PI phase. When not performing the actions relevant to this state:
+• Data, Valid, and Track Transmitters drive low
+• Clock Transmitters are held differential low (for differential clocking) or simultaneous low (for Quadrature clocking)
+• Data, Valid, and Clock Receivers are enabled
+• Track Receiver is permitted to be disabled
+The sequence of steps for this test are as follows:
+1. The UCIe Module enables the pattern comparison circuits to compare incoming mainband data to the locally generated expected pattern, sets up the Receiver parameters (shown in Table 4-5), sends a {Start Rx Init D to C point test req} sideband message to its UCIe Module Partner, and then waits for a response. The data field of this message includes the required parameters, shown in Table 4-5. Once the data to clock training parameters for its Transmitter are setup, the UCIe Module Partner responds with a {Start Rx Init D to C point test resp} sideband message.
+2. The UCIe Module Partner resets the LFSR (scrambler) on its mainband Transmitters and sends sideband message {LFSR clear error req}. The UCIe Module resets the LFSR and clears any prior compare results on its mainband Receivers and responds with {LFSR clear error resp} sideband message.
+3. The UCIe Module Partner sends the pattern (selected through “Tx Pattern Generator Setup”) for the selected number of cycles (“Tx Pattern Mode Setup”) on its mainband Transmitter.
+4. The UCIe Module performs the comparison on its mainband Receivers for each UI during the pattern transmission based on “Rx Compare Setup” and logs the results.
+5. The UCIe Module Partner sends a sideband message {Rx Init D to C Tx count done req} sideband message once the pattern count is complete. The UCIe Module, stops comparison and responds with the sideband message {Rx Init D to C Tx count done resp}. The UCIe Module can now use the logged data for its Receiver Lanes.
+6. The UCIe Module sends an {End Rx Init D to C point test req} sideband message and the UCIe Module Partner responds with an {End Rx Init D to C point test resp} sideband message. When a UCIe Module has received the {End Rx Init D to C point test resp} sideband message, the corresponding sequence has completed.
