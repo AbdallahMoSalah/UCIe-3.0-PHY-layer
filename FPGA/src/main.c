@@ -88,9 +88,9 @@ int main(void) {
         xil_printf("    WARN: remote message loopback failed (%d) - skipping (not "
                    "supported in this loopback). Continuing to MainBand test.\r\n", Status);
     } else {
-        u8  RxOpc   = RxW0 & 0xFF;
-        u32 RxInfo  = RxW1 & 0x00FFFFFF;
-        u32 RxDstId = (RxW1 >> 24) & 0xFF;
+        u8  RxOpc   = RxW0 & 0x1F;          // opcode [4:0]
+        u32 RxInfo  = RxW1 & 0x00FFFFFF;     // MsgInfo/MsgSubcode [23:0]
+        u32 RxDstId = (RxW1 >> 24) & 0x07;   // dstid [58:56] only (cp/dp sit in [31:30])
         // 64-bit data printed as two halves (xil_printf has no %ll support)
         xil_printf("    sent: opc=0x%02X info=0x%06X data=0x%08X_%08X\r\n",
                    TxOpc, TxInfo, (u32)(TxData >> 32), (u32)(TxData & 0xFFFFFFFF));

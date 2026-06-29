@@ -43,4 +43,4 @@ rtl/MainBand/rx/unit_demapper.sv
 
 # ---- Integration wrapper + testbench ----------------------------------------
 "rtl/MainBand/Integration steps/unit_tx_demap_wrapper.sv"
-"rtl/MainBand/Integration steps/unit_tx_demap_wrapper_tb.sv"
+tb/integration/MAIN_BAND/Integration_steps/unit_tx_demap_wrapper_tb.sv

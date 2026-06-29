@@ -42,4 +42,4 @@ rtl/MainBand/rx/unit_data_deserializer.sv
 
 # ---- Integration wrapper + testbench ----------------------------------------
 "rtl/MainBand/Integration steps/unit_tx_deser_wrapper.sv"
-"rtl/MainBand/Integration steps/unit_tx_deser_wrapper_tb.sv"
+tb/integration/MAIN_BAND/Integration_steps/unit_tx_deser_wrapper_tb.sv

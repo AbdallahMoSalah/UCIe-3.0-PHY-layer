@@ -109,6 +109,61 @@
 #define SB_ID_REMOTE_ADAPTER   0x5
 
 // =============================================================================
+// Sideband 64-bit header — C mirror of sb_pkg::sb_header_u (rtl/SideBand/common/
+// sb_pkg.sv). Bitfields are declared LSB-first so each lands on the exact bit
+// range from the RTL packed structs (ARM little-endian GCC packs u64 bitfields
+// from the LSB up). Build a header by name, then read .raw for the 64-bit value:
+//   word0 = (u32)hdr.raw;  word1 = (u32)(hdr.raw >> 32);
+// =============================================================================
+typedef union {
+    u64 raw;
+    struct {                  // sb_req_header_t  (32/64 MEM/CFG read/write)
+        u64 opcode : 5;       // [4:0]
+        u64 ep     : 1;       // [5]
+        u64 rsvd0  : 6;       // [11:6]
+        u64 be     : 8;       // [19:12]
+        u64 tag    : 5;       // [24:20]
+        u64 rsvd1  : 4;       // [28:25]
+        u64 srcid  : 3;       // [31:29]
+        u64 addr   : 24;      // [55:32]
+        u64 dstid  : 3;       // [58:56]
+        u64 rsvd2  : 2;       // [60:59]
+        u64 cr     : 1;       // [61]
+        u64 cp     : 1;       // [62]
+        u64 dp     : 1;       // [63]
+    } req;
+    struct {                  // sb_cpl_header_t  (completions we receive)
+        u64 opcode : 5;       // [4:0]
+        u64 ep     : 1;       // [5]
+        u64 rsvd0  : 6;       // [11:6]
+        u64 be     : 8;       // [19:12]
+        u64 tag    : 5;       // [24:20]
+        u64 rsvd1  : 4;       // [28:25]
+        u64 srcid  : 3;       // [31:29]
+        u64 status : 3;       // [34:32]
+        u64 rsvd2  : 21;      // [55:35]
+        u64 dstid  : 3;       // [58:56]
+        u64 rsvd3  : 2;       // [60:59]
+        u64 cr     : 1;       // [61]
+        u64 cp     : 1;       // [62]
+        u64 dp     : 1;       // [63]
+    } cpl;
+    struct {                  // sb_msg_header_t  (messages)
+        u64 opcode     : 5;   // [4:0]
+        u64 rsvd0      : 11;  // [15:5]
+        u64 msgcode    : 8;   // [23:16]
+        u64 rsvd1      : 5;   // [28:24]
+        u64 srcid      : 3;   // [31:29]
+        u64 MsgSubcode : 8;   // [39:32]
+        u64 MsgInfo    : 16;  // [55:40]
+        u64 dstid      : 3;   // [58:56]
+        u64 rsvd2      : 3;   // [61:59]
+        u64 cp         : 1;   // [62]
+        u64 dp         : 1;   // [63]
+    } msg;
+} sb_header_t;
+
+// =============================================================================
 // RDI State Enumeration (matching RDI_state package in RTL)
 // =============================================================================
 typedef enum {

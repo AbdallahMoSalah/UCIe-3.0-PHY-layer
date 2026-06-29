@@ -5,4 +5,4 @@
 rtl/MainSM/RDI_SM/unit_Timer/unit_Timer.sv
 
 # Testbench
-rtl/MainSM/RDI_SM/unit_Timer/unit_Timer_tb.sv
+tb/unit/MainSM/RDI_SM/unit_Timer/unit_Timer_tb.sv

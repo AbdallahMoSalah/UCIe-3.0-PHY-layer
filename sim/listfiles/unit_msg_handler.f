@@ -9,4 +9,4 @@ rtl/common/UCIe_pkg.sv
 rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv
 
 # Testbench
-rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler_tb.sv
+tb/unit/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler_tb.sv

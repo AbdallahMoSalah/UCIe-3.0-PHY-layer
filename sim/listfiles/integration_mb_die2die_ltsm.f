@@ -44,4 +44,4 @@ rtl/MainBand_RD/rx/unit_mb_rx_top.sv
 # ---- Full MB die (TX + RX) + LTSM Interface + two-die testbench --------------
 rtl/MainBand_RD/mainband_ltsm_interface.sv
 "rtl/MainBand_RD/Integration steps/unit_mb_die.sv"
-"rtl/MainBand_RD/Integration steps/unit_mb_die2die_ltsm_tb.sv"
+tb/integration/MAIN_BAND/Integration_steps/unit_mb_die2die_ltsm_tb.sv

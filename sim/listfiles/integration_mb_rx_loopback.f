@@ -49,6 +49,6 @@ rtl/MainBand/rx/unit_mb_rx_top.sv
 
 # ---- Integration wrapper + testbenches --------------------------------------
 "rtl/MainBand/Integration steps/unit_mb_loopback_wrapper.sv"
-"rtl/MainBand/Integration steps/unit_mb_loopback_tb.sv"
-"rtl/MainBand/Integration steps/unit_mb_train_loopback_tb.sv"
-"rtl/MainBand/Integration steps/unit_mb_train_seq_tb.sv"
+tb/integration/MAIN_BAND/Integration_steps/unit_mb_loopback_tb.sv
+tb/integration/MAIN_BAND/Integration_steps/unit_mb_train_loopback_tb.sv
+tb/integration/MAIN_BAND/Integration_steps/unit_mb_train_seq_tb.sv

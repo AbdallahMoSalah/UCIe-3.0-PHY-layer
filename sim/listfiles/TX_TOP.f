@@ -37,4 +37,4 @@ rtl/MainBand/tx/unit_mb_serializer.sv
 rtl/MainBand/tx/unit_clk_pattern_gen_tx.sv
 
 # Testbench
-rtl/MainBand/tx/unused/unit_tx_top_tb.sv
+tb/unit/mainband/tx_unused/unit_tx_top_tb.sv

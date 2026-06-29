@@ -28,7 +28,7 @@ rtl/common/tri_state_buff.sv
 rtl/common/tri_state_buffer.sv
 
 # ---- SideBand RTL ------------------------------------------------------------
-rtl/SideBand/sb_pll.sv
+rtl/SideBand/analog_modeling/sb_pll.sv
 rtl/SideBand/common/sb_demux.sv
 rtl/SideBand/common/sb_priority_arbiter.sv
 rtl/SideBand/analog_modeling/sb_serializer/sb_serializer.sv

@@ -7,4 +7,4 @@ rtl/MainBand/rx/unit_lfsr_rx.sv
 rtl/MainBand/rx/unit_demapper.sv
 
 # Testbench
-rtl/MainBand/rx/unused/unit_mb_path_stream_tb.sv
+tb/unit/mainband/rx/unit_mb_path_stream_tb.sv

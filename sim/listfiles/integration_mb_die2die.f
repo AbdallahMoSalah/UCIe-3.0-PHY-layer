@@ -49,4 +49,4 @@ rtl/MainBand_RD/rx/unit_mb_rx_top.sv
 
 # ---- Full MB die (TX + RX) + two-die back-to-back testbench ------------------
 "rtl/MainBand_RD/Integration steps/unit_mb_die.sv"
-"rtl/MainBand_RD/Integration steps/unit_mb_die2die_tb.sv"
+tb/integration/MAIN_BAND/Integration_steps/unit_mb_die2die_tb.sv

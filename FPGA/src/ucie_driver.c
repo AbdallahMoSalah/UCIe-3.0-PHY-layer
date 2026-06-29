@@ -19,12 +19,15 @@ static inline u32 Ucie_Parity32(u32 x) {
     return x & 1u;
 }
 
-// Stamp cp (and dp) into word1 given the two header words + the 64-bit payload.
-// Pass payload_lo/hi = 0 for header-only (read / no-data) messages.
-static inline u32 Ucie_Sb_AddParity(u32 word0, u32 word1, u32 payload_lo, u32 payload_hi) {
-    u32 cp = Ucie_Parity32(word0) ^ Ucie_Parity32(word1 & 0x3FFFFFFFu); // hdr[61:0]
-    u32 dp = Ucie_Parity32(payload_lo) ^ Ucie_Parity32(payload_hi);     // data[63:0]
-    return (word1 & 0x3FFFFFFFu) | (cp << 30) | (dp << 31);
+// Stamp cp (bit 62) + dp (bit 63) into a 64-bit header given the payload.
+//   cp = ^header[61:0]   (control parity, what Reg_DePacketizer checks)
+//   dp = ^payload[63:0]  (data parity)
+// Pass payload = 0 for header-only (read / no-data) messages.
+static inline u64 Ucie_Sb_StampParity(u64 hdr, u64 payload) {
+    hdr &= 0x3FFFFFFFFFFFFFFFULL;   // clear cp[62], dp[63] before reducing
+    u32 cp = Ucie_Parity32((u32)hdr) ^ Ucie_Parity32((u32)(hdr >> 32));
+    u32 dp = Ucie_Parity32((u32)payload) ^ Ucie_Parity32((u32)(payload >> 32));
+    return hdr | ((u64)cp << 62) | ((u64)dp << 63);
 }
 
 // =============================================================================
@@ -264,17 +267,20 @@ void Ucie_Rdi_SetStateReq(UcieDriver *Dev, UcieRdiState State) {
 // Sideband: Write Register (64-bit access)
 // =============================================================================
 int Ucie_Sb_WriteReg(UcieDriver *Dev, u32 RegAddr, u64 Data) {
-    u32 opc   = (RegAddr >= 0x1000) ? SB_OPC_64_MEM_WRITE : SB_OPC_64_CFG_WRITE;
-    u32 be    = 0xFF;
-    u32 tag   = 0x0;
-    u32 srcid = SB_ID_ADAPTER;
-    u32 dstid = SB_ID_LOCAL_PHY;
+    u32 opc = (RegAddr >= 0x1000) ? SB_OPC_64_MEM_WRITE : SB_OPC_64_CFG_WRITE;
 
-    u32 word0 = (srcid << 29) | (tag << 20) | (be << 12) | opc;
-    u32 word1 = (dstid << 24) | (RegAddr & 0x00FFFFFF);
+    sb_header_t h; h.raw = 0;
+    h.req.opcode = opc;
+    h.req.srcid  = SB_ID_ADAPTER;
+    h.req.dstid  = SB_ID_LOCAL_PHY;
+    h.req.be     = 0xFF;
+    h.req.addr   = RegAddr & 0x00FFFFFF;
+    u64 hdr = Ucie_Sb_StampParity(h.raw, Data);
+
+    u32 word0 = (u32)hdr;
+    u32 word1 = (u32)(hdr >> 32);
     u32 word2 = (u32)(Data & 0xFFFFFFFF);
     u32 word3 = (u32)((Data >> 32) & 0xFFFFFFFF);
-    word1 = Ucie_Sb_AddParity(word0, word1, word2, word3); // cp + dp
     Ucie_Sb_ClkAckClear(Dev); // fresh handshake state for this access
 
     if (Dev->DbgEnable) {
@@ -323,15 +329,18 @@ int Ucie_Sb_WriteReg(UcieDriver *Dev, u32 RegAddr, u64 Data) {
 // Sideband: Read Register (64-bit access)
 // =============================================================================
 int Ucie_Sb_ReadReg(UcieDriver *Dev, u32 RegAddr, u64 *DataValPtr) {
-    u32 opc   = (RegAddr >= 0x1000) ? SB_OPC_64_MEM_READ : SB_OPC_64_CFG_READ;
-    u32 be    = 0xFF;
-    u32 tag   = 0x0;
-    u32 srcid = SB_ID_ADAPTER;
-    u32 dstid = SB_ID_LOCAL_PHY;
+    u32 opc = (RegAddr >= 0x1000) ? SB_OPC_64_MEM_READ : SB_OPC_64_CFG_READ;
 
-    u32 word0 = (srcid << 29) | (tag << 20) | (be << 12) | opc;
-    u32 word1 = (dstid << 24) | (RegAddr & 0x00FFFFFF);
-    word1 = Ucie_Sb_AddParity(word0, word1, 0, 0); // header-only: cp only, dp=0
+    sb_header_t h; h.raw = 0;
+    h.req.opcode = opc;
+    h.req.srcid  = SB_ID_ADAPTER;
+    h.req.dstid  = SB_ID_LOCAL_PHY;
+    h.req.be     = 0xFF;
+    h.req.addr   = RegAddr & 0x00FFFFFF;
+    u64 hdr = Ucie_Sb_StampParity(h.raw, 0); // header-only: dp=0
+
+    u32 word0 = (u32)hdr;
+    u32 word1 = (u32)(hdr >> 32);
     Ucie_Sb_ClkAckClear(Dev); // fresh handshake state for this access
 
     if (Dev->DbgEnable) {
@@ -419,15 +428,20 @@ int Ucie_Sb_DumpLinkStatus(UcieDriver *Dev, u64 *StatusOut) {
 // =============================================================================
 int Ucie_Sb_SendRemoteMsg(UcieDriver *Dev, u8 MsgOpcode, u32 MsgInfo, u64 MsgData,
                           u32 *RxW0, u32 *RxW1, u32 *RxW2, u32 *RxW3) {
-    u32 tag   = 0x0;
-    u32 be    = 0xFF;
-    u32 srcid = SB_ID_ADAPTER;
-    u32 dstid = SB_ID_REMOTE_ADAPTER;
+    // Build a MESSAGE header (sb_msg_header_t) by name - NOT a request header.
+    // A message has no be/tag/addr; the 24-bit MsgInfo arg maps onto the
+    // MsgInfo[55:40] + MsgSubcode[39:32] fields (= header bits [23:0]).
+    sb_header_t h; h.raw = 0;
+    h.msg.opcode     = MsgOpcode;
+    h.msg.srcid      = SB_ID_ADAPTER;
+    h.msg.dstid      = SB_ID_REMOTE_ADAPTER;
+    h.msg.msgcode    = 0x00;
+    h.msg.MsgSubcode = MsgInfo & 0xFF;
+    h.msg.MsgInfo    = (MsgInfo >> 8) & 0xFFFF;
+    u64 hdr = Ucie_Sb_StampParity(h.raw, MsgData);
 
-    u32 word0 = (srcid << 29) | (tag << 20) | (be << 12) | MsgOpcode;
-    u32 word1 = (dstid << 24) | (MsgInfo & 0x00FFFFFF);
-    word1 = Ucie_Sb_AddParity(word0, word1,
-                              (u32)(MsgData & 0xFFFFFFFF), (u32)(MsgData >> 32)); // cp + dp
+    u32 word0 = (u32)hdr;
+    u32 word1 = (u32)(hdr >> 32);
     Ucie_Sb_ClkAckClear(Dev); // fresh handshake state for this access
     u32 word2 = (u32)(MsgData & 0xFFFFFFFF);
     u32 word3 = (u32)((MsgData >> 32) & 0xFFFFFFFF);
