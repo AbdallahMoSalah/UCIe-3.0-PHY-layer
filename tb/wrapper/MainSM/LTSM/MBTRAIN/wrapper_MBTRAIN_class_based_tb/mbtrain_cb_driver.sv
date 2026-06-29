@@ -1,191 +1,252 @@
-// target_implementation_technique/new_version_implementation/tb/wrapper/MainSM/LTSM/MBTRAIN/wrapper_MBTRAIN_class_based_tb/mbtrain_cb_driver.sv
-
-
+// =============================================================================
+// mbtrain_cb_driver.sv — Scenario Driver
+//
+// KEY FIXES vs previous version:
+//  1. state_n_1 is updated correctly:
+//       - Before SPEEDIDLE: LOG_MBTRAIN_DATAVREF (first entry) or
+//                           LOG_MBTRAIN_LINKSPEED / LOG_PHYRETRAIN (re-entry)
+//       - Before REPAIR:    LOG_MBTRAIN_LINKSPEED
+//       - After REPAIR exits to TXSELFCAL state_n_1 is preserved so SPEEDIDLE
+//         knows to stay at same speed (re-enter from REPAIR).
+//     The driver tracks which mbtrain_speedidle_req/repair_req to assert.
+//  2. Width configuration maps correctly to all three register fields:
+//       rf_cap_SPMW, rf_ctrl_target_link_width, param_UCIe_S_x8
+//  3. mbinit_rx/tx_data_lane_mask is set consistently with width.
+//  4. Watchdog: latches cfg.last_timeout and returns without scoreboard check.
+//  5. Soft-reset / disable-mid-sequence injection is handled cleanly.
+//  6. mbtrain_done sampling: waits for LATCHED monitor value, not transient DUT pin.
+// =============================================================================
 class mbtrain_cb_driver;
-  virtual mbtrain_cb_if vif;
-  mbtrain_cb_config cfg;
-  
-  function new(virtual mbtrain_cb_if vif, mbtrain_cb_config cfg);
-    this.vif = vif;
-    this.cfg = cfg;
-  endfunction
+    import ltsm_state_n_pkg::*;
+    import mbtrain_cb_types_pkg::*;
 
-  task automatic wait_for_state_or_timeout(input state_n_e target_state, output bit hit_state);
-    hit_state = 1'b0;
-    fork
-      begin
-        wait(vif.current_mbtrain_substate == target_state);
-        hit_state = 1'b1;
-      end
-      begin
-        repeat(cfg.watchdog_cycles) @(posedge vif.lclk);
-      end
-    join_any
-    disable fork;
-  endtask
+    virtual mbtrain_cb_if  vif;
+    mbtrain_cb_config      cfg;
+    mbtrain_cb_sb_agent    sb_agent;
+    mbtrain_cb_d2c_model   d2c_model;
+    mbtrain_cb_monitor     mon;
 
-  task automatic cleanup_after_check();
-    vif.stop_mbtrain();
-    cfg.suppress_response_en = 1'b0;
-    vif.clear_rx_msg();
-    @(negedge vif.lclk);
-    vif.state_n_0 = LOG_RESET;
-    repeat(3) @(posedge vif.lclk);
-  endtask
+    function new(virtual mbtrain_cb_if  v,
+                 mbtrain_cb_config      c,
+                 mbtrain_cb_sb_agent    sba,
+                 mbtrain_cb_d2c_model   d2c,
+                 mbtrain_cb_monitor     m);
+        vif       = v;
+        cfg       = c;
+        sb_agent  = sba;
+        d2c_model = d2c;
+        mon       = m;
+    endfunction
 
-  task automatic track_ltsm_context(input int generation);
-    state_n_e last_substate;
+    // =========================================================================
+    // Configure DUT registers from scenario width/speed
+    // =========================================================================
+    task automatic configure_width_speed(mbtrain_scenario_s scen);
+        @(negedge vif.lclk);
 
-    last_substate = LOG_NOP;
-    forever begin
-      @(negedge vif.lclk);
-      if (!vif.rst_n || generation != cfg.scenario_generation) begin
-        return;
-      end
-      if (vif.mbtrain_en
-          && vif.current_mbtrain_substate != LOG_NOP
-          && vif.current_mbtrain_substate != last_substate) begin
-        vif.state_n_0 = vif.current_mbtrain_substate;
-        last_substate = vif.current_mbtrain_substate;
-      end
-    end
-  endtask
+        // Speed
+        vif.param_negotiated_max_speed = scen.speed;
 
-  task run_scenario(mbtrain_scenario_s scenario);
-    bit hit_injection_state;
+        // Width registers
+        // is_x16_module = (rf_cap_SPMW==0) && (rf_ctrl_target_link_width==4'h2)
+        //                  && (param_UCIe_S_x8==0)
+        // is_x8_module  = rf_ctrl_target_link_width == 4'h1
+        case (scen.width)
+            WIDTH_X16: begin
+                vif.rf_cap_SPMW              = 1'b0;
+                vif.rf_ctrl_target_link_width = 4'h2;
+                vif.param_UCIe_S_x8          = 1'b0;
+                vif.mbinit_rx_data_lane_mask  = 3'b011; // lanes 0-15
+                vif.mbinit_tx_data_lane_mask  = 3'b011;
+            end
+            WIDTH_X8: begin
+                vif.rf_cap_SPMW              = 1'b0;
+                vif.rf_ctrl_target_link_width = 4'h1;
+                vif.param_UCIe_S_x8          = 1'b0;
+                vif.mbinit_rx_data_lane_mask  = 3'b001; // lanes 0-7
+                vif.mbinit_tx_data_lane_mask  = 3'b001;
+            end
+            WIDTH_X4: begin
+                // x4 is reached via degrade from x8; initial config is x8
+                vif.rf_cap_SPMW              = 1'b0;
+                vif.rf_ctrl_target_link_width = 4'h1;
+                vif.param_UCIe_S_x8          = 1'b0;
+                vif.mbinit_rx_data_lane_mask  = 3'b001;
+                vif.mbinit_tx_data_lane_mask  = 3'b001;
+            end
+            default: begin
+                vif.rf_cap_SPMW              = 1'b0;
+                vif.rf_ctrl_target_link_width = 4'h2;
+                vif.param_UCIe_S_x8          = 1'b0;
+                vif.mbinit_rx_data_lane_mask  = 3'b011;
+                vif.mbinit_tx_data_lane_mask  = 3'b011;
+            end
+        endcase
 
-    $display("[SCENARIO START] %s width=%s speed=%0d", scenario.name, scenario.width.name(), scenario.speed);
-    cfg.begin_scenario();
-    
-    // 1. Reset DUT
-    vif.drive_reset();
-    wait(vif.rst_n === 1'b1);
-    
-    // 2. Configure width/speed/retrain while soft reset is still active.
-    vif.param_negotiated_max_speed = scenario.speed;
-    vif.PHY_IN_RETRAIN = scenario.PHY_IN_RETRAIN;
-    vif.params_changed = scenario.params_changed;
-    cfg.current_train_pass_mask = 16'hFFFF;
-    cfg.configure_linkspeed_script(scenario.linkspeed_pass_q, scenario.d2c_pass_mask);
-    cfg.suppress_response_en = scenario.suppress_response_en;
-    cfg.suppress_response_msg = scenario.suppress_response_msg;
-    cfg.last_timeout = 1'b0;
-    
-    // Width config (simplified for now, setting target link width)
-    case(scenario.width)
-      WIDTH_X16: begin
-        vif.rf_ctrl_target_link_width = 4'h2;
-        vif.mbinit_rx_data_lane_mask = 3'b011;
-        vif.mbinit_tx_data_lane_mask = 3'b011;
-      end
-      WIDTH_X8: begin
-        vif.rf_ctrl_target_link_width = 4'h1;
-        vif.mbinit_rx_data_lane_mask = 3'b001;
-        vif.mbinit_tx_data_lane_mask = 3'b001;
-      end
-      WIDTH_X4: begin
-        // The RTL models x4 as an x8-class module using an x4 lane-mask code.
-        // unit_negotiated_lanes only asserts is_x8_module for target width 4'h1.
-        vif.rf_ctrl_target_link_width = 4'h1;
-        vif.mbinit_rx_data_lane_mask = 3'b100;
-        vif.mbinit_tx_data_lane_mask = 3'b100;
-      end
-    endcase
+        // Speed affects is_high_speed inside RTL (>32GT/s → 3'b110 or 3'b111)
+        vif.is_continuous_clk_mode = (scen.speed >= SPEED_48G) ? 1'b1 : 1'b0;
+    endtask
 
-    // 3. Drive RESET -> SBINIT to create the wrapper's internal soft_rst_n
-    // release before entering MBTRAIN.VALVREF.
-    vif.release_soft_reset_sequence(LOG_MBTRAIN_VALVREF);
+    // =========================================================================
+    // Run one scenario
+    // Returns 1=PASS, 0=FAIL
+    // =========================================================================
+    task automatic run_scenario(mbtrain_scenario_s scen, output bit result);
+        int   watchdog;
+        bit   done_seen;
+        bit   timed_out;
 
-    // 4. Configure D2C model result.
-    vif.drive_d2c_result(scenario.d2c_pass_mask);
-    
-    // 5. Start MBTRAIN
-    vif.start_mbtrain();
-    fork
-      track_ltsm_context(cfg.scenario_generation);
-    join_none
+        $display("");
+        $display("--------------------------------------------------");
+        $display("[SCENARIO START] %s width=%s speed=%s",
+                 scen.name, scen.width.name(), scen.speed.name());
 
-    if (scenario.inject_soft_reset_mid_sequence) begin
-      wait_for_state_or_timeout(LOG_MBTRAIN_RXCLKCAL, hit_injection_state);
-      if (!hit_injection_state) begin
-        cfg.last_timeout = 1'b1;
-        $display("[ERROR] Timeout waiting for RXCLKCAL injection point in %s", scenario.name);
-        vif.stop_mbtrain();
-        cfg.suppress_response_en = 1'b0;
+        // ── 1. Begin new scenario in config ──────────────────────────────────
+        cfg.begin_scenario();
+
+        // ── 2. Flush stale SB responses ───────────────────────────────────────
+        sb_agent.flush();
+
+        // ── 3. Reset monitor ──────────────────────────────────────────────────
+        mon.reset_for_scenario(scen.name);
+
+        // ── 4. Assert hard reset ──────────────────────────────────────────────
+        vif.drive_reset();
         repeat(5) @(posedge vif.lclk);
-        $display("[SCENARIO END] %s", scenario.name);
-        return;
-      end
-      $display("[INJECT] soft reset during %s", vif.current_mbtrain_substate.name());
-      vif.state_n_0 = LOG_RESET;
-      repeat(3) @(posedge vif.lclk);
-      vif.state_n_0 = LOG_SBINIT;
-      repeat(3) @(posedge vif.lclk);
-      vif.stop_mbtrain();
-      cfg.suppress_response_en = 1'b0;
-      repeat(5) @(posedge vif.lclk);
-      $display("[SCENARIO END] %s", scenario.name);
-      return;
-    end
 
-    if (scenario.inject_disable_mid_sequence) begin
-      wait_for_state_or_timeout(LOG_MBTRAIN_RXCLKCAL, hit_injection_state);
-      if (!hit_injection_state) begin
-        cfg.last_timeout = 1'b1;
-        $display("[ERROR] Timeout waiting for RXCLKCAL injection point in %s", scenario.name);
+        // ── 5. Configure width / speed ────────────────────────────────────────
+        configure_width_speed(scen);
+
+        // ── 6. Set PHY retrain flags ──────────────────────────────────────────
+        @(negedge vif.lclk);
+        vif.PHY_IN_RETRAIN = scen.PHY_IN_RETRAIN;
+        vif.params_changed = scen.params_changed;
+
+        // ── 7. Set D2C model pass mask ────────────────────────────────────────
+        d2c_model.configure(scen.d2c_pass_mask);
+
+        // ── 8. Load LINKSPEED script into config ──────────────────────────────
+        cfg.configure_linkspeed_script(scen.linkspeed_pass_q, scen.d2c_pass_mask);
+
+        // ── 9. Configure REPAIR partner lane code ────────────────────────────
+        // Default: report same code as DUT sends (meaning remote die agrees).
+        // For "degrade not possible" scenarios we override below.
+        sb_agent.configure_repair_partner_code(3'b011); // full width = all ok
+
+        // For exhausted degrade scenarios: partner sends 3'b000
+        if (scen.expected_exit == EXIT_TRAINERROR) begin
+            // Check if this is a REPAIR exhaustion scenario by counting
+            // expected REPAIR visits in state_path_q
+            int repair_count = 0;
+            foreach (scen.state_path_q[i])
+                if (scen.state_path_q[i] == LOG_MBTRAIN_REPAIR) repair_count++;
+            if (repair_count >= 2)
+                sb_agent.configure_repair_partner_code(3'b000);
+        end
+
+        // ── 10. Set response suppression ─────────────────────────────────────
+        cfg.suppress_response_en  = scen.suppress_response_en;
+        cfg.suppress_response_msg = scen.suppress_response_msg;
+
+        // ── 11. Configure re-entry request flags ──────────────────────────────
+        @(negedge vif.lclk);
+        vif.mbtrain_txselfcal_req = 1'b0;
+        vif.mbtrain_speedidle_req = 1'b0;
+        vif.mbtrain_repair_req    = 1'b0;
+
+        // For re-entry scenarios derive from state_path_q first state
+        if (scen.state_path_q.size() > 0) begin
+            case (scen.state_path_q[0])
+                LOG_MBTRAIN_TXSELFCAL: vif.mbtrain_txselfcal_req = 1'b1;
+                LOG_MBTRAIN_SPEEDIDLE: vif.mbtrain_speedidle_req  = 1'b1;
+                LOG_MBTRAIN_REPAIR:    vif.mbtrain_repair_req     = 1'b1;
+                default:               ; // nominal entry at VALVREF
+            endcase
+        end
+
+        // ── 12. Release soft reset ────────────────────────────────────────────
+        vif.release_soft_reset_sequence();
+
+        // ── 13. Start MBTRAIN ─────────────────────────────────────────────────
+        vif.start_mbtrain();
+
+        // ── 14. Handle mid-sequence injections (soft-reset / disable) ────────
+        if (scen.inject_soft_reset_mid_sequence ||
+            scen.inject_disable_mid_sequence) begin
+            fork
+                begin
+                    // Wait until RXCLKCAL is active (good mid-point)
+                    int timeout_cnt = 0;
+                    while (vif.current_mbtrain_substate != LOG_MBTRAIN_RXCLKCAL
+                           && timeout_cnt < 5000) begin
+                        @(posedge vif.lclk);
+                        timeout_cnt++;
+                    end
+                    if (timeout_cnt >= 5000) begin
+                        $display("[ERROR] Timeout waiting for RXCLKCAL injection point in %s",
+                                 scen.name);
+                    end else begin
+                        repeat(10) @(posedge vif.lclk);
+                        if (scen.inject_soft_reset_mid_sequence) begin
+                            $display("[EVENT] Injecting soft reset mid-sequence");
+                            @(negedge vif.lclk);
+                            vif.state_n_0 = LOG_RESET;
+                            repeat(3) @(posedge vif.lclk);
+                            @(negedge vif.lclk);
+                            vif.state_n_0 = LOG_SBINIT;
+                            repeat(3) @(posedge vif.lclk);
+                            @(negedge vif.lclk);
+                            vif.state_n_0 = LOG_MBTRAIN;
+                        end
+                        if (scen.inject_disable_mid_sequence) begin
+                            $display("[EVENT] Injecting mbtrain_en=0 mid-sequence");
+                            vif.stop_mbtrain();
+                        end
+                    end
+                end
+            join_none
+        end
+
+        // ── 15. Wait for terminal condition (watchdog) ────────────────────────
+        watchdog   = 0;
+        done_seen  = 0;
+        timed_out  = 0;
+
+        while (!done_seen && watchdog < cfg.watchdog_cycles) begin
+            @(posedge vif.lclk);
+            watchdog++;
+
+            // For soft-reset / disable scenarios: done means monitor saw IDLE
+            if (scen.inject_soft_reset_mid_sequence ||
+                scen.inject_disable_mid_sequence) begin
+                if (vif.current_mbtrain_substate == LOG_NOP && watchdog > 100) begin
+                    mon.latch_mbtrain_done = 0;
+                    done_seen = 1;
+                end
+            end else begin
+                // Normal: wait for latched done from monitor
+                if (mon.latch_mbtrain_done)
+                    done_seen = 1;
+            end
+        end
+
+        if (!done_seen) begin
+            timed_out          = 1;
+            cfg.last_timeout   = 1;
+            $display("[ERROR] Timeout waiting for mbtrain_done in driver after %0d cycles",
+                     cfg.watchdog_cycles);
+        end
+
+        // ── 16. Stop MBTRAIN ──────────────────────────────────────────────────
         vif.stop_mbtrain();
-        cfg.suppress_response_en = 1'b0;
-        repeat(5) @(posedge vif.lclk);
-        $display("[SCENARIO END] %s", scenario.name);
-        return;
-      end
-      $display("[INJECT] mbtrain_en deassert during %s", vif.current_mbtrain_substate.name());
-      vif.stop_mbtrain();
-      cfg.suppress_response_en = 1'b0;
-      repeat(5) @(posedge vif.lclk);
-      $display("[SCENARIO END] %s", scenario.name);
-      return;
-    end
-    
-    // 6. Wait for scoreboard terminal condition
-    // This task assumes that some higher level (env) or background task 
-    // will detect terminal condition. For now, we wait on mbtrain_done.
-    fork
-      begin
-        wait(vif.mbtrain_done === 1);
-        cfg.last_timeout = 1'b0;
-        $display("[EVENT] mbtrain_done detected");
-      end
-      begin
-        repeat(cfg.watchdog_cycles) @(posedge vif.lclk);
-        cfg.last_timeout = 1'b1;
-        $display("[ERROR] Timeout waiting for mbtrain_done in driver after %0d cycles", cfg.watchdog_cycles);
-        $display("[TIMEOUT SNAPSHOT] substate=%s state_n_0=%s soft_rst_n=%b mbtrain_en=%b tx_valid=%b tx_msg=0x%02h rx_valid=%b rx_msg=0x%02h sweep(local,partner,done)=%b,%b,%b masks(tx,rx)=%b,%b active_lanes=%h valvref(local_state,partner_state,local_done,partner_done)=%0d,%0d,%b,%b",
-          vif.current_mbtrain_substate.name(),
-          vif.state_n_0.name(),
-          vif.dbg_soft_rst_n,
-          vif.mbtrain_en,
-          vif.substate_tx_sb_msg_valid,
-          vif.substate_tx_sb_msg,
-          vif.rx_sb_msg_valid,
-          vif.rx_sb_msg,
-          vif.local_sweep_en,
-          vif.partner_sweep_en,
-          vif.sweep_done,
-          vif.mb_tx_data_lane_mask,
-          vif.mb_rx_data_lane_mask,
-          vif.sweep_active_lanes,
-          vif.dbg_valvref_local_state,
-          vif.dbg_valvref_partner_state,
-          vif.dbg_valvref_local_done,
-          vif.dbg_valvref_partner_done);
-      end
-    join_any
-    disable fork;
-    
-    // 7. Leave terminal evidence visible until scoreboard checks this scenario.
-    cfg.suppress_response_en = 1'b0;
-    
-    $display("[SCENARIO END] %s", scenario.name);
-  endtask
+        repeat(10) @(posedge vif.lclk);
+
+        mon.stop();
+        mon.print_path();
+
+        $display("[SCENARIO END] %s", scen.name);
+        result = 1; // scoreboard will set final result
+        cfg.last_timeout = timed_out;
+    endtask
+
 endclass

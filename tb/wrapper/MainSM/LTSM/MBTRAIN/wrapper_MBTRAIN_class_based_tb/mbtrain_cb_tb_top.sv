@@ -1,6 +1,8 @@
-
-// This module isn't used at all but it's here to satisfy any one is searching for the top moduel.
-// The top module is `wrapper_MBTRAIN_class_based_tb` or can be `mbtrain_cb_tb_top`. No, difference.
+// =============================================================================
+// mbtrain_cb_tb_top.sv — Thin top-level wrapper
+// The real top module is wrapper_MBTRAIN_class_based_tb.
+// This file satisfies any simulator that requires a module named mbtrain_cb_tb_top.
+// =============================================================================
 module mbtrain_cb_tb_top;
-  wrapper_MBTRAIN_class_based_tb tb();
+    wrapper_MBTRAIN_class_based_tb tb();
 endmodule
