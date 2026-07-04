@@ -330,6 +330,14 @@ module digital_mb #(
     // =========================================================================
     // 7. Pattern comparator (training): local reference vs descrambled lanes
     // =========================================================================
+    logic [NUM_LANES-1:0] i_lane_mask_reg;
+    always_ff @(posedge i_gated_lclk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            i_lane_mask_reg <= {NUM_LANES{1'b1}};
+        end else begin
+            i_lane_mask_reg <= i_pcmp_lane_mask;
+        end
+    end
     unit_mb_pattern_comparator #(
         .NUM_LANES (NUM_LANES),
         .WIDTH     (DATA_WIDTH)
@@ -338,7 +346,7 @@ module digital_mb #(
         .i_rst_n                        (i_rst_n),
         .i_enable                       (i_pcmp_enable),
         .i_comparison_mode              (i_pcmp_mode),
-        .i_lane_mask                    (i_pcmp_lane_mask),
+        .i_lane_mask                    (i_lane_mask_reg),
         .i_max_error_threshold_per_lane (i_pcmp_thr_per_lane),
         .i_max_error_threshold_aggregate(i_pcmp_thr_aggregate),
         .i_iteration_count              (i_pcmp_iter_count),
