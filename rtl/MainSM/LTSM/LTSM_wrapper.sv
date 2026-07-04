@@ -237,7 +237,26 @@ module LTSM_wrapper #(
 
     state_n_e    current_ltsm_state_n;
     logic timeout_timer_en, timer_rst_n;
-    assign clk_embedded_en = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
+
+    always_ff @(posedge clk)
+    begin
+        if (~rst_n)
+        begin
+            clk_embedded_en <= 1'b0;
+        end
+        else
+        begin
+            if ((current_ltsm_state_n > LOG_MBINIT_REPAIRCLK) && (current_ltsm_state_n < LOG_LINKINIT))
+            begin
+                clk_embedded_en <= 1'b1;
+            end
+            else
+            begin
+                clk_embedded_en <= 1'b0;
+            end
+        end
+    end
+
     // =========================================================================
     // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
     // =========================================================================
@@ -480,7 +499,7 @@ module LTSM_wrapper #(
         endcase
     end
     //==========================================================================
-    // runtime test ctrl change sense logic 
+    // runtime test ctrl change sense logic
     //==========================================================================
     logic rt_link_test_changed;
     logic start_bit_reg,rt_apply_module_0_lane_repair_ctrl_out_reg;
@@ -507,8 +526,8 @@ module LTSM_wrapper #(
         end
     end
     assign rt_link_test_changed = (rt_apply_module_0_lane_repair_ctrl_out != rt_apply_module_0_lane_repair_ctrl_out_reg) ||
-                                  (module_0_lane_repair_id_ctrl_out != module_0_lane_repair_id_ctrl_out_reg) ||
-                                  (start_bit != start_bit_reg);
+        (module_0_lane_repair_id_ctrl_out != module_0_lane_repair_id_ctrl_out_reg) ||
+        (start_bit != start_bit_reg);
     //==========================================================================
     logic [2:0] mb_pll_speed_sel_reg;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -857,8 +876,8 @@ module LTSM_wrapper #(
             busy_flag <= 1'b0;
         end
     end
-    
-always_comb  begin
+
+    always_comb  begin
         busy_bit_PHY_RETRAIN = busy_flag ;
         if(start_bit && (current_ltsm_state_n == LOG_PHYRETRAIN))begin
             busy_bit_PHY_RETRAIN = 1'b1;
