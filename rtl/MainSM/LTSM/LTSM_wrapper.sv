@@ -1635,7 +1635,7 @@ always_comb  begin
     always_comb begin
         mb_rx_data_lane_mask          = mb_rx_data_lane_mask_reg;
         mb_tx_data_lane_mask          = mb_tx_data_lane_mask_reg;
-        mb_lane_reversal_req          = mb_lane_reversal_req_reg;
+        mb_lane_reversal_req          = mb_lane_reversal_regit q_reg;
         reg_Clock_Phase_enable_status = reg_Clock_Phase_enable_status_reg;
         reg_Clock_mode_enable_status  = reg_Clock_mode_enable_status_reg;
         reg_TARR_enable_status        = reg_TARR_enable_status_reg;
@@ -1645,44 +1645,6 @@ always_comb  begin
         reg_L2SPD_enable_status       = reg_L2SPD_enable_status_reg;
         reg_PSPT_enable_status        = reg_PSPT_enable_status_reg;
 
-        if (current_ltsm_state == RESET) begin
-            mb_rx_data_lane_mask          = 3'b011;
-            mb_tx_data_lane_mask          = 3'b011;
-            mb_lane_reversal_req          = 1'b0;
-            reg_Clock_Phase_enable_status = 1'b0;
-            reg_Clock_mode_enable_status  = 1'b0;
-            reg_TARR_enable_status        = 1'b0;
-            reg_Link_Width_enable_status  = 4'h0;
-            reg_Link_Speed_enable_status  = 4'h0;
-            reg_PMO_enable_status         = 1'b0;
-            reg_L2SPD_enable_status       = 1'b0;
-            reg_PSPT_enable_status        = 1'b0;
-        end else if (current_ltsm_state == MBINIT) begin
-            mb_rx_data_lane_mask          = mbinit_rx_data_lane_mask;
-            mb_tx_data_lane_mask          = mbinit_tx_data_lane_mask;
-            mb_lane_reversal_req          = mbinit_mb_lane_reversal_req;
-            reg_Clock_Phase_enable_status = mbinit_reg_Clock_Phase_enable_status;
-            reg_Clock_mode_enable_status  = mbinit_reg_Clock_mode_enable_status;
-            reg_TARR_enable_status        = mbinit_reg_TARR_enable_status;
-            reg_Link_Width_enable_status  = mbinit_reg_Link_Width_enable_status;
-            reg_Link_Speed_enable_status  = mbinit_reg_Link_Speed_enable_status;
-            reg_PMO_enable_status         = mbinit_reg_PMO_enable_status;
-            reg_L2SPD_enable_status       = mbinit_reg_L2SPD_enable_status;
-            reg_PSPT_enable_status        = mbinit_reg_PSPT_enable_status;
-        end else if (current_ltsm_state == MBTRAIN) begin
-            // Present the final MBTRAIN-computed masks only when MBTRAIN is done;
-            // before that, keep the MBINIT-negotiated value from the register.
-            if (current_ltsm_state_n != LOG_MBTRAIN_VALVREF) begin
-                if (mbtrain_mb_rx_data_lane_mask != 3'b000)
-                    mb_rx_data_lane_mask      = mbtrain_mb_rx_data_lane_mask;
-                if (mbtrain_mb_tx_data_lane_mask != 3'b000)
-                    mb_tx_data_lane_mask      = mbtrain_mb_tx_data_lane_mask;
-            end
-            reg_Link_Speed_enable_status  = {1'b0,mbtrain_phy_negotiated_speed};
-        end
-        else if(current_ltsm_state_n == LOG_LINKINIT)begin
-            reg_Link_Width_enable_status = get_width_code(mb_tx_data_lane_mask_reg);
-        end
     end
 
     assign sb_pattern_mode      = (current_ltsm_state == RESET) || (sbinit_pattern_mode && current_ltsm_state == SBINIT);
