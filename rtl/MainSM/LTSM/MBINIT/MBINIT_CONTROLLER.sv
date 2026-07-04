@@ -374,13 +374,6 @@ end
 always_comb begin
     mbinit_rx_data_lane_mask = mbinit_rx_data_lane_mask_reg;
     mbinit_tx_data_lane_mask = mbinit_tx_data_lane_mask_reg;
-    if (current_state == CTRL_IDLE) begin
-        mbinit_rx_data_lane_mask = 3'b011;
-        mbinit_tx_data_lane_mask = 3'b011;
-    end else if (current_state == CTRL_REPAIRMB) begin
-        mbinit_rx_data_lane_mask = repairmb_rx_data_lane_mask;
-        mbinit_tx_data_lane_mask = repairmb_tx_data_lane_mask;
-    end
 end
 
 // =============================================================================
