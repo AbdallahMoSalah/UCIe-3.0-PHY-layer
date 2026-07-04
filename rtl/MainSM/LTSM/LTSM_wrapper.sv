@@ -1635,7 +1635,7 @@ always_comb  begin
     always_comb begin
         mb_rx_data_lane_mask          = mb_rx_data_lane_mask_reg;
         mb_tx_data_lane_mask          = mb_tx_data_lane_mask_reg;
-        mb_lane_reversal_req          = mb_lane_reversal_regit q_reg;
+        mb_lane_reversal_req          = mb_lane_reversal_req_reg;
         reg_Clock_Phase_enable_status = reg_Clock_Phase_enable_status_reg;
         reg_Clock_mode_enable_status  = reg_Clock_mode_enable_status_reg;
         reg_TARR_enable_status        = reg_TARR_enable_status_reg;
