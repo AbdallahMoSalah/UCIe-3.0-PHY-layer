@@ -246,7 +246,7 @@ module LTSM_wrapper #(
         end
         else
         begin
-            if ((current_ltsm_state_n > LOG_MBINIT_REPAIRCLK) && (current_ltsm_state_n < LOG_LINKINIT))
+            if ((current_ltsm_state_n > LOG_MBINIT_REPAIRCLK))
             begin
                 clk_embedded_en <= 1'b1;
             end

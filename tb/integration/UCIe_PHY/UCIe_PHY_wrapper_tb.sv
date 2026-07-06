@@ -51,6 +51,41 @@ module UCIe_PHY_wrapper_tb;
     //---------------------------------------------------------------------------
     bit [30:1] enabled_scenarios = 30'b0;
     localparam sc = 8; // SC1
+
+    // ANSI Colors for Transcript Formatting
+    localparam string RESET        = "\033[0m";
+    localparam string RED          = "\033[0;31m";
+    localparam string GREEN        = "\033[0;32m";
+    localparam string YELLOW       = "\033[0;33m";
+    localparam string BLUE         = "\033[0;34m";
+    localparam string MAGENTA      = "\033[0;35m";
+    localparam string CYAN         = "\033[0;36m";
+    localparam string WHITE        = "\033[0;37m";
+
+    localparam string BOLD_RED     = "\033[1;31m";
+    localparam string BOLD_GREEN   = "\033[1;32m";
+    localparam string BOLD_YELLOW  = "\033[1;33m";
+    localparam string BOLD_BLUE    = "\033[1;34m";
+    localparam string BOLD_MAGENTA = "\033[1;35m";
+    localparam string BOLD_CYAN    = "\033[1;36m";
+    localparam string BOLD_WHITE   = "\033[1;37m";
+
+    // Helper functions to format and color states dynamically
+    function automatic string color_ltsm(state_n_e st);
+        case (st)
+            LOG_ACTIVE:     return $sformatf("%s%s%s", BOLD_GREEN, st.name(), RESET);
+            LOG_TRAINERROR: return $sformatf("%s%s%s", BOLD_RED, st.name(), RESET);
+            default:        return $sformatf("%s%s%s", BOLD_YELLOW, st.name(), RESET);
+        endcase
+    endfunction
+
+    function automatic string color_rdi(RDI_state st);
+        case (st)
+            Active:    return $sformatf("%s%s%s", BOLD_GREEN, st.name(), RESET);
+            LinkError: return $sformatf("%s%s%s", BOLD_RED, st.name(), RESET);
+            default:   return $sformatf("%s%s%s", BOLD_YELLOW, st.name(), RESET);
+        endcase
+    endfunction
     // =========================================================================
     // Per-die signals (0 = die0, 1 = die1)
     // =========================================================================
@@ -201,19 +236,35 @@ module UCIe_PHY_wrapper_tb;
     //   rdi_sts       : internal RDI state (drives the LTSM)
     //   pl_state_sts  : pl_state_sts, the lagging RDI status output
     always @(ln0 or rdi_sts0 or pl_state_sts0)
-        $display("T=%0t | [DIE0] ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
-                 $time, ln0.name(), rdi_sts0.name(), pl_state_sts0.name());
+        $display("%sT=%0t%s | %s[DIE0]%s ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
+                 BOLD_MAGENTA, $time, RESET, BOLD_BLUE, RESET,
+                 color_ltsm(ln0), color_rdi(rdi_sts0), color_rdi(pl_state_sts0));
     always @(ln1 or rdi_sts1 or pl_state_sts1)
-        $display("T=%0t | [DIE1] ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
-                 $time, ln1.name(), rdi_sts1.name(), pl_state_sts1.name());
+        $display("%sT=%0t%s | %s[DIE1]%s ltsm_n=%s rdi_sts=%s pl_state_sts=%s",
+                 BOLD_MAGENTA, $time, RESET, BOLD_CYAN, RESET,
+                 color_ltsm(ln1), color_rdi(rdi_sts1), color_rdi(pl_state_sts1));
 
     // =========================================================================
     // Scoreboard
     // =========================================================================
     int unsigned fails = 0;
     task automatic chk(bit cond, string msg, int sc);
-        if (!cond) begin fails++; $error("[%0t] [SC%0d] CHECK FAILED: %s", $time, sc, msg); end
-        else       $display("T=%0t | [SC%0d] PASS: %s", $time, sc, msg);
+        if (!cond) begin
+            fails++;
+            $display("%sT=%0t | [SC%0d] %s[CHECK FAILED]%s: %s", BOLD_MAGENTA, $time, sc, BOLD_RED, RED, msg, RESET);
+        end else begin
+            $display("%sT=%0t | [SC%0d] %s[PASS]%s: %s", BOLD_MAGENTA, $time, sc, BOLD_GREEN, GREEN, msg, RESET);
+        end
+    endtask
+
+    task automatic start_scenario(int num, string desc);
+        $display("\n%s================================================================%s", BOLD_YELLOW, RESET);
+        $display("%sT=%0t | [SC%0d] %s%s%s", BOLD_MAGENTA, $time, num, BOLD_WHITE, desc, RESET);
+        $display("%s================================================================%s", BOLD_YELLOW, RESET);
+    endtask
+
+    task automatic skip_scenario(int num);
+        $display("%sT=%0t | [SC%0d] Skipped (disabled).%s", BOLD_YELLOW, $time, num, RESET);
     endtask
 
     // =========================================================================
@@ -431,26 +482,31 @@ module UCIe_PHY_wrapper_tb;
         speed_sts0 = u_die0.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status;
         speed_sts1 = u_die1.u_digital_ucie.u_main_sm.u_ltsm_top.u_ltsm.reg_Link_Speed_enable_status;
 
-        $display("\n================================================================");
-        $display("  ACTIVE LINK STATUS REPORT");
-        $display("================================================================");
-        $display("  [DIE 0] state=%s, RDI_sts=%s", ln0.name(), pl_state_sts0.name());
-        $display("          Width : %s (code: %0h)",
-                  (width_sts0 == 4'h2) ? "x16" : (width_sts0 == 4'h1) ? "x8" : (width_sts0 == 4'h0) ? "x4" : "unknown", width_sts0);
-        $display("          Speed : %s (code: %0h)", speed_str(speed_sts0), speed_sts0);
-        $display("          TX Lane Mask: 3'b%b, RX Lane Mask: 3'b%b", tx_mask0, rx_mask0);
-        $display("          Active Deser Lanes (RX): 16'h%h", u_die0.mb_rx_data_deser_en);
-        $display("          Lane Reversal: %b  Width Degrade: %b",
-                  u_die0.u_digital_ucie.log0_lane_reversal, u_die0.u_digital_ucie.log0_width_degrade);
-        $display("  [DIE 1] state=%s, RDI_sts=%s", ln1.name(), pl_state_sts1.name());
-        $display("          Width : %s (code: %0h)",
-                  (width_sts1 == 4'h2) ? "x16" : (width_sts1 == 4'h1) ? "x8" : (width_sts1 == 4'h0) ? "x4" : "unknown", width_sts1);
-        $display("          Speed : %s (code: %0h)", speed_str(speed_sts1), speed_sts1);
-        $display("          TX Lane Mask: 3'b%b, RX Lane Mask: 3'b%b", tx_mask1, rx_mask1);
-        $display("          Active Deser Lanes (RX): 16'h%h", u_die1.mb_rx_data_deser_en);
-        $display("          Lane Reversal: %b  Width Degrade: %b",
-                  u_die1.u_digital_ucie.log0_lane_reversal, u_die1.u_digital_ucie.log0_width_degrade);
-        $display("================================================================\n");
+        $display("\n%s+================================================================+ %s", BOLD_BLUE, RESET);
+        $display("%s|                   ACTIVE LINK STATUS REPORT                    |%s", BOLD_WHITE, RESET);
+        $display("%s+================================================================+%s", BOLD_BLUE, RESET);
+        $display("  %s[DIE 0]%s state=%s, RDI_sts=%s", BOLD_BLUE, RESET, color_ltsm(ln0), color_rdi(pl_state_sts0));
+        $display("          Width : %s%s%s (code: %s%0h%s)",
+                  BOLD_CYAN, (width_sts0 == 4'h2) ? "x16" : (width_sts0 == 4'h1) ? "x8" : (width_sts0 == 4'h0) ? "x4" : "unknown", RESET,
+                  BOLD_YELLOW, width_sts0, RESET);
+        $display("          Speed : %s%s%s (code: %s%0h%s)", BOLD_CYAN, speed_str(speed_sts0), RESET, BOLD_YELLOW, speed_sts0, RESET);
+        $display("          TX Lane Mask: %s3'b%b%s, RX Lane Mask: %s3'b%b%s", BOLD_CYAN, tx_mask0, RESET, BOLD_CYAN, rx_mask0, RESET);
+        $display("          Active Deser Lanes (RX): %s16'h%h%s", BOLD_CYAN, u_die0.mb_rx_data_deser_en, RESET);
+        $display("          Lane Reversal: %s%b%s  Width Degrade: %s%b%s",
+                  u_die0.u_digital_ucie.log0_lane_reversal ? BOLD_GREEN : BOLD_YELLOW, u_die0.u_digital_ucie.log0_lane_reversal, RESET,
+                  u_die0.u_digital_ucie.log0_width_degrade ? BOLD_RED : BOLD_GREEN, u_die0.u_digital_ucie.log0_width_degrade, RESET);
+        $display("%s  ----------------------------------------------------------------%s", BLUE, RESET);
+        $display("  %s[DIE 1]%s state=%s, RDI_sts=%s", BOLD_CYAN, RESET, color_ltsm(ln1), color_rdi(pl_state_sts1));
+        $display("          Width : %s%s%s (code: %s%0h%s)",
+                  BOLD_CYAN, (width_sts1 == 4'h2) ? "x16" : (width_sts1 == 4'h1) ? "x8" : (width_sts1 == 4'h0) ? "x4" : "unknown", RESET,
+                  BOLD_YELLOW, width_sts1, RESET);
+        $display("          Speed : %s%s%s (code: %s%0h%s)", BOLD_CYAN, speed_str(speed_sts1), RESET, BOLD_YELLOW, speed_sts1, RESET);
+        $display("          TX Lane Mask: %s3'b%b%s, RX Lane Mask: %s3'b%b%s", BOLD_CYAN, tx_mask1, RESET, BOLD_CYAN, rx_mask1, RESET);
+        $display("          Active Deser Lanes (RX): %s16'h%h%s", BOLD_CYAN, u_die1.mb_rx_data_deser_en, RESET);
+        $display("          Lane Reversal: %s%b%s  Width Degrade: %s%b%s",
+                  u_die1.u_digital_ucie.log0_lane_reversal ? BOLD_GREEN : BOLD_YELLOW, u_die1.u_digital_ucie.log0_lane_reversal, RESET,
+                  u_die1.u_digital_ucie.log0_width_degrade ? BOLD_RED : BOLD_GREEN, u_die1.u_digital_ucie.log0_width_degrade, RESET);
+        $display("%s+================================================================+\n%s", BOLD_BLUE, RESET);
     endtask
 
     // =========================================================================
@@ -500,27 +556,27 @@ module UCIe_PHY_wrapper_tb;
         phy_ctrl1 = u_die1.u_digital_ucie.u_reg_file.phy_control_r_out;
         cap1      = u_die1.u_digital_ucie.u_reg_file.ucie_link_cap_r_out;
 
-        $display("  ================ REGFILE VALUES (Read Hierarchically) ================");
-        $display("  [DIE 0] Link Control Reg: 32'h%h", ctrl0);
-        $display("          - Target Width [5:2]: 4'h%0h (%s)", ctrl0[5:2], width_ctrl_str(ctrl0[5:2]));
-        $display("          - Target Speed [9:6]: 4'h%0h (%s)", ctrl0[9:6], speed_str(ctrl0[9:6]));
-        $display("          - Start Training[10]: %b", ctrl0[10]);
-        $display("          PHY Control Reg : 32'h%h", phy_ctrl0);
-        $display("          - Force x8 Mode  [8]: %b", phy_ctrl0[8]);
-        $display("          Link Capability : 32'h%h", cap0);
-        $display("          - Max Width    [3:1]: 3'h%0h (%s)", cap0[3:1], width_cap_str(cap0[3:1]));
-        $display("          - Max Speed    [7:4]: 4'h%0h (%s)", cap0[7:4], speed_str(cap0[7:4]));
-        $display("  ----------------------------------------------------------------------");
-        $display("  [DIE 1] Link Control Reg: 32'h%h", ctrl1);
-        $display("          - Target Width [5:2]: 4'h%0h (%s)", ctrl1[5:2], width_ctrl_str(ctrl1[5:2]));
-        $display("          - Target Speed [9:6]: 4'h%0h (%s)", ctrl1[9:6], speed_str(ctrl1[9:6]));
-        $display("          - Start Training[10]: %b", ctrl1[10]);
-        $display("          PHY Control Reg : 32'h%h", phy_ctrl1);
-        $display("          - Force x8 Mode  [8]: %b", phy_ctrl1[8]);
-        $display("          Link Capability : 32'h%h", cap1);
-        $display("          - Max Width    [3:1]: 3'h%0h (%s)", cap1[3:1], width_cap_str(cap1[3:1]));
-        $display("          - Max Speed    [7:4]: 4'h%0h (%s)", cap1[7:4], speed_str(cap1[7:4]));
-        $display("  ======================================================================\n");
+        $display("  %s=================== REGFILE VALUES (Hierarchical Read) ===================%s", BOLD_MAGENTA, RESET);
+        $display("  %s[DIE 0]%s Link Control Reg: %s32'h%h%s", BOLD_BLUE, RESET, BOLD_YELLOW, ctrl0, RESET);
+        $display("          - Target Width [5:2]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, ctrl0[5:2], RESET, BOLD_CYAN, width_ctrl_str(ctrl0[5:2]), RESET);
+        $display("          - Target Speed [9:6]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, ctrl0[9:6], RESET, BOLD_CYAN, speed_str(ctrl0[9:6]), RESET);
+        $display("          - Start Training[10]: %s%b%s", ctrl0[10] ? BOLD_GREEN : BOLD_YELLOW, ctrl0[10], RESET);
+        $display("          PHY Control Reg : %s32'h%h%s", BOLD_YELLOW, phy_ctrl0, RESET);
+        $display("          - Force x8 Mode  [8]: %s%b%s", phy_ctrl0[8] ? BOLD_GREEN : BOLD_YELLOW, phy_ctrl0[8], RESET);
+        $display("          Link Capability : %s32'h%h%s", BOLD_YELLOW, cap0, RESET);
+        $display("          - Max Width    [3:1]: %s3'h%0h%s (%s%s%s)", BOLD_YELLOW, cap0[3:1], RESET, BOLD_CYAN, width_cap_str(cap0[3:1]), RESET);
+        $display("          - Max Speed    [7:4]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, cap0[7:4], RESET, BOLD_CYAN, speed_str(cap0[7:4]), RESET);
+        $display("  %s--------------------------------------------------------------------------%s", MAGENTA, RESET);
+        $display("  %s[DIE 1]%s Link Control Reg: %s32'h%h%s", BOLD_CYAN, RESET, BOLD_YELLOW, ctrl1, RESET);
+        $display("          - Target Width [5:2]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, ctrl1[5:2], RESET, BOLD_CYAN, width_ctrl_str(ctrl1[5:2]), RESET);
+        $display("          - Target Speed [9:6]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, ctrl1[9:6], RESET, BOLD_CYAN, speed_str(ctrl1[9:6]), RESET);
+        $display("          - Start Training[10]: %s%b%s", ctrl1[10] ? BOLD_GREEN : BOLD_YELLOW, ctrl1[10], RESET);
+        $display("          PHY Control Reg : %s32'h%h%s", BOLD_YELLOW, phy_ctrl1, RESET);
+        $display("          - Force x8 Mode  [8]: %s%b%s", phy_ctrl1[8] ? BOLD_GREEN : BOLD_YELLOW, phy_ctrl1[8], RESET);
+        $display("          Link Capability : %s32'h%h%s", BOLD_YELLOW, cap1, RESET);
+        $display("          - Max Width    [3:1]: %s3'h%0h%s (%s%s%s)", BOLD_YELLOW, cap1[3:1], RESET, BOLD_CYAN, width_cap_str(cap1[3:1]), RESET);
+        $display("          - Max Speed    [7:4]: %s4'h%0h%s (%s%s%s)", BOLD_YELLOW, cap1[7:4], RESET, BOLD_CYAN, speed_str(cap1[7:4]), RESET);
+        $display("  %s==========================================================================%s\n", BOLD_MAGENTA, RESET);
     endtask
 
     task automatic do_data_transfer(output bit pass);
@@ -596,15 +652,15 @@ module UCIe_PHY_wrapper_tb;
         enabled_scenarios[28] = 1'b1;
         enabled_scenarios[29] = 1'b1;
     
-        $display("================================================================");
-        $display("  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File)");
-        $display("  Adapter programs Reg_File over sideband; observes via (.)");
-        $display("================================================================\n");
+        $display("%s================================================================%s", BOLD_CYAN, RESET);
+        $display("%s  STARTING UCIe_PHY INTEGRATION TESTBENCH (Logical_PHY + Reg_File) %s", BOLD_WHITE, RESET);
+        $display("%s  Adapter programs Reg_File over sideband; observes via (.)        %s", BOLD_WHITE, RESET);
+        $display("%s================================================================\n%s", BOLD_CYAN, RESET);
         // ----------------------------------------------------------------
         // Scenario 1: Happy Path -> ACTIVE + status print + data transfer
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Happy Path training to ACTIVE...", $time, scenario_num);
+            start_scenario(scenario_num, "Happy Path training to ACTIVE...");
             reset_system();
             // Program dies first (so print_ctrl_regs shows the written values),
             // then do_bringup will re-program and wait for ACTIVE.
@@ -618,7 +674,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully", scenario_num);
             end
         end else begin 
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
@@ -627,7 +683,7 @@ module UCIe_PHY_wrapper_tb;
         // of sim time (dominates runtime). Set RUN_SC2=1'b1 to re-enable.
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] TrainError (sideband blocked)...", $time, scenario_num);
+            start_scenario(scenario_num, "TrainError (sideband blocked)...");
             reset_system();
             block_sideband = 1'b1;
             fork program_die(0); program_die(1); join
@@ -641,14 +697,14 @@ module UCIe_PHY_wrapper_tb;
             disable fork;
             chk(m_error, "watchdog produced TRAINERROR", scenario_num);
         end else begin
-            $display("\nT=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            start_scenario(scenario_num, "Skipped (disabled).");
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 3: Asymmetric Width Negotiation (x16 vs x8 -> x8)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Width: Die0 requests x16, Die1 requests x8...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Width: Die0 requests x16, Die1 requests x8...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -663,14 +719,14 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully on negotiated x8 link", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 4: Lane Reversal + Retry (Symmetric reversal)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Symmetric Lane Reversal: Both dies reverse package routes...", $time, scenario_num);
+            start_scenario(scenario_num, "Symmetric Lane Reversal: Both dies reverse package routes...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -684,14 +740,14 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully with symmetric lane reversal", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 5: Asymmetric Lane Reversal
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Lane Reversal: Only Die0 reverses package routes...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Lane Reversal: Only Die0 reverses package routes...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -705,14 +761,14 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully with asymmetric lane reversal", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 6: Asymmetric Width Degradation with Retry (Fault lanes 8..15 on Die 0)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Width Degradation: Fault lanes 8..15 -> degrade x16 to x8...", $time, scenario_num);
+            start_scenario(scenario_num, "Width Degradation: Fault lanes 8..15 -> degrade x16 to x8...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -725,14 +781,14 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully after width degradation to x8", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 7: Asymmetric Width Degradation with Retry (Fault lanes 0..7 on Die 1)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Width Degradation: Fault lanes 0..7 -> degrade x16 to x8...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Width Degradation: Fault lanes 0..7 -> degrade x16 to x8...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -745,7 +801,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully after width degradation to x8", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -753,7 +809,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 8: Asymmetric Width Degradation with Retry (Fault lanes 0..7 on Die 0) (Fault lanes 8..15 on Die 1)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Width Degradation: Fault lanes 0..7 -> degrade x16 to x8...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Width Degradation: Fault lanes 0..7 -> degrade x16 to x8...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -767,7 +823,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully after width degradation to x8", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -775,7 +831,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 9: Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively...", $time, scenario_num);
+            start_scenario(scenario_num, "Both Dies set Link Speed to 20 GT/s & 16 GT/s respectively...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h4, 1'b0);
@@ -790,14 +846,14 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully after both dies set Link Speed to 20 GT/s & 16 GT/s respectively", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 10: PM mode (L1) entry + wake
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] PM mode (L1) entry + wake...", $time, scenario_num);
+            start_scenario(scenario_num, "PM mode (L1) entry + wake...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -858,14 +914,14 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 11: L2 entry, exit to RESET, and re-train recovery
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] PM mode (L2) entry, exit to RESET, and recovery...", $time, scenario_num);
+            start_scenario(scenario_num, "PM mode (L2) entry, exit to RESET, and recovery...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -941,14 +997,14 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 12: TRAINERROR entry (rdi=LinkError), clear, recover
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] TRAINERROR: fault link, hold, clear, re-train...", $time, scenario_num);
+            start_scenario(scenario_num, "TRAINERROR: fault link, hold, clear, re-train...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -1043,14 +1099,14 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 13: Valid Lane boundary error injection
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Valid Lane Boundary Error Injection test...", $time, scenario_num);
+            start_scenario(scenario_num, "Valid Lane Boundary Error Injection test...");
             reset_system();
             lp_state_req0 = Nop; lp_state_req1 = Nop;
             fork
@@ -1103,7 +1159,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully after boundary error survival",scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
@@ -1114,7 +1170,7 @@ module UCIe_PHY_wrapper_tb;
         // detect the failing upper lanes and degrade to x8 lower.
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] MBTRAIN REPAIR: inject lane fault AFTER MBINIT -> degrade in MBTRAIN...", $time, scenario_num);
+            start_scenario(scenario_num, "MBTRAIN REPAIR: inject lane fault AFTER MBINIT -> degrade in MBTRAIN...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -1153,7 +1209,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified after MBTRAIN lane degradation",scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
@@ -1186,7 +1242,7 @@ module UCIe_PHY_wrapper_tb;
         // would desync the REPAIR/LINKSPEED handshake -> TRAINERROR, see SC11).
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Speed Degradation: speed-dependent all-lane fault forces LINKSPEED speed-degrade...", $time, scenario_num);
+            start_scenario(scenario_num, "Speed Degradation: speed-dependent all-lane fault forces LINKSPEED speed-degrade...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1248,14 +1304,14 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
         // ----------------------------------------------------------------
         // Scenario 16: Target settings in Control Reg > Hardware Capabilities
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Capping check: program target width/speed > capabilities...", $time, scenario_num);
+            start_scenario(scenario_num, "Capping check: program target width/speed > capabilities...");
             reset_system();
             // Program target width = x32 (4'h3) > capability x16
             // Program target speed = 48 GT/s (4'h6) > capability 32 GT/s (4'h5)
@@ -1291,7 +1347,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1299,7 +1355,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 17: Lane reversal with asymmetric width degrade (negotiate x16 -> degrade x8)
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Lane Reversal + Width Degradation: Fault lanes 8..15 & symmetric lane reversal...", $time, scenario_num);
+            start_scenario(scenario_num, "Lane Reversal + Width Degradation: Fault lanes 8..15 & symmetric lane reversal...");
             reset_system();
             fork program_die(0); program_die(1); join
             print_ctrl_regs();
@@ -1319,7 +1375,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1327,7 +1383,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 18: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 with lane reversal
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] x8 target -> degrade to x4 with Lane Reversal...", $time, scenario_num);
+            start_scenario(scenario_num, "x8 target -> degrade to x4 with Lane Reversal...");
             reset_system();
             // Program target width to x8 (4'h1)
             fork
@@ -1351,7 +1407,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1359,7 +1415,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 19: Asymmetric width negotiation (x16 vs x8 -> x8) and degrade to x4 without lane reversal
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] x8 target -> degrade to x4 without Lane Reversal...", $time, scenario_num);
+            start_scenario(scenario_num, "x8 target -> degrade to x4 without Lane Reversal...");
             reset_system();
             // Program target width to x8 (4'h1)
             fork
@@ -1381,7 +1437,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(data_pass, "data transfer verified successfully", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1389,7 +1445,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 20: Speed degradation (1 step) on degraded x4-upper link
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Speed Degradation (1 step) on degraded x4-upper link...", $time, scenario_num);
+            start_scenario(scenario_num, "Speed Degradation (1 step) on degraded x4-upper link...");
             reset_system();
             // Program both dies to target x8 (4'h1) and target speed Gen6 (4'h5)
             fork
@@ -1448,7 +1504,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1456,7 +1512,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 21: Speed degradation (2 steps) on degraded x4-upper link
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Speed Degradation (2 steps) on degraded x4-upper link...", $time, scenario_num);
+            start_scenario(scenario_num, "Speed Degradation (2 steps) on degraded x4-upper link...");
             reset_system();
             // Program both dies to target x8 (4'h1) and target speed Gen6 (4'h5)
             fork
@@ -1525,7 +1581,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1533,7 +1589,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 22: Lane Reversal + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Lane Reversal + 1-Step Speed Degradation...", $time, scenario_num);
+            start_scenario(scenario_num, "Lane Reversal + 1-Step Speed Degradation...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1586,7 +1642,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1594,7 +1650,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 23: Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Width Degrade (x16->x8) + 1-Step Speed Degradation...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Width Degrade (x16->x8) + 1-Step Speed Degradation...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1645,7 +1701,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1653,7 +1709,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 24: Asymmetric Width degrade (x16 -> x8) + 2-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Width Degrade (x16->x8) + 2-Step Speed Degradation...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Width Degrade (x16->x8) + 2-Step Speed Degradation...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1710,7 +1766,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1718,7 +1774,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 25: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...", $time, scenario_num);
+            start_scenario(scenario_num, "Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1773,7 +1829,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1781,7 +1837,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 26: Lane Reversal + Asymmetric Width degrade (x16 -> x8) + 1-Step Speed degradation
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Asymmetric Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...", $time, scenario_num);
+            start_scenario(scenario_num, "Asymmetric Lane Reversal + Asymmetric Width Degrade + 1-Step Speed Degradation...");
             reset_system();
             fork
                 program_die_custom(0, 4'h2, 4'h5, 1'b0);
@@ -1836,7 +1892,7 @@ module UCIe_PHY_wrapper_tb;
                 end
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1850,7 +1906,7 @@ module UCIe_PHY_wrapper_tb;
         // TRAINERROR.
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Speed Degradation until TRAINERROR (permanent all-lane fault at MBTRAIN)...", $time, scenario_num);
+            start_scenario(scenario_num, "Speed Degradation until TRAINERROR (permanent all-lane fault at MBTRAIN)...");
             reset_system();
             // Program both dies to target x16 (4'h2) and target speed Gen6 (4'h5)
             fork
@@ -1899,7 +1955,7 @@ module UCIe_PHY_wrapper_tb;
                 chk(m_error || p_error, "at least one die reached LOG_TRAINERROR", scenario_num);
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -1907,7 +1963,7 @@ module UCIe_PHY_wrapper_tb;
         // Scenario 28: Valid frame error injection during ACTIVE -> PHYRETRAIN -> TXSELFCAL
         // ----------------------------------------------------------------
         if (enabled_scenarios[scenario_num]) begin
-            $display("\nT=%0t | [SC%0d] Valid Frame Error Injection during ACTIVE -> PHYRETRAIN -> TXSELFCAL...", $time, scenario_num);
+            start_scenario(scenario_num, "Valid Frame Error Injection during ACTIVE -> PHYRETRAIN -> TXSELFCAL...");
             reset_system();
             // Program both dies
             fork
@@ -2042,7 +2098,7 @@ module UCIe_PHY_wrapper_tb;
                 lp_irdy1 = 1'b0;
             end
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
@@ -2055,7 +2111,7 @@ module UCIe_PHY_wrapper_tb;
             sb_header_u cpl_hdr_dec;
             bit handshake_seen;
             
-            $display("\nT=%0t | [SC%0d] Register Write Completion & Clock Handshake Verification...", $time, scenario_num);
+            start_scenario(scenario_num, "Register Write Completion & Clock Handshake Verification...");
             reset_system();
             
             // Check that pl_clk_req0 starts at 0
@@ -2125,15 +2181,20 @@ module UCIe_PHY_wrapper_tb;
             chk(handshake_seen, "clock handshake occurred in parallel with read request", scenario_num);
             
         end else begin
-            $display("T=%0t | [SC%0d] Skipped (disabled).", $time, scenario_num);
+            skip_scenario(scenario_num);
         end
         scenario_num++;
 
         // ----------------------------------------------------------------
-        $display("\n================================================================");
-        if (fails == 0) $display("  RESULT: PASS  (UCIe_PHY INTEGRATION SIM PASS)");
-        else            $display("  RESULT: FAIL  (%0d failing checks)", fails);
-        $display("================================================================\n");
+        if (fails == 0) begin
+            $display("\n%s================================================================%s", BOLD_GREEN, RESET);
+            $display("%s  RESULT: PASS  (UCIe_PHY INTEGRATION SIM PASS)                  %s", BOLD_GREEN, RESET);
+            $display("%s================================================================\n%s", BOLD_GREEN, RESET);
+        end else begin
+            $display("\n%s================================================================%s", BOLD_RED, RESET);
+            $display("%s  RESULT: FAIL  (%0d failing checks)                            %s", BOLD_RED, fails, RESET);
+            $display("%s================================================================\n%s", BOLD_RED, RESET);
+        end
         $finish;
     end
 
