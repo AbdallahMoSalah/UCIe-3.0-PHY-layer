@@ -332,7 +332,7 @@ logic [3:0]  partner_S2_RESP_speed;
 logic [4:0]  partner_S4_RESP;
 
 always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n || !mb_param_enable) begin
+    if (!rst_n) begin
         param_req_rcvd                     <= 1'b0;
         param_rsp_rcvd                     <= 1'b0;
         sbfe_req_rcvd                      <= 1'b0;

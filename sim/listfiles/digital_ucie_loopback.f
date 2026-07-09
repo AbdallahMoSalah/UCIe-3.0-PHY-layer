@@ -153,7 +153,7 @@ rtl/MainSM/LTSM/unit_ltsm_controller.sv
 rtl/MainSM/LTSM/LTSM_wrapper.sv
 
 # ---- LTSM_TOP interface + top ------------------------------------------------
-rtl/MainBand_RD/mainband_ltsm_interface.sv
+rtl/MainBand/mainband_ltsm_interface.sv
 rtl/MainSM/LTSM/LTSM_TOP.sv
 
 # ---- RDI_SM : wrapper_sm sub-modules -----------------------------------------
@@ -189,35 +189,35 @@ rtl/MainSM/RDI_SM/unit_msg_handler/unit_msg_handler.sv
 rtl/MainSM/RDI_SM/RDI_SM/RDI_SM.sv
 
 # ---- MainBand RD TX datapath -------------------------------------------------
-rtl/MainBand_RD/tx/unit_mapper.sv
-rtl/MainBand_RD/tx/unit_clkdiv.sv
-rtl/MainBand_RD/tx/unit_clk_gate.sv
-rtl/MainBand_RD/tx/unit_mb_pll.sv
-rtl/MainBand_RD/tx/unit_lfsr_tx.sv
-rtl/MainBand_RD/tx/unit_valid_tx.sv
-rtl/MainBand_RD/tx/unit_mb_serializer.sv
-rtl/MainBand_RD/tx/unit_clk_pattern_gen_tx.sv
-rtl/MainBand_RD/tx/unused/unit_tx_top.sv
-rtl/MainBand_RD/tx/unit_mb_tx_reversal.sv
-rtl/MainBand_RD/tx/unit_mb_tx_reversal_array.sv
+rtl/MainBand/tx/unit_mapper.sv
+rtl/MainBand/tx/unit_clkdiv.sv
+rtl/MainBand/tx/unit_clk_gate.sv
+rtl/MainBand/tx/unit_mb_pll.sv
+rtl/MainBand/tx/unit_lfsr_tx.sv
+rtl/MainBand/tx/unit_valid_tx.sv
+rtl/MainBand/tx/unit_mb_serializer.sv
+rtl/MainBand/tx/unit_clk_pattern_gen_tx.sv
+rtl/MainBand/tx/unused/unit_tx_top.sv
+rtl/MainBand/tx/unit_mb_tx_reversal.sv
+rtl/MainBand/tx/unit_mb_tx_reversal_array.sv
 
 # ---- MainBand RD RX datapath -------------------------------------------------
-rtl/MainBand_RD/rx/unit_valid_deserializer.sv
-rtl/MainBand_RD/rx/unit_valid_frame_detector.sv
-rtl/MainBand_RD/rx/unit_data_deserializer.sv
-rtl/MainBand_RD/rx/unit_lfsr_rx.sv
-rtl/MainBand_RD/rx/unit_demapper.sv
-rtl/MainBand_RD/rx/unit_mb_pattern_comparator.sv
-rtl/MainBand_RD/rx/unit_valid_comparator.sv
-rtl/MainBand_RD/rx/unit_clk_pattern_detector_rx.sv
-rtl/MainBand_RD/rx/unit_mb_rx_top.sv
+rtl/MainBand/rx/unit_valid_deserializer.sv
+rtl/MainBand/rx/unit_valid_frame_detector.sv
+rtl/MainBand/rx/unit_data_deserializer.sv
+rtl/MainBand/rx/unit_lfsr_rx.sv
+rtl/MainBand/rx/unit_demapper.sv
+rtl/MainBand/rx/unit_mb_pattern_comparator.sv
+rtl/MainBand/rx/unit_valid_comparator.sv
+rtl/MainBand/rx/unit_clk_pattern_detector_rx.sv
+rtl/MainBand/rx/unit_mb_rx_top.sv
 
 # ---- Full MB die (TX + RX) ---------------------------------------------------
-"rtl/MainBand_RD/Integration steps/unit_mb_die.sv"
+"rtl/MainBand/Integration steps/unit_mb_die.sv"
 
 # ---- MainBand digital/analog split -------------------------------------------
-rtl/MainBand_RD/mainband_analog_hard_macro.sv
-rtl/MainBand_RD/digital_mb.sv
+rtl/MainBand/mainband_analog_hard_macro.sv
+rtl/MainBand/digital_mb.sv
 
 # ---- Register File (chapter-9 config/status block) ---------------------------
 rtl/common/Reg_File.sv
