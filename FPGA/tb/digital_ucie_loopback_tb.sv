@@ -121,11 +121,19 @@ module digital_ucie_loopback_tb;
                  $time, ln.name(), rdi_sts.name(), pl_state_sts_e.name());
 
     // =========================================================================
-    // Adapter handshake responder (CLK-ack / STALL-ack follow request)
+    // Adapter handshake responder (CLK-ack / STALL-ack follow request).
+    //   manual_ack_mode=1 hands lp_clk_ack over to the test so it can emulate the
+    //   C driver's SLOW GPIO polling (ack only after a delay) and probe whether
+    //   pl_clk_req is a held req/ack level or a short self-clearing pulse.
     // =========================================================================
+    logic manual_ack_mode = 1'b0;
+    logic manual_clk_ack   = 1'b0;
     always @(posedge lclk or negedge rst_n) begin
         if (!rst_n) begin lp_clk_ack <= 1'b0; lp_stallack <= 1'b0; end
-        else        begin lp_clk_ack <= pl_clk_req; lp_stallack <= pl_stallreq; end
+        else begin
+            lp_clk_ack  <= manual_ack_mode ? manual_clk_ack : pl_clk_req;
+            lp_stallack <= pl_stallreq;
+        end
     end
 
     // =========================================================================
@@ -165,6 +173,18 @@ module digital_ucie_loopback_tb;
     task automatic reg_wr_mem(input logic [23:0] addr, input logic [63:0] data);
         send_chunks64(build_wr_header(SB_64_MEM_WRITE, addr, 8'h0F), data);
     endtask
+
+    // Message header (NOT a request) to the REMOTE adapter = main.c step 4.
+    function automatic logic [63:0] build_msg_header(sb_opcode_e op, sb_dstid_e dst);
+        sb_header_u hdr;
+        hdr.raw         = '0;
+        hdr.msg.opcode  = op;
+        hdr.msg.dstid   = dst;
+        hdr.msg.srcid   = ADAPTER;
+        hdr.msg.msgcode = msg_code_e'(8'h00);
+        hdr.msg.cp      = ^(hdr.raw[61:0]);
+        return hdr.raw;
+    endfunction
 
     task automatic program_die(input logic [3:0] target_width = 4'h2,
                                input logic [3:0] target_speed = 4'h5,
@@ -255,6 +275,62 @@ module digital_ucie_loopback_tb;
             chk(data_pass, "MainBand flit looped back successfully", 2);
         end else begin
             $display("T=%0t | [SC2] Skipped (no ACTIVE).", $time);
+        end
+
+        // ---- SC3 : POST-ACTIVE sideband remote-message loopback (PARALLEL bypass = FPGA) ----
+        //   Emulates the C driver EXACTLY: after sending, DON'T ack immediately.
+        //   Take manual control of lp_clk_ack and probe how long pl_clk_req stays
+        //   high with NO ack. The C polls pl_clk_req via EMIO GPIO at ~µs
+        //   granularity (~100+ clk_sb cycles). If pl_clk_req is a HELD req/ack
+        //   level, the C catches it (not the bug). If it drops on its own before
+        //   we ack, a slow poll MISSES it -> reproduces the HW timeout.
+        if (ok) begin
+            bit sb_msg_back;
+            int hi_cycles;
+            sb_msg_back = 1'b0;
+            hi_cycles   = 0;
+            $display("\nT=%0t | [SC3] POST-ACTIVE sideband remote-message loopback (slow-ack probe)...", $time);
+
+            // hand ack control to the test, ack held LOW (like C right after ClkAckClear)
+            manual_ack_mode = 1'b1;
+            manual_clk_ack  = 1'b0;
+
+            send_chunks64(build_msg_header(SB_MSG_WITH_64_DATA, REMOTE_ADAPTER),
+                          64'hDEADBEEF_CAFEF00D);
+
+            // wait for pl_clk_req, then measure how long it stays high WITHOUT ack
+            fork
+                begin
+                    wait (pl_clk_req);
+                    $display("T=%0t | [SC3] pl_clk_req asserted; measuring hold WITHOUT ack...", $time);
+                    while (pl_clk_req && hi_cycles < 2000) begin
+                        @(posedge clk_sb); hi_cycles++;
+                    end
+                    if (!pl_clk_req)
+                        $display("T=%0t | [SC3-PROBE] pl_clk_req DROPPED after %0d clk_sb cycles with NO ack -> PULSE (slow GPIO poll would MISS it)", $time, hi_cycles);
+                    else
+                        $display("T=%0t | [SC3-PROBE] pl_clk_req still HIGH after %0d cycles with no ack -> HELD req/ack (C would catch it)", $time, hi_cycles);
+                end
+                begin repeat (3000) @(posedge clk_sb); end
+            join_any
+            disable fork;
+
+            // now emulate the C finally getting around to acking (slow poll caught it, or forced)
+            @(posedge lclk); manual_clk_ack = 1'b1;
+            fork
+                begin wait (pl_cfg_vld);
+                      $display("T=%0t | [SC3] pl_cfg returned: 0x%08h", $time, pl_cfg);
+                      sb_msg_back = 1'b1; end
+                begin repeat (8000) @(posedge clk_sb);
+                      $error("T=%0t | [SC3] TIMEOUT: remote msg never delivered (pl_clk_req=%0b pl_cfg_vld=%0b)",
+                             $time, pl_clk_req, pl_cfg_vld); end
+            join_any
+            disable fork;
+            @(posedge lclk); manual_clk_ack = 1'b0; manual_ack_mode = 1'b0;
+
+            chk(sb_msg_back, "sideband remote message looped back to pl_cfg", 3);
+        end else begin
+            $display("T=%0t | [SC3] Skipped (no ACTIVE).", $time);
         end
 
         $display("\n================================================================");

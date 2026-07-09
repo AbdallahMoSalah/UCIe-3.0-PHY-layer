@@ -1,80 +1,83 @@
 {
    "ActiveEmotionalView":"Default View",
-   "Default View_ScaleFactor":"0.914423",
-   "Default View_TopLeft":"830,-85",
+   "Default View_ScaleFactor":"0.717936",
+   "Default View_TopLeft":"315,595",
    "ExpandedHierarchyInLayout":"",
-   "HierExpandStatus_comment_0":"false",
-   "HierExpandStatus_comment_1":"false",
-   "commentid":"",
-   "guistr":"# # String gsaved with Nlview 7.8.0 2024-04-26 e1825d835c VDI=44 GEI=38 GUI=JA:21.0
+   "guistr":"# # String gsaved with Nlview 7.8.0 2024-04-26 e1825d835c VDI=44 GEI=38 GUI=JA:21.0 TLS
 #  -string -flagsOSRD
-preplace inst UCIe_FPGA_top_wrapper_0 -pg 1 -lvl 3 -x 2180 -y 190 -defaultsOSRD
-preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 1 -x 1170 -y 160 -defaultsOSRD
-preplace inst sl_state_req -pg 1 -lvl 2 -x 1740 -y 600 -defaultsOSRD
-preplace inst sl_clk_ack -pg 1 -lvl 2 -x 1740 -y 60 -defaultsOSRD
-preplace inst sl_wake_req -pg 1 -lvl 2 -x 1740 -y 700 -defaultsOSRD
-preplace inst sl_stallack -pg 1 -lvl 2 -x 1740 -y 800 -defaultsOSRD
-preplace inst sl_linkerror -pg 1 -lvl 2 -x 1740 -y 900 -defaultsOSRD
-preplace inst xlconcat_pl -pg 1 -lvl 5 -x 2780 -y 220 -defaultsOSRD
-preplace inst xlconstant_pl_pad -pg 1 -lvl 4 -x 2530 -y 390 -defaultsOSRD
-preplace inst axi_interconnect_0 -pg 1 -lvl 1 -x 1170 -y 520 -defaultsOSRD
-preplace inst axi_dma_0 -pg 1 -lvl 2 -x 1740 -y 410 -defaultsOSRD
-preplace inst src_bram -pg 1 -lvl 4 -x 2530 -y 850 -defaultsOSRD
-preplace inst dst_bram -pg 1 -lvl 4 -x 2530 -y 540 -defaultsOSRD
-preplace inst axi_interconnect_1 -pg 1 -lvl 3 -x 2180 -y 800 -defaultsOSRD
-preplace inst axi_interconnect_2 -pg 1 -lvl 3 -x 2180 -y 520 -defaultsOSRD
-preplace inst axi_fifo_mm_s_0 -pg 1 -lvl 2 -x 1740 -y 190 -defaultsOSRD
-preplace inst axi_bram_ctrl_0_bram -pg 1 -lvl 5 -x 2780 -y 850 -defaultsOSRD
-preplace inst rst_ps8_0_99M -pg 1 -lvl 1 -x 1170 -y 860 -defaultsOSRD
-preplace inst axi_bram_ctrl_1_bram -pg 1 -lvl 5 -x 2780 -y 540 -defaultsOSRD
-preplace netloc UCIe_FPGA_top_wrapper_0_o_mb_rx_overflow 1 3 2 NJ 300 N
-preplace netloc UCIe_FPGA_top_wrapper_0_o_sb_rx_overflow 1 3 2 NJ 320 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_clk_req 1 3 2 NJ 100 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_inband_pres 1 3 2 NJ 180 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_lnk_cfg 1 3 2 NJ 280 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_max_speedmode 1 3 2 NJ 240 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_phyinrecenter 1 3 2 NJ 200 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_speedmode 1 3 2 NJ 260 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_stallreq 1 3 2 NJ 120 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_state_sts 1 3 2 NJ 220 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_trainerror 1 3 2 NJ 160 N
-preplace netloc UCIe_FPGA_top_wrapper_0_pl_wake_ack 1 3 2 NJ 140 N
-preplace netloc rst_ps8_0_99M_peripheral_aresetn 1 0 4 860 340 1520 -10 1990 -10 2400
-preplace netloc xlconcat_pl_dout 1 1 5 1490J -40 NJ -40 NJ -40 NJ -40 2900
-preplace netloc xlconstant_pl_pad_dout2 1 4 1 2660J 340n
-preplace netloc xlslice_0_Dout 1 2 1 1910J 190n
-preplace netloc xlslice_1_Dout 1 2 1 2020 60n
-preplace netloc xlslice_3_Dout 1 2 1 2000J 230n
-preplace netloc xlslice_4_Dout 1 2 1 2010J 250n
-preplace netloc xlslice_5_Dout 1 2 1 2020J 270n
-preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 1 1550 60n
-preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 0 4 840 30 1560 0 1980 0 2390
-preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 2 850 40 1480
-preplace netloc S00_AXI_1 1 0 2 870 50 1470
-preplace netloc S00_AXI_2 1 2 1 1930 350n
-preplace netloc S00_AXI_3 1 1 2 N 530 1900J
-preplace netloc S01_AXI_1 1 1 2 1470 540 1900J
-preplace netloc S01_AXI_2 1 2 1 1920 370n
-preplace netloc UCIe_FPGA_top_wrapper_0_m_axis_mb_rx 1 1 3 1570 -30 NJ -30 2340
-preplace netloc UCIe_FPGA_top_wrapper_0_m_axis_sb_rx 1 1 3 1580 -20 NJ -20 2350
-preplace netloc axi_bram_ctrl_0_BRAM_PORTA 1 4 1 N 840
-preplace netloc axi_bram_ctrl_0_BRAM_PORTB 1 4 1 N 860
-preplace netloc axi_bram_ctrl_1_BRAM_PORTA 1 4 1 N 530
-preplace netloc axi_bram_ctrl_1_BRAM_PORTB 1 4 1 N 550
-preplace netloc axi_dma_0_M_AXIS_MM2S 1 2 1 1900 110n
-preplace netloc axi_fifo_mm_s_0_AXI_STR_TXD 1 2 1 1910 130n
-preplace netloc axi_interconnect_0_M00_AXI 1 1 1 1540 360n
-preplace netloc axi_interconnect_0_M03_AXI 1 1 1 1530 160n
-preplace netloc axi_interconnect_1_M00_AXI 1 3 1 2340 800n
-preplace netloc axi_interconnect_2_M00_AXI 1 3 1 N 520
-levelinfo -pg 1 0 1170 1740 2180 2530 2780 3020
-pagesize -pg 1 -db -bbox -sgen 0 -100 3140 1320
+preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 1 -x 320 -y 1150 -defaultsOSRD
+preplace inst sl_state_req -pg 1 -lvl 3 -x 1210 -y 590 -defaultsOSRD
+preplace inst sl_clk_ack -pg 1 -lvl 3 -x 1210 -y 690 -defaultsOSRD
+preplace inst sl_wake_req -pg 1 -lvl 3 -x 1210 -y 790 -defaultsOSRD
+preplace inst sl_stallack -pg 1 -lvl 3 -x 1210 -y 890 -defaultsOSRD
+preplace inst sl_linkerror -pg 1 -lvl 3 -x 1210 -y 990 -defaultsOSRD
+preplace inst xlconcat_pl -pg 1 -lvl 6 -x 2270 -y 700 -defaultsOSRD
+preplace inst xlconstant_pl_pad -pg 1 -lvl 5 -x 2010 -y 860 -defaultsOSRD
+preplace inst axi_interconnect_0 -pg 1 -lvl 2 -x 820 -y 1220 -defaultsOSRD
+preplace inst axi_dma_0 -pg 1 -lvl 3 -x 1210 -y 1370 -defaultsOSRD
+preplace inst src_bram -pg 1 -lvl 5 -x 2010 -y 1460 -defaultsOSRD
+preplace inst dst_bram -pg 1 -lvl 5 -x 2010 -y 1160 -defaultsOSRD
+preplace inst axi_interconnect_1 -pg 1 -lvl 4 -x 1670 -y 1440 -defaultsOSRD
+preplace inst axi_interconnect_2 -pg 1 -lvl 4 -x 1670 -y 1140 -defaultsOSRD
+preplace inst axi_fifo_mm_s_0 -pg 1 -lvl 3 -x 1210 -y 1120 -defaultsOSRD
+preplace inst axi_bram_ctrl_0_bram -pg 1 -lvl 6 -x 2270 -y 1460 -defaultsOSRD
+preplace inst rst_ps8_0_99M -pg 1 -lvl 1 -x 320 -y 1450 -defaultsOSRD
+preplace inst axi_bram_ctrl_1_bram -pg 1 -lvl 6 -x 2270 -y 1160 -defaultsOSRD
+preplace inst UCIe_FPGA_top_wrappe_0 -pg 1 -lvl 4 -x 1670 -y 680 -defaultsOSRD
+preplace inst sl_linkerror1 -pg 1 -lvl 3 -x 1210 -y -40 -defaultsOSRD
+preplace inst sl_linkerror2 -pg 1 -lvl 3 -x 1210 -y 60 -defaultsOSRD
+preplace inst sl_linkerror3 -pg 1 -lvl 3 -x 1210 -y 160 -defaultsOSRD
+preplace inst sl_linkerror4 -pg 1 -lvl 3 -x 1210 -y 260 -defaultsOSRD
+preplace inst sl_linkerror5 -pg 1 -lvl 3 -x 1210 -y 370 -defaultsOSRD
+preplace netloc UCIe_FPGA_top_wrappe_0_o_mb_rx_overflow 1 4 2 1870 780 NJ
+preplace netloc UCIe_FPGA_top_wrappe_0_o_sb_rx_overflow 1 4 2 1870 800 NJ
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_clk_req 1 4 2 NJ 590 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_inband_pres 1 4 2 NJ 670 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_lnk_cfg 1 4 2 1870 760 NJ
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_max_speedmode 1 4 2 NJ 730 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_phyinrecenter 1 4 2 NJ 690 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_speedmode 1 4 2 NJ 750 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_stallreq 1 4 2 NJ 610 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_state_sts 1 4 2 1870 700 NJ
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_trainerror 1 4 2 NJ 650 2150
+preplace netloc UCIe_FPGA_top_wrappe_0_pl_wake_ack 1 4 2 NJ 630 2150
+preplace netloc rst_ps8_0_99M_peripheral_aresetn 1 1 4 670 1040 1000 1490 1490 990 1860
+preplace netloc sl_clk_ack_Dout 1 3 1 1400 690n
+preplace netloc sl_linkerror1_Dout 1 3 1 1500 -40n
+preplace netloc sl_linkerror2_Dout 1 3 1 1490 60n
+preplace netloc sl_linkerror3_Dout 1 3 1 1480 160n
+preplace netloc sl_linkerror4_Dout 1 3 1 1470 260n
+preplace netloc sl_linkerror5_Dout 1 3 1 1450 370n
+preplace netloc sl_linkerror_Dout 1 3 1 1410 800n
+preplace netloc sl_stallack_Dout 1 3 1 1400 780n
+preplace netloc sl_state_req_Dout 1 3 1 1440 590n
+preplace netloc sl_wake_req_Dout 1 3 1 1380 760n
+preplace netloc xlconcat_pl_dout 1 1 6 660J 1030 1030J 1220 1470J 970 NJ 970 NJ 970 2390
+preplace netloc xlconstant_pl_pad_dout2 1 5 1 2150J 820n
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 2 630J 1010 1040
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 0 5 10 1030 650 1020 1010 1500 1460 980 1870
+preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 2 20 1040 620J
+preplace netloc S00_AXI_1 1 1 1 N 1100
+preplace netloc S00_AXI_2 1 3 1 1430 1310n
+preplace netloc S00_AXI_3 1 2 2 NJ 1230 1480
+preplace netloc S01_AXI_1 1 2 2 970J 1240 1440
+preplace netloc S01_AXI_2 1 3 1 1500 1070n
+preplace netloc UCIe_FPGA_top_wrappe_0_m_axis_mb_rx 1 2 3 1040 1250 1450J 1290 1850
+preplace netloc UCIe_FPGA_top_wrappe_0_m_axis_sb_rx 1 2 3 1040 1210 1450J 960 1840
+preplace netloc axi_bram_ctrl_0_BRAM_PORTA 1 5 1 N 1450
+preplace netloc axi_bram_ctrl_0_BRAM_PORTB 1 5 1 N 1470
+preplace netloc axi_bram_ctrl_1_BRAM_PORTA 1 5 1 N 1150
+preplace netloc axi_bram_ctrl_1_BRAM_PORTB 1 5 1 N 1170
+preplace netloc axi_dma_0_M_AXIS_MM2S 1 3 1 1420 560n
+preplace netloc axi_fifo_mm_s_0_AXI_STR_TXD 1 3 1 1390 580n
+preplace netloc axi_interconnect_0_M00_AXI 1 2 1 980 1190n
+preplace netloc axi_interconnect_0_M03_AXI 1 2 1 1020 1090n
+preplace netloc axi_interconnect_1_M00_AXI 1 4 1 N 1440
+preplace netloc axi_interconnect_2_M00_AXI 1 4 1 N 1140
+levelinfo -pg 1 -10 320 820 1210 1670 2010 2270 2470
+pagesize -pg 1 -db -bbox -sgen -10 -120 2470 1710
 "
 }
 {
-   """"""""da_bram_cntlr_cnt"""""""":"4",
-   """"""""da_clkrst_cnt"""""""":"12",
-   """""da_axi4_cnt""""":"2",
-   """""da_clkrst_cnt""""":"1",
-   """""da_zynq_ultra_ps_e_cnt""""":"1"
+   "da_clkrst_cnt":"1"
 }

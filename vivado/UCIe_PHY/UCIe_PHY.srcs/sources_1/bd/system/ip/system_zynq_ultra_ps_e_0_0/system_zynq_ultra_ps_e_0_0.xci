@@ -63,7 +63,7 @@
         "PSU__ENET3__GRP_MDIO__ENABLE": [ { "value": "0", "resolve_type": "user", "enabled": false, "usage": "all" } ],
         "PSU__ENET3__GRP_MDIO__IO": [ { "value": "<Select>", "resolve_type": "user", "enabled": false, "usage": "all" } ],
         "PSU__GPIO_EMIO__PERIPHERAL__ENABLE": [ { "value": "1", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
-        "PSU__GPIO_EMIO__PERIPHERAL__IO": [ { "value": "25", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "PSU__GPIO_EMIO__PERIPHERAL__IO": [ { "value": "30", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "PSU__GPIO0_MIO__PERIPHERAL__ENABLE": [ { "value": "1", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "PSU__GPIO0_MIO__IO": [ { "value": "MIO 0 .. 25", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "PSU__GPIO1_MIO__PERIPHERAL__ENABLE": [ { "value": "1", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
@@ -1618,7 +1618,7 @@
         "PSU__NUM_F2P0__INTR__INPUTS": [ { "value": "1", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "PSU__NUM_F2P1__INTR__INPUTS": [ { "value": "1", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "PSU__NUM_FABRIC_RESETS": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "PSU__GPIO_EMIO_WIDTH": [ { "value": "25", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "PSU__GPIO_EMIO_WIDTH": [ { "value": "30", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "PSU__HPM0_FPD__NUM_WRITE_THREADS": [ { "value": "4", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "PSU__HPM0_FPD__NUM_READ_THREADS": [ { "value": "4", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "PSU__HPM1_FPD__NUM_WRITE_THREADS": [ { "value": "4", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -1702,7 +1702,7 @@
         "PSU__ENABLE__DDR__REFRESH__SIGNALS": [ { "value": "0", "resolve_type": "user", "usage": "all" } ],
         "PSU__M_AXI_GP0__FREQMHZ": [ { "value": "124.999878", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "PSU__M_AXI_GP1__FREQMHZ": [ { "value": "10", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
-        "PSU__M_AXI_GP2__FREQMHZ": [ { "value": "126.5625", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
+        "PSU__M_AXI_GP2__FREQMHZ": [ { "value": "10", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "PSU__S_AXI_GP0__FREQMHZ": [ { "value": "10", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "PSU__S_AXI_GP1__FREQMHZ": [ { "value": "10", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "PSU__S_AXI_GP2__FREQMHZ": [ { "value": "10", "value_permission": "bd", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
@@ -1749,7 +1749,7 @@
         "C_SD1_INTERNAL_BUS_WIDTH": [ { "value": "4", "resolve_type": "dependent", "format": "long", "usage": "all" } ],
         "C_NUM_F2P_0_INTR_INPUTS": [ { "value": "1", "resolve_type": "dependent", "format": "long", "usage": "all" } ],
         "C_NUM_F2P_1_INTR_INPUTS": [ { "value": "1", "resolve_type": "dependent", "format": "long", "usage": "all" } ],
-        "C_EMIO_GPIO_WIDTH": [ { "value": "25", "resolve_type": "dependent", "format": "long", "usage": "all" } ],
+        "C_EMIO_GPIO_WIDTH": [ { "value": "30", "resolve_type": "dependent", "format": "long", "usage": "all" } ],
         "C_NUM_FABRIC_RESETS": [ { "value": "1", "resolve_type": "dependent", "format": "long", "usage": "all" } ]
       },
       "project_parameters": {
@@ -1771,7 +1771,7 @@
         "MANAGED": [ { "value": "TRUE" } ],
         "OUTPUTDIR": [ { "value": "../../../../../../UCIe_PHY.gen/sources_1/bd/system/ip/system_zynq_ultra_ps_e_0_0" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
-        "SHAREDDIR": [ { "value": "../../ipshared" } ],
+        "SHAREDDIR": [ { "value": "../../../../../../UCIe_PHY.srcs/sources_1/bd/system/ipshared" } ],
         "SWVERSION": [ { "value": "2025.2.1" } ],
         "SYNTHESISFLOW": [ { "value": "GLOBAL" } ]
       }
@@ -1818,9 +1818,9 @@
         "maxigp0_rready": [ { "direction": "out" } ],
         "maxigp0_awqos": [ { "direction": "out", "size_left": "3", "size_right": "0" } ],
         "maxigp0_arqos": [ { "direction": "out", "size_left": "3", "size_right": "0" } ],
-        "emio_gpio_i": [ { "direction": "in", "size_left": "24", "size_right": "0", "driver_value": "0" } ],
-        "emio_gpio_o": [ { "direction": "out", "size_left": "24", "size_right": "0" } ],
-        "emio_gpio_t": [ { "direction": "out", "size_left": "24", "size_right": "0" } ],
+        "emio_gpio_i": [ { "direction": "in", "size_left": "29", "size_right": "0", "driver_value": "0" } ],
+        "emio_gpio_o": [ { "direction": "out", "size_left": "29", "size_right": "0" } ],
+        "emio_gpio_t": [ { "direction": "out", "size_left": "29", "size_right": "0" } ],
         "pl_ps_irq0": [ { "direction": "in", "size_left": "0", "size_right": "0", "driver_value": "0" } ],
         "pl_resetn0": [ { "direction": "out", "driver_value": "0" } ],
         "pl_clk0": [ { "direction": "out" } ]
@@ -2122,5 +2122,5 @@
       }
     }
   },
-  "checksum": "3738dc35"
+  "checksum": "e16e3524"
 }
