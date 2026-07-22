@@ -15,7 +15,7 @@ class rdi_cfg_single_pkt_seq extends uvm_sequence #(rdi_cfg_seq_item);
 
   constraint c_default_msg {
     soft opcode == sb_pkg::SB_MSG_WITH_64_DATA;
-    soft dstid  == sb_pkg::REMOTE_ADAPTER;
+    !(dstid inside {sb_pkg::LOCAL_PHY, sb_pkg::LOCAL_ADAPTER});
     soft srcid  == sb_pkg::ADAPTER;
   }
 

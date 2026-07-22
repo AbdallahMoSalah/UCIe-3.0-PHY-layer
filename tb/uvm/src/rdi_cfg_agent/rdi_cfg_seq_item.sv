@@ -131,8 +131,95 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
 
   // Debug print helper
   virtual function string convert2string();
-    return $sformatf("op=%s dst=%0d src=%0d tag=%0d addr=%h data=%h status=%0d be=%h", 
-                     opcode.name(), dstid, srcid, tag, addr, data, status, be);
+    sb_pkg::sb_opcode_e op;
+    string res;
+    string dst_str, src_str;
+
+    // Ensure sb_pkt is packed if uninitialized
+    if (sb_pkt.header.raw == '0 && opcode != sb_pkg::SB_32_MEM_READ) begin
+      pack_to_struct();
+    end
+
+    op = sb_pkt.header.req.opcode;
+
+    // Common prefix for all packet types
+    dst_str = (sb_pkt.header.req.dstid.name() != "") ? 
+              sb_pkt.header.req.dstid.name() : 
+              $sformatf("%0d", sb_pkt.header.req.dstid);
+    src_str = (sb_pkt.header.req.srcid.name() != "") ? 
+              sb_pkt.header.req.srcid.name() : 
+              $sformatf("%0d", sb_pkt.header.req.srcid);
+
+    res = $sformatf("op=%s dst=%s src=%s", op.name(), dst_str, src_str);
+
+    case (op)
+      // -----------------------------------------------------------------------
+      // REQUEST PACKETS (REQ)
+      // -----------------------------------------------------------------------
+      sb_pkg::SB_32_CFG_WRITE, sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_32_DMS_REG_WRITE,
+      sb_pkg::SB_64_CFG_WRITE, sb_pkg::SB_64_MEM_WRITE, sb_pkg::SB_64_DMS_REG_WRITE: begin
+        res = {res, $sformatf(" tag=%0d addr=%h be=%h data=%h", 
+                             sb_pkt.header.req.tag, sb_pkt.header.req.addr, 
+                             sb_pkt.header.req.be, sb_pkt.payload)};
+      end
+
+      sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_DMS_REG_READ,
+      sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_DMS_REG_READ: begin
+        res = {res, $sformatf(" tag=%0d addr=%h be=%h", 
+                             sb_pkt.header.req.tag, sb_pkt.header.req.addr, 
+                             sb_pkt.header.req.be)};
+      end
+
+      // -----------------------------------------------------------------------
+      // COMPLETION PACKETS (CPL)
+      // -----------------------------------------------------------------------
+      sb_pkg::SB_COMPLETION_WITH_32_DATA, sb_pkg::SB_COMPLETION_WITH_64_DATA: begin
+        res = {res, $sformatf(" tag=%0d status=%0d be=%h data=%h", 
+                             sb_pkt.header.cpl.tag, sb_pkt.header.cpl.status, 
+                             sb_pkt.header.cpl.be, sb_pkt.payload)};
+      end
+
+      sb_pkg::SB_COMPLETION_WITHOUT_DATA: begin
+        res = {res, $sformatf(" tag=%0d status=%0d be=%h", 
+                             sb_pkt.header.cpl.tag, sb_pkt.header.cpl.status, 
+                             sb_pkt.header.cpl.be)};
+      end
+
+      // -----------------------------------------------------------------------
+      // MESSAGE PACKETS (MSG)
+      // -----------------------------------------------------------------------
+      sb_pkg::SB_MSG_WITH_64_DATA, sb_pkg::SB_MNGT_PORT_MSG_WITH_DATA: begin
+        string msgcode_str;
+        msgcode_str = (sb_pkt.header.msg.msgcode.name() != "") ? 
+                      sb_pkt.header.msg.msgcode.name() : 
+                      $sformatf("%h", sb_pkt.header.msg.msgcode);
+        res = {res, $sformatf(" msgcode=%s subcode=%h info=%h data=%h", 
+                             msgcode_str, sb_pkt.header.msg.MsgSubcode, 
+                             sb_pkt.header.msg.MsgInfo, sb_pkt.payload)};
+      end
+
+      sb_pkg::SB_MSG_WITHOUT_DATA, sb_pkg::SB_MNGT_PORT_MSG_WITHOUT_DATA,
+      sb_pkg::SB_PRIORITY_MSG1, sb_pkg::SB_PRIORITY_MSG2: begin
+        string msgcode_str;
+        msgcode_str = (sb_pkt.header.msg.msgcode.name() != "") ? 
+                      sb_pkt.header.msg.msgcode.name() : 
+                      $sformatf("%h", sb_pkt.header.msg.msgcode);
+        res = {res, $sformatf(" msgcode=%s subcode=%h info=%h", 
+                             msgcode_str, sb_pkt.header.msg.MsgSubcode, 
+                             sb_pkt.header.msg.MsgInfo)};
+      end
+
+      // -----------------------------------------------------------------------
+      // DEFAULT / FALLBACK
+      // -----------------------------------------------------------------------
+      default: begin
+        res = {res, $sformatf(" tag=%0d addr=%h data=%h status=%0d be=%h", 
+                             sb_pkt.header.req.tag, sb_pkt.header.req.addr, 
+                             sb_pkt.payload, sb_pkt.header.cpl.status, sb_pkt.header.req.be)};
+      end
+    endcase
+
+    return res;
   endfunction
 
 endclass

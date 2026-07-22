@@ -17,6 +17,7 @@ package ucie_uvm_pkg;
   `include "rdi_cfg_agent/rdi_cfg_seq_item.sv"
   `include "rdi_cfg_agent/rdi_cfg_driver.sv"
   `include "rdi_cfg_agent/rdi_cfg_monitor.sv"
+  `include "rdi_cfg_agent/rdi_cfg_coverage.sv"
   `include "rdi_cfg_agent/rdi_cfg_sequencer.sv"
   `include "rdi_cfg_agent/rdi_cfg_agent.sv"
 

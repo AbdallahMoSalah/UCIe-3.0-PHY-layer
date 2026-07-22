@@ -12,6 +12,7 @@ class rdi_cfg_agent extends uvm_agent;
   rdi_cfg_sequencer    sequencer;
   rdi_cfg_driver       driver;
   rdi_cfg_monitor      monitor;
+  rdi_cfg_coverage     coverage;
 
   // Analysis ports exposed to env
   uvm_analysis_port#(rdi_cfg_seq_item) ap_tx;  // Downstream cross-die transactions
@@ -30,8 +31,9 @@ class rdi_cfg_agent extends uvm_agent;
       `uvm_fatal("AGT_ERR", "Failed to retrieve configuration 'cfg'")
     end
 
-    // Monitor is always instantiated
-    monitor = rdi_cfg_monitor::type_id::create("monitor", this);
+    // Monitor and Coverage Collector are always instantiated
+    monitor  = rdi_cfg_monitor::type_id::create("monitor", this);
+    coverage = rdi_cfg_coverage::type_id::create("coverage", this);
 
     if (cfg.is_active == UVM_ACTIVE) begin
       sequencer = rdi_cfg_sequencer::type_id::create("sequencer", this);
@@ -47,6 +49,10 @@ class rdi_cfg_agent extends uvm_agent;
     ap_rx  = monitor.ap_rx;
     ap_ral = monitor.ap_ral;
     ap     = monitor.ap;
+
+    // Connect monitor analysis ports to coverage collector
+    monitor.ap_tx.connect(coverage.analysis_export_tx);
+    monitor.ap_rx.connect(coverage.analysis_export_rx);
 
     if (cfg.is_active == UVM_ACTIVE) begin
       driver.seq_item_port.connect(sequencer.seq_item_export);

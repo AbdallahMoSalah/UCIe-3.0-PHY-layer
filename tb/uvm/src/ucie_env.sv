@@ -102,11 +102,11 @@ class ucie_env extends uvm_env;
     mainband_agt_P.monitor.ap_tx.connect(scoreboard.fifo_die1_tx.analysis_export);
     mainband_agt_P.monitor.ap_rx.connect(scoreboard.fifo_die1_rx.analysis_export);
 
-    // 5. Connect Sideband/RDI Config Cross-Die Analysis Ports to Scoreboard FIFOs
-    rdi_cfg_agt_L.ap_tx.connect(scoreboard.fifo_sb_die0_tx.analysis_export);
-    rdi_cfg_agt_L.ap_rx.connect(scoreboard.fifo_sb_die0_rx.analysis_export);
-    rdi_cfg_agt_P.ap_tx.connect(scoreboard.fifo_sb_die1_tx.analysis_export);
-    rdi_cfg_agt_P.ap_rx.connect(scoreboard.fifo_sb_die1_rx.analysis_export);
+    // 5. Connect Sideband/RDI Config Analysis Ports to Scoreboard Filtering Imps
+    rdi_cfg_agt_L.ap_tx.connect(scoreboard.imp_sb_die0_tx);
+    rdi_cfg_agt_L.ap_rx.connect(scoreboard.imp_sb_die0_rx);
+    rdi_cfg_agt_P.ap_tx.connect(scoreboard.imp_sb_die1_tx);
+    rdi_cfg_agt_P.ap_rx.connect(scoreboard.imp_sb_die1_rx);
 
     // 6. Connect Sequencers to Virtual Sequencer Handles
     vsqr.rdi_cfg_sqr_L  = rdi_cfg_agt_L.sequencer;

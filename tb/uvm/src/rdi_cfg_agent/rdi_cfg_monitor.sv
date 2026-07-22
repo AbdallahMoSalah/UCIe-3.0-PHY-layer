@@ -71,17 +71,14 @@ class rdi_cfg_monitor extends uvm_monitor;
           item.unpack_from_struct();
           item.is_response       = 1'b0; // Request
 
-          // Destination-based routing logic:
+          // Unconditional broadcast on ap_tx for all downstream requests
+          `uvm_info("CFG_MON_DS", $sformatf("Monitored Downstream Packet (Tag %0d, Dstid %0d): %s", 
+                    item.tag, item.dstid, item.convert2string()), UVM_HIGH)
+          ap_tx.write(item);
+
+          // Local PHY Register Access: store in pending_reqs by tag for completion matching
           if (item.dstid == sb_pkg::LOCAL_PHY) begin
-            // Local PHY Register Access: store in pending_reqs by tag for completion matching
             pending_reqs[item.tag] = item;
-            `uvm_info("CFG_MON_DS_LOCAL", $sformatf("Monitored Downstream Local PHY Req (Tag %0d): %s", 
-                      item.tag, item.convert2string()), UVM_HIGH)
-          end else begin
-            // Cross-Die Transaction targeting remote die (e.g., REMOTE_ADAPTER)
-            `uvm_info("CFG_MON_DS_REMOTE", $sformatf("Monitored Downstream Cross-Die Req (Tag %0d): %s", 
-                      item.tag, item.convert2string()), UVM_HIGH)
-            ap_tx.write(item);
           end
           
           chunk_idx = 0;
@@ -115,22 +112,22 @@ class rdi_cfg_monitor extends uvm_monitor;
           item.unpack_from_struct();
           item.is_response       = 1'b1; // Upstream Response/Message
 
+          // Unconditional broadcast on ap_rx for all upstream packets
+          `uvm_info("CFG_MON_US", $sformatf("Monitored Upstream Packet (Tag %0d, Opcode %0s): %s", 
+                    item.tag, item.opcode.name(), item.convert2string()), UVM_HIGH)
+          ap_rx.write(item);
+
+          // Local PHY Completion matching for RAL predictor
           if (item.opcode inside {
             sb_pkg::SB_COMPLETION_WITH_32_DATA, sb_pkg::SB_COMPLETION_WITH_64_DATA,
             sb_pkg::SB_COMPLETION_WITHOUT_DATA
           } && pending_reqs.exists(item.tag)) begin
-            // Completion for Local PHY Register Access
             item.addr = pending_reqs[item.tag].addr;
             pending_reqs.delete(item.tag);
 
             `uvm_info("CFG_MON_US_RAL", $sformatf("Monitored Local PHY Completion (Tag %0d): %s", 
                       item.tag, item.convert2string()), UVM_HIGH)
             ap_ral.write(item);
-          end else begin
-            // Cross-Die Transaction or Message arriving from remote partner die
-            `uvm_info("CFG_MON_US_REMOTE", $sformatf("Monitored Upstream Cross-Die Rsp/Msg (Tag %0d): %s", 
-                      item.tag, item.convert2string()), UVM_HIGH)
-            ap_rx.write(item);
           end
           
           chunk_idx = 0;
