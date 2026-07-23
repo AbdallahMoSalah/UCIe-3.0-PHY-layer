@@ -16,8 +16,8 @@ class ucie_base_test extends uvm_test;
   rdi_cfg_agent_config         agent_cfg_P;
 
   // Virtual interfaces retrieved from top TB
-  virtual rdi_cfg_if           vif_cfg_L;
-  virtual rdi_cfg_if           vif_cfg_P;
+  virtual rdi_cfg_if           vif_cfg_rx_L, vif_cfg_tx_L;
+  virtual rdi_cfg_if           vif_cfg_rx_P, vif_cfg_tx_P;
   virtual ucie_ltsm_monitor_if vif_ltsm;
   virtual ucie_channel_if      vif_channel;
   virtual ucie_rdi_if          vif_rdi;
@@ -31,11 +31,17 @@ class ucie_base_test extends uvm_test;
     uvm_top.set_timeout(100us);
 
     // 1. Retrieve virtual interfaces from configuration database
-    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_L", vif_cfg_L))
-      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_L from config_db")
+    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_rx_L", vif_cfg_rx_L))
+      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_rx_L from config_db")
 
-    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_P", vif_cfg_P))
-      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_P from config_db")
+    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_tx_L", vif_cfg_tx_L))
+      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_tx_L from config_db")
+
+    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_rx_P", vif_cfg_rx_P))
+      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_rx_P from config_db")
+
+    if (!uvm_config_db#(virtual rdi_cfg_if)::get(this, "", "vif_cfg_tx_P", vif_cfg_tx_P))
+      `uvm_fatal("TST_ERR", "Failed to retrieve vif_cfg_tx_P from config_db")
 
     if (!uvm_config_db#(virtual ucie_ltsm_monitor_if)::get(this, "", "vif_ltsm", vif_ltsm))
       `uvm_fatal("TST_ERR", "Failed to retrieve vif_ltsm from config_db")
@@ -48,16 +54,20 @@ class ucie_base_test extends uvm_test;
 
     // 2. Create agent configurations and set interfaces
     agent_cfg_L = rdi_cfg_agent_config::type_id::create("agent_cfg_L");
-    agent_cfg_L.vif = vif_cfg_L;
-    agent_cfg_L.die_idx = 0;
-    agent_cfg_L.is_active = UVM_ACTIVE;
-    uvm_config_db#(rdi_cfg_agent_config)::set(this, "env.rdi_cfg_agt_L*", "cfg", agent_cfg_L);
+    agent_cfg_L.set_vif_rx(vif_cfg_rx_L);
+    agent_cfg_L.set_vif_tx(vif_cfg_tx_L);
+    agent_cfg_L.set_die_idx(0);
+    agent_cfg_L.set_is_active(UVM_ACTIVE);
+    agent_cfg_L.set_has_coverage(1'b1);
+    uvm_config_db#(rdi_cfg_agent_config)::set(this, "env.rdi_cfg_agt_L", "cfg", agent_cfg_L);
 
     agent_cfg_P = rdi_cfg_agent_config::type_id::create("agent_cfg_P");
-    agent_cfg_P.vif = vif_cfg_P;
-    agent_cfg_P.die_idx = 1;
-    agent_cfg_P.is_active = UVM_ACTIVE;
-    uvm_config_db#(rdi_cfg_agent_config)::set(this, "env.rdi_cfg_agt_P*", "cfg", agent_cfg_P);
+    agent_cfg_P.set_vif_rx(vif_cfg_rx_P);
+    agent_cfg_P.set_vif_tx(vif_cfg_tx_P);
+    agent_cfg_P.set_die_idx(1);
+    agent_cfg_P.set_is_active(UVM_ACTIVE);
+    agent_cfg_P.set_has_coverage(1'b1);
+    uvm_config_db#(rdi_cfg_agent_config)::set(this, "env.rdi_cfg_agt_P", "cfg", agent_cfg_P);
 
     // Pass LTSM virtual interface to passive monitor
     uvm_config_db#(virtual ucie_ltsm_monitor_if)::set(this, "env.ltsm_mon", "vif_ltsm", vif_ltsm);

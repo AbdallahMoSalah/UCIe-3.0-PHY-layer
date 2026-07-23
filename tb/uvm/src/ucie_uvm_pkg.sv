@@ -16,9 +16,16 @@ package ucie_uvm_pkg;
   `include "rdi_cfg_agent/rdi_cfg_agent_config.sv"
   `include "rdi_cfg_agent/rdi_cfg_seq_item.sv"
   `include "rdi_cfg_agent/rdi_cfg_driver.sv"
+  `include "rdi_cfg_agent/rdi_cfg_driver_master.sv"
+  `include "rdi_cfg_agent/rdi_cfg_driver_slave.sv"
   `include "rdi_cfg_agent/rdi_cfg_monitor.sv"
+  `include "rdi_cfg_agent/rdi_cfg_monitor_master.sv"
+  `include "rdi_cfg_agent/rdi_cfg_monitor_slave.sv"
   `include "rdi_cfg_agent/rdi_cfg_coverage.sv"
   `include "rdi_cfg_agent/rdi_cfg_sequencer.sv"
+  `include "rdi_cfg_agent/rdi_cfg_agent_base.sv"
+  `include "rdi_cfg_agent/rdi_cfg_agent_master.sv"
+  `include "rdi_cfg_agent/rdi_cfg_agent_slave.sv"
   `include "rdi_cfg_agent/rdi_cfg_agent.sv"
 
   // 2. Mainband Agent Files
