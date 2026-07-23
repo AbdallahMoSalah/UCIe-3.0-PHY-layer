@@ -73,7 +73,7 @@ class ucie_env extends uvm_env;
     super.connect_phase(phase);
 
     // 1. Connect Local (Die 0) Sequencer and Adapter to RAL Map
-    if (rdi_cfg_agt_L.cfg.is_active == UVM_ACTIVE) begin
+    if (rdi_cfg_agt_L.cfg.get_is_active() == UVM_ACTIVE) begin
       reg_model_L.default_map.set_sequencer(rdi_cfg_agt_L.sequencer, adapter_L);
     end
 
@@ -83,7 +83,7 @@ class ucie_env extends uvm_env;
     rdi_cfg_agt_L.ap_ral.connect(predictor_L.bus_in);
 
     // 2. Connect Partner (Die 1) Sequencer and Adapter to RAL Map
-    if (rdi_cfg_agt_P.cfg.is_active == UVM_ACTIVE) begin
+    if (rdi_cfg_agt_P.cfg.get_is_active() == UVM_ACTIVE) begin
       reg_model_P.default_map.set_sequencer(rdi_cfg_agt_P.sequencer, adapter_P);
     end
 

@@ -47,6 +47,7 @@ module ucie_tb_top;
     logic                 lp_cfg_crd [2];
     logic [31:0]          pl_cfg_bus [2];
     logic                 pl_cfg_vld [2];
+    logic                 pl_cfg_crd [2];
 
     // RDI adapter handshake nets
     RDI_SM_pkg::RDI_state lp_state_req0, lp_state_req1;
@@ -70,8 +71,11 @@ module ucie_tb_top;
     wire clk_sb0 = u_die0.clk_sb;
     wire clk_sb1 = u_die1.clk_sb;
 
-    rdi_cfg_if vif_cfg_L (.clk(clk_sb0), .rst_n(rst_n));
-    rdi_cfg_if vif_cfg_P (.clk(clk_sb1), .rst_n(rst_n));
+    rdi_cfg_if vif_cfg_rx_L (.clk(clk_sb0), .rst_n(rst_n));
+    rdi_cfg_if vif_cfg_tx_L (.clk(clk_sb0), .rst_n(rst_n));
+
+    rdi_cfg_if vif_cfg_rx_P (.clk(clk_sb1), .rst_n(rst_n));
+    rdi_cfg_if vif_cfg_tx_P (.clk(clk_sb1), .rst_n(rst_n));
 
     // LTSM monitor and RDI interfaces running on core clocks lclk0 & lclk1
     ucie_ltsm_monitor_if vif_ltsm (.clk0(lclk0), .clk1(lclk1));
@@ -123,7 +127,7 @@ module ucie_tb_top;
         .i_RD_P(i_RD_P0), .i_RVLD_P(i_RVLD_P0), .i_RCKP_P(i_RCKP_P0), .i_RCKN_P(i_RCKN_P0), .i_RTRK_P(i_RTRK_P0),
         .o_TD_P(o_TD_P0), .o_TVLD_P(o_TVLD_P0), .o_TCKP_P(o_TCKP_P0), .o_TCKN_P(o_TCKN_P0), .o_TTRK_P(o_TTRK_P0),
         .RXCKSB(RXCKSB0), .TXCKSB(TXCKSB0), .TXDATASB(TXDATASB0), .RXDATASB(RXDATASB0),
-        .lp_cfg(lp_cfg_bus[0]), .lp_cfg_vld(lp_cfg_vld[0]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[0]), .pl_cfg(pl_cfg_bus[0]), .pl_cfg_vld(pl_cfg_vld[0]),
+        .lp_cfg(lp_cfg_bus[0]), .lp_cfg_vld(lp_cfg_vld[0]), .pl_cfg_crd(pl_cfg_crd[0]), .lp_cfg_crd(lp_cfg_crd[0]), .pl_cfg(pl_cfg_bus[0]), .pl_cfg_vld(pl_cfg_vld[0]),
         .lp_state_req(lp_state_req0), .lp_clk_ack(lp_clk_ack0), .lp_wake_req(lp_wake_req0),
         .lp_stallack(lp_stallack0), .lp_linkerror(lp_linkerror0),
         .pl_clk_req(pl_clk_req0), .pl_stallreq(pl_stallreq0), .pl_wake_ack(pl_wake_ack0),
@@ -138,7 +142,7 @@ module ucie_tb_top;
         .i_RD_P(i_RD_P1), .i_RVLD_P(i_RVLD_P1), .i_RCKP_P(i_RCKP_P1), .i_RCKN_P(i_RCKN_P1), .i_RTRK_P(i_RTRK_P1),
         .o_TD_P(o_TD_P1), .o_TVLD_P(o_TVLD_P1), .o_TCKP_P(o_TCKP_P1), .o_TCKN_P(o_TCKN_P1), .o_TTRK_P(o_TTRK_P1),
         .RXCKSB(RXCKSB1), .TXCKSB(TXCKSB1), .TXDATASB(TXDATASB1), .RXDATASB(RXDATASB1),
-        .lp_cfg(lp_cfg_bus[1]), .lp_cfg_vld(lp_cfg_vld[1]), .pl_cfg_crd(), .lp_cfg_crd(lp_cfg_crd[1]), .pl_cfg(pl_cfg_bus[1]), .pl_cfg_vld(pl_cfg_vld[1]),
+        .lp_cfg(lp_cfg_bus[1]), .lp_cfg_vld(lp_cfg_vld[1]), .pl_cfg_crd(pl_cfg_crd[1]), .lp_cfg_crd(lp_cfg_crd[1]), .pl_cfg(pl_cfg_bus[1]), .pl_cfg_vld(pl_cfg_vld[1]),
         .lp_state_req(lp_state_req1), .lp_clk_ack(lp_clk_ack1), .lp_wake_req(lp_wake_req1),
         .lp_stallack(lp_stallack1), .lp_linkerror(lp_linkerror1),
         .pl_clk_req(pl_clk_req1), .pl_stallreq(pl_stallreq1), .pl_wake_ack(pl_wake_ack1),
@@ -156,18 +160,20 @@ module ucie_tb_top;
     // Interface Connections (RDI configuration, status, and control)
     // =========================================================================
     
-    // Connect config inputs/outputs to vif_cfg interfaces
-    assign lp_cfg_bus[0]  = vif_cfg_L.lp_cfg;
-    assign lp_cfg_vld[0]  = vif_cfg_L.lp_cfg_vld;
-    assign vif_cfg_L.pl_cfg_crd = lp_cfg_crd[0]; // local grant
-    assign vif_cfg_L.pl_cfg     = pl_cfg_bus[0];
-    assign vif_cfg_L.pl_cfg_vld = pl_cfg_vld[0];
+    // Connect config inputs/outputs to directional vif_cfg_rx and vif_cfg_tx interfaces
+    assign lp_cfg_bus[0]        = vif_cfg_rx_L.cfg;
+    assign lp_cfg_vld[0]        = vif_cfg_rx_L.cfg_vld;
+    assign vif_cfg_rx_L.cfg_crd = pl_cfg_crd[0]; // credit from PHY to Adapter
+    assign vif_cfg_tx_L.cfg     = pl_cfg_bus[0];
+    assign vif_cfg_tx_L.cfg_vld = pl_cfg_vld[0];
+    assign lp_cfg_crd[0]        = vif_cfg_tx_L.cfg_crd; // credit from Adapter to PHY
 
-    assign lp_cfg_bus[1]  = vif_cfg_P.lp_cfg;
-    assign lp_cfg_vld[1]  = vif_cfg_P.lp_cfg_vld;
-    assign vif_cfg_P.pl_cfg_crd = lp_cfg_crd[1];
-    assign vif_cfg_P.pl_cfg     = pl_cfg_bus[1];
-    assign vif_cfg_P.pl_cfg_vld = pl_cfg_vld[1];
+    assign lp_cfg_bus[1]        = vif_cfg_rx_P.cfg;
+    assign lp_cfg_vld[1]        = vif_cfg_rx_P.cfg_vld;
+    assign vif_cfg_rx_P.cfg_crd = pl_cfg_crd[1];
+    assign vif_cfg_tx_P.cfg     = pl_cfg_bus[1];
+    assign vif_cfg_tx_P.cfg_vld = pl_cfg_vld[1];
+    assign lp_cfg_crd[1]        = vif_cfg_tx_P.cfg_crd;
 
     // Connect Mainband virtual interfaces
     assign lp_data0          = vif_mb_L.lp_data;
@@ -252,8 +258,10 @@ module ucie_tb_top;
 
     initial begin
         // Set all interfaces to config DB
-        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_L", vif_cfg_L);
-        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_P", vif_cfg_P);
+        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_rx_L", vif_cfg_rx_L);
+        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_tx_L", vif_cfg_tx_L);
+        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_rx_P", vif_cfg_rx_P);
+        uvm_config_db#(virtual rdi_cfg_if)::set(null, "*", "vif_cfg_tx_P", vif_cfg_tx_P);
         uvm_config_db#(virtual ucie_ltsm_monitor_if)::set(null, "*", "vif_ltsm", vif_ltsm);
         uvm_config_db#(virtual ucie_channel_if)::set(null, "*", "vif_channel", vif_channel);
         uvm_config_db#(virtual ucie_rdi_if)::set(null, "*", "vif_rdi", vif_rdi);
