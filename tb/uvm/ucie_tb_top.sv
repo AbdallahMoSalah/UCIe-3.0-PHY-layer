@@ -14,7 +14,7 @@ module ucie_tb_top;
     import ucie_uvm_pkg::*;
 
     localparam int NUM_LANES = 16;
-    localparam int FLITW = 256;
+    localparam int FLITW = 512;
     localparam int LTSM_CLK_FRQ = 200_000;   // scaled: 4ms/8ms timers ~800/1600 cyc
     localparam int RDI_CLK_FRQ  = 200_000;   // scaled RDI timers (1us/16ms)
 

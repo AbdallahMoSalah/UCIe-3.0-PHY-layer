@@ -7,7 +7,7 @@
 `timescale 1ns/1ps
 
 interface ucie_mainband_if #(
-    parameter int FLITW = 256
+    parameter int FLITW = 512
 )(
     input logic clk,
     input logic rst_n

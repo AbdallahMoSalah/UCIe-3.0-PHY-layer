@@ -7,7 +7,7 @@
 // 1. Base sequence item containing common transaction properties (data)
 class ucie_mainband_seq_item_base extends uvm_sequence_item;
 
-  rand bit [255:0] data;
+  rand bit [511:0] data;
 
   `uvm_object_utils_begin(ucie_mainband_seq_item_base)
     `uvm_field_int(data, UVM_ALL_ON)
