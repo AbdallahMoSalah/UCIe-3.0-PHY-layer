@@ -23,7 +23,7 @@ class rdi_cfg_driver_slave extends rdi_cfg_driver;
     vif.drv_slave_cb.cfg_crd <= 1'b0;
 
     wait(vif.rst_n === 1'b1);
-    
+
     credit_return_handler();
   endtask
 
@@ -32,7 +32,6 @@ class rdi_cfg_driver_slave extends rdi_cfg_driver;
     forever begin
       @(vif.drv_slave_cb);
       if (vif.mon_cb.cfg_vld) begin
-        // Return 1 chunk credit next cycle
         vif.drv_slave_cb.cfg_crd <= 1'b1;
       end else begin
         vif.drv_slave_cb.cfg_crd <= 1'b0;

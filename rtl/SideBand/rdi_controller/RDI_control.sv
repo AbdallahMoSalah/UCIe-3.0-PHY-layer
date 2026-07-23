@@ -393,7 +393,7 @@ credit_counter #(
     .clk     (clk),
     .rst_n   (rst_n),
     .crd_in  (lp_cfg_crd),
-    .crd_out (ufifo_req_rinc),
+    .crd_out (ufifo_req_rinc & ufifo_req_rvalid & ~no_crd),
     .no_crd  (no_crd)
 );
 
