@@ -17,21 +17,16 @@ class rdi_cfg_monitor_master extends rdi_cfg_monitor;
     ap_rx = new("ap_rx", this);
   endfunction
 
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    if (agent_config != null) begin
-      vif = agent_config.get_vif_rx();
-    end
-  endfunction
+  protected virtual task collect_transaction();
+    monitor_requests();
+  endtask
 
-  task run_phase(uvm_phase phase);
+  task monitor_requests();
     bit [127:0]          raw_data = '0;
     int                  chunk_idx = 0;
     int                  expected_chunks = 2;
     sb_pkg::sb_opcode_e  opcode;
     bit [5:0]            key;
-
-    wait(vif.rst_n === 1'b1);
 
     forever begin
       @(vif.mon_cb);

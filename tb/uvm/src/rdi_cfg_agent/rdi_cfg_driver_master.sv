@@ -12,31 +12,15 @@ class rdi_cfg_driver_master extends rdi_cfg_driver;
     super.new(name, parent);
   endfunction
 
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    if (agent_config != null) begin
-      vif = agent_config.get_vif_rx();
-    end
-  endfunction
+  protected virtual task drive_transaction(rdi_cfg_seq_item item);
+    drive_item(item);
+  endtask
 
-  task run_phase(uvm_phase phase);
-    // Reset signals on startup via clocking block
+  virtual function void handle_reset(uvm_phase phase);
+    super.handle_reset(phase);
     vif.drv_master_cb.cfg     <= '0;
     vif.drv_master_cb.cfg_vld <= 1'b0;
-
-    wait(vif.rst_n === 1'b1);
-    
-    get_and_drive();
-  endtask
-
-  // Fetch sequence items and drive them
-  task get_and_drive();
-    forever begin
-      seq_item_port.get_next_item(req);
-      drive_item(req);
-      seq_item_port.item_done();
-    end
-  endtask
+  endfunction
 
   // Drives transaction item chunk-by-chunk onto RDI config bus
   task drive_item(rdi_cfg_seq_item item);

@@ -98,6 +98,24 @@ class rdi_cfg_agent_config extends uvm_object;
     die_idx = value;
   endfunction
 
+  // Task for waiting the reset to start
+  virtual task wait_reset_start();
+    virtual rdi_cfg_if v = get_vif();
+    if (v != null && v.rst_n !== 1'b0) begin
+      @(negedge v.rst_n);
+    end
+  endtask
+
+  // Task for waiting the reset to be finished
+  virtual task wait_reset_end();
+    virtual rdi_cfg_if v = get_vif();
+    if (v != null) begin
+      while (v.rst_n === 1'b0) begin
+        @(posedge v.clk);
+      end
+    end
+  endtask
+
 endclass
 
 class rdi_cfg_agent_config_master extends rdi_cfg_agent_config;

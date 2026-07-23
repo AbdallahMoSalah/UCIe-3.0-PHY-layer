@@ -15,6 +15,7 @@ class rdi_cfg_agent_slave extends rdi_cfg_agent_base;
   function new(string name = "rdi_cfg_agent_slave", uvm_component parent = null);
     super.new(name, parent);
 
+    rdi_cfg_agent_config::type_id::set_inst_override(rdi_cfg_agent_config_slave::get_type(), "cfg", this);
     rdi_cfg_driver::type_id::set_inst_override(rdi_cfg_driver_slave::get_type(), "driver", this);
     rdi_cfg_monitor::type_id::set_inst_override(rdi_cfg_monitor_slave::get_type(), "monitor", this);
     rdi_cfg_sequencer::type_id::set_inst_override(rdi_cfg_sequencer_slave::get_type(), "sequencer", this);

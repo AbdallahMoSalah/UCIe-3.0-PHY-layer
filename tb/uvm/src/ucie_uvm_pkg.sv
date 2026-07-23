@@ -13,6 +13,7 @@ package ucie_uvm_pkg;
   `include "uvm_macros.svh"
 
   // 1. RDI Config Agent Files
+  `include "rdi_cfg_agent/rdi_cfg_reset_handler.sv"
   `include "rdi_cfg_agent/rdi_cfg_agent_config.sv"
   `include "rdi_cfg_agent/rdi_cfg_seq_item.sv"
   `include "rdi_cfg_agent/rdi_cfg_driver.sv"

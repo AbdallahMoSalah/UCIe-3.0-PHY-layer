@@ -6,7 +6,7 @@
 //  instance overrides in their constructors to substitute specialized types.
 // =============================================================================
 
-class rdi_cfg_agent_base extends uvm_agent;
+class rdi_cfg_agent_base extends uvm_agent implements rdi_cfg_reset_handler;
   `uvm_component_utils(rdi_cfg_agent_base)
 
   rdi_cfg_agent_config cfg;
@@ -45,10 +45,9 @@ class rdi_cfg_agent_base extends uvm_agent;
   function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
 
-    // Explicitly propagate config and vif handles to child components
+    // Explicitly propagate config handles to child components
     if (monitor != null) begin
       monitor.agent_config = cfg;
-      monitor.vif          = cfg.get_vif();
     end
 
     if (coverage != null && cfg.get_has_coverage()) begin
@@ -57,8 +56,38 @@ class rdi_cfg_agent_base extends uvm_agent;
 
     if (cfg.get_active_passive() == UVM_ACTIVE && driver != null) begin
       driver.agent_config = cfg;
-      driver.vif          = cfg.get_vif();
       driver.seq_item_port.connect(sequencer.seq_item_export);
+    end
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    forever begin
+      wait_reset_start();
+      handle_reset(phase);
+      wait_reset_end();
+    end
+  endtask
+
+  task wait_reset_start();
+    if (cfg != null) begin
+      cfg.wait_reset_start();
+    end
+  endtask
+
+  task wait_reset_end();
+    if (cfg != null) begin
+      cfg.wait_reset_end();
+    end
+  endtask
+
+  virtual function void handle_reset(uvm_phase phase);
+    uvm_component children[$];
+    get_children(children);
+    foreach (children[idx]) begin
+      rdi_cfg_reset_handler handler;
+      if ($cast(handler, children[idx])) begin
+        handler.handle_reset(phase);
+      end
     end
   endfunction
 

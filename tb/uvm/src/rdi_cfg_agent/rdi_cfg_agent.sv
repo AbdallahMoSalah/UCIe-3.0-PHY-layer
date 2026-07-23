@@ -6,7 +6,7 @@
 //  and tx_agent (Slave Agent, monitoring responses out of RTL).
 // =============================================================================
 
-class rdi_cfg_agent extends uvm_agent;
+class rdi_cfg_agent extends uvm_agent implements rdi_cfg_reset_handler;
   `uvm_component_utils(rdi_cfg_agent)
 
   rdi_cfg_agent_config cfg;
@@ -24,7 +24,6 @@ class rdi_cfg_agent extends uvm_agent;
   uvm_analysis_port#(rdi_cfg_seq_item) ap_tx;  // Downstream requests into RTL (from rx_agent)
   uvm_analysis_port#(rdi_cfg_seq_item) ap_rx;  // Upstream responses out of RTL (from tx_agent)
   uvm_analysis_port#(rdi_cfg_seq_item) ap_ral; // Local RAL predictor updates (from tx_agent)
-  uvm_analysis_port#(rdi_cfg_seq_item) ap;     // Alias to ap_ral
 
   function new(string name = "rdi_cfg_agent", uvm_component parent = null);
     super.new(name, parent);
@@ -38,7 +37,7 @@ class rdi_cfg_agent extends uvm_agent;
     end
 
     // Create child configurations for Master (rx) and Slave (tx)
-    rx_cfg = rdi_cfg_agent_config::type_id::create("rx_cfg");
+    rx_cfg = rdi_cfg_agent_config_master::type_id::create("rx_cfg");
     rx_cfg.set_vif(cfg.get_vif_rx());
     rx_cfg.set_vif_rx(cfg.get_vif_rx());
     rx_cfg.set_vif_tx(cfg.get_vif_tx());
@@ -47,7 +46,7 @@ class rdi_cfg_agent extends uvm_agent;
     rx_cfg.set_has_checks(cfg.get_has_checks());
     rx_cfg.set_die_idx(cfg.get_die_idx());
 
-    tx_cfg = rdi_cfg_agent_config::type_id::create("tx_cfg");
+    tx_cfg = rdi_cfg_agent_config_slave::type_id::create("tx_cfg");
     tx_cfg.set_vif(cfg.get_vif_tx());
     tx_cfg.set_vif_rx(cfg.get_vif_rx());
     tx_cfg.set_vif_tx(cfg.get_vif_tx());
@@ -75,7 +74,37 @@ class rdi_cfg_agent extends uvm_agent;
     ap_tx     = rx_agent.ap_rx;   // Transmitted requests into RTL (from master rx_agent)
     ap_rx     = tx_agent.ap_tx;   // Received responses from RTL (from slave tx_agent)
     ap_ral    = tx_agent.ap_ral;  // Slave monitor ap_ral (local completions)
-    ap        = ap_ral;
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    forever begin
+      wait_reset_start();
+      handle_reset(phase);
+      wait_reset_end();
+    end
+  endtask
+
+  task wait_reset_start();
+    if (cfg != null) begin
+      cfg.wait_reset_start();
+    end
+  endtask
+
+  task wait_reset_end();
+    if (cfg != null) begin
+      cfg.wait_reset_end();
+    end
+  endtask
+
+  virtual function void handle_reset(uvm_phase phase);
+    uvm_component children[$];
+    get_children(children);
+    foreach (children[idx]) begin
+      rdi_cfg_reset_handler handler;
+      if ($cast(handler, children[idx])) begin
+        handler.handle_reset(phase);
+      end
+    end
   endfunction
 
 endclass

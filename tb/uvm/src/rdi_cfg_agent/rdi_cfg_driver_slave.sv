@@ -12,20 +12,20 @@ class rdi_cfg_driver_slave extends rdi_cfg_driver;
     super.new(name, parent);
   endfunction
 
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    if (agent_config != null) begin
-      vif = agent_config.get_vif_tx();
-    end
-  endfunction
-
-  task run_phase(uvm_phase phase);
+  protected virtual task drive_transactions();
     vif.drv_slave_cb.cfg_crd <= 1'b0;
-
-    wait(vif.rst_n === 1'b1);
-
-    credit_return_handler();
+    fork
+      begin
+        process_drive_transactions = process::self();
+        credit_return_handler();
+      end
+    join
   endtask
+
+  virtual function void handle_reset(uvm_phase phase);
+    super.handle_reset(phase);
+    vif.drv_slave_cb.cfg_crd <= 1'b0;
+  endfunction
 
   // Automatically pulse credit grant when valid chunk is sampled on mon_cb
   task credit_return_handler();
