@@ -149,4 +149,25 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
     sb_header_u  header;   // [63:0]
   } sb_packet_t;
 
+  // Helper function to decode expected 32-bit chunk count based on sideband opcode
+  function automatic int get_expected_chunks(sb_opcode_e op);
+    case (op)
+      SB_32_MEM_READ, SB_32_DMS_REG_READ, SB_32_CFG_READ,
+      SB_64_MEM_READ, SB_64_DMS_REG_READ, SB_64_CFG_READ,
+      SB_COMPLETION_WITHOUT_DATA, SB_MSG_WITHOUT_DATA,
+      SB_MNGT_PORT_MSG_WITHOUT_DATA: begin
+        return 2;
+      end
+      SB_32_MEM_WRITE, SB_32_DMS_REG_WRITE, SB_32_CFG_WRITE,
+      SB_COMPLETION_WITH_32_DATA: begin
+        return 3;
+      end
+      SB_64_MEM_WRITE, SB_64_DMS_REG_WRITE, SB_64_CFG_WRITE,
+      SB_COMPLETION_WITH_64_DATA, SB_MSG_WITH_64_DATA: begin
+        return 4;
+      end
+      default: return 2;
+    endcase
+  endfunction
+
 endpackage

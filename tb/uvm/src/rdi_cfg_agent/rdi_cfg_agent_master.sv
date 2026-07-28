@@ -14,7 +14,6 @@ class rdi_cfg_agent_master extends rdi_cfg_agent_base;
   function new(string name = "rdi_cfg_agent_master", uvm_component parent = null);
     super.new(name, parent);
 
-    rdi_cfg_agent_config::type_id::set_inst_override(rdi_cfg_agent_config_master::get_type(), "cfg", this);
     rdi_cfg_driver::type_id::set_inst_override(rdi_cfg_driver_master::get_type(), "driver", this);
     rdi_cfg_monitor::type_id::set_inst_override(rdi_cfg_monitor_master::get_type(), "monitor", this);
     rdi_cfg_sequencer::type_id::set_inst_override(rdi_cfg_sequencer_master::get_type(), "sequencer", this);

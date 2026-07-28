@@ -31,26 +31,7 @@ class rdi_cfg_driver_master extends rdi_cfg_driver;
     raw_data = {item.sb_pkt.payload, item.sb_pkt.header.raw};
 
     // Decode expected chunk count from opcode
-    case (item.opcode)
-      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_CFG_READ,
-      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_CFG_READ,
-      sb_pkg::SB_COMPLETION_WITHOUT_DATA, sb_pkg::SB_MSG_WITHOUT_DATA,
-      sb_pkg::SB_MNGT_PORT_MSG_WITHOUT_DATA: begin
-        num_chunks = 2; // Header only
-      end
-      
-      sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_32_DMS_REG_WRITE, sb_pkg::SB_32_CFG_WRITE,
-      sb_pkg::SB_COMPLETION_WITH_32_DATA: begin
-        num_chunks = 3; // Header + 32-bit data
-      end
-      
-      sb_pkg::SB_64_MEM_WRITE, sb_pkg::SB_64_DMS_REG_WRITE, sb_pkg::SB_64_CFG_WRITE,
-      sb_pkg::SB_COMPLETION_WITH_64_DATA, sb_pkg::SB_MSG_WITH_64_DATA: begin
-        num_chunks = 4; // Header + 64-bit data
-      end
-      
-      default: num_chunks = 2;
-    endcase
+    num_chunks = sb_pkg::get_expected_chunks(item.opcode);
 
     `uvm_info("CFG_DRV_MASTER", $sformatf("Driving Master item: %s (%d chunks)", item.convert2string(), num_chunks), UVM_HIGH)
 

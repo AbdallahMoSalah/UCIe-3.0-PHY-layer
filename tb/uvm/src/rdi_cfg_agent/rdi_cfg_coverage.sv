@@ -9,7 +9,7 @@ class rdi_cfg_coverage extends uvm_component;
   `uvm_component_utils(rdi_cfg_coverage)
 
   // Agent configuration reference
-  rdi_cfg_agent_config agent_config;
+  rdi_cfg_sub_agent_config agent_config;
 
   // Single Analysis Imp export
   uvm_analysis_imp#(rdi_cfg_seq_item, rdi_cfg_coverage) analysis_export;

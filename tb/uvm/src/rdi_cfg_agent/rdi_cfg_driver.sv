@@ -8,8 +8,8 @@
 class rdi_cfg_driver extends uvm_driver #(rdi_cfg_seq_item) implements rdi_cfg_reset_handler;
   `uvm_component_utils(rdi_cfg_driver)
 
-  rdi_cfg_agent_config agent_config;
-  virtual rdi_cfg_if   vif;
+  rdi_cfg_sub_agent_config agent_config;
+  virtual rdi_cfg_if       vif;
 
   protected process process_drive_transactions;
 
@@ -19,7 +19,7 @@ class rdi_cfg_driver extends uvm_driver #(rdi_cfg_seq_item) implements rdi_cfg_r
 
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    void'(uvm_config_db#(rdi_cfg_agent_config)::get(this, "", "cfg", agent_config));
+    void'(uvm_config_db#(rdi_cfg_sub_agent_config)::get(this, "", "cfg", agent_config));
   endfunction
 
   function void connect_phase(uvm_phase phase);

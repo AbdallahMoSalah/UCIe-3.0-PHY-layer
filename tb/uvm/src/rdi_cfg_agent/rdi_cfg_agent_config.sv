@@ -1,56 +1,32 @@
 // =============================================================================
 //  rdi_cfg_agent_config
 // -----------------------------------------------------------------------------
-//  Configuration object for the RDI Config agent. Contains virtual interface
-//  handles (vif, vif_rx, vif_tx), agent mode (active/passive), coverage control,
-//  checks, and die index.
+//  Configuration objects for the RDI Config agent architecture.
+//
+//  - rdi_cfg_agent_config_base: Common base configuration object containing
+//    shared parameters (active_passive, has_coverage, has_checks, die_idx).
+//
+//  - rdi_cfg_sub_agent_config: Configuration for single-interface sub-agents
+//    (Master and Slave agents). Extends rdi_cfg_agent_config_base and holds
+//    a single virtual interface handle (vif).
+//
+//  - rdi_cfg_agent_config: Top-level configuration object for the wrapper
+//    agent (rdi_cfg_agent). Extends rdi_cfg_agent_config_base and holds
+//    separate RX and TX virtual interfaces (vif_rx, vif_tx).
 // =============================================================================
 
-class rdi_cfg_agent_config extends uvm_object;
+// Common base configuration class for all RDI Config agent configuration objects
+class rdi_cfg_agent_config_base extends uvm_object;
 
-  protected virtual rdi_cfg_if      vif;
-  protected virtual rdi_cfg_if      vif_rx;
-  protected virtual rdi_cfg_if      vif_tx;
   protected uvm_active_passive_enum active_passive = UVM_ACTIVE;
   protected bit                     has_coverage   = 1'b1;
   protected bit                     has_checks     = 1'b1;
   protected int                     die_idx        = 0; // 0 = Local, 1 = Partner
 
-  `uvm_object_utils(rdi_cfg_agent_config)
+  `uvm_object_utils(rdi_cfg_agent_config_base)
 
-  function new(string name = "rdi_cfg_agent_config");
+  function new(string name = "rdi_cfg_agent_config_base");
     super.new(name);
-  endfunction
-
-  // Getter & Setter for Default Virtual Interface
-  virtual function virtual rdi_cfg_if get_vif();
-    if (vif != null)    return vif;
-    if (vif_rx != null) return vif_rx;
-    return vif_tx;
-  endfunction
-
-  virtual function void set_vif(virtual rdi_cfg_if value);
-    vif = value;
-  endfunction
-
-  // Getter & Setter for RX Virtual Interface (Downstream: Adapter -> PHY)
-  virtual function virtual rdi_cfg_if get_vif_rx();
-    if (vif_rx != null) return vif_rx;
-    return vif;
-  endfunction
-
-  virtual function void set_vif_rx(virtual rdi_cfg_if value);
-    vif_rx = value;
-  endfunction
-
-  // Getter & Setter for TX Virtual Interface (Upstream: PHY -> Adapter)
-  virtual function virtual rdi_cfg_if get_vif_tx();
-    if (vif_tx != null) return vif_tx;
-    return vif;
-  endfunction
-
-  virtual function void set_vif_tx(virtual rdi_cfg_if value);
-    vif_tx = value;
   endfunction
 
   // Getter & Setter for Active/Passive control
@@ -98,7 +74,29 @@ class rdi_cfg_agent_config extends uvm_object;
     die_idx = value;
   endfunction
 
-  // Task for waiting the reset to start
+endclass
+
+// Sub-agent configuration object for single-interface sub-agents (Master / Slave)
+class rdi_cfg_sub_agent_config extends rdi_cfg_agent_config_base;
+
+  protected virtual rdi_cfg_if vif;
+
+  `uvm_object_utils(rdi_cfg_sub_agent_config)
+
+  function new(string name = "rdi_cfg_sub_agent_config");
+    super.new(name);
+  endfunction
+
+  // Getter & Setter for Virtual Interface
+  virtual function virtual rdi_cfg_if get_vif();
+    return vif;
+  endfunction
+
+  virtual function void set_vif(virtual rdi_cfg_if value);
+    vif = value;
+  endfunction
+
+  // Task for waiting reset to start
   virtual task wait_reset_start();
     virtual rdi_cfg_if v = get_vif();
     if (v != null && v.rst_n !== 1'b0) begin
@@ -106,7 +104,7 @@ class rdi_cfg_agent_config extends uvm_object;
     end
   endtask
 
-  // Task for waiting the reset to be finished
+  // Task for waiting reset to be finished
   virtual task wait_reset_end();
     virtual rdi_cfg_if v = get_vif();
     if (v != null) begin
@@ -118,26 +116,34 @@ class rdi_cfg_agent_config extends uvm_object;
 
 endclass
 
-class rdi_cfg_agent_config_master extends rdi_cfg_agent_config;
-  `uvm_object_utils(rdi_cfg_agent_config_master)
+// Top-level configuration object for the wrapper agent (rdi_cfg_agent)
+class rdi_cfg_agent_config extends rdi_cfg_agent_config_base;
 
-  function new(string name = "rdi_cfg_agent_config_master");
+  protected virtual rdi_cfg_if vif_rx;
+  protected virtual rdi_cfg_if vif_tx;
+
+  `uvm_object_utils(rdi_cfg_agent_config)
+
+  function new(string name = "rdi_cfg_agent_config");
     super.new(name);
   endfunction
 
-  virtual function virtual rdi_cfg_if get_vif();
-    return get_vif_rx();
-  endfunction
-endclass
-
-class rdi_cfg_agent_config_slave extends rdi_cfg_agent_config;
-  `uvm_object_utils(rdi_cfg_agent_config_slave)
-
-  function new(string name = "rdi_cfg_agent_config_slave");
-    super.new(name);
+  // Getter & Setter for RX Virtual Interface (Downstream: Adapter -> PHY)
+  virtual function virtual rdi_cfg_if get_vif_rx();
+    return vif_rx;
   endfunction
 
-  virtual function virtual rdi_cfg_if get_vif();
-    return get_vif_tx();
+  virtual function void set_vif_rx(virtual rdi_cfg_if value);
+    vif_rx = value;
   endfunction
+
+  // Getter & Setter for TX Virtual Interface (Upstream: PHY -> Adapter)
+  virtual function virtual rdi_cfg_if get_vif_tx();
+    return vif_tx;
+  endfunction
+
+  virtual function void set_vif_tx(virtual rdi_cfg_if value);
+    vif_tx = value;
+  endfunction
+
 endclass

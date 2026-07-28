@@ -121,7 +121,9 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
   // Standard constraints
   constraint c_valid_opcodes {
     opcode inside {
+      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
       sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
+      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
       sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE,
       sb_pkg::SB_COMPLETION_WITH_32_DATA, sb_pkg::SB_COMPLETION_WITH_64_DATA,
       sb_pkg::SB_COMPLETION_WITHOUT_DATA, sb_pkg::SB_MSG_WITH_64_DATA,

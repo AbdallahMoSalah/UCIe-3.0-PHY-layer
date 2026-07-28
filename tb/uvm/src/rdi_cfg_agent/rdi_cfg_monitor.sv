@@ -10,8 +10,8 @@
 class rdi_cfg_monitor extends uvm_monitor implements rdi_cfg_reset_handler;
   `uvm_component_utils(rdi_cfg_monitor)
 
-  rdi_cfg_agent_config agent_config;
-  virtual rdi_cfg_if   vif;
+  rdi_cfg_sub_agent_config agent_config;
+  virtual rdi_cfg_if       vif;
 
   // Shared static completion table keyed by {die_idx (1-bit), tag (5-bit)}
   static rdi_cfg_seq_item pending_reqs[bit [5:0]];
@@ -24,7 +24,7 @@ class rdi_cfg_monitor extends uvm_monitor implements rdi_cfg_reset_handler;
 
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    void'(uvm_config_db#(rdi_cfg_agent_config)::get(this, "", "cfg", agent_config));
+    void'(uvm_config_db#(rdi_cfg_sub_agent_config)::get(this, "", "cfg", agent_config));
   endfunction
 
   function void connect_phase(uvm_phase phase);
@@ -78,23 +78,7 @@ class rdi_cfg_monitor extends uvm_monitor implements rdi_cfg_reset_handler;
 
   // Helper function to decode expected chunk count based on sideband opcode
   function int get_expected_chunks(sb_pkg::sb_opcode_e op);
-    case (op)
-      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_CFG_READ,
-      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_CFG_READ,
-      sb_pkg::SB_COMPLETION_WITHOUT_DATA, sb_pkg::SB_MSG_WITHOUT_DATA,
-      sb_pkg::SB_MNGT_PORT_MSG_WITHOUT_DATA: begin
-        return 2;
-      end
-      sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_32_DMS_REG_WRITE, sb_pkg::SB_32_CFG_WRITE,
-      sb_pkg::SB_COMPLETION_WITH_32_DATA: begin
-        return 3;
-      end
-      sb_pkg::SB_64_MEM_WRITE, sb_pkg::SB_64_DMS_REG_WRITE, sb_pkg::SB_64_CFG_WRITE,
-      sb_pkg::SB_COMPLETION_WITH_64_DATA, sb_pkg::SB_MSG_WITH_64_DATA: begin
-        return 4;
-      end
-      default: return 2;
-    endcase
+    return sb_pkg::get_expected_chunks(op);
   endfunction
 
 endclass

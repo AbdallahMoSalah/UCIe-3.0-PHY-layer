@@ -9,7 +9,7 @@
 class rdi_cfg_agent_base extends uvm_agent implements rdi_cfg_reset_handler;
   `uvm_component_utils(rdi_cfg_agent_base)
 
-  rdi_cfg_agent_config cfg;
+  rdi_cfg_sub_agent_config cfg;
 
   rdi_cfg_sequencer    sequencer;
   rdi_cfg_driver       driver;
@@ -24,7 +24,7 @@ class rdi_cfg_agent_base extends uvm_agent implements rdi_cfg_reset_handler;
     super.build_phase(phase);
 
     if (cfg == null) begin
-      if (!uvm_config_db#(rdi_cfg_agent_config)::get(this, "", "cfg", cfg)) begin
+      if (!uvm_config_db#(rdi_cfg_sub_agent_config)::get(this, "", "cfg", cfg)) begin
         `uvm_fatal("AGT_ERR", "Failed to retrieve configuration 'cfg'")
       end
     end
