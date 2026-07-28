@@ -48,6 +48,12 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
     MNGT_PORT_DST     = 3'b111
   } sb_dstid_e;
 
+  typedef enum logic [2:0] {  //completion status enum
+    SB_CPL_SUCCESS = 3'b000,
+    SB_CPL_UR      = 3'b001,
+    SB_CPL_CA      = 3'b010
+  } sb_cpl_status_e;
+
 /*   typedef enum logic [3:0] {  //RDI message number enum
     ACTIVE_REQ = 4'b0000,
     L1_REQ = 4'b0001,
