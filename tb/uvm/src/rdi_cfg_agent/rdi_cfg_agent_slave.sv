@@ -9,8 +9,8 @@ class rdi_cfg_agent_slave extends rdi_cfg_agent_base;
   `uvm_component_utils(rdi_cfg_agent_slave)
 
   // Analysis ports exposing monitored TX packets and RAL predictor completions
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_tx;
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_ral;
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_tx;
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_ral;
 
   function new(string name = "rdi_cfg_agent_slave", uvm_component parent = null);
     super.new(name, parent);

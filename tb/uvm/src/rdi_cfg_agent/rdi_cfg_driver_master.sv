@@ -27,6 +27,8 @@ class rdi_cfg_driver_master extends rdi_cfg_driver;
     int num_chunks;
     bit [127:0] raw_data;
     
+    repeat (item.pre_drive_delay) @(vif.drv_master_cb);
+
     item.pack_to_struct();
     raw_data = {item.sb_pkt.payload, item.sb_pkt.header.raw};
 
@@ -45,6 +47,8 @@ class rdi_cfg_driver_master extends rdi_cfg_driver;
     @(vif.drv_master_cb);
     vif.drv_master_cb.cfg_vld <= 1'b0;
     vif.drv_master_cb.cfg     <= '0;
+
+    repeat (item.post_drive_delay) @(vif.drv_master_cb);
   endtask
 
 endclass

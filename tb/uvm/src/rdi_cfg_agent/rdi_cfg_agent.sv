@@ -20,10 +20,10 @@ class rdi_cfg_agent extends uvm_agent;
   rdi_cfg_sub_agent_config tx_cfg;
 
   // Backward-compatible handles and analysis ports
-  rdi_cfg_sequencer                    sequencer;
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_tx;  // Downstream requests into RTL (from rx_agent)
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_rx;  // Upstream responses out of RTL (from tx_agent)
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_ral; // Local RAL predictor updates (from tx_agent)
+  rdi_cfg_sequencer                        sequencer;
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_rx;  // Downstream requests into RTL (from master rx_agent)
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_tx;  // Upstream responses out of RTL (from slave tx_agent)
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_ral; // Local RAL predictor updates (from slave tx_agent)
 
   function new(string name = "rdi_cfg_agent", uvm_component parent = null);
     super.new(name, parent);
@@ -67,8 +67,8 @@ class rdi_cfg_agent extends uvm_agent;
 
     // Bind sub-agent ports and handles to top-level agent
     sequencer = rx_agent.sequencer;
-    ap_tx     = rx_agent.ap_rx;   // Transmitted requests into RTL (from master rx_agent)
-    ap_rx     = tx_agent.ap_tx;   // Received responses from RTL (from slave tx_agent)
+    ap_rx     = rx_agent.ap_rx;   // Downstream requests into RTL (from master rx_agent)
+    ap_tx     = tx_agent.ap_tx;   // Upstream responses from RTL (from slave tx_agent)
     ap_ral    = tx_agent.ap_ral;  // Slave monitor ap_ral (local completions)
   endfunction
 

@@ -14,7 +14,7 @@ class rdi_cfg_monitor extends uvm_monitor implements rdi_cfg_reset_handler;
   virtual rdi_cfg_if       vif;
 
   // Shared static completion table keyed by {die_idx (1-bit), tag (5-bit)}
-  static rdi_cfg_seq_item pending_reqs[bit [5:0]];
+  static rdi_cfg_seq_item_mon pending_reqs[bit [5:0]];
 
   protected process process_collect_transactions;
 

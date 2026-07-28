@@ -12,13 +12,14 @@ class rdi_cfg_coverage extends uvm_component;
   rdi_cfg_sub_agent_config agent_config;
 
   // Single Analysis Imp export
-  uvm_analysis_imp#(rdi_cfg_seq_item, rdi_cfg_coverage) analysis_export;
+  uvm_analysis_imp#(rdi_cfg_seq_item_mon, rdi_cfg_coverage) analysis_export;
 
   // =========================================================================
   // COVERGROUPS
   // =========================================================================
 
-  covergroup cg_req with function sample(rdi_cfg_seq_item item);
+  covergroup cg_req with function sample(rdi_cfg_seq_item_mon item);
+    option.per_instance = 1;
     cp_opcode: coverpoint item.sb_pkt.header.req.opcode {
       bins req_opcodes[] = {
         sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
@@ -54,7 +55,8 @@ class rdi_cfg_coverage extends uvm_component;
     cx_op_dst: cross cp_opcode, cp_dstid;
   endgroup
 
-  covergroup cg_cpl with function sample(rdi_cfg_seq_item item);
+  covergroup cg_cpl with function sample(rdi_cfg_seq_item_mon item);
+    option.per_instance = 1;
     cp_opcode: coverpoint item.sb_pkt.header.cpl.opcode {
       bins cpl_opcodes[] = {
         sb_pkg::SB_COMPLETION_WITHOUT_DATA,
@@ -85,7 +87,8 @@ class rdi_cfg_coverage extends uvm_component;
     cx_op_status: cross cp_opcode, cp_status;
   endgroup
 
-  covergroup cg_msg with function sample(rdi_cfg_seq_item item);
+  covergroup cg_msg with function sample(rdi_cfg_seq_item_mon item);
+    option.per_instance = 1;
     cp_opcode: coverpoint item.sb_pkt.header.msg.opcode {
       bins msg_opcodes[] = {
         sb_pkg::SB_MSG_WITHOUT_DATA,
@@ -126,20 +129,38 @@ class rdi_cfg_coverage extends uvm_component;
     cx_op_msgcode: cross cp_opcode, cp_msgcode;
   endgroup
 
+  covergroup cg_delay with function sample(rdi_cfg_seq_item_mon item);
+    option.per_instance = 1;
+    prev_item_delay : coverpoint item.prev_item_delay {
+      option.comment = "Delay, in clock cycles, between two consecutive MD accesses";
+      bins back2back       = {0};
+      bins delay_le_5[5]   = {[1:5]};
+      bins delay_gt_5      = {[6:$]};
+    }
+
+  endgroup
+
   function new(string name = "rdi_cfg_coverage", uvm_component parent = null);
     super.new(name, parent);
     analysis_export = new("analysis_export", this);
 
-    cg_req = new();
-    cg_cpl = new();
-    cg_msg = new();
+    cg_req   = new();
+    cg_cpl   = new();
+    cg_msg   = new();
+    cg_delay = new();
+
+    cg_req.set_inst_name($sformatf("%s_%s", get_full_name(), "cg_req"));
+    cg_cpl.set_inst_name($sformatf("%s_%s", get_full_name(), "cg_cpl"));
+    cg_msg.set_inst_name($sformatf("%s_%s", get_full_name(), "cg_msg"));
+    cg_delay.set_inst_name($sformatf("%s_%s", get_full_name(), "cg_delay"));
   endfunction
 
   // Unified sample dispatch method
-  virtual function void write(rdi_cfg_seq_item t);
+  virtual function void write(rdi_cfg_seq_item_mon t);
     sb_pkg::sb_opcode_e op;
     if (agent_config != null && !agent_config.get_has_coverage()) return;
-
+    
+    cg_delay.sample(t);
     op = t.sb_pkt.header.req.opcode;
 
     case (op)

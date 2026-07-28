@@ -9,7 +9,7 @@ class rdi_cfg_agent_master extends rdi_cfg_agent_base;
   `uvm_component_utils(rdi_cfg_agent_master)
 
   // Analysis port exposing monitored RX request transactions
-  uvm_analysis_port#(rdi_cfg_seq_item) ap_rx;
+  uvm_analysis_port#(rdi_cfg_seq_item_mon) ap_rx;
 
   function new(string name = "rdi_cfg_agent_master", uvm_component parent = null);
     super.new(name, parent);
