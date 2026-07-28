@@ -1,12 +1,11 @@
 // =============================================================================
 //  rdi_cfg_seq_item
 // -----------------------------------------------------------------------------
-//  Unified UVM sequence item for the RDI Config agent. Carries local and remote
-//  register writes/reads and messages. Packs/unpacks to the sb_packet_t struct.
+//  Contains base sequence item, driver item, and monitor item for RDI Config agent.
 // =============================================================================
 
-class rdi_cfg_seq_item extends uvm_sequence_item;
-  `uvm_object_utils(rdi_cfg_seq_item)
+// 1. Base sequence item containing common transaction properties & packing methods
+class rdi_cfg_seq_item_base extends uvm_sequence_item;
 
   // --- Randomizable User Fields ---
   rand sb_pkg::sb_opcode_e  opcode;
@@ -20,18 +19,69 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
   // Completion Status & Response Metadata
   bit [2:0]                 status;
   bit                       is_response;
+  rand bit                  is_valid_req;
 
   // --- Hardware-level packed struct representation ---
   sb_pkg::sb_packet_t       sb_pkt;
 
-  function new(string name = "rdi_cfg_seq_item");
+  `uvm_object_utils_begin(rdi_cfg_seq_item_base)
+    `uvm_field_enum(sb_pkg::sb_opcode_e, opcode,       UVM_ALL_ON)
+    `uvm_field_int(dstid,                              UVM_ALL_ON)
+    `uvm_field_int(srcid,                              UVM_ALL_ON)
+    `uvm_field_int(tag,                                UVM_ALL_ON)
+    `uvm_field_int(addr,                               UVM_ALL_ON)
+    `uvm_field_int(data,                               UVM_ALL_ON)
+    `uvm_field_int(be,                                 UVM_ALL_ON)
+    `uvm_field_int(status,                             UVM_ALL_ON)
+    `uvm_field_int(is_response,                        UVM_ALL_ON)
+    `uvm_field_int(is_valid_req,                       UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  function new(string name = "rdi_cfg_seq_item_base");
     super.new(name);
-    opcode = sb_pkg::SB_32_CFG_READ;
-    dstid  = 4'h0;
-    srcid  = 4'h2;
-    tag    = 5'h0;
-    be     = 8'h0F; // Default 32-bit select
-    status = 3'b000;
+    opcode       = sb_pkg::SB_32_CFG_READ;
+    dstid        = 4'h0;
+    srcid        = 4'h2;
+    tag          = 5'h0;
+    be           = 8'h0F; // Default 32-bit select
+    status       = 3'b000;
+    is_valid_req = 1'b1;
+  endfunction
+
+  // Static helper to check if address is a valid mapped PHY register
+  static function bit is_valid_phy_addr(bit [24:0] a);
+    return (a inside {
+      25'h00_0010, 25'h00_0014, 25'h100_1004, 25'h100_1008,
+      25'h100_1020, 25'h100_1030, 25'h100_1050, 25'h100_1060,
+      25'h100_1080, 25'h100_1100
+    });
+  endfunction
+
+  // Helper to check if packet is a register access request
+  virtual function bit is_reg_req();
+    return (opcode inside {
+      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
+      sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
+      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
+      sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE,
+      sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_DMS_REG_WRITE,
+      sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_DMS_REG_WRITE
+    });
+  endfunction
+
+  // 3-State Completion Helper:
+  //   1 : Successful completion (opcode is CPL and status == 3'b000)
+  //   0 : Error completion (opcode is CPL and status != 3'b000, e.g. UR/CA)
+  //  -1 : Not a completion packet
+  virtual function int check_cpl_status();
+    if (!(opcode inside {
+      sb_pkg::SB_COMPLETION_WITH_32_DATA,
+      sb_pkg::SB_COMPLETION_WITH_64_DATA,
+      sb_pkg::SB_COMPLETION_WITHOUT_DATA
+    })) begin
+      return -1;
+    end
+    return (status == sb_pkg::SB_CPL_SUCCESS) ? 1 : 0;
   endfunction
 
   // Packs class properties into the sb_pkt struct
@@ -104,17 +154,24 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
 
   // Unpacks the sb_pkt struct into class properties
   function void unpack_from_struct();
-    opcode = sb_pkt.header.req.opcode;
-    dstid  = sb_pkt.header.req.dstid;
-    srcid  = sb_pkt.header.req.srcid;
-    tag    = sb_pkt.header.req.tag;
-    addr   = sb_pkt.header.req.addr;
-    be     = sb_pkt.header.req.be;
-    data   = sb_pkt.payload;
-    status = sb_pkt.header.cpl.status;
+    opcode       = sb_pkt.header.req.opcode;
+    dstid        = sb_pkt.header.req.dstid;
+    srcid        = sb_pkt.header.req.srcid;
+    tag          = sb_pkt.header.req.tag;
+    addr         = sb_pkt.header.req.addr;
+    be           = sb_pkt.header.req.be;
+    data         = sb_pkt.payload;
+    status       = sb_pkt.header.cpl.status;
+
+    if (is_reg_req()) begin
+      is_valid_req = is_valid_phy_addr(addr);
+    end
   endfunction
 
   function void post_randomize();
+    if (is_reg_req()) begin
+      is_valid_req = is_valid_phy_addr(addr);
+    end
     pack_to_struct();
   endfunction
 
@@ -155,9 +212,6 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
     res = $sformatf("op=%s dst=%s src=%s", op.name(), dst_str, src_str);
 
     case (op)
-      // -----------------------------------------------------------------------
-      // REQUEST PACKETS (REQ)
-      // -----------------------------------------------------------------------
       sb_pkg::SB_32_CFG_WRITE, sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_32_DMS_REG_WRITE,
       sb_pkg::SB_64_CFG_WRITE, sb_pkg::SB_64_MEM_WRITE, sb_pkg::SB_64_DMS_REG_WRITE: begin
         res = {res, $sformatf(" tag=%0d addr=%h be=%h data=%h", 
@@ -172,9 +226,6 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
                              sb_pkt.header.req.be)};
       end
 
-      // -----------------------------------------------------------------------
-      // COMPLETION PACKETS (CPL)
-      // -----------------------------------------------------------------------
       sb_pkg::SB_COMPLETION_WITH_32_DATA, sb_pkg::SB_COMPLETION_WITH_64_DATA: begin
         res = {res, $sformatf(" tag=%0d status=%0d be=%h data=%h", 
                              sb_pkt.header.cpl.tag, sb_pkt.header.cpl.status, 
@@ -187,9 +238,6 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
                              sb_pkt.header.cpl.be)};
       end
 
-      // -----------------------------------------------------------------------
-      // MESSAGE PACKETS (MSG)
-      // -----------------------------------------------------------------------
       sb_pkg::SB_MSG_WITH_64_DATA, sb_pkg::SB_MNGT_PORT_MSG_WITH_DATA: begin
         string msgcode_str;
         msgcode_str = (sb_pkt.header.msg.msgcode.name() != "") ? 
@@ -211,9 +259,6 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
                              sb_pkt.header.msg.MsgInfo)};
       end
 
-      // -----------------------------------------------------------------------
-      // DEFAULT / FALLBACK
-      // -----------------------------------------------------------------------
       default: begin
         res = {res, $sformatf(" tag=%0d addr=%h data=%h status=%0d be=%h", 
                              sb_pkt.header.req.tag, sb_pkt.header.req.addr, 
@@ -225,3 +270,58 @@ class rdi_cfg_seq_item extends uvm_sequence_item;
   endfunction
 
 endclass
+
+
+// 2. Driver sequence item containing driver-specific delay controls
+class rdi_cfg_seq_item_drv extends rdi_cfg_seq_item_base;
+
+  rand int unsigned pre_drive_delay;
+  rand int unsigned post_drive_delay;
+
+  constraint c_pre_drive_delay_default {
+    soft pre_drive_delay <= 5;
+  }
+
+  constraint c_post_drive_delay_default {
+    soft post_drive_delay <= 5;
+  }
+
+  `uvm_object_utils_begin(rdi_cfg_seq_item_drv)
+    `uvm_field_int(pre_drive_delay,  UVM_ALL_ON)
+    `uvm_field_int(post_drive_delay, UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  function new(string name = "rdi_cfg_seq_item_drv");
+    super.new(name);
+  endfunction
+
+  virtual function string convert2string();
+    return $sformatf("%s, pre_delay=%0d, post_delay=%0d", super.convert2string(), pre_drive_delay, post_drive_delay);
+  endfunction
+
+endclass
+
+
+// 3. Monitor sequence item containing monitor-populated transfer metrics
+class rdi_cfg_seq_item_mon extends rdi_cfg_seq_item_base;
+
+  int unsigned length;
+  int unsigned prev_item_delay;
+
+  `uvm_object_utils_begin(rdi_cfg_seq_item_mon)
+    `uvm_field_int(length,          UVM_ALL_ON)
+    `uvm_field_int(prev_item_delay, UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  function new(string name = "rdi_cfg_seq_item_mon");
+    super.new(name);
+  endfunction
+
+  virtual function string convert2string();
+    return $sformatf("%s, length=%0d, prev_delay=%0d", super.convert2string(), length, prev_item_delay);
+  endfunction
+
+endclass
+
+// Alias for default sequence item usage
+typedef rdi_cfg_seq_item_drv rdi_cfg_seq_item;

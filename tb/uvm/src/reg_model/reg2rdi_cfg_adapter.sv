@@ -47,7 +47,7 @@ class reg2rdi_cfg_adapter extends uvm_reg_adapter;
   endfunction
 
   virtual function void bus2reg(uvm_sequence_item bus_item, ref uvm_reg_bus_op rw);
-    rdi_cfg_seq_item item;
+    rdi_cfg_seq_item_base item;
     if (!$cast(item, bus_item)) begin
       `uvm_fatal("REG_ADAPT", "Failed to cast bus_item to rdi_cfg_seq_item")
       return;

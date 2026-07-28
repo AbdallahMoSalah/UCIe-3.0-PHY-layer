@@ -44,6 +44,7 @@ package ucie_uvm_pkg;
   // 4. Register Abstraction Layer (RAL)
   `include "reg_model/ucie_reg_model.sv"
   `include "reg_model/reg2rdi_cfg_adapter.sv"
+  `include "reg_model/ucie_reg_predictor.sv"
 
   // 5. Coverage Component, Scoreboard, and Virtual Sequencer
   `include "ucie_ltsm_coverage.sv"
