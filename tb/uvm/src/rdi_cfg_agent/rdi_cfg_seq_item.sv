@@ -15,6 +15,7 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
   rand bit [24:0]           addr;
   rand bit [63:0]           data;
   rand bit [7:0]            be;
+  rand bit                  cr;
 
   // Completion Status & Response Metadata
   bit [2:0]                 status;
@@ -32,6 +33,7 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     `uvm_field_int(addr,                               UVM_ALL_ON)
     `uvm_field_int(data,                               UVM_ALL_ON)
     `uvm_field_int(be,                                 UVM_ALL_ON)
+    `uvm_field_int(cr,                                 UVM_ALL_ON)
     `uvm_field_int(status,                             UVM_ALL_ON)
     `uvm_field_int(is_response,                        UVM_ALL_ON)
     `uvm_field_int(is_valid_req,                       UVM_ALL_ON)
@@ -44,6 +46,7 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     srcid        = 4'h2;
     tag          = 5'h0;
     be           = 8'h0F; // Default 32-bit select
+    cr           = 1'b0;
     status       = 3'b000;
     is_valid_req = 1'b1;
   endfunction
@@ -94,6 +97,7 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     sb_pkt.header.req.dstid  = sb_pkg::sb_dstid_e'(dstid);
     sb_pkt.header.req.srcid  = sb_pkg::sb_srcid_e'(srcid);
     sb_pkt.header.req.tag    = tag;
+    sb_pkt.header.req.cr     = cr;
 
     case (opcode)
       // 32-bit Write Access
@@ -160,6 +164,7 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     tag          = sb_pkt.header.req.tag;
     addr         = sb_pkt.header.req.addr;
     be           = sb_pkt.header.req.be;
+    cr           = sb_pkt.header.req.cr;
     data         = sb_pkt.payload;
     status       = sb_pkt.header.cpl.status;
 
@@ -175,9 +180,75 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     pack_to_struct();
   endfunction
 
-  // Standard constraints
+  // --- Soft Constraints for Valid Sideband Items ---
+
+  // 1. dstid cannot be LOCAL_ADAPTER
+  constraint c_valid_dstid {
+    soft dstid != sb_pkg::LOCAL_ADAPTER;
+  }
+
+  // 2. srcid cannot be PHY
+  constraint c_valid_srcid {
+    soft srcid != sb_pkg::PHY;
+  }
+
+  // 3. STACK0 and STACK1 source requests must target LOCAL_PHY with valid reg access opcodes
+  constraint c_stack_src_dst_op {
+    if (srcid inside {sb_pkg::STACK0, sb_pkg::STACK1}) {
+      dstid == sb_pkg::LOCAL_PHY;
+      opcode inside {
+        sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
+        sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
+        sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
+        sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE
+      };
+    }
+  }
+
+  // 4. Exclude illegal / non-standard opcodes in valid items
+  constraint c_valid_opcode_exclusions {
+    soft !(opcode inside {
+      sb_pkg::SB_PRIORITY_MSG1,
+      sb_pkg::SB_PRIORITY_MSG2,
+      sb_pkg::SB_64_DMS_REG_READ,
+      sb_pkg::SB_64_DMS_REG_WRITE,
+      sb_pkg::SB_32_DMS_REG_READ,
+      sb_pkg::SB_32_DMS_REG_WRITE,
+      sb_pkg::SB_MNGT_PORT_MSG_WITHOUT_DATA,
+      sb_pkg::SB_MNGT_PORT_MSG_WITH_DATA
+    });
+  }
+
+  // 5. Opcode and Destination consistency for remote/local messages
+  constraint c_op_dst_consistency {
+    if (opcode inside {sb_pkg::SB_MSG_WITHOUT_DATA, sb_pkg::SB_MSG_WITH_64_DATA}) {
+      soft dstid inside {sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY, sb_pkg::MNGT_PORT_DST};
+    }
+    if (dstid inside {sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_REG_ACCESS}) {
+      soft opcode inside {
+        sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
+        sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
+        sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
+        sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE
+      };
+    }
+  }
+
+  // 6. cr (Credit Return) is only used for remote destinations
+  constraint c_cr_val {
+    if (!(dstid inside {sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_REG_ACCESS})) {
+      soft cr == 1'b0;
+    }
+  }
+
+  // 7. Completion status must be one of 3 valid status codes (0, 1, 2)
+  constraint c_valid_status {
+    soft status inside {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR, sb_pkg::SB_CPL_CA};
+  }
+
+  // 8. Standard valid opcodes set
   constraint c_valid_opcodes {
-    opcode inside {
+    soft opcode inside {
       sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
       sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
       sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,

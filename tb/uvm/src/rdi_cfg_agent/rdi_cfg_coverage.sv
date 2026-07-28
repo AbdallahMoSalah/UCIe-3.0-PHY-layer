@@ -23,25 +23,33 @@ class rdi_cfg_coverage extends uvm_component;
     cp_opcode: coverpoint item.sb_pkt.header.req.opcode {
       bins req_opcodes[] = {
         sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
-        sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_DMS_REG_WRITE,
         sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
         sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
-        sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_DMS_REG_WRITE,
         sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE
+      };
+      illegal_bins illegal_opcodes = {
+        sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_DMS_REG_WRITE,
+        sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_DMS_REG_WRITE
       };
     }
     cp_dstid: coverpoint item.sb_pkt.header.req.dstid {
       bins valid_dstids[] = {
-        sb_pkg::LOCAL_ADAPTER, sb_pkg::LOCAL_PHY,
+        sb_pkg::LOCAL_PHY,
         sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY,
         sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST
       };
+      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER};
     }
     cp_srcid: coverpoint item.sb_pkt.header.req.srcid {
       bins valid_srcids[] = {
-        sb_pkg::STACK0, sb_pkg::ADAPTER, sb_pkg::PHY,
+        sb_pkg::STACK0, sb_pkg::ADAPTER,
         sb_pkg::MNGT_PORT_SRC, sb_pkg::STACK1
       };
+      illegal_bins illegal_src = {sb_pkg::PHY};
+    }
+    cp_cr: coverpoint item.sb_pkt.header.req.cr {
+      bins cr_off = {0};
+      bins cr_on  = {1};
     }
     cp_tag: coverpoint item.sb_pkt.header.req.tag {
       bins tags[8] = {[0:31]};
@@ -53,6 +61,7 @@ class rdi_cfg_coverage extends uvm_component;
     }
 
     cx_op_dst: cross cp_opcode, cp_dstid;
+    cx_op_cr:  cross cp_opcode, cp_cr;
   endgroup
 
   covergroup cg_cpl with function sample(rdi_cfg_seq_item_mon item);
@@ -66,22 +75,29 @@ class rdi_cfg_coverage extends uvm_component;
     }
     cp_dstid: coverpoint item.sb_pkt.header.cpl.dstid {
       bins valid_dstids[] = {
-        sb_pkg::LOCAL_ADAPTER, sb_pkg::LOCAL_PHY,
+        sb_pkg::LOCAL_PHY,
         sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY,
         sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST
       };
+      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER};
     }
     cp_srcid: coverpoint item.sb_pkt.header.cpl.srcid {
       bins valid_srcids[] = {
-        sb_pkg::STACK0, sb_pkg::ADAPTER, sb_pkg::PHY,
+        sb_pkg::STACK0, sb_pkg::ADAPTER,
         sb_pkg::MNGT_PORT_SRC, sb_pkg::STACK1
       };
+      illegal_bins illegal_src = {sb_pkg::PHY};
+    }
+    cp_cr: coverpoint item.sb_pkt.header.cpl.cr {
+      bins cr_off = {0};
+      bins cr_on  = {1};
     }
     cp_tag: coverpoint item.sb_pkt.header.cpl.tag {
       bins tags[8] = {[0:31]};
     }
     cp_status: coverpoint item.sb_pkt.header.cpl.status {
-      bins status_val[] = {[0:7]};
+      bins status_val[] = {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR, sb_pkg::SB_CPL_CA};
+      illegal_bins illegal_status = {[3:7]};
     }
 
     cx_op_status: cross cp_opcode, cp_status;
@@ -92,25 +108,29 @@ class rdi_cfg_coverage extends uvm_component;
     cp_opcode: coverpoint item.sb_pkt.header.msg.opcode {
       bins msg_opcodes[] = {
         sb_pkg::SB_MSG_WITHOUT_DATA,
+        sb_pkg::SB_MSG_WITH_64_DATA
+      };
+      illegal_bins illegal_opcodes = {
         sb_pkg::SB_MNGT_PORT_MSG_WITHOUT_DATA,
         sb_pkg::SB_MNGT_PORT_MSG_WITH_DATA,
-        sb_pkg::SB_MSG_WITH_64_DATA,
         sb_pkg::SB_PRIORITY_MSG1,
         sb_pkg::SB_PRIORITY_MSG2
       };
     }
     cp_dstid: coverpoint item.sb_pkt.header.msg.dstid {
       bins valid_dstids[] = {
-        sb_pkg::LOCAL_ADAPTER, sb_pkg::LOCAL_PHY,
+        sb_pkg::LOCAL_PHY,
         sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY,
         sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST
       };
+      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER};
     }
     cp_srcid: coverpoint item.sb_pkt.header.msg.srcid {
       bins valid_srcids[] = {
-        sb_pkg::STACK0, sb_pkg::ADAPTER, sb_pkg::PHY,
+        sb_pkg::STACK0, sb_pkg::ADAPTER,
         sb_pkg::MNGT_PORT_SRC, sb_pkg::STACK1
       };
+      illegal_bins illegal_src = {sb_pkg::PHY};
     }
     cp_msgcode: coverpoint item.sb_pkt.header.msg.msgcode {
       bins msg_codes[] = {
