@@ -78,8 +78,6 @@ class ucie_base_test extends uvm_test;
 
   // Binds virtual sequence variables to physical component handles
   virtual function void init_vseq(ucie_vseq_base vseq);
-    vseq.cfg_seqr_L  = env.rdi_cfg_agt_L.sequencer;
-    vseq.cfg_seqr_P  = env.rdi_cfg_agt_P.sequencer;
     vseq.reg_model_L = env.reg_model_L;
     vseq.reg_model_P = env.reg_model_P;
     vseq.vif_ltsm    = vif_ltsm;

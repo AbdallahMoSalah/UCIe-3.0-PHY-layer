@@ -249,3 +249,33 @@ class ucie_pm_l2_test extends ucie_base_test;
     phase.drop_objection(this);
   endtask
 endclass
+
+// -----------------------------------------------------------------------------
+// 8. Invalid Local Register Access Test (UR Completion Verification)
+// -----------------------------------------------------------------------------
+class ucie_invalid_local_reg_test extends ucie_base_test;
+  `uvm_component_utils(ucie_invalid_local_reg_test)
+
+  function new(string name = "ucie_invalid_local_reg_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    rdi_cfg_single_pkt_seq seq;
+    
+    phase.raise_objection(this);
+    
+    `uvm_info("INVALID_REG_TEST", "Starting Invalid Local Register Access Test...", UVM_LOW)
+    
+    seq = rdi_cfg_single_pkt_seq::type_id::create("seq");
+    seq.opcode = sb_pkg::SB_32_CFG_READ;
+    seq.dstid  = sb_pkg::LOCAL_PHY;
+    seq.srcid  = sb_pkg::ADAPTER;
+    seq.tag    = 5'h1F;
+    seq.start(env.rdi_cfg_agt_L.sequencer);
+    
+    #1000ns;
+    
+    phase.drop_objection(this);
+  endtask
+endclass

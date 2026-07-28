@@ -72,9 +72,16 @@ vmap work $work_dir
 # -------------------------
 
 if {$MODE eq "debug" || $MODE eq "report"} {
-    set vlog_flags {-sv +cover -covercells}
+    set vlog_flags {-sv -L mtiUvm +cover -covercells}
 } else {
-    set vlog_flags {-sv}
+    set vlog_flags {-sv -L mtiUvm}
+}
+
+if {[info exists env(MODEL_TECH)]} {
+    set uvm_src [file normalize "$env(MODEL_TECH)/../verilog_src/uvm-1.1d/src"]
+    if {[file exists $uvm_src]} {
+        lappend vlog_flags "+incdir+$uvm_src"
+    }
 }
 
 if {$SYNTH == 0} {
@@ -124,7 +131,7 @@ if {$SEED eq "default"} {
 # Simulation Mode Handling
 # -------------------------
 
-set vsim_args [list]
+set vsim_args [list -L mtiUvm]
 
 if {$MODE eq "debug" || $MODE eq "report"} {
     lappend vsim_args -coverage

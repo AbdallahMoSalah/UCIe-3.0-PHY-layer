@@ -10,10 +10,6 @@ class ucie_vseq_base extends uvm_sequence;
   `uvm_object_utils(ucie_vseq_base)
   `uvm_declare_p_sequencer(ucie_virtual_sequencer)
 
-  // Sequencer handles
-  rdi_cfg_sequencer           cfg_seqr_L;
-  rdi_cfg_sequencer           cfg_seqr_P;
-
   // Register model handles (RAL)
   ucie_reg_block              reg_model_L;
   ucie_reg_block              reg_model_P;
@@ -79,7 +75,9 @@ class ucie_vseq_base extends uvm_sequence;
   task read_reg_L(uvm_reg rg, output bit [63:0] val);
     uvm_status_e status;
     rg.read(status, val, .parent(this));
-    #200ns; // Wait for transaction completion and predictor mirror update
+    if (p_sequencer != null && p_sequencer.predictor_L != null) begin
+      p_sequencer.predictor_L.predict_ev.wait_trigger();
+    end
     val = rg.get_mirrored_value();
   endtask
 
@@ -93,7 +91,9 @@ class ucie_vseq_base extends uvm_sequence;
   task read_reg_P(uvm_reg rg, output bit [63:0] val);
     uvm_status_e status;
     rg.read(status, val, .parent(this));
-    #200ns; // Wait for transaction completion and predictor mirror update
+    if (p_sequencer != null && p_sequencer.predictor_P != null) begin
+      p_sequencer.predictor_P.predict_ev.wait_trigger();
+    end
     val = rg.get_mirrored_value();
   endtask
 

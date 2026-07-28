@@ -21,8 +21,8 @@ class ucie_env extends uvm_env;
   ucie_reg_block                reg_model_P;
 
   // RAL Predictors and Adapters
-  uvm_reg_predictor#(rdi_cfg_seq_item) predictor_L;
-  uvm_reg_predictor#(rdi_cfg_seq_item) predictor_P;
+  ucie_reg_predictor#(rdi_cfg_seq_item_mon) predictor_L;
+  ucie_reg_predictor#(rdi_cfg_seq_item_mon) predictor_P;
   reg2rdi_cfg_adapter           adapter_L;
   reg2rdi_cfg_adapter           adapter_P;
 
@@ -59,8 +59,8 @@ class ucie_env extends uvm_env;
     reg_model_P.build();
 
     // Create Predictors and Adapters
-    predictor_L = uvm_reg_predictor#(rdi_cfg_seq_item)::type_id::create("predictor_L", this);
-    predictor_P = uvm_reg_predictor#(rdi_cfg_seq_item)::type_id::create("predictor_P", this);
+    predictor_L = ucie_reg_predictor#(rdi_cfg_seq_item_mon)::type_id::create("predictor_L", this);
+    predictor_P = ucie_reg_predictor#(rdi_cfg_seq_item_mon)::type_id::create("predictor_P", this);
     adapter_L   = reg2rdi_cfg_adapter::type_id::create("adapter_L");
     adapter_P   = reg2rdi_cfg_adapter::type_id::create("adapter_P");
 
@@ -103,16 +103,18 @@ class ucie_env extends uvm_env;
     mainband_agt_P.monitor.ap_rx.connect(scoreboard.fifo_die1_rx.analysis_export);
 
     // 5. Connect Sideband/RDI Config Analysis Ports to Scoreboard Filtering Imps
-    rdi_cfg_agt_L.ap_tx.connect(scoreboard.imp_sb_die0_tx);
     rdi_cfg_agt_L.ap_rx.connect(scoreboard.imp_sb_die0_rx);
-    rdi_cfg_agt_P.ap_tx.connect(scoreboard.imp_sb_die1_tx);
+    rdi_cfg_agt_L.ap_tx.connect(scoreboard.imp_sb_die0_tx);
     rdi_cfg_agt_P.ap_rx.connect(scoreboard.imp_sb_die1_rx);
+    rdi_cfg_agt_P.ap_tx.connect(scoreboard.imp_sb_die1_tx);
 
-    // 6. Connect Sequencers to Virtual Sequencer Handles
+    // 6. Connect Sequencers and Predictors to Virtual Sequencer Handles
     vsqr.rdi_cfg_sqr_L  = rdi_cfg_agt_L.sequencer;
     vsqr.rdi_cfg_sqr_P  = rdi_cfg_agt_P.sequencer;
     vsqr.mainband_sqr_L = mainband_agt_L.sequencer;
     vsqr.mainband_sqr_P = mainband_agt_P.sequencer;
+    vsqr.predictor_L    = predictor_L;
+    vsqr.predictor_P    = predictor_P;
   endfunction
 
 endclass
