@@ -54,7 +54,7 @@ class ucie_vseq_base extends uvm_sequence;
         burst_sb_P.start(p_sequencer.rdi_cfg_sqr_P, this);
       end
     join
-    #2us; // Allow in-flight Sideband packets to finish traversing physical inter-die link
+    #8us; // Allow in-flight Sideband packets to finish traversing physical inter-die link
   endtask
 
   // Helper task: Transmit both Mainband and Sideband bursts concurrently upon reaching Active state

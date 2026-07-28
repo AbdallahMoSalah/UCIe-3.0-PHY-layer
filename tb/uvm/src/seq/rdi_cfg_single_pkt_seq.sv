@@ -12,11 +12,16 @@ class rdi_cfg_single_pkt_seq extends uvm_sequence #(rdi_cfg_seq_item);
   rand bit [3:0]            srcid;
   rand bit [4:0]            tag;
   rand bit [63:0]           data;
+  rand bit                  cr;
 
   constraint c_default_msg {
-    soft opcode == sb_pkg::SB_MSG_WITH_64_DATA;
-    !(dstid inside {sb_pkg::LOCAL_PHY, sb_pkg::LOCAL_ADAPTER});
-    soft srcid  == sb_pkg::ADAPTER;
+    soft opcode inside {
+      sb_pkg::SB_MSG_WITH_64_DATA, sb_pkg::SB_MSG_WITHOUT_DATA,
+      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
+      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE
+    };
+    soft dstid inside {sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST};
+    soft srcid == sb_pkg::ADAPTER;
   }
 
   function new(string name = "rdi_cfg_single_pkt_seq");
@@ -33,12 +38,14 @@ class rdi_cfg_single_pkt_seq extends uvm_sequence #(rdi_cfg_seq_item);
       srcid  == local::srcid;
       tag    == local::tag;
       data   == local::data;
+      cr     == local::cr;
     }) begin
       item.opcode = opcode;
       item.dstid  = dstid;
       item.srcid  = srcid;
       item.tag    = tag;
       item.data   = data;
+      item.cr     = cr;
     end
     item.pack_to_struct();
     finish_item(item);
