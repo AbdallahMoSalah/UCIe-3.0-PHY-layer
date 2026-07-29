@@ -9,7 +9,7 @@ class rdi_cfg_burst_seq extends uvm_sequence #(rdi_cfg_seq_item);
 
   rand int num_packets;
 
-  constraint c_num_packets { soft num_packets inside {[25:50]}; }
+  constraint c_num_packets { soft num_packets inside {[25:60]}; }
 
   function new(string name = "rdi_cfg_burst_seq");
     super.new(name);
