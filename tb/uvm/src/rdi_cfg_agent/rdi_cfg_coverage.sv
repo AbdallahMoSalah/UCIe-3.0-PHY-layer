@@ -35,10 +35,9 @@ class rdi_cfg_coverage extends uvm_component;
     cp_dstid: coverpoint item.sb_pkt.header.req.dstid {
       bins valid_dstids[] = {
         sb_pkg::LOCAL_PHY,
-        sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY,
-        sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST
+        sb_pkg::REMOTE_REG_ACCESS
       };
-      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER};
+      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER, sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_ADAPTER, sb_pkg::MNGT_PORT_DST};
     }
     cp_srcid: coverpoint item.sb_pkt.header.req.srcid {
       bins valid_srcids[] = {
@@ -76,10 +75,9 @@ class rdi_cfg_coverage extends uvm_component;
     cp_dstid: coverpoint item.sb_pkt.header.cpl.dstid {
       bins valid_dstids[] = {
         sb_pkg::LOCAL_PHY,
-        sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY,
-        sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST
+        sb_pkg::REMOTE_ADAPTER
       };
-      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER};
+      illegal_bins illegal_dst = {sb_pkg::LOCAL_ADAPTER, sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_REG_ACCESS, sb_pkg::MNGT_PORT_DST};
     }
     cp_srcid: coverpoint item.sb_pkt.header.cpl.srcid {
       bins valid_srcids[] = {
@@ -96,7 +94,8 @@ class rdi_cfg_coverage extends uvm_component;
       bins tags[8] = {[0:31]};
     }
     cp_status: coverpoint item.sb_pkt.header.cpl.status {
-      bins status_val[] = {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR, sb_pkg::SB_CPL_CA};
+      bins status_val[] = {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR};
+      ignore_bins ca_status = {sb_pkg::SB_CPL_CA};
       illegal_bins illegal_status = {[3:7]};
     }
 
