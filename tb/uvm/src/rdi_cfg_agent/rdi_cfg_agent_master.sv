@@ -20,17 +20,14 @@ class rdi_cfg_agent_master extends rdi_cfg_agent_base;
   endfunction
 
   function void connect_phase(uvm_phase phase);
-    rdi_cfg_monitor_master mon_master;
     super.connect_phase(phase);
 
-    if ($cast(mon_master, monitor)) begin
-      ap_rx = mon_master.ap_rx;
+    if (monitor != null) begin
+      ap_rx = monitor.ap;
 
       if (cfg.get_has_coverage() && coverage != null) begin
-        mon_master.ap_rx.connect(coverage.analysis_export);
+        monitor.ap.connect(coverage.analysis_export);
       end
-    end else begin
-      `uvm_fatal("CAST_ERR", "Failed to cast monitor to rdi_cfg_monitor_master")
     end
   endfunction
 

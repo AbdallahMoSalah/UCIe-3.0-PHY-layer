@@ -24,13 +24,16 @@ class rdi_cfg_agent_slave extends rdi_cfg_agent_base;
     rdi_cfg_monitor_slave mon_slave;
     super.connect_phase(phase);
 
-    if ($cast(mon_slave, monitor)) begin
-      ap_tx  = mon_slave.ap_tx;
-      ap_ral = mon_slave.ap_ral;
+    if (monitor != null) begin
+      ap_tx = monitor.ap;
 
       if (cfg.get_has_coverage() && coverage != null) begin
-        mon_slave.ap_tx.connect(coverage.analysis_export);
+        monitor.ap.connect(coverage.analysis_export);
       end
+    end
+
+    if ($cast(mon_slave, monitor)) begin
+      ap_ral = mon_slave.ap_ral;
     end else begin
       `uvm_fatal("CAST_ERR", "Failed to cast monitor to rdi_cfg_monitor_slave")
     end
