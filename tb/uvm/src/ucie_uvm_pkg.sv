@@ -31,10 +31,14 @@ package ucie_uvm_pkg;
 
   // 2. Mainband Agent Files
   `include "mainband_agent/ucie_mainband_reset_handler.sv"
+  `include "mainband_agent/ucie_mainband_agent_config.sv"
   `include "mainband_agent/ucie_mainband_seq_item.sv"
-  `include "mainband_agent/ucie_mainband_driver.sv"
-  `include "mainband_agent/ucie_mainband_monitor.sv"
+  `include "mainband_agent/ucie_mainband_driver_master.sv"
+  `include "mainband_agent/ucie_mainband_monitor_master.sv"
+  `include "mainband_agent/ucie_mainband_monitor_slave.sv"
   `include "mainband_agent/ucie_mainband_sequencer.sv"
+  `include "mainband_agent/ucie_mainband_agent_master.sv"
+  `include "mainband_agent/ucie_mainband_agent_slave.sv"
   `include "mainband_agent/ucie_mainband_agent.sv"
 
   // 3. Passive LTSM Monitor Files

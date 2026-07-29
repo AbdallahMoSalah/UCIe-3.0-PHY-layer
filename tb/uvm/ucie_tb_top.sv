@@ -82,8 +82,11 @@ module ucie_tb_top;
     ucie_rdi_if          vif_rdi  (.clk0(lclk0), .clk1(lclk1));
 
     // Mainband virtual interfaces for Die 0 (Local) and Die 1 (Partner)
-    ucie_mainband_if #(FLITW) vif_mb_L (.clk(lclk0), .rst_n(rst_n));
-    ucie_mainband_if #(FLITW) vif_mb_P (.clk(lclk1), .rst_n(rst_n));
+    ucie_mainband_master_if #(FLITW) vif_mb_master_L (.clk(lclk0), .rst_n(rst_n));
+    ucie_mainband_slave_if  #(FLITW) vif_mb_slave_L  (.clk(lclk0), .rst_n(rst_n));
+
+    ucie_mainband_master_if #(FLITW) vif_mb_master_P (.clk(lclk1), .rst_n(rst_n));
+    ucie_mainband_slave_if  #(FLITW) vif_mb_slave_P  (.clk(lclk1), .rst_n(rst_n));
 
     // Channel modeling interface
     ucie_channel_if #(NUM_LANES) vif_channel ();
@@ -176,21 +179,21 @@ module ucie_tb_top;
     assign lp_cfg_crd[1]        = vif_cfg_tx_P.cfg_crd;
 
     // Connect Mainband virtual interfaces
-    assign lp_data0          = vif_mb_L.lp_data;
-    assign lp_valid0         = vif_mb_L.lp_valid;
-    assign lp_irdy0          = vif_mb_L.lp_irdy;
-    assign vif_mb_L.pl_trdy  = pl_trdy0;
-    assign vif_mb_L.pl_error = pl_error0;
-    assign vif_mb_L.pl_data  = o_out_data0;
-    assign vif_mb_L.pl_valid = o_pl_valid0;
+    assign lp_data0                 = vif_mb_master_L.lp_data;
+    assign lp_valid0                = vif_mb_master_L.lp_valid;
+    assign lp_irdy0                 = vif_mb_master_L.lp_irdy;
+    assign vif_mb_master_L.pl_trdy  = pl_trdy0;
+    assign vif_mb_master_L.pl_error = pl_error0;
+    assign vif_mb_slave_L.pl_data   = o_out_data0;
+    assign vif_mb_slave_L.pl_valid  = o_pl_valid0;
 
-    assign lp_data1          = vif_mb_P.lp_data;
-    assign lp_valid1         = vif_mb_P.lp_valid;
-    assign lp_irdy1          = vif_mb_P.lp_irdy;
-    assign vif_mb_P.pl_trdy  = pl_trdy1;
-    assign vif_mb_P.pl_error = pl_error1;
-    assign vif_mb_P.pl_data  = o_out_data1;
-    assign vif_mb_P.pl_valid = o_pl_valid1;
+    assign lp_data1                 = vif_mb_master_P.lp_data;
+    assign lp_valid1                = vif_mb_master_P.lp_valid;
+    assign lp_irdy1                 = vif_mb_master_P.lp_irdy;
+    assign vif_mb_master_P.pl_trdy  = pl_trdy1;
+    assign vif_mb_master_P.pl_error = pl_error1;
+    assign vif_mb_slave_P.pl_data   = o_out_data1;
+    assign vif_mb_slave_P.pl_valid  = o_pl_valid1;
 
     // Connect RDI handshake virtual interface
     assign lp_state_req0        = vif_rdi.lp_state_req0;
@@ -265,8 +268,10 @@ module ucie_tb_top;
         uvm_config_db#(virtual ucie_ltsm_monitor_if)::set(null, "*", "vif_ltsm", vif_ltsm);
         uvm_config_db#(virtual ucie_channel_if)::set(null, "*", "vif_channel", vif_channel);
         uvm_config_db#(virtual ucie_rdi_if)::set(null, "*", "vif_rdi", vif_rdi);
-        uvm_config_db#(virtual ucie_mainband_if)::set(null, "*mainband_agt_L*", "vif", vif_mb_L);
-        uvm_config_db#(virtual ucie_mainband_if)::set(null, "*mainband_agt_P*", "vif", vif_mb_P);
+        uvm_config_db#(virtual ucie_mainband_master_if)::set(null, "*", "vif_mb_master_L", vif_mb_master_L);
+        uvm_config_db#(virtual ucie_mainband_slave_if)::set(null, "*", "vif_mb_slave_L", vif_mb_slave_L);
+        uvm_config_db#(virtual ucie_mainband_master_if)::set(null, "*", "vif_mb_master_P", vif_mb_master_P);
+        uvm_config_db#(virtual ucie_mainband_slave_if)::set(null, "*", "vif_mb_slave_P", vif_mb_slave_P);
 
         // Run UVM
         run_test();

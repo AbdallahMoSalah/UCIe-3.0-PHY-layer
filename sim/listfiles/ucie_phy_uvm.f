@@ -235,6 +235,8 @@ tb/uvm/interfaces/ucie_ltsm_monitor_if.sv
 tb/uvm/interfaces/ucie_channel_if.sv
 tb/uvm/interfaces/rdi_cfg_if.sv
 tb/uvm/interfaces/ucie_rdi_if.sv
+tb/uvm/interfaces/ucie_mainband_master_if.sv
+tb/uvm/interfaces/ucie_mainband_slave_if.sv
 tb/uvm/interfaces/ucie_mainband_if.sv
 tb/uvm/src/ucie_uvm_pkg.sv
 tb/uvm/ucie_tb_top.sv

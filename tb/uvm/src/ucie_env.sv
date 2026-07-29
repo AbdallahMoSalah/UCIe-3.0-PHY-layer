@@ -97,10 +97,10 @@ class ucie_env extends uvm_env;
     ltsm_mon.ap_die1.connect(ltsm_cov.die1_export);
 
     // 4. Connect Mainband Monitor Analysis Ports to Scoreboard FIFOs
-    mainband_agt_L.monitor.ap_tx.connect(scoreboard.fifo_die0_tx.analysis_export);
-    mainband_agt_L.monitor.ap_rx.connect(scoreboard.fifo_die0_rx.analysis_export);
-    mainband_agt_P.monitor.ap_tx.connect(scoreboard.fifo_die1_tx.analysis_export);
-    mainband_agt_P.monitor.ap_rx.connect(scoreboard.fifo_die1_rx.analysis_export);
+    mainband_agt_L.ap_rx.connect(scoreboard.fifo_die0_tx.analysis_export);
+    mainband_agt_L.ap_tx.connect(scoreboard.fifo_die0_rx.analysis_export);
+    mainband_agt_P.ap_rx.connect(scoreboard.fifo_die1_tx.analysis_export);
+    mainband_agt_P.ap_tx.connect(scoreboard.fifo_die1_rx.analysis_export);
 
     // 5. Connect Sideband/RDI Config Analysis Ports to Scoreboard Filtering Imps
     rdi_cfg_agt_L.ap_rx.connect(scoreboard.imp_sb_die0_rx);
