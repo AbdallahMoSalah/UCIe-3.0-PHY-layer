@@ -9,8 +9,8 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
 
   // --- Randomizable User Fields ---
   rand sb_pkg::sb_opcode_e  opcode;
-  rand bit [3:0]            dstid;
-  rand bit [3:0]            srcid;
+  rand sb_pkg::sb_dstid_e   dstid;
+  rand sb_pkg::sb_srcid_e   srcid;
   rand bit [4:0]            tag;
   rand bit [24:0]           addr;
   rand bit [63:0]           data;
@@ -27,8 +27,8 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
 
   `uvm_object_utils_begin(rdi_cfg_seq_item_base)
     `uvm_field_enum(sb_pkg::sb_opcode_e, opcode,       UVM_ALL_ON)
-    `uvm_field_int(dstid,                              UVM_ALL_ON)
-    `uvm_field_int(srcid,                              UVM_ALL_ON)
+    `uvm_field_enum(sb_pkg::sb_dstid_e,   dstid,                              UVM_ALL_ON)
+    `uvm_field_enum(sb_pkg::sb_srcid_e,   srcid,                              UVM_ALL_ON)
     `uvm_field_int(tag,                                UVM_ALL_ON)
     `uvm_field_int(addr,                               UVM_ALL_ON)
     `uvm_field_int(data,                               UVM_ALL_ON)
@@ -42,8 +42,8 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
   function new(string name = "rdi_cfg_seq_item_base");
     super.new(name);
     opcode       = sb_pkg::SB_32_CFG_READ;
-    dstid        = 4'h0;
-    srcid        = 4'h2;
+    dstid        = sb_pkg::REMOTE_REG_ACCESS;
+    srcid        = sb_pkg::ADAPTER;
     tag          = 5'h0;
     be           = 8'h0F; // Default 32-bit select
     cr           = 1'b0;
@@ -51,13 +51,20 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     is_valid_req = 1'b1;
   endfunction
 
-  // Static helper to check if address is a valid mapped PHY register
-  static function bit is_valid_phy_addr(bit [24:0] a);
-    return (a inside {
-      25'h00_0010, 25'h00_0014, 25'h100_1004, 25'h100_1008,
-      25'h100_1020, 25'h100_1030, 25'h100_1050, 25'h100_1060,
-      25'h100_1080, 25'h100_1100
-    });
+  static function bit is_valid_phy_addr(bit [24:0] a, sb_pkg::sb_opcode_e op = sb_pkg::SB_32_CFG_READ);
+    if (op inside {sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE, sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE}) begin
+      return (a inside {
+        25'h00_0000, 25'h00_0004, 25'h00_0008, 25'h00_000A, 25'h00_000C,
+        25'h00_0010, 25'h00_0014, 25'h00_0018, 25'h00_001A, 25'h00_001C, 25'h00_0020
+      });
+    end else if (op inside {sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE}) begin
+      return (a inside {
+        25'h100_1000, 25'h100_1004, 25'h100_1008, 25'h100_100C, 25'h100_1010,
+        25'h100_1020, 25'h100_1030, 25'h100_1034, 25'h100_1050, 25'h100_1060,
+        25'h100_1064, 25'h100_1080, 25'h100_1090, 25'h100_1100, 25'h100_1104, 25'h100_1108
+      });
+    end
+    return 1'b0;
   endfunction
 
   // Helper to check if packet is a register access request
@@ -69,6 +76,15 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
       sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE,
       sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_32_DMS_REG_WRITE,
       sb_pkg::SB_64_DMS_REG_READ, sb_pkg::SB_64_DMS_REG_WRITE
+    });
+  endfunction
+
+  // Helper to check if packet is a register READ request
+  virtual function bit is_read_req();
+    return (opcode inside {
+      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_CFG_READ,
+      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_CFG_READ,
+      sb_pkg::SB_32_DMS_REG_READ, sb_pkg::SB_64_DMS_REG_READ
     });
   endfunction
 
@@ -162,20 +178,29 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     dstid        = sb_pkt.header.req.dstid;
     srcid        = sb_pkt.header.req.srcid;
     tag          = sb_pkt.header.req.tag;
-    addr         = sb_pkt.header.req.addr;
     be           = sb_pkt.header.req.be;
     cr           = sb_pkt.header.req.cr;
     data         = sb_pkt.payload;
     status       = sb_pkt.header.cpl.status;
 
+    // Restore bit 24 for MMIO (1) vs CFG (0) space
+    if (opcode inside {
+      sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
+      sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE
+    }) begin
+      addr = {1'b1, sb_pkt.header.req.addr[23:0]};
+    end else begin
+      addr = {1'b0, sb_pkt.header.req.addr[23:0]};
+    end
+
     if (is_reg_req()) begin
-      is_valid_req = is_valid_phy_addr(addr);
+      is_valid_req = is_valid_phy_addr(addr, opcode);
     end
   endfunction
 
   function void post_randomize();
     if (is_reg_req()) begin
-      is_valid_req = is_valid_phy_addr(addr);
+      is_valid_req = is_valid_phy_addr(addr, opcode);
     end
     pack_to_struct();
   endfunction
@@ -219,34 +244,65 @@ class rdi_cfg_seq_item_base extends uvm_sequence_item;
     });
   }
 
-  // 5. Opcode and Destination consistency for remote/local messages
+  // 5. Register access requests CANNOT target REMOTE_PHY
+  constraint c_reg_req_dstid {
+    if (is_reg_req()) {
+      soft dstid inside {sb_pkg::LOCAL_PHY, sb_pkg::REMOTE_REG_ACCESS};
+    }
+  }
+
+  // 6. Completion packets driven from Adapter MUST target REMOTE_ADAPTER
+  constraint c_cpl_dstid {
+    if (opcode inside {
+      sb_pkg::SB_COMPLETION_WITHOUT_DATA,
+      sb_pkg::SB_COMPLETION_WITH_32_DATA,
+      sb_pkg::SB_COMPLETION_WITH_64_DATA
+    }) {
+      soft dstid == sb_pkg::REMOTE_ADAPTER;
+    }
+  }
+
+  // 7. Opcode and Destination consistency for remote/local messages and reg requests
   constraint c_op_dst_consistency {
     if (opcode inside {sb_pkg::SB_MSG_WITHOUT_DATA, sb_pkg::SB_MSG_WITH_64_DATA}) {
       soft dstid inside {sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_PHY, sb_pkg::MNGT_PORT_DST};
     }
-    if (dstid inside {sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_REG_ACCESS}) {
-      soft opcode inside {
-        sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
-        sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE,
-        sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE,
-        sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE
-      };
+    if (is_reg_req() && dstid != sb_pkg::LOCAL_PHY) {
+      soft dstid == sb_pkg::REMOTE_REG_ACCESS;
     }
   }
 
-  // 6. cr (Credit Return) is only used for remote destinations
+  // 8. cr (Credit Return) is only used for remote destinations
   constraint c_cr_val {
-    if (!(dstid inside {sb_pkg::REMOTE_PHY, sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_REG_ACCESS})) {
+    if (!(dstid inside {sb_pkg::REMOTE_ADAPTER, sb_pkg::REMOTE_REG_ACCESS})) {
       soft cr == 1'b0;
     }
   }
 
-  // 7. Completion status must be one of 3 valid status codes (0, 1, 2)
+  // 9. Completion status must be SUCCESS or UR (CA is ignored per RTL spec)
   constraint c_valid_status {
-    soft status inside {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR, sb_pkg::SB_CPL_CA};
+    soft status inside {sb_pkg::SB_CPL_SUCCESS, sb_pkg::SB_CPL_UR};
   }
 
-  // 8. Standard valid opcodes set
+  // 10. Opcode-consistent Address distribution for LOCAL_PHY reg requests (85% valid space, 15% invalid for UR status)
+  constraint c_valid_phy_addr_dist {
+    if (dstid == sb_pkg::LOCAL_PHY && is_reg_req()) {
+      if (opcode inside {sb_pkg::SB_32_CFG_READ, sb_pkg::SB_32_CFG_WRITE, sb_pkg::SB_64_CFG_READ, sb_pkg::SB_64_CFG_WRITE}) {
+        soft addr inside {
+          25'h00_0000, 25'h00_0004, 25'h00_0008, 25'h00_000A, 25'h00_000C,
+          25'h00_0010, 25'h00_0014, 25'h00_0018, 25'h00_001A, 25'h00_001C, 25'h00_0020
+        } dist { 1 := 85, 0 := 15 };
+      } else if (opcode inside {sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE, sb_pkg::SB_64_MEM_READ, sb_pkg::SB_64_MEM_WRITE}) {
+        soft addr inside {
+          25'h100_1000, 25'h100_1004, 25'h100_1008, 25'h100_100C, 25'h100_1010,
+          25'h100_1020, 25'h100_1030, 25'h100_1034, 25'h100_1050, 25'h100_1060,
+          25'h100_1064, 25'h100_1080, 25'h100_1090, 25'h100_1100, 25'h100_1104, 25'h100_1108
+        } dist { 1 := 85, 0 := 15 };
+      }
+    }
+  }
+
+  // 11. Standard valid opcodes set
   constraint c_valid_opcodes {
     soft opcode inside {
       sb_pkg::SB_32_MEM_READ, sb_pkg::SB_32_MEM_WRITE,
