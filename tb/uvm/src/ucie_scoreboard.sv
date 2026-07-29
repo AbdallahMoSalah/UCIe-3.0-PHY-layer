@@ -68,8 +68,8 @@ class ucie_scoreboard extends uvm_scoreboard;
 
   // Die 0 Downstream Requests (Adapter -> PHY, from master monitor via ap_rx)
   function void write_sb_die0_rx(rdi_cfg_seq_item_mon item);
-    // Record invalid local register requests for UR response verification
-    if (item.dstid == sb_pkg::LOCAL_PHY && item.is_reg_req() && !item.is_valid_req) begin
+    // Record invalid local register read requests for UR response verification
+    if (item.dstid == sb_pkg::LOCAL_PHY && item.is_read_req() && !item.is_valid_req) begin
       `uvm_info("SCOREBOARD_INVALID_REQ", $sformatf("Queuing Die0 Invalid Local Reg Request (Tag %0d, Addr 0x%h)", 
                 item.tag, item.addr), UVM_HIGH)
       invalid_pending_reqs_die0[item.tag] = item;
@@ -88,11 +88,11 @@ class ucie_scoreboard extends uvm_scoreboard;
     bit is_local_comp;
 
     // Check for local UR completion matching invalid request
-    if (item.dstid == 3'b000 && item.check_cpl_status() != -1 && invalid_pending_reqs_die0.exists(item.tag)) begin
+    if (item.dstid == 3'b000 && item.status == sb_pkg::SB_CPL_UR && invalid_pending_reqs_die0.exists(item.tag)) begin
       req_item = invalid_pending_reqs_die0[item.tag];
       invalid_pending_reqs_die0.delete(item.tag);
 
-      if (item.status == sb_pkg::SB_CPL_UR && item.data == req_item.sb_pkt.header.raw) begin
+      if (item.data == req_item.sb_pkt.header.raw) begin
         match_count++;
         `uvm_info("SCOREBOARD", $sformatf("[UR MATCH #%0d] Die0 UR completion verified (Tag %0d, Status=UR, Payload=Header)", 
                   match_count, item.tag), UVM_LOW)
@@ -113,8 +113,8 @@ class ucie_scoreboard extends uvm_scoreboard;
 
   // Die 1 Downstream Requests (Adapter -> PHY, from master monitor via ap_rx)
   function void write_sb_die1_rx(rdi_cfg_seq_item_mon item);
-    // Record invalid local register requests for UR response verification
-    if (item.dstid == sb_pkg::LOCAL_PHY && item.is_reg_req() && !item.is_valid_req) begin
+    // Record invalid local register read requests for UR response verification
+    if (item.dstid == sb_pkg::LOCAL_PHY && item.is_read_req() && !item.is_valid_req) begin
       `uvm_info("SCOREBOARD_INVALID_REQ", $sformatf("Queuing Die1 Invalid Local Reg Request (Tag %0d, Addr 0x%h)", 
                 item.tag, item.addr), UVM_HIGH)
       invalid_pending_reqs_die1[item.tag] = item;
@@ -133,11 +133,11 @@ class ucie_scoreboard extends uvm_scoreboard;
     bit is_local_comp;
 
     // Check for local UR completion matching invalid request
-    if (item.dstid == 3'b000 && item.check_cpl_status() != -1 && invalid_pending_reqs_die1.exists(item.tag)) begin
+    if (item.dstid == 3'b000 && item.status == sb_pkg::SB_CPL_UR && invalid_pending_reqs_die1.exists(item.tag)) begin
       req_item = invalid_pending_reqs_die1[item.tag];
       invalid_pending_reqs_die1.delete(item.tag);
 
-      if (item.status == sb_pkg::SB_CPL_UR && item.data == req_item.sb_pkt.header.raw) begin
+      if (item.data == req_item.sb_pkt.header.raw) begin
         match_count++;
         `uvm_info("SCOREBOARD", $sformatf("[UR MATCH #%0d] Die1 UR completion verified (Tag %0d, Status=UR, Payload=Header)", 
                   match_count, item.tag), UVM_LOW)
