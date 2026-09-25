@@ -74,3 +74,6 @@ vitis_ucie/**/compile_commands.json
 vitis_ucie/**/*.elf
 vitis_ucie/**/*.log
 .claude
+openlane/runs/
+temp_alligner_uvm/
+tb/uvm/temp_alligner_uvm/

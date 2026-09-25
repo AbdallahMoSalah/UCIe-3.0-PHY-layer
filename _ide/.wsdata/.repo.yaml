@@ -1,0 +1,703 @@
+paths:
+  /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw: {}
+os:
+  freertos10_xilinx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/ThirdParty/bsp/freertos10_xilinx_v1_18
+  standalone:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/bsp/standalone_v9_4
+driver:
+  aiefal:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aiefal_v1_9
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aiefal_v1_8
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aiefal_v1_7
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aiefal_v1_6
+  aienginev2:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aienginev2_v3_8
+  audio_formatter:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/audio_formatter_v1_3
+  avbuf:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/avbuf_v2_6
+  axicdma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axicdma_v4_15
+  axidma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axidma_v9_20
+  axiethernet:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axiethernet_v5_18
+  axipcie:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipcie_v3_4
+  axipmon:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipmon_v6_13
+  axis_switch:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axis_switch_v1_7
+  axivdma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axivdma_v6_16
+  bram:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/bram_v4_13
+  can:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/can_v3_11
+  canfd:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/canfd_v2_11
+  canps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/canps_v3_11
+  cframe:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/cframe_v1_9
+  cfupmc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/cfupmc_v1_9
+  clk_wiz:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/clk_wiz_v1_10
+  clockps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/clockps_v1_6
+  common:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/common_v1_4
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/common_v1_3
+  coresightps_dcc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/coresightps_dcc_v1_13
+  csi2tx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/csi2tx_v1_5
+  csi2txss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/csi2txss_v1_8
+  csi:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/csi_v1_8
+  csudma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/csudma_v1_18
+  dcsub:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dcsub
+  ddrcpsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ddrcpsu_v1_8
+  devcfg:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/devcfg_v3_9
+  dfeccf:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfeccf_v1_9
+  dfeequ:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfeequ_v1_6
+  dfemix:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfemix_v1_7
+  dfeofdm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfeofdm_v1_5
+  dfeprach:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfeprach_v1_8
+  dfxasm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dfxasm_v1_2
+  dmaps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dmaps_v2_11
+  dp12:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp12_v7_6
+  dp12rxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp12rxss_v4_8
+  dp12txss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp12txss_v5_8
+  dp14:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp14_v7_11
+  dp14rxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp14rxss_v8_4
+  dp14txss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp14txss_v6_14
+  dp21:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp21_v2_5
+  dp21rxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp21rxss_v1_5
+  dp21txss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dp21txss_v2_6
+  dpdma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dpdma_v1_6
+  dphy:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dphy_v1_8
+  dppsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dppsu_v1_7
+  dsi2rx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dsi2rx_v1_0
+  dsi:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dsi_v1_5
+  dsirxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dsirxss_v1_1
+  dsitxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dsitxss_v2_6
+  dual_splitter:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dual_splitter_v1_3
+  emaclite:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/emaclite_v4_12
+  emacps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/emacps_v3_23
+  emc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/emc_v4_5
+  gpio:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/gpio_v4_12
+  gpiops:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/gpiops_v3_14
+  hdcp1x:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp1x_v4_9
+  hdcp22_cipher_dp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_cipher_dp_v2_2
+  hdcp22_cipher:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_cipher_v1_4
+  hdcp22_common:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_common_v2_3
+  hdcp22_mmult:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_mmult_v1_5
+  hdcp22_rng:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_rng_v1_5
+  hdcp22_rx_dp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_rx_dp_v3_1
+  hdcp22_rx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_rx_v3_2
+  hdcp22_tx_dp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_tx_dp_v3_2
+  hdcp22_tx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hdcp22_tx_v3_1
+  hwicap:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/hwicap_v11_7
+  i2srx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/i2srx_v2_4
+  i2stx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/i2stx_v2_4
+  i3c:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/i3c_v1_2
+  i3cpsx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/i3cpsx_v1_6
+  iic:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/iic_v3_14
+  iicps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/iicps_v3_22
+  intc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/intc_v3_21
+  iomodule:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/iomodule_v2_19
+  ipipsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ipipsu_v2_18
+  llfifo:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/llfifo_v6_0
+  mbox:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mbox_v4_9
+  mcdma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mcdma_v1_13
+  mipi_rx_phy:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mipi_rx_phy_v1_1
+  mipi_tx_phy:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mipi_tx_phy_v1_0
+  mipicsiss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mipicsiss_v1_14
+  mmidp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mmidp
+  mutex:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/mutex_v4_10
+  nandps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/nandps_v2_10
+  nandpsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/nandpsu_v1_15
+  ospipsv:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ospipsv_v1_13
+  pciepsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/pciepsu_v2_2
+  prc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/prc_v2_3
+  prd:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/prd_v2_3
+  qspips:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/qspips_v3_14
+  qspipsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/qspipsu_v1_22
+  resetps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/resetps_v1_7
+  rfdc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/rfdc_v13_0
+  rtcpsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/rtcpsu_v1_16
+  scugic:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/scugic_v5_6
+  scutimer:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/scutimer_v2_7
+  scuwdt:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/scuwdt_v2_6
+  sd_fec:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sd_fec_v1_4
+  sdi_common:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sdi_common_v1_4
+  sdiaud:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sdiaud_v2_3
+  sdps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sdps_v4_5
+  spdif:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/spdif_v1_2
+  spi:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/spi_v4_15
+  spips:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/spips_v3_13
+  srio:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/srio_v1_7
+  sysmon:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sysmon_v7_10
+  sysmonpsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sysmonpsu_v3_2
+  sysmonpsv:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sysmonpsv_v5_2
+  tft:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/tft_v6_7
+  tmr_inject:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/tmr_inject_v1_7
+  tmr_manager:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/tmr_manager_v1_8
+  tmrctr:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/tmrctr_v4_14
+  trafgen:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/trafgen_v4_8
+  trngpsv:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/trngpsv_v1_7
+  trngpsx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/trngpsx_v1_5
+  ttcps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  uartlite:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/uartlite_v3_12
+  uartns550:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/uartns550_v3_13
+  uartps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/uartps_v3_17
+  uartpsv:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/uartpsv_v1_13
+  ufspsxc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ufspsxc_v1_2
+  usb:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/usb_v5_7
+  usbps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/usbps_v2_10
+  usbpsu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/usbpsu_v1_18
+  v_axi4s_remap:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_axi4s_remap_v1_4
+  v_csc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_csc_v2_7
+  v_deinterlacer:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_deinterlacer_v7_4
+  v_demosaic:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_demosaic_v1_4
+  v_frmbuf_rd:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_frmbuf_rd_v5_1
+  v_frmbuf_wr:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_frmbuf_wr_v5_1
+  v_gamma_lut:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_gamma_lut_v1_5
+  v_hcresampler:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hcresampler_v3_4
+  v_hdmi_common:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmi_common_v1_9
+  v_hdmiphy1:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmiphy1_v2_11
+  v_hdmirx1:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmirx1_v1_10
+  v_hdmirx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmirx_v2_9
+  v_hdmirxss1:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmirxss1_v3_8
+  v_hdmirxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmirxss_v6_8
+  v_hdmitx1:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmitx1_v2_6
+  v_hdmitx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmitx_v2_8
+  v_hdmitxss1:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmitxss1_v3_8
+  v_hdmitxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hdmitxss_v6_7
+  v_hscaler:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_hscaler_v3_6
+  v_letterbox:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_letterbox_v2_5
+  v_mix:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_mix_v7_0
+  v_multi_scaler:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_multi_scaler_v1_5
+  v_scenechange:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_scenechange_v1_5
+  v_sdirx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_sdirx_v2_6
+  v_sdirxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_sdirxss_v3_5
+  v_sditx:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_sditx_v3_4
+  v_sditxss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_sditxss_v4_6
+  v_tpg:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_tpg_v8_6
+  v_vcresampler:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_vcresampler_v3_4
+  v_vscaler:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_vscaler_v3_4
+  v_warp_filter:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_warp_filter_v1_4
+  v_warp_init:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/v_warp_init_v1_5
+  video_common:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/video_common_v4_18
+  visp_ss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/visp_ss_v2_0
+  vphy:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/vphy_v1_18
+  vprocss:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/vprocss_v2_15
+  vtc:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/vtc_v8_7
+  wdtps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/wdtps_v3_8
+  wdttb:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/wdttb_v5_11
+  xadcps:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/xadcps_v2_7
+  xdmapcie:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/xdmapcie_v3_1
+  xxvethernet:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/xxvethernet_v1_12
+  zdma:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+library:
+  libmetal:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/ThirdParty/sw_services/libmetal_v2_9
+  lwip220:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/ThirdParty/sw_services/lwip220_v1_3
+  openamp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/ThirdParty/sw_services/openamp_v1_12
+  aiebaremetal:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/aiebaremetal_v1_0
+  xilasu:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilasu
+  xilcert:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilcert_v1_5
+  xilffs:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilffs_v5_5
+  xilflash:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilflash_v4_12
+  xilfpga:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilfpga_v6_9
+  xilloader:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilloader_v2_3
+  xilmailbox:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilmailbox_v1_12
+  xilnvm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilnvm_v3_6
+  xilocp:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilocp_v1_6
+  xilpdi:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilpdi_v1_12
+  xilpki:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilpki_v2_3
+  xilplmi:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilplmi_v2_3
+  xilpm_ng:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilpm_ng
+  xilpm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilpm_v6_1
+  xilpuf:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilpuf_v2_6
+  xilrsa:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilrsa_v1_8
+  xilsecure:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilsecure_v5_6
+  xilsem:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilsem_v1_12
+  xilsfl:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilsfl_v1_2
+  xilskey:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xilskey_v7_8
+  xiltimer:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xiltimer_v2_3
+  xiltpm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_services/xiltpm_v1_1
+apps:
+  asufw:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/asufw
+  ddr_self_refresh:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/ddr_self_refresh
+  dhrystone:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/dhrystone
+  empty_application:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/empty_application
+  freertos_hello_world:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_hello_world
+  freertos_lwip_echo_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_lwip_echo_server
+  freertos_lwip_tcp_perf_client:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_lwip_tcp_perf_client
+  freertos_lwip_tcp_perf_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_lwip_tcp_perf_server
+  freertos_lwip_udp_perf_client:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_lwip_udp_perf_client
+  freertos_lwip_udp_perf_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/freertos_lwip_udp_perf_server
+  hello_world:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/hello_world
+  img_rcvry:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/img_rcvry
+  libmetal_echo_demo:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/libmetal_echo_demo
+  lwip_echo_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/lwip_echo_server
+  lwip_tcp_perf_client:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/lwip_tcp_perf_client
+  lwip_tcp_perf_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/lwip_tcp_perf_server
+  lwip_udp_perf_client:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/lwip_udp_perf_client
+  lwip_udp_perf_server:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/lwip_udp_perf_server
+  mba_fs_boot:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/mba_fs_boot
+  memory_tests:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/memory_tests
+  openamp_echo_test:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/openamp_echo_test
+  openamp_matrix_multiply:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/openamp_matrix_multiply
+  openamp_rpc_demo:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/openamp_rpc_demo
+  peripheral_tests:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/peripheral_tests
+  rsa_auth_app:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/rsa_auth_app
+  srec_bootloader:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/srec_bootloader
+  srec_spi_bootloader:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/srec_spi_bootloader
+  versal_plm:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/versal_plm
+  versal_psmfw:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/versal_psmfw
+  zynq_dram_test:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/zynq_dram_test
+  zynq_fsbl:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/zynq_fsbl
+  zynqmp_dram_test:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/zynqmp_dram_test
+  zynqmp_fsbl:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/zynqmp_fsbl
+  zynqmp_pmufw:
+    path:
+    - /home/eldo/work/vivado/2025.2.1/Vitis/data/embeddedsw/lib/sw_apps/zynqmp_pmufw

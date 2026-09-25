@@ -237,7 +237,26 @@ module LTSM_wrapper #(
 
     state_n_e    current_ltsm_state_n;
     logic timeout_timer_en, timer_rst_n;
-    assign clk_embedded_en = (current_ltsm_state_n > LOG_MBINIT_REPAIRCLK);
+
+    always_ff @(posedge clk)
+    begin
+        if (~rst_n)
+        begin
+            clk_embedded_en <= 1'b0;
+        end
+        else
+        begin
+            if ((current_ltsm_state_n > LOG_MBINIT_REPAIRCLK))
+            begin
+                clk_embedded_en <= 1'b1;
+            end
+            else
+            begin
+                clk_embedded_en <= 1'b0;
+            end
+        end
+    end
+
     // =========================================================================
     // MBTRAIN block <-> wrapper signals (declared early to satisfy ordering)
     // =========================================================================
@@ -480,7 +499,7 @@ module LTSM_wrapper #(
         endcase
     end
     //==========================================================================
-    // runtime test ctrl change sense logic 
+    // runtime test ctrl change sense logic
     //==========================================================================
     logic rt_link_test_changed;
     logic start_bit_reg,rt_apply_module_0_lane_repair_ctrl_out_reg;
@@ -507,8 +526,8 @@ module LTSM_wrapper #(
         end
     end
     assign rt_link_test_changed = (rt_apply_module_0_lane_repair_ctrl_out != rt_apply_module_0_lane_repair_ctrl_out_reg) ||
-                                  (module_0_lane_repair_id_ctrl_out != module_0_lane_repair_id_ctrl_out_reg) ||
-                                  (start_bit != start_bit_reg);
+        (module_0_lane_repair_id_ctrl_out != module_0_lane_repair_id_ctrl_out_reg) ||
+        (start_bit != start_bit_reg);
     //==========================================================================
     logic [2:0] mb_pll_speed_sel_reg;
     always_ff @(posedge clk or negedge rst_n) begin
@@ -857,8 +876,8 @@ module LTSM_wrapper #(
             busy_flag <= 1'b0;
         end
     end
-    
-always_comb  begin
+
+    always_comb  begin
         busy_bit_PHY_RETRAIN = busy_flag ;
         if(start_bit && (current_ltsm_state_n == LOG_PHYRETRAIN))begin
             busy_bit_PHY_RETRAIN = 1'b1;
@@ -1645,44 +1664,6 @@ always_comb  begin
         reg_L2SPD_enable_status       = reg_L2SPD_enable_status_reg;
         reg_PSPT_enable_status        = reg_PSPT_enable_status_reg;
 
-        if (current_ltsm_state == RESET) begin
-            mb_rx_data_lane_mask          = 3'b011;
-            mb_tx_data_lane_mask          = 3'b011;
-            mb_lane_reversal_req          = 1'b0;
-            reg_Clock_Phase_enable_status = 1'b0;
-            reg_Clock_mode_enable_status  = 1'b0;
-            reg_TARR_enable_status        = 1'b0;
-            reg_Link_Width_enable_status  = 4'h0;
-            reg_Link_Speed_enable_status  = 4'h0;
-            reg_PMO_enable_status         = 1'b0;
-            reg_L2SPD_enable_status       = 1'b0;
-            reg_PSPT_enable_status        = 1'b0;
-        end else if (current_ltsm_state == MBINIT) begin
-            mb_rx_data_lane_mask          = mbinit_rx_data_lane_mask;
-            mb_tx_data_lane_mask          = mbinit_tx_data_lane_mask;
-            mb_lane_reversal_req          = mbinit_mb_lane_reversal_req;
-            reg_Clock_Phase_enable_status = mbinit_reg_Clock_Phase_enable_status;
-            reg_Clock_mode_enable_status  = mbinit_reg_Clock_mode_enable_status;
-            reg_TARR_enable_status        = mbinit_reg_TARR_enable_status;
-            reg_Link_Width_enable_status  = mbinit_reg_Link_Width_enable_status;
-            reg_Link_Speed_enable_status  = mbinit_reg_Link_Speed_enable_status;
-            reg_PMO_enable_status         = mbinit_reg_PMO_enable_status;
-            reg_L2SPD_enable_status       = mbinit_reg_L2SPD_enable_status;
-            reg_PSPT_enable_status        = mbinit_reg_PSPT_enable_status;
-        end else if (current_ltsm_state == MBTRAIN) begin
-            // Present the final MBTRAIN-computed masks only when MBTRAIN is done;
-            // before that, keep the MBINIT-negotiated value from the register.
-            if (current_ltsm_state_n != LOG_MBTRAIN_VALVREF) begin
-                if (mbtrain_mb_rx_data_lane_mask != 3'b000)
-                    mb_rx_data_lane_mask      = mbtrain_mb_rx_data_lane_mask;
-                if (mbtrain_mb_tx_data_lane_mask != 3'b000)
-                    mb_tx_data_lane_mask      = mbtrain_mb_tx_data_lane_mask;
-            end
-            reg_Link_Speed_enable_status  = {1'b0,mbtrain_phy_negotiated_speed};
-        end
-        else if(current_ltsm_state_n == LOG_LINKINIT)begin
-            reg_Link_Width_enable_status = get_width_code(mb_tx_data_lane_mask_reg);
-        end
     end
 
     assign sb_pattern_mode      = (current_ltsm_state == RESET) || (sbinit_pattern_mode && current_ltsm_state == SBINIT);

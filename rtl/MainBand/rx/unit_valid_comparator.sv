@@ -89,9 +89,9 @@ module unit_valid_comparator #(
     reg [4:0]  consecutive_ctr;   // consecutive matching bytes (mode 0)
 
     integer b;
+    reg [4:0] temp_ctr;
+    reg       temp_pass;
     always @(posedge i_clk or negedge i_rst_n) begin
-        reg [4:0] temp_ctr;
-        reg       temp_pass;
         if (!i_rst_n) begin
             state           <= S_IDLE;
             iter_ctr        <= 16'd0;
@@ -100,6 +100,8 @@ module unit_valid_comparator #(
             o_done          <= 1'b0;
             o_pass          <= 1'b0;
             o_valid_frame_error <= 1'b0;
+            temp_ctr        = 5'd0;
+            temp_pass       = 1'b0;
         end else if (i_clear_error) begin
             state           <= S_IDLE;
             iter_ctr        <= 16'd0;
@@ -108,6 +110,8 @@ module unit_valid_comparator #(
             o_done          <= 1'b0;
             o_pass          <= 1'b0;
             o_valid_frame_error <= 1'b0;
+            temp_ctr        = 5'd0;
+            temp_pass       = 1'b0;
         end else begin
             // Default value to ensure pulse behavior
             o_valid_frame_error <= 1'b0;

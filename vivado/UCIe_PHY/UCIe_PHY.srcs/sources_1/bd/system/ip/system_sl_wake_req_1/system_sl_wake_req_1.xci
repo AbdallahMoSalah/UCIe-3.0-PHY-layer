@@ -11,17 +11,17 @@
         "Component_Name": [ { "value": "system_sl_wake_req_1", "resolve_type": "user", "usage": "all" } ],
         "DIN_TO": [ { "value": "5", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "DIN_FROM": [ { "value": "5", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "DIN_WIDTH": [ { "value": "25", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "DIN_WIDTH": [ { "value": "30", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "DOUT_WIDTH": [ { "value": "1", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ]
       },
       "model_parameters": {
-        "DIN_WIDTH": [ { "value": "25", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "DIN_WIDTH": [ { "value": "30", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "DIN_FROM": [ { "value": "5", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "DIN_TO": [ { "value": "5", "resolve_type": "generated", "format": "long", "usage": "all" } ]
       },
       "project_parameters": {
         "ARCHITECTURE": [ { "value": "zynquplus", "resolve_type": "generated", "usage": "all" } ],
-        "BASE_BOARD_PART": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
+        "BASE_BOARD_PART": [ { "value": "avnet-tria:ultra96v2:part0:1.3", "resolve_type": "generated", "usage": "all" } ],
         "BOARD_CONNECTIONS": [ { "value": "", "resolve_type": "generated", "usage": "all" } ],
         "DEVICE": [ { "value": "xczu3eg", "resolve_type": "generated", "usage": "all" } ],
         "PACKAGE": [ { "value": "sbva484", "resolve_type": "generated", "usage": "all" } ],
@@ -38,17 +38,17 @@
         "MANAGED": [ { "value": "TRUE" } ],
         "OUTPUTDIR": [ { "value": "../../../../../../UCIe_PHY.gen/sources_1/bd/system/ip/system_sl_wake_req_1" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
-        "SHAREDDIR": [ { "value": "../../ipshared" } ],
+        "SHAREDDIR": [ { "value": "../../../../../../UCIe_PHY.srcs/sources_1/bd/system/ipshared" } ],
         "SWVERSION": [ { "value": "2025.2.1" } ],
         "SYNTHESISFLOW": [ { "value": "GLOBAL" } ]
       }
     },
     "boundary": {
       "ports": {
-        "Din": [ { "direction": "in", "size_left": "24", "size_right": "0" } ],
+        "Din": [ { "direction": "in", "size_left": "29", "size_right": "0" } ],
         "Dout": [ { "direction": "out", "size_left": "0", "size_right": "0" } ]
       }
     }
   },
-  "checksum": "bbe64246"
+  "checksum": "4eca19be"
 }

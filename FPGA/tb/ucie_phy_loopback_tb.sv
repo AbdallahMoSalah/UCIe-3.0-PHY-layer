@@ -137,6 +137,19 @@ module ucie_phy_loopback_tb;
         @(posedge clk_sb); lp_cfg_vld = 1'b0;
     endtask
 
+    // Message header (NOT a request) destined for the REMOTE adapter -- this is
+    // exactly what main.c step 4 (Ucie_Sb_SendRemoteMsg) emits.
+    function automatic logic [63:0] build_msg_header(sb_opcode_e op, sb_dstid_e dst);
+        sb_header_u hdr;
+        hdr.raw         = '0;
+        hdr.msg.opcode  = op;
+        hdr.msg.dstid   = dst;
+        hdr.msg.srcid   = ADAPTER;
+        hdr.msg.msgcode = msg_code_e'(8'h00);
+        hdr.msg.cp      = ^(hdr.raw[61:0]);
+        return hdr.raw;
+    endfunction
+
     task automatic reg_wr_cfg(input logic [23:0] addr, input logic [63:0] data);
         send_chunks64(build_wr_header(SB_64_CFG_WRITE, addr, 8'h0F), data);
     endtask
@@ -238,6 +251,39 @@ module ucie_phy_loopback_tb;
             chk(data_pass, "MainBand flit looped back successfully", 2);
         end else begin
             $display("T=%0t | [SC2] Skipped (no ACTIVE).", $time);
+        end
+
+        // ---- SC3 : POST-ACTIVE sideband remote-message loopback ----
+        //   Reproduces main.c step 4 in the TRAINED self-loop: send an adapter
+        //   message to REMOTE_ADAPTER and expect it back on pl_cfg. The clk
+        //   handshake is auto-serviced by the responder (lp_clk_ack<=pl_clk_req).
+        if (ok) begin
+            bit sb_msg_back = 1'b0;
+            $display("\nT=%0t | [SC3] POST-ACTIVE sideband remote-message loopback...", $time);
+            send_chunks64(build_msg_header(SB_MSG_WITH_64_DATA, REMOTE_ADAPTER),
+                          64'hDEADBEEF_CAFEF00D);
+            // Passive monitor: note when pl_clk_req fires (does NOT end the wait).
+            fork
+                begin wait (pl_clk_req);
+                      $display("T=%0t | [SC3] pl_clk_req asserted (upstream traffic pending)", $time); end
+            join_none
+            // Wait specifically for the delivered upstream chunk, or time out.
+            fork
+                begin
+                    wait (pl_cfg_vld);
+                    $display("T=%0t | [SC3] pl_cfg returned: 0x%08h", $time, pl_cfg);
+                    sb_msg_back = 1'b1;
+                end
+                begin
+                    repeat (8000) @(posedge clk_sb);
+                    $error("T=%0t | [SC3] TIMEOUT: remote msg never delivered (pl_clk_req=%0b pl_cfg_vld=%0b)",
+                           $time, pl_clk_req, pl_cfg_vld);
+                end
+            join_any
+            disable fork;
+            chk(sb_msg_back, "sideband remote message looped back to pl_cfg", 3);
+        end else begin
+            $display("T=%0t | [SC3] Skipped (no ACTIVE).", $time);
         end
 
         $display("\n================================================================");

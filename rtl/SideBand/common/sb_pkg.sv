@@ -48,6 +48,12 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
     MNGT_PORT_DST     = 3'b111
   } sb_dstid_e;
 
+  typedef enum logic [2:0] {  //completion status enum
+    SB_CPL_SUCCESS = 3'b000,
+    SB_CPL_UR      = 3'b001,
+    SB_CPL_CA      = 3'b010
+  } sb_cpl_status_e;
+
 /*   typedef enum logic [3:0] {  //RDI message number enum
     ACTIVE_REQ = 4'b0000,
     L1_REQ = 4'b0001,
@@ -148,5 +154,26 @@ parameter  SERDES_CLK = (1000/SERDES_FREQ);
     logic [63:0] payload;  // [127:64]
     sb_header_u  header;   // [63:0]
   } sb_packet_t;
+
+  // Helper function to decode expected 32-bit chunk count based on sideband opcode
+  function automatic int get_expected_chunks(sb_opcode_e op);
+    case (op)
+      SB_32_MEM_READ, SB_32_DMS_REG_READ, SB_32_CFG_READ,
+      SB_64_MEM_READ, SB_64_DMS_REG_READ, SB_64_CFG_READ,
+      SB_COMPLETION_WITHOUT_DATA, SB_MSG_WITHOUT_DATA,
+      SB_MNGT_PORT_MSG_WITHOUT_DATA: begin
+        return 2;
+      end
+      SB_32_MEM_WRITE, SB_32_DMS_REG_WRITE, SB_32_CFG_WRITE,
+      SB_COMPLETION_WITH_32_DATA: begin
+        return 3;
+      end
+      SB_64_MEM_WRITE, SB_64_DMS_REG_WRITE, SB_64_CFG_WRITE,
+      SB_COMPLETION_WITH_64_DATA, SB_MSG_WITH_64_DATA: begin
+        return 4;
+      end
+      default: return 2;
+    endcase
+  endfunction
 
 endpackage
